@@ -171,7 +171,7 @@ describe("retention", () => {
             touchRetention(["a"]);
             await expect(flushRetention()).resolves.toBeUndefined(); // does not reject
             expect(spy).toHaveBeenCalledTimes(1);
-            expect(errLog).toHaveBeenCalledWith("[retention] flush failed:", err);
+            expect(errLog).toHaveBeenCalledWith("[retention] flush failed:", err, { entries: 1 });
         });
     });
 

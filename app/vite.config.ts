@@ -70,7 +70,9 @@ export default defineConfig({
         // Keep the installable PWA manifest and offline worker, but do not let
         // Workbox decide when to reload an active client. Deploy detection and
         // the user-facing reload prompt are handled by versionManifest below.
+        // The native build already ships every asset locally, so it gets no worker.
         VitePWA({
+            disable: env.VITE_BUILD_TARGET === "native",
             registerType: "prompt",
             includeAssets: ["src/assets"],
             manifest: {

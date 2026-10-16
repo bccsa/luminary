@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import {
     DocumentDuplicateIcon,
     PencilSquareIcon,
@@ -8,8 +8,26 @@ import {
     ShareIcon,
 } from "@heroicons/vue/24/outline";
 import { useI18n } from "vue-i18n";
-import { db } from "luminary-shared";
-import { getHighlightHtml, type SavedHighlight } from "@/recommendation/highlightStore";
+import { db, reportError } from "luminary-shared";
+import {
+    getHighlightRanges,
+    getLegacyHighlightHtml,
+    type SavedHighlight,
+} from "@/recommendation/highlightStore";
+import {
+    HIGHLIGHT_COLORS,
+    addHighlight,
+    anchorHighlights,
+    extendToPunctuation,
+    overlaps,
+    paintHighlights,
+    rangesFromLegacyHtml,
+    removeHighlights,
+    snapToWords,
+    textOffset,
+    type HighlightColor,
+    type HighlightRange,
+} from "@/util/highlightRanges";
 import TelegramIcon from "@/components/icons/TelegramIcon.vue";
 import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
 import XIcon from "@/components/icons/XIcon.vue";
@@ -31,35 +49,39 @@ const props = withDefaults(
         copyright?: string;
         /** Gates the share targets on the ACL Share permission; defaults open for callers that don't check it. */
         canShare?: boolean;
+        /** Changes whenever the slotted article is re-rendered, so its highlights are repainted. */
+        revision?: unknown;
     }>(),
     { canShare: true },
 );
 // Fired when a highlight is created or genuinely removed. The parent (which knows
 // the content's tags) decides what to do with these events. `highlightsChanged` is
-// emitted only after IndexedDB reflects the active markup, so other local consumers
+// emitted only after IndexedDB reflects the active highlights, so other local consumers
 // can safely re-read it without coupling this generic component to recommendations.
 const emit = defineEmits<{ highlighted: []; highlightRemoved: []; highlightsChanged: [] }>();
 
 const { t } = useI18n();
 
 const content = ref<HTMLElement | undefined>(undefined);
+const prose = ref<HTMLElement | undefined>(undefined);
+// Source of truth for this article's highlights; the DOM marks are only a rendering of it.
+let highlights: HighlightRange[] = [];
 const actionsMenu = ref<HTMLElement | undefined>(undefined);
 const showActions = ref(false);
 const menuPos = ref({ x: 0, y: 0 });
+const menuWidth = ref(0);
+// Centred on the selection, but never hanging off either side of the screen.
+const menuLeft = computed(() => {
+    const half = menuWidth.value / 2 + 8;
+    return Math.max(half, Math.min(menuPos.value.x, window.innerWidth - half));
+});
 const isHighlighted = ref(false);
+const canHighlight = ref(false);
 const showColorPicker = ref(false);
 const showShareMenu = ref(false);
 const selectedTextForShare = ref("");
 
 let debounceTimeout: ReturnType<typeof setTimeout> | undefined;
-
-const colors = {
-    yellow: "rgba(253, 224, 71, 0.5)",
-    green: "rgba(74, 222, 128, 0.5)",
-    blue: "rgba(96, 165, 250, 0.5)",
-    pink: "rgba(244, 114, 182, 0.5)",
-    purple: "rgba(192, 132, 252, 0.5)",
-};
 
 // Selection Logic
 
@@ -92,11 +114,7 @@ function updateMenuState() {
 
     if (rect) {
         checkIfHighlighted();
-        // Center menu above the selection
-        menuPos.value = {
-            x: rect.left + rect.width / 2,
-            y: rect.top - 8,
-        };
+        positionMenu(rect);
         showActions.value = true;
     } else {
         const sel = window.getSelection();
@@ -108,98 +126,132 @@ function updateMenuState() {
     }
 }
 
-function checkIfHighlighted() {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) {
-        isHighlighted.value = false;
-        return;
-    }
-
-    const range = sel.getRangeAt(0);
-    // Check if the start of the selection is inside a mark
-    let node: Node | undefined = range.startContainer;
-    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement ?? undefined;
-    isHighlighted.value = !!(node as Element | undefined)?.closest?.("mark");
-}
-// Highlighting (Recursive Safe Method)
-
-function wrapTextNodes(range: Range, color: string) {
-    // Capture range details before any DOM mutations
-    const startNode = range.startContainer;
-    const endNode = range.endContainer;
-    const startOffset = range.startOffset;
-    const endOffset = range.endOffset;
-
-    const nodes: Text[] = [];
-
-    // If the common ancestor is a text node, the selection is fully contained within it
-    if (range.commonAncestorContainer.nodeType === Node.TEXT_NODE) {
-        nodes.push(range.commonAncestorContainer as Text);
-    } else {
-        const walker = document.createTreeWalker(
-            range.commonAncestorContainer,
-            NodeFilter.SHOW_TEXT,
-            {
-                acceptNode(node) {
-                    // Robust check: if node intersects the range, we accept it.
-                    // This handles cases where start/end containers are Elements or Text nodes.
-                    return range.intersectsNode(node)
-                        ? NodeFilter.FILTER_ACCEPT
-                        : NodeFilter.FILTER_REJECT;
-                },
-            },
-        );
-
-        while (walker.nextNode()) {
-            nodes.push(walker.currentNode as Text);
-        }
-    }
-
-    // Helper to wrap a node with the highlight color
-    const wrap = (n: Text, c: string) => {
-        if (!n.nodeValue?.trim()) return;
-        const mark = document.createElement("mark");
-        mark.style.backgroundColor = c;
-        mark.className = "rounded-sm px-0.5 box-decoration-clone";
-        n.parentNode?.insertBefore(mark, n);
-        mark.appendChild(n);
+function positionMenu(rect: DOMRect) {
+    // Center menu above the selection
+    menuPos.value = {
+        x: rect.left + rect.width / 2,
+        y: rect.top - 8,
     };
+}
 
-    nodes.forEach((node) => {
-        //  Handle Start Node
-        if (node === startNode) {
-            if (node === endNode) {
-                // Selection is within a single text node
-                const part = node.splitText(startOffset);
-                part.splitText(endOffset - startOffset);
-                wrap(part, color);
-            } else {
-                // Start of multi-node selection
-                // splitText returns the new node (the right part), which is the part selected
-                const part = node.splitText(startOffset);
-                wrap(part, color);
-            }
-        }
-        // Handle End Node
-        else if (node === endNode) {
-            // End of multi-node selection
-            // splitText at endOffset. The left part (original node) is what we want.
-            node.splitText(endOffset);
-            wrap(node, color);
-        }
-        // Handle Intermediate Nodes
-        else {
-            wrap(node, color);
-        }
+function repositionMenu() {
+    const rect = getSelectionRect();
+    if (rect) positionMenu(rect);
+}
+
+let scrollFrame: number | undefined;
+
+// The popup is `fixed`, so it has to be moved along with the text it points at.
+function onScroll() {
+    if (!showActions.value) return;
+    if (scrollFrame !== undefined) cancelAnimationFrame(scrollFrame);
+    scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = undefined;
+        repositionMenu();
     });
+}
 
+// The popup's width changes with what it shows (colours, share targets).
+const menuResizeObserver =
+    typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => (menuWidth.value = actionsMenu.value?.offsetWidth ?? 0))
+        : undefined;
+
+watch(actionsMenu, (el, old) => {
+    if (old) menuResizeObserver?.unobserve(old);
+    if (!el) return;
+    menuWidth.value = el.offsetWidth;
+    menuResizeObserver?.observe(el);
+});
+
+// Reflowing the article (reader settings, rotation) moves the selection out from under the popup.
+const contentResizeObserver =
+    typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => {
+              if (showActions.value) repositionMenu();
+          })
+        : undefined;
+
+/** The selection as offsets into the article text, if it lies inside it. */
+function selectionBounds(): { start: number; end: number; text: string } | undefined {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0 || !prose.value) return undefined;
+    const range = sel.getRangeAt(0);
+    if (!prose.value.contains(range.commonAncestorContainer)) return undefined;
+    return {
+        start: textOffset(prose.value, range.startContainer, range.startOffset),
+        end: textOffset(prose.value, range.endContainer, range.endOffset),
+        text: prose.value.textContent ?? "",
+    };
+}
+
+const BLOCKS = "p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, td, th, dd, dt, figcaption";
+
+/** What a new highlight would cover: whole words, running on to the end of the phrase. */
+function selectedWords() {
+    const bounds = selectionBounds();
+    const snapped = bounds && snapToWords(bounds.text, bounds.start, bounds.end);
+    if (!snapped || !prose.value) return snapped;
+
+    // The phrase can't run past the paragraph the selection ends in.
+    const range = window.getSelection()!.getRangeAt(0);
+    const endEl =
+        range.endContainer instanceof Element
+            ? range.endContainer
+            : range.endContainer.parentElement;
+    const block = endEl?.closest(BLOCKS);
+    const limit =
+        block && prose.value.contains(block)
+            ? textOffset(prose.value, block, block.childNodes.length)
+            : bounds.text.length;
+    return { start: snapped.start, end: extendToPunctuation(bounds.text, snapped.end, limit) };
+}
+
+/** Highlights the raw selection touches — unsnapped, so a stray mark on punctuation can still be removed. */
+function selectedHighlights(): { start: number; end: number } | undefined {
+    const bounds = selectionBounds();
+    return bounds && highlights.some((h) => overlaps(h, bounds.start, bounds.end))
+        ? bounds
+        : undefined;
+}
+
+function checkIfHighlighted() {
+    isHighlighted.value = !!selectedHighlights();
+    canHighlight.value = !!selectedWords();
+}
+
+// Highlighting
+
+function applyColor(color: HighlightColor) {
+    const offsets = selectedWords();
+    if (!offsets || !prose.value) return;
+    highlights = addHighlight(
+        highlights,
+        prose.value.textContent ?? "",
+        offsets.start,
+        offsets.end,
+        color,
+    );
+    paintHighlights(prose.value, highlights);
     emit("highlighted");
     finalizeHighlight();
 }
 
+function removeHighlight() {
+    const offsets = selectedHighlights();
+    if (offsets && prose.value) {
+        const remaining = removeHighlights(highlights, offsets.start, offsets.end);
+        if (remaining.length < highlights.length) {
+            highlights = remaining;
+            paintHighlights(prose.value, highlights);
+            emit("highlightRemoved");
+        }
+    }
+    finalizeHighlight();
+}
+
 function finalizeHighlight() {
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
+    window.getSelection()?.removeAllRanges();
     // Persist first: the change notification lets recommendation consumers safely
     // re-read the active highlight text without racing the IndexedDB write.
     void saveHighlights().then((saved) => {
@@ -207,133 +259,6 @@ function finalizeHighlight() {
     });
     showActions.value = false;
     showColorPicker.value = false;
-}
-
-function applyColor(color: string) {
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) {
-        wrapTextNodes(sel.getRangeAt(0), color);
-    }
-}
-
-function removeHighlight() {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-
-    const range = sel.getRangeAt(0);
-    const startOffset = range.startOffset;
-    const endOffset = range.endOffset;
-    const startContainer = range.startContainer;
-    const endContainer = range.endContainer;
-
-    // Find all marks intersecting the range
-    const marks = document.querySelectorAll("mark");
-    const marksToProcess: HTMLElement[] = [];
-    let didRemoveHighlight = false;
-
-    marks.forEach((mark) => {
-        if (range.intersectsNode(mark) && content.value?.contains(mark)) {
-            marksToProcess.push(mark);
-        }
-    });
-
-    // Also check ancestor
-    let container = range.commonAncestorContainer;
-    if (container.nodeType === Node.TEXT_NODE) container = container.parentElement as Element;
-    const ancestorMark = (container as Element).closest("mark");
-    if (ancestorMark && !marksToProcess.includes(ancestorMark)) marksToProcess.push(ancestorMark);
-
-    marksToProcess.forEach((mark) => {
-        const parent = mark.parentNode;
-        if (!parent) return;
-
-        // Get the mark's text content and position info
-        const markText = mark.textContent || "";
-
-        // Check if selection is entirely within this mark (partial removal)
-        const markContainsStart = mark.contains(startContainer);
-        const markContainsEnd = mark.contains(endContainer);
-
-        if (markContainsStart && markContainsEnd && markText.length > 0) {
-            // Calculate the actual offsets within the mark's text
-            let selStart = 0;
-            let selEnd = markText.length;
-
-            // For single text node inside mark
-            if (mark.childNodes.length === 1 && mark.firstChild?.nodeType === Node.TEXT_NODE) {
-                selStart = startOffset;
-                selEnd = endOffset;
-            } else {
-                // For more complex cases, calculate offset by walking the tree
-                const walker = document.createTreeWalker(mark, NodeFilter.SHOW_TEXT);
-                let currentOffset = 0;
-
-                while (walker.nextNode()) {
-                    const textNode = walker.currentNode as Text;
-                    const nodeLength = textNode.length;
-
-                    if (textNode === startContainer) {
-                        selStart = currentOffset + startOffset;
-                    }
-                    if (textNode === endContainer) {
-                        selEnd = currentOffset + endOffset;
-                    }
-                    currentOffset += nodeLength;
-                }
-            }
-
-            // Get the parts
-            const beforeText = markText.substring(0, selStart);
-            const selectedText = markText.substring(selStart, selEnd);
-            const afterText = markText.substring(selEnd);
-
-            const markColor = mark.style.backgroundColor;
-            const markClass = mark.className;
-
-            // Clear mark and rebuild
-            mark.textContent = "";
-
-            // Create "before" part (still highlighted)
-            if (beforeText) {
-                const beforeMark = document.createElement("mark");
-                beforeMark.style.backgroundColor = markColor;
-                beforeMark.className = markClass;
-                beforeMark.textContent = beforeText;
-                parent.insertBefore(beforeMark, mark);
-            }
-
-            // Insert unhighlighted selected text
-            if (selectedText) {
-                const plainText = document.createTextNode(selectedText);
-                parent.insertBefore(plainText, mark);
-            }
-
-            // Create "after" part (still highlighted)
-            if (afterText) {
-                const afterMark = document.createElement("mark");
-                afterMark.style.backgroundColor = markColor;
-                afterMark.className = markClass;
-                afterMark.textContent = afterText;
-                parent.insertBefore(afterMark, mark);
-            }
-
-            // Remove the original empty mark
-            parent.removeChild(mark);
-            parent.normalize();
-            didRemoveHighlight = true;
-        } else {
-            // Full removal - original behavior
-            while (mark.firstChild) {
-                parent.insertBefore(mark.firstChild, mark);
-            }
-            parent.removeChild(mark);
-            parent.normalize();
-            didRemoveHighlight = true;
-        }
-    });
-
-    if (didRemoveHighlight) emit("highlightRemoved");
-    finalizeHighlight();
 }
 
 // Copied text carries its attribution and a link back, so a pasted quote can always be
@@ -442,19 +367,9 @@ async function shareHighlightToInstagram() {
 
 // Persistence
 
-/**
- * Saves highlights to IndexedDB using the luminaryInternals table.
- * Stores the HTML content with highlights for the current content ID, together with
- * an update timestamp used to bound newest-first local recommendation retrieval.
- */
+/** Persists this content's highlights (with an update time for newest-first recommendation reads). */
 async function saveHighlights(): Promise<boolean> {
-    const prose = content.value?.querySelector(".prose");
-    if (!prose) return false;
-
-    const html = prose.innerHTML;
-
     try {
-        // Get existing highlights data from IndexedDB
         const existingData = (await db.getLuminaryInternals("highlights")) || {};
         const data: Record<string, unknown> =
             typeof existingData === "object" &&
@@ -463,42 +378,46 @@ async function saveHighlights(): Promise<boolean> {
                 ? { ...existingData }
                 : {};
 
-        if (html.includes("<mark")) {
+        if (highlights.length) {
             data[props.contentId] = {
-                html,
+                ranges: highlights,
                 updatedAt: Date.now(),
             } satisfies SavedHighlight;
         } else {
             delete data[props.contentId];
         }
 
-        // Save to IndexedDB
         await db.setLuminaryInternals("highlights", data);
         return true;
     } catch (error) {
-        console.error("Failed to save highlights to IndexedDB:", error);
+        reportError(error, { area: "highlights", op: "save" });
         return false;
     }
 }
 
-/**
- * Restores highlights from IndexedDB using the luminaryInternals table.
- * Loads the saved HTML content with highlights for the current content ID.
- */
+let restoreGeneration = 0;
+
+/** Loads this content's highlights and paints them onto the article as it is now. */
 async function restoreHighlights() {
+    const generation = ++restoreGeneration;
+    highlights = [];
     try {
         const data = (await db.getLuminaryInternals("highlights")) || {};
-        const saved =
+        const entry =
             typeof data === "object" && data !== null && !Array.isArray(data)
-                ? getHighlightHtml(data[props.contentId])
+                ? data[props.contentId]
                 : undefined;
+        const legacyHtml = getLegacyHighlightHtml(entry);
+        const saved =
+            getHighlightRanges(entry) ?? (legacyHtml ? rangesFromLegacyHtml(legacyHtml) : []);
 
-        if (saved && content.value) {
-            const prose = content.value.querySelector(".prose");
-            if (prose) prose.innerHTML = saved;
+        if (generation !== restoreGeneration) return; // the article changed mid-load
+        if (saved.length && prose.value) {
+            highlights = anchorHighlights(saved, prose.value.textContent ?? "");
+            paintHighlights(prose.value, highlights);
         }
     } catch (error) {
-        console.error("Failed to restore highlights from IndexedDB:", error);
+        reportError(error, { area: "highlights", op: "restore" });
     }
 }
 
@@ -561,23 +480,36 @@ function documentContextMenuHandler(e: Event) {
     }
 }
 
+// Post-flush: the re-rendered article (and the loss of its marks) has landed by then.
+watch(
+    () => [props.contentId, props.revision],
+    () => void restoreHighlights(),
+    { flush: "post" },
+);
+
 onMounted(async () => {
     await restoreHighlights();
     document.addEventListener("selectionchange", onSelectionChange);
-    document.addEventListener("scroll", onSelectionChange, { passive: true });
+    // Captured: the article scrolls an inner container, whose scroll events don't bubble to document.
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
 
     // Add document-level context menu prevention for iOS
     document.addEventListener("contextmenu", documentContextMenuHandler, { capture: true });
 
     // Add selectstart listener to track when selection begins
     content.value?.addEventListener("selectstart", handleSelectStart);
+    if (content.value) contentResizeObserver?.observe(content.value);
 });
 
 onUnmounted(() => {
     document.removeEventListener("selectionchange", onSelectionChange);
-    document.removeEventListener("scroll", onSelectionChange);
+    document.removeEventListener("scroll", onScroll, { capture: true });
+    if (scrollFrame !== undefined) cancelAnimationFrame(scrollFrame);
     document.removeEventListener("contextmenu", documentContextMenuHandler, { capture: true });
     content.value?.removeEventListener("selectstart", handleSelectStart);
+    contentResizeObserver?.disconnect();
+    menuResizeObserver?.disconnect();
+    clearTimeout(debounceTimeout);
 
     if (touchTimer) {
         clearTimeout(touchTimer);
@@ -595,7 +527,10 @@ onUnmounted(() => {
         @touchcancel.passive="handleTouchCancel"
     >
         <!-- Content Container -->
-        <div class="prose max-w-none select-text">
+        <div
+            ref="prose"
+            class="prose max-w-none select-text"
+        >
             <slot />
         </div>
 
@@ -604,61 +539,70 @@ onUnmounted(() => {
             <div
                 v-if="showActions"
                 ref="actionsMenu"
-                class="fixed z-50 flex -translate-x-1/2 -translate-y-full flex-col items-center rounded-lg bg-white p-1.5 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
-                :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }"
+                class="fixed z-50 flex -translate-x-1/2 -translate-y-full flex-col items-center rounded-full bg-white p-1 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
+                :style="{ left: menuLeft + 'px', top: menuPos.y + 'px' }"
                 @mousedown.stop.prevent
             >
                 <!-- Main Menu -->
                 <div
                     v-if="!showColorPicker && !showShareMenu"
-                    class="flex items-center gap-1"
+                    class="flex flex-col items-center"
                 >
-                    <!-- Highlight Toggle -->
-                    <button
-                        @click="isHighlighted ? removeHighlight() : (showColorPicker = true)"
-                        class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
-                    >
-                        <component
-                            :is="isHighlighted ? TrashIcon : PencilSquareIcon"
-                            class="size-4"
-                        />
-                        {{ isHighlighted ? "Remove" : "Highlight" }}
-                    </button>
-
-                    <div class="mx-0.5 h-4 w-px bg-zinc-200 dark:bg-slate-500"></div>
-
-                    <!-- Copy -->
-                    <button
-                        @click="copyText"
-                        data-test="highlightCopy"
-                        class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
-                    >
-                        <DocumentDuplicateIcon class="size-4" />
-                        Copy
-                    </button>
-
-                    <template v-if="canShare">
-                        <div class="mx-0.5 h-4 w-px bg-zinc-200 dark:bg-slate-500"></div>
-
-                        <!-- Share -->
+                    <div class="flex items-center gap-0.5">
+                        <!-- Highlight: also offered over an existing highlight, to recolour or extend it -->
                         <button
-                            @click="openShareMenu"
-                            data-test="highlightShareTrigger"
-                            class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
+                            v-if="canHighlight"
+                            @click="showColorPicker = true"
+                            data-test="highlightStart"
+                            class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
                         >
-                            <ShareIcon class="size-4" />
-                            Share
+                            <PencilSquareIcon class="size-4" />
+                            {{ t("singlecontent.highlight") }}
                         </button>
-                    </template>
+
+                        <!-- Remove -->
+                        <button
+                            v-if="isHighlighted"
+                            @click="removeHighlight"
+                            data-test="highlightRemove"
+                            class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
+                        >
+                            <TrashIcon class="size-4" />
+                            {{ t("singlecontent.removeHighlight") }}
+                        </button>
+
+                        <!-- Copy -->
+                        <button
+                            @click="copyText"
+                            data-test="highlightCopy"
+                            class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
+                        >
+                            <DocumentDuplicateIcon class="size-4" />
+                            {{ t("singlecontent.copy") }}
+                        </button>
+
+                        <template v-if="canShare">
+                            <!-- Share -->
+                            <button
+                                @click="openShareMenu"
+                                data-test="highlightShareTrigger"
+                                class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
+                            >
+                                <ShareIcon class="size-4" />
+                                {{ t("singlecontent.share") }}
+                            </button>
+                        </template>
+                    </div>
                 </div>
 
                 <!-- Color Picker -->
                 <div
                     v-else-if="showColorPicker"
-                    class="flex items-center gap-2 p-1"
+                    class="flex items-center gap-2 px-1 py-0.5"
                 >
                     <button
                         @click="showColorPicker = false"
+                        :aria-label="t('singlecontent.back')"
                         class="rounded-full p-1 text-zinc-500 hover:bg-zinc-100 dark:text-slate-300 dark:hover:bg-slate-600"
                     >
                         <ChevronLeftIcon class="size-5" />
@@ -666,11 +610,12 @@ onUnmounted(() => {
 
                     <div class="flex gap-2">
                         <button
-                            v-for="(color, name) in colors"
+                            v-for="(color, name) in HIGHLIGHT_COLORS"
                             :key="name"
                             class="size-6 rounded-full ring-1 ring-zinc-200 transition-transform hover:scale-110 dark:ring-slate-400"
                             :style="{ backgroundColor: color }"
-                            @click="applyColor(color)"
+                            :aria-label="t(`singlecontent.highlightColor.${name}`)"
+                            @click="applyColor(name)"
                         ></button>
                     </div>
                 </div>
@@ -678,10 +623,11 @@ onUnmounted(() => {
                 <!-- Share Targets -->
                 <div
                     v-else
-                    class="flex items-center gap-1 p-1"
+                    class="flex items-center gap-1 px-1 py-0.5"
                 >
                     <button
                         @click="closeShareMenu"
+                        :aria-label="t('singlecontent.back')"
                         data-test="highlightShareBack"
                         class="rounded-full p-1 text-zinc-500 hover:bg-zinc-100 dark:text-slate-300 dark:hover:bg-slate-600"
                     >
@@ -692,7 +638,7 @@ onUnmounted(() => {
                         <button
                             @click="shareHighlightToTelegram"
                             data-test="highlightShareTelegram"
-                            aria-label="Share on Telegram"
+                            :aria-label="t('singlecontent.shareTelegram')"
                             class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
                         >
                             <TelegramIcon class="size-5" />
@@ -700,7 +646,7 @@ onUnmounted(() => {
                         <button
                             @click="shareHighlightToWhatsApp"
                             data-test="highlightShareWhatsApp"
-                            aria-label="Share on WhatsApp"
+                            :aria-label="t('singlecontent.shareWhatsApp')"
                             class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
                         >
                             <WhatsAppIcon class="size-5" />
@@ -708,7 +654,7 @@ onUnmounted(() => {
                         <button
                             @click="shareHighlightToX"
                             data-test="highlightShareX"
-                            aria-label="Share on X"
+                            :aria-label="t('singlecontent.shareX')"
                             class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
                         >
                             <XIcon class="size-5" />
@@ -716,7 +662,7 @@ onUnmounted(() => {
                         <button
                             @click="shareHighlightToReddit"
                             data-test="highlightShareReddit"
-                            aria-label="Share on Reddit"
+                            :aria-label="t('singlecontent.shareReddit')"
                             class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
                         >
                             <RedditIcon class="size-5" />
@@ -724,18 +670,13 @@ onUnmounted(() => {
                         <button
                             @click="shareHighlightToInstagram"
                             data-test="highlightShareInstagram"
-                            aria-label="Share on Instagram"
+                            :aria-label="t('singlecontent.shareInstagram')"
                             class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
                         >
                             <InstagramIcon class="size-5" />
                         </button>
                     </div>
                 </div>
-
-                <!-- Arrow -->
-                <div
-                    class="absolute bottom-0 left-1/2 -mb-1.5 -ml-1.5 h-3 w-3 -rotate-45 border-b border-l border-zinc-200 bg-white dark:border-slate-500 dark:bg-slate-700"
-                ></div>
             </div>
         </teleport>
     </div>

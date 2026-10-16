@@ -1089,6 +1089,7 @@ watch([isLoading, content, is404], async () => {
                             v-if="content.text"
                             :content-id="content._id"
                             :title="content.title"
+                            :revision="text"
                             :copyright="shareCopyright"
                             :can-share="canShare()"
                             @highlighted="

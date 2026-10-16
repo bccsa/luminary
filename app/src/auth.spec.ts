@@ -160,6 +160,7 @@ function resetWorld(): void {
         mockConnect,
         mockSetCustomHeader,
         mockRemoveCustomHeader,
+        vi.mocked(Sentry.captureException),
     ])
         mock.mockReset();
     installManagerMock();
@@ -886,10 +887,11 @@ describe("auth", () => {
             expect(Sentry.captureException).toHaveBeenCalledWith(error);
         });
 
-        it("still cleans up the URL and falls back to an existing session when the callback fails", async () => {
+        it("recovers silently from a stale callback replay — no Sentry report when the fallback still finds a session", async () => {
             // A refresh on the callback URL after it already succeeded once
             // retries the same, by-then-consumed code+state — oidc-client-ts
-            // throws "No matching state found in storage" for this.
+            // throws "No matching state found in storage" for this. Expected
+            // and recoverable, so it must not be reported as a Sentry error.
             persistActiveProvider(providerA);
             history.replaceState(null, "", "/callback?code=abc&state=xyz#section");
             const error = new Error("No matching state found in storage");
@@ -898,13 +900,25 @@ describe("auth", () => {
 
             await setupAuth(appStub, routerStub);
 
-            expect(Sentry.captureException).toHaveBeenCalledWith(error);
+            expect(Sentry.captureException).not.toHaveBeenCalled();
             // Must still clean the URL — otherwise every later load retries and
             // fails the exact same way, forever.
             expect(location.pathname + location.search + location.hash).toBe("/callback#section");
             // Falls back to the already-established session instead of leaving
             // the user logged out.
             expect(mockGetUser).toHaveBeenCalled();
+        });
+
+        it("reports to Sentry when a failed callback's fallback finds no session either (a genuine failure)", async () => {
+            persistActiveProvider(providerA);
+            history.replaceState(null, "", "/callback?code=abc&state=xyz#section");
+            const error = new Error("No matching state found in storage");
+            mockSigninRedirectCallback.mockRejectedValue(error);
+            mockGetUser.mockResolvedValue(undefined);
+
+            await setupAuth(appStub, routerStub);
+
+            expect(Sentry.captureException).toHaveBeenCalledWith(error);
         });
 
         it("does nothing when no provider has been selected", async () => {

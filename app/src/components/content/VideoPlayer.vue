@@ -9,7 +9,7 @@
  */
 import { computed, nextTick, ref, watch } from "vue";
 import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web-legacy";
-import { type ContentDto, fetchHlsKey } from "luminary-shared";
+import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "../images/LImage.vue";
 import { appLanguagesPreferredAsRef, queryParams } from "@/globalConfig";
 import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
@@ -104,7 +104,11 @@ watch(
         } catch (error) {
             // A key that cannot be had is the same as no key, as above: the player is
             // given the source and reports its own failure.
-            console.error("Could not fetch the HLS decryption key", error);
+            reportError(error, {
+                area: "player",
+                op: "hls-key",
+                data: { contentId: props.content?._id },
+            });
         } finally {
             // A question that cannot be answered is still answered: leaving this false
             // holds `source` at null, and the viewer gets a poster and no player at all.

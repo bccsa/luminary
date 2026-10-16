@@ -142,7 +142,11 @@ describe("deleteMediaCollection", () => {
     const BUCKET = "bucket-media";
     const RELATIVE = `/${SESSION}/master.m3u8`;
     const KEYS = [`${SESSION}/master.m3u8`, `${SESSION}/media/v0_0.m4s`];
-    const s3 = { listObjectsUnder: jest.fn(), removeObjects: jest.fn() };
+    const s3 = {
+        listObjectsUnder: jest.fn(),
+        removeObjects: jest.fn(),
+        getBucketName: jest.fn().mockReturnValue("media"),
+    };
 
     /** A bucket, plus the Posts and Tags a referrer query would find in it. */
     const stubDb = (documents: object[] = []) =>
@@ -169,6 +173,18 @@ describe("deleteMediaCollection", () => {
 
     it("removes a collection no other document uses", async () => {
         const warnings = await run(stubDb());
+
+        expect(warnings).toEqual([]);
+        expect(s3.removeObjects).toHaveBeenCalledWith(KEYS);
+    });
+
+    it("finds the files when a server-root public URL put the bucket name in the path", async () => {
+        const inPath = `/media/${SESSION}/master.m3u8`;
+        s3.listObjectsUnder.mockImplementation(async (prefix: string) =>
+            prefix === `${SESSION}/` ? KEYS : [],
+        );
+
+        const warnings = await run(stubDb(), undefined, inPath);
 
         expect(warnings).toEqual([]);
         expect(s3.removeObjects).toHaveBeenCalledWith(KEYS);

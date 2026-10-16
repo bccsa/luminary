@@ -5,7 +5,7 @@ import { db, initDatabase } from "../db/database";
 import { initConfig } from "../config";
 import { DocType, PublishStatus, type ContentDto } from "../types";
 import { cachedPrimaryKeys } from "./indexKeyCache";
-import { ftsSearch } from "./ftsSearch";
+import { ftsSearchLocal as ftsSearch } from "./ftsSearch";
 import { recomputeCorpusStats } from "./ftsIndexer";
 
 const content = (id: string, trigrams: string[]): ContentDto =>

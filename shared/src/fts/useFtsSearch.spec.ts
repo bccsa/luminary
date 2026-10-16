@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ref, effectScope, nextTick } from "vue";
 
-vi.mock("./ftsSearch", () => ({
+vi.mock("./ftsSearchRouted", () => ({
     ftsSearch: vi.fn(),
 }));
 
@@ -33,7 +33,7 @@ vi.mock("./ftsSearchApi", async (importOriginal) => {
 });
 
 import { useFtsSearch } from "./useFtsSearch";
-import { ftsSearch } from "./ftsSearch";
+import { ftsSearch } from "./ftsSearchRouted";
 import { ftsSearchApi } from "./ftsSearchApi";
 import { isConnected } from "../socket/socketio";
 import { initConfig } from "../config";

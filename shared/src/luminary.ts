@@ -7,6 +7,8 @@ import { initLiveSync } from "./api/sync/liveSync";
 import { getSocket } from "./socket/socketio";
 import { initRoomSubscriptions } from "./socket/roomSubscriptions";
 import { initHybridQuery } from "./util/HybridQuery";
+import { runInWorker, warmWorkers } from "./worker/workerClient";
+import { setCorpusScanner } from "./fts/ftsIndexer";
 
 /**
  * Initialize the Luminary database
@@ -17,6 +19,14 @@ export async function init(config: SharedConfig) {
 
     // Initialize the IndexedDB database
     await initDatabase();
+
+    // Warmed here rather than by each consumer: the database exists by this point, so the
+    // worker's own connection can't lose the race against it being created.
+    if (config.useWorkers !== false) warmWorkers();
+
+    // Wired here because `ftsIndexer` is loaded by the worker too, so it cannot import the
+    // client itself. `runInWorker` falls back to this thread when no worker is available.
+    setCorpusScanner(() => runInWorker("corpusScan", undefined));
 
     // Initialize the SocketIO connection (initialized on first call)
     getSocket();

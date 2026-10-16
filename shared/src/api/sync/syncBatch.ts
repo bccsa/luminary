@@ -5,6 +5,7 @@ import { merge } from "./merge";
 import { syncList, syncTolerance } from "./state";
 import { cancelSync } from "./sync";
 import { SyncOptions } from "./types";
+import { reportBreadcrumb } from "../../diagnostics";
 import {
     calcChunk,
     filterByTypeMemberOf,
@@ -149,7 +150,7 @@ export async function syncBatch(options: SyncOptions) {
         return;
     }
 
-    if (!res.docs || !Array.isArray(res.docs)) throw new Error("Invalid API response format");
+    if (!res || !res.docs || !Array.isArray(res.docs)) throw new Error("Invalid API response format");
 
     // Surface API warnings (e.g. CouchDB "documents examined is high") together with the exact
     // query + index that triggered them, so the offending sync column is identifiable.
@@ -167,6 +168,11 @@ export async function syncBatch(options: SyncOptions) {
         };
         for (const w of apiWarnings) {
             console.warn("[sync] API warning received:", w, queryDetails);
+            reportBreadcrumb(`Sync API warning: ${w}`, {
+                area: "sync",
+                op: "api-warning",
+                data: queryDetails,
+            });
         }
     }
 

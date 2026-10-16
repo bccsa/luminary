@@ -166,20 +166,37 @@ function computeFieldWordMatchScore(
  * Perform a full-text search using BM25 scoring via the MultiEntry index on docs.
  * Trigram lookups use `between(trigram + ":", trigram + ";")` on the `*fts` index.
  */
-export function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchResult[]> {
+export function ftsSearchLocal(options: FtsSearchOptions): Promise<FtsSearchResult[]> {
     return searchInBatch(options, newBatch(1));
 }
 
 /**
  * Run several searches, one after another, sharing the per-doc work between them: a doc that
  * several searches reach is loaded, split and tokenised once. Results are in `searches` order,
- * each exactly what {@link ftsSearch} returns for those options.
+ * each exactly what {@link ftsSearchLocal} returns for those options.
  */
-export async function ftsSearchMany(searches: FtsSearchOptions[]): Promise<FtsSearchResult[][]> {
+export async function ftsSearchManyLocal(
+    searches: FtsSearchOptions[],
+): Promise<FtsSearchResult[][]> {
     const batch = newBatch(searches.length);
     const results: FtsSearchResult[][] = [];
     for (const options of searches) results.push(await searchInBatch(options, batch));
     return results;
+}
+
+/**
+ * Drops `fts`/`ftsTokenCount` from each result's doc. They are the largest fields on a
+ * `ContentDto` and no caller reads them, so carrying them across a worker's structured clone is
+ * pure cost. Trimmed results must never be persisted — a doc written back without its trigrams
+ * would fall out of the offline `*fts` index (the same rule as server-side results, ADR 0011).
+ */
+export function trimFtsResults(results: FtsSearchResult[]): FtsSearchResult[] {
+    return results.map((result) => {
+        const doc = { ...result.doc };
+        delete doc.fts;
+        delete doc.ftsTokenCount;
+        return { ...result, doc };
+    });
 }
 
 async function searchInBatch(

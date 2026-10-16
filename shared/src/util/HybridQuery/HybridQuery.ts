@@ -26,6 +26,7 @@ import { isProvablyEmpty } from "../MangoQuery/isProvablyEmpty";
 import { sanitizeArrayOperators } from "../MangoQuery/sanitizeArrayOperators";
 import { mangoCompile } from "../MangoQuery/mangoCompile";
 import { mangoToDexie } from "../MangoQuery/mangoToDexie";
+import { runInWorker } from "../../worker/workerClient";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
 import { useDexieLiveQuery } from "../useDexieLiveQuery/useDexieLiveQuery";
 import { applySortLimit, mergeById, sameWindow } from "./mergeDocs";
@@ -46,6 +47,7 @@ import {
 } from "./responseCache";
 import { touchRetention } from "../../db/retention";
 import { config, getContentPublishDateCutoff } from "../../config";
+import { reportError } from "../../diagnostics";
 import { OPEN_MIN } from "../../api/sync/utils";
 
 /**
@@ -152,7 +154,7 @@ export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> 
 export function queryLocal<T extends BaseDocumentDto = BaseDocumentDto>(
     query: MangoQuery,
 ): Promise<T[]> {
-    return mangoToDexie<T>(db.docs, query);
+    return runInWorker("mangoQuery", query) as Promise<T[]>;
 }
 
 /** Options for {@link HybridQuery}. */
@@ -723,7 +725,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                             this._dropSeededRemote();
                         }
                     } catch (err) {
-                        console.error("[HybridQuery] local update failed:", err);
+                        this._reportError("local-update", err);
                     }
                 });
                 return;
@@ -738,7 +740,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                         // Local only — loading settles on the first local result.
                         this._localPending.value = false;
                     } catch (err) {
-                        console.error("[HybridQuery] local update failed:", err);
+                        this._reportError("local-update", err);
                     }
                 });
                 // Re-route to API-only if this type is later REVOKED (membership true→false).
@@ -771,29 +773,41 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // Belt-and-braces: anything that escaped the inner handlers (the
             // reconnect-watcher setup, an unexpected throw in queryIntrospection
             // helpers, …) is logged here.
-            console.error("[HybridQuery] routing failed:", err);
+            this._reportError("route", err);
         }
+    }
+
+    private _reportError(op: string, err: unknown, data?: Record<string, unknown>): void {
+        reportError(err, {
+            area: "HybridQuery",
+            op,
+            data: { query: this._query, live: this._live, ...data },
+        });
     }
 
     /**
      * Source the local Dexie docs and hand each result to `onLocal`.
      *
-     * - One-shot mode: a single `mangoToDexie` read; on failure, log and call
+     * - One-shot mode: a single read, routed to a worker when one is available; on
+     *   failure, log and call
      *   `onLocal([])` so the content branch still decides the API with an empty
      *   local set (preserves the original behaviour). The two-arg `.then` form
      *   ensures the reject handler only catches the Dexie read — never a throw
      *   from inside `onLocal`.
      * - Live mode: subscribe via `useDexieLiveQuery`, re-invoking `onLocal` on
-     *   every IndexedDB change. The composable ties cleanup to the *current* Vue
+     *   every IndexedDB change. This one stays on this thread: `liveQuery` re-runs by
+     *   observing what the querier touched in Dexie's zone here, and a query awaited
+     *   from a worker touches nothing, so the subscription would emit once and go
+     *   silently stale. The composable ties cleanup to the *current* Vue
      *   scope and returns no stop handle, so we run it inside a detached
      *   `effectScope` the class owns — `dispose()` → `scope.stop()` →
      *   `useDexieLiveQuery`'s `onScopeDispose` → `liveQuery` unsubscribe.
      */
     private _startLocal(gen: number, onLocal: (docs: T[]) => void): void {
         if (!this._live) {
-            void mangoToDexie<T>(db.docs, this._query).then(onLocal, (err) => {
+            void (runInWorker("mangoQuery", this._query) as Promise<T[]>).then(onLocal, (err) => {
                 if (gen === this._generation && !this._disposed) this.error.value = err;
-                console.error("[HybridQuery] local read failed:", err);
+                this._reportError("local-read", err);
                 // Route the empty set on so the local leg still settles and the content
                 // branch still makes its API decision (preserves the original behaviour).
                 onLocal([]);
@@ -812,7 +826,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 // at least react to it.
                 onError: (err) => {
                     if (gen === this._generation && !this._disposed) this.error.value = err;
-                    console.error("[HybridQuery] live local read failed:", err);
+                    this._reportError("live-local-read", err);
                 },
             });
             // `immediate: true` fires synchronously with the ref's initial value
@@ -879,10 +893,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 const firstErr = settled.find((s) => s.status === "rejected") as
                     | PromiseRejectedResult
                     | undefined;
-                console.error(
-                    `[HybridQuery] ${settled.length - fulfilled.length}/${settled.length} remote query(ies) failed:`,
-                    firstErr?.reason,
-                );
+                this._reportError("remote-query", firstErr?.reason, {
+                    failed: settled.length - fulfilled.length,
+                    total: settled.length,
+                });
                 // Surface the failure only when EVERY query failed (total failure below).
                 // A partial fan-out failure keeps the succeeded subset, so it must not
                 // raise `error` — that would be misleading.
@@ -911,13 +925,15 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 if (toPersist.length) {
                     void db
                         .bulkPut(toPersist)
-                        .catch((e) => console.error("[HybridQuery] offline persist failed:", e));
+                        .catch((e) =>
+                            this._reportError("offline-persist", e, { docs: toPersist.length }),
+                        );
                     touchRetention(toPersist.map((d) => d._id));
                 }
             }
         } catch (err) {
             if (gen === this._generation && !this._disposed) this.error.value = err;
-            console.error("[HybridQuery] remote query failed:", err);
+            this._reportError("remote-query", err);
         } finally {
             // Settle the remote leg whether the POST resolved, failed, or bailed on a
             // stale generation (the gen guard inside makes the stale case a no-op).

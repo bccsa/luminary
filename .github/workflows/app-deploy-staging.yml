@@ -54,6 +54,8 @@ jobs:
           echo VITE_LOGO_SMALL_DARK="${{ vars.VITE_LOGO_SMALL_DARK }}" >> .env
           echo VITE_LOGO_FAVICON=${{vars.VITE_LOGO_FAVICON}} >> .env
           echo VITE_CLIENT_CMS_URL="${{ vars.VITE_CLIENT_CMS_URL }}" >> .env
+          echo VITE_SENTRY_DSN="${{ vars.VITE_SENTRY_DSN }}" >> .env
+          echo VITE_SENTRY_ENVIRONMENT=staging >> .env
         working-directory: app
 
       - name: Build Docker container

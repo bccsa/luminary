@@ -1102,8 +1102,7 @@ describe("Database", async () => {
     // Regression (#160 partial-sync): deleteRevoked() must keep syncList consistent with the docs
     // it evicts. Otherwise a revoked group's docs leave `docs` while its column stays at `eof`, so
     // a later re-grant (same memberOf — no growth path triggers) trusts the stale eof and never
-    // re-walks → only the ~1000ms head-tolerance re-fetch survives ("one post / one tag"). This is
-    // the same failure the one-time Group recovery patches, generalised to every doc type.
+    // re-walks → only the ~1000ms head-tolerance re-fetch survives ("one post / one tag").
     describe("revoked syncList reconciliation", () => {
         afterEach(async () => {
             isConnected.value = false;
@@ -1268,36 +1267,53 @@ describe("Database", async () => {
         config.cms = true;
     });
 
-    // Temporary — remove with the recovery block after 2026-09-01 (bccsa/luminary#1730).
-    describe("one-time Group syncList recovery", () => {
+    describe("periodic expired-document sweep", () => {
         afterEach(async () => {
-            syncList.value = [];
-            await db.setSyncList();
+            vi.useRealTimers();
+            isConnected.value = false;
+            initConfig({
+                cms: true,
+                docsIndex: "[type+postType]",
+                apiUrl: "http://localhost:12345",
+            });
+            await initDatabase();
         });
 
-        it("drops the Group syncList block once so purged clients re-fetch groups", async () => {
-            localStorage.removeItem("groupSyncListReset_v1");
-            syncList.value = [
-                { chunkType: "group", memberOf: ["g1"], blockStart: 100, blockEnd: 0, eof: true },
-                { chunkType: "post", memberOf: ["g1"], blockStart: 100, blockEnd: 0, eof: true },
-            ];
-            await db.setSyncList();
-
-            await initDatabase(); // runs the recovery once
-
-            expect(syncList.value.some((e) => e.chunkType === "group")).toBe(false);
-            expect(syncList.value.some((e) => e.chunkType === "post")).toBe(true);
-            expect(localStorage.getItem("groupSyncListReset_v1")).toBe("1");
-
-            // Idempotent: a fresh Group block seeded afterwards is left untouched on re-init.
-            syncList.value = [
-                { chunkType: "group", memberOf: ["g1"], blockStart: 100, blockEnd: 0, eof: true },
-            ];
-            await db.setSyncList();
-
+        it("evicts expired docs on the configured interval, but only while online", async () => {
+            vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+            initConfig({
+                cms: false,
+                docsIndex: "[type+postType]",
+                apiUrl: "http://localhost:12345",
+                deleteExpiredIntervalMs: 1000,
+            });
             await initDatabase();
+            const deleteExpired = vi.spyOn(db, "deleteExpired");
 
-            expect(syncList.value.some((e) => e.chunkType === "group")).toBe(true);
+            isConnected.value = false;
+            await vi.advanceTimersByTimeAsync(1000);
+            expect(deleteExpired).not.toHaveBeenCalled();
+
+            isConnected.value = true;
+            await vi.advanceTimersByTimeAsync(1000);
+            expect(deleteExpired).toHaveBeenCalledTimes(1);
+        });
+
+        it("does not stack sweeps when initDatabase runs again", async () => {
+            vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+            initConfig({
+                cms: false,
+                docsIndex: "[type+postType]",
+                apiUrl: "http://localhost:12345",
+                deleteExpiredIntervalMs: 1000,
+            });
+            await initDatabase();
+            await initDatabase();
+            const deleteExpired = vi.spyOn(db, "deleteExpired");
+
+            isConnected.value = true;
+            await vi.advanceTimersByTimeAsync(1000);
+            expect(deleteExpired).toHaveBeenCalledTimes(1);
         });
     });
 
