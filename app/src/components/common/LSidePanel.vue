@@ -4,6 +4,14 @@ import LTeleport from "./LTeleport.vue";
 
 const open = defineModel<boolean>("open", { required: true });
 
+withDefaults(
+    defineProps<{
+        /** Panel width. A Tailwind class, since the cap below is kept whatever it is. */
+        widthClass?: string;
+    }>(),
+    { widthClass: "w-60" },
+);
+
 function close() {
     open.value = false;
 }
@@ -37,7 +45,8 @@ onUnmounted(() => {
         <Transition name="sidebar-slide">
             <aside
                 v-if="open"
-                class="fixed inset-y-0 right-0 z-[70] flex w-60 max-w-[85vw] flex-col bg-white pb-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] pt-[env(safe-area-inset-top)] shadow-xl dark:bg-slate-800"
+                class="fixed inset-y-0 right-0 z-[70] flex max-w-[85vw] flex-col bg-white pb-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] pt-[env(safe-area-inset-top)] shadow-xl dark:bg-slate-800"
+                :class="widthClass"
                 role="dialog"
                 aria-modal="true"
             >

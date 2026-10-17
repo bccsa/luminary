@@ -7,7 +7,7 @@ const ExplorePage = () => import("@/pages/ExplorePage.vue");
 const SearchPage = () => import("@/pages/SearchPage.vue");
 const VideoPage = () => import("@/pages/VideoPage.vue");
 const SettingsPage = () => import("@/pages/SettingsPage.vue");
-const BookmarksPage = () => import("@/pages/BookmarksPage.vue");
+const ActivityPage = () => import("@/pages/Activity/ActivityPage.vue");
 const SingleContent = () => import("@/pages/SingleContent/SingleContent.vue");
 const NotFoundPage = () => import("@/pages/NotFoundPage.vue");
 
@@ -70,11 +70,11 @@ export const routes: RouteRecordRaw[] = [
         },
     },
     {
-        path: "/bookmarks",
-        component: BookmarksPage,
-        name: "bookmarks",
+        path: "/activity",
+        component: ActivityPage,
+        name: "activity",
         meta: {
-            title: "title.bookmarks",
+            title: "title.activity",
         },
     },
     // Note that this route should always come after all defined routes,
