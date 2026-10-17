@@ -276,6 +276,17 @@ const thumbHashStyle = computed(() =>
     thumbHashDataUrl.value ? { backgroundImage: `url("${thumbHashDataUrl.value}")` } : undefined,
 );
 
+const imageElement2 = ref<HTMLImageElement>();
+
+// Hydration keeps the prerendered (reduced, uninflated) `sizes` because Vue doesn't patch plain
+// attributes, and nothing re-renders it afterwards — so correct it once on mount.
+onMounted(() => {
+    const el = imageElement1.value ?? imageElement2.value;
+    if (el && sizesAttr.value && el.getAttribute("sizes") !== sizesAttr.value) {
+        el.setAttribute("sizes", sizesAttr.value);
+    }
+});
+
 // Direct src for icon mode: pick the smallest available image file (no srcset needed)
 const iconSrc = computed(() => {
     if (!props.isIcon) return undefined;
@@ -457,6 +468,7 @@ const modalSrcset = computed(() => {
     <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
     <img
         v-else-if="showImageElement2 && srcset2"
+        ref="imageElement2"
         :srcset="srcset2"
         :sizes="sizesAttr"
         :class="[
