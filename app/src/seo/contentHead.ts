@@ -155,11 +155,8 @@ export function breadcrumbJsonLd(
 }
 
 /**
- * OG/Twitter's recommended preview width (Facebook: min 600, ideal ~1200; Twitter
- * Summary Card with Large Image: min 300, ideal 1200). The processed presets are
- * `[180, 360, 640, 1280, 2560]` (see `api/processImageDto.ts`) — 1280 is the closest
- * without jumping to the full-size 2560 original, which is unnecessarily heavy for a
- * link-preview thumbnail crawlers fetch on every share.
+ * OG/Twitter's recommended preview width. We pick the closest processed rendition rather than
+ * the full-size original, which is too heavy for a link preview crawlers fetch on every share.
  */
 const SOCIAL_IMAGE_TARGET_WIDTH = 1200;
 
