@@ -115,7 +115,7 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
             />
         </template>
 
-        <div class="flex flex-col gap-[3px]">
+        <div class="flex flex-col gap-[8px]">
             <FtsStaleResultsBanner
                 v-if="searchActive"
                 :visible="searchIsStale"
