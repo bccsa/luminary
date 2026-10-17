@@ -189,9 +189,82 @@ describe("validateAcl", () => {
     it("should reject an ACL entry for DocType.Sidecar (never replicable, never grantable)", () => {
         // Sidecar is absent from availablePermissionsPerDocType — the load-bearing
         // non-replication guarantee. An entry is stripped.
-        const acl = [createEntry(DocType.Sidecar, "g1", [AclPermission.View, AclPermission.CmsView])];
+        const acl = [
+            createEntry(DocType.Sidecar, "g1", [AclPermission.View, AclPermission.CmsView]),
+        ];
         const result = validateAcl(acl);
 
         expect(result).toHaveLength(0);
+    });
+
+    describe("affinity doc types", () => {
+        // Regression: both types were missing from availablePermissionsPerDocType while the
+        // seed fixtures granted them, so the first CMS save of a seeded group silently
+        // stripped every affinity entry and revoked access to the singletons.
+        it("should preserve a defaultAffinity entry", () => {
+            const acl = [
+                createEntry(DocType.DefaultAffinity, "g1", [
+                    AclPermission.View,
+                    AclPermission.Edit,
+                ]),
+            ];
+            const result = validateAcl(acl);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].permission).toContain(AclPermission.Edit);
+        });
+
+        it("should preserve a globalAffinity entry", () => {
+            const acl = [
+                createEntry(DocType.GlobalAffinity, "g1", [
+                    AclPermission.View,
+                    AclPermission.Contribute,
+                ]),
+            ];
+            const result = validateAcl(acl);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].permission).toContain(AclPermission.Contribute);
+        });
+
+        it("should NOT imply CmsView when granting Contribute", () => {
+            // The whole reason Contribute exists rather than reusing Edit: an app user can
+            // feed the aggregate without gaining any CMS-scoped visibility.
+            const acl = [
+                createEntry(DocType.GlobalAffinity, "g1", [
+                    AclPermission.View,
+                    AclPermission.Contribute,
+                ]),
+            ];
+            const result = validateAcl(acl);
+
+            expect(result[0].permission).not.toContain(AclPermission.CmsView);
+        });
+
+        it("should remove a Contribute-only entry with no visibility permission", () => {
+            const acl = [createEntry(DocType.GlobalAffinity, "g1", [AclPermission.Contribute])];
+            const result = validateAcl(acl);
+
+            expect(result).toHaveLength(0);
+        });
+
+        it("should strip Contribute from a doc type it is not assignable on", () => {
+            const acl = [
+                createEntry(DocType.Post, "g1", [AclPermission.View, AclPermission.Contribute]),
+            ];
+            const result = validateAcl(acl);
+
+            expect(result[0].permission).not.toContain(AclPermission.Contribute);
+            expect(result[0].permission).toContain(AclPermission.View);
+        });
+
+        it("should strip Edit from globalAffinity — Contribute is its write permission", () => {
+            const acl = [
+                createEntry(DocType.GlobalAffinity, "g1", [AclPermission.View, AclPermission.Edit]),
+            ];
+            const result = validateAcl(acl);
+
+            expect(result[0].permission).not.toContain(AclPermission.Edit);
+        });
     });
 });

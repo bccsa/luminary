@@ -71,6 +71,21 @@ export const availablePermissionsPerDocType = {
         AclPermission.Assign,
         AclPermission.CmsView,
     ],
+    [DocType.DefaultAffinity]: [
+        AclPermission.View,
+        AclPermission.Edit,
+        AclPermission.Delete,
+        AclPermission.Assign,
+        AclPermission.CmsView,
+    ],
+    // Contribute (not Edit) is the write permission here: app clients only ever send a
+    // contribution delta. It is absent from `cmsOnlyPermissions` below, so granting it does
+    // not imply CmsView — an app user can feed the aggregate without any CMS visibility.
+    [DocType.GlobalAffinity]: [
+        AclPermission.View,
+        AclPermission.Contribute,
+        AclPermission.CmsView,
+    ],
 };
 
 /**

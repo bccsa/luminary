@@ -60,6 +60,7 @@ describe("sync.ts", () => {
             [DocType.AuthProvider]: [],
             [DocType.AutoGroupMappings]: [],
             [DocType.DefaultAffinity]: [],
+            [DocType.GlobalAffinity]: [],
             [DocType.Sidecar]: [],
         });
     });
@@ -132,6 +133,7 @@ describe("sync.ts", () => {
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultAffinity]: [],
+                [DocType.GlobalAffinity]: [],
                 [DocType.Sidecar]: [],
             });
 
@@ -159,6 +161,7 @@ describe("sync.ts", () => {
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultAffinity]: [],
+                [DocType.GlobalAffinity]: [],
                 [DocType.Sidecar]: [],
             });
 
@@ -186,6 +189,7 @@ describe("sync.ts", () => {
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultAffinity]: [],
+                [DocType.GlobalAffinity]: [],
                 [DocType.Sidecar]: [],
             });
 
@@ -222,6 +226,7 @@ describe("sync.ts", () => {
                 [DocType.AuthProvider]: ["group1"],
                 [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultAffinity]: [],
+                [DocType.GlobalAffinity]: [],
             });
 
             initAuthLangSync();
@@ -254,6 +259,7 @@ describe("sync.ts", () => {
                 [DocType.AuthProvider]: ["group1"],
                 [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultAffinity]: [],
+                [DocType.GlobalAffinity]: [],
             });
 
             initAuthLangSync();
@@ -289,6 +295,7 @@ describe("sync.ts", () => {
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultAffinity]: [],
+                [DocType.GlobalAffinity]: [],
                 [DocType.Sidecar]: [],
             });
 
@@ -317,6 +324,7 @@ describe("sync.ts", () => {
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultAffinity]: [],
+                [DocType.GlobalAffinity]: [],
                 [DocType.Sidecar]: [],
             });
 
@@ -381,6 +389,7 @@ describe("sync.ts", () => {
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultAffinity]: [],
+                [DocType.GlobalAffinity]: [],
                 [DocType.Sidecar]: [],
             });
 
@@ -417,6 +426,7 @@ describe("sync.ts", () => {
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultAffinity]: [],
+                [DocType.GlobalAffinity]: [],
                 [DocType.Sidecar]: [],
             });
 
@@ -453,6 +463,7 @@ describe("sync.ts", () => {
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultAffinity]: [],
+                [DocType.GlobalAffinity]: [],
                 [DocType.Sidecar]: [],
             });
 
@@ -501,6 +512,7 @@ describe("sync.ts", () => {
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultAffinity]: [],
+                [DocType.GlobalAffinity]: [],
                 [DocType.Sidecar]: [],
             });
 
@@ -537,6 +549,7 @@ describe("sync.ts", () => {
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
                 [DocType.DefaultAffinity]: [],
+                [DocType.GlobalAffinity]: [],
                 [DocType.Sidecar]: [],
             });
 

@@ -59,6 +59,42 @@ export async function validateChangeRequestAccess(
         };
     }
 
+    // GlobalAffinity contributions take their own path: the generic non-Content branch below
+    // demands Edit plus Group/Assign on any added groups, which a contributing app user has
+    // neither of. Access is checked against the STORED doc's groups and the client's own
+    // `memberOf` is ignored — a contribution is a delta folded server-side, never a write of
+    // the document itself, so it has no business moving the doc between groups.
+    if (doc.type === DocType.GlobalAffinity) {
+        if (isNewDoc) {
+            return {
+                validated: false,
+                error: "Global affinity document does not exist",
+            };
+        }
+
+        if (
+            !PermissionSystem.verifyAccess(
+                (originalDoc as _contentBaseDto).memberOf,
+                DocType.GlobalAffinity,
+                AclPermission.Contribute,
+                groupMembership,
+                "any",
+            )
+        ) {
+            return {
+                validated: false,
+                error: "No 'Contribute' access to document",
+            };
+        }
+
+        (doc as _contentBaseDto).memberOf = [...(originalDoc as _contentBaseDto).memberOf];
+
+        return {
+            validated: true,
+            validatedData: doc,
+        };
+    }
+
     // Reject non-group documents that do not have a memberOf property
     if (
         doc.type !== DocType.Group &&

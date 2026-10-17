@@ -2,6 +2,7 @@ import { ref, watch } from "vue";
 import { applyEvent, type AffinityProfile, type Uuid } from "luminary-shared";
 import { defaultAffinity, affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { filterTopicTagIds } from "@/recommendation/topicTags";
+import { addContribution } from "@/recommendation/globalContributionStore";
 
 /**
  * App-side persistence + tracking for the recommendation affinity profile.
@@ -122,6 +123,9 @@ export async function recordAffinity(
         affinityConfig.value,
     );
     persist();
+    // The same event also counts toward the audience-wide profile. Local bookkeeping only —
+    // nothing leaves the device until a reconnect (see `globalContributionStore`).
+    addContribution(topicTags, weight);
 }
 
 /**
@@ -144,4 +148,5 @@ export async function recordImpressionMiss(tagIds: Uuid[] | undefined) {
         affinityConfig.value,
     );
     persist();
+    addContribution(topicTags, affinityConfig.value.eventWeight.impression);
 }

@@ -32,4 +32,12 @@ export const DEFAULT_AFFINITY_CONFIG: AffinityConfigDto = {
         searchClick: 0.0004,
         impression: -0.0002,
     },
+    global: {
+        halfLifeDays: 180,
+        learningRate: 0.002,
+        minScore: 0.0005,
+        maxTags: 200,
+        minEvents: 20,
+        intervalHours: 24,
+    },
 };

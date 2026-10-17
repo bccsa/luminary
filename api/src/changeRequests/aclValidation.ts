@@ -72,6 +72,17 @@ const availablePermissionsPerDocType = {
         AclPermission.Assign,
         AclPermission.CmsView,
     ],
+    [DocType.DefaultAffinity]: [
+        AclPermission.View,
+        AclPermission.Edit,
+        AclPermission.Delete,
+        AclPermission.Assign,
+        AclPermission.CmsView,
+    ],
+    // Contribute (not Edit) is the write permission here: clients only ever send a
+    // contribution delta, and Contribute carries no CmsView implication, so an app user
+    // can feed the aggregate without gaining CMS-scoped visibility.
+    [DocType.GlobalAffinity]: [AclPermission.View, AclPermission.Contribute, AclPermission.CmsView],
 };
 
 // Derived from the map keys, NOT the DocType enum — so omitting Crypto/Sidecar
