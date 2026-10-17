@@ -33,7 +33,7 @@ import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
 import LToggle from "../form/LToggle.vue";
-import MobileSidebar from "../common/MobileSidebar.vue";
+import LSidePanel from "../common/LSidePanel.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
@@ -341,7 +341,7 @@ const sidebarNavigation = computed(() =>
     </button>
 
     <!-- Shared slide-in panel (avatar + bars triggers only) -->
-    <MobileSidebar
+    <LSidePanel
         v-if="trigger !== 'sidebar'"
         v-model:open="menuOpen"
     >
@@ -588,7 +588,7 @@ const sidebarNavigation = computed(() =>
                 </div>
             </div>
         </template>
-    </MobileSidebar>
+    </LSidePanel>
 
     <template v-if="isMounted">
         <LanguageModal

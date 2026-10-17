@@ -4,7 +4,7 @@ import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { type ContentDto, type HighlightColor, type HighlightRange } from "luminary-shared";
 import { XMarkIcon } from "@heroicons/vue/24/outline";
-import MobileSidebar from "@/components/common/MobileSidebar.vue";
+import LSidePanel from "@/components/common/LSidePanel.vue";
 import LButton from "@/components/button/LButton.vue";
 import LDialog from "@/components/common/LDialog.vue";
 import { HIGHLIGHT_COLORS } from "@/util/highlightRanges";
@@ -63,7 +63,7 @@ const remove = () => {
 </script>
 
 <template>
-    <MobileSidebar
+    <LSidePanel
         v-model:open="open"
         width-class="w-[26rem]"
     >
@@ -154,7 +154,7 @@ const remove = () => {
                 </LButton>
             </div>
         </template>
-    </MobileSidebar>
+    </LSidePanel>
 
     <LDialog
         v-if="confirming"
