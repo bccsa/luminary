@@ -11,6 +11,7 @@ import {
     type WatchStopHandle,
 } from "vue";
 import { db } from "../../db/database";
+import { retryOnTransientIndexedDbError } from "../../db/transientRetry";
 import { HttpReq } from "../../api/http";
 import { getSocket, isConnected } from "../../socket/socketio";
 import { subscribeRooms } from "../../socket/roomSubscriptions";
@@ -793,7 +794,11 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      *   `onLocal([])` so the content branch still decides the API with an empty
      *   local set (preserves the original behaviour). The two-arg `.then` form
      *   ensures the reject handler only catches the Dexie read — never a throw
-     *   from inside `onLocal`.
+     *   from inside `onLocal`. A transient IndexedDB error (see
+     *   `retryOnTransientIndexedDbError`) gets one retry first: unlike live mode
+     *   (which self-heals via `useDexieLiveQuery`'s re-subscribe), a one-shot
+     *   read has no later chance to recover and would otherwise resolve to an
+     *   empty result for good.
      * - Live mode: subscribe via `useDexieLiveQuery`, re-invoking `onLocal` on
      *   every IndexedDB change. This one stays on this thread: `liveQuery` re-runs by
      *   observing what the querier touched in Dexie's zone here, and a query awaited
@@ -805,7 +810,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      */
     private _startLocal(gen: number, onLocal: (docs: T[]) => void): void {
         if (!this._live) {
-            void (runInWorker("mangoQuery", this._query) as Promise<T[]>).then(onLocal, (err) => {
+            void retryOnTransientIndexedDbError(
+                () => runInWorker("mangoQuery", this._query) as Promise<T[]>,
+            ).then(onLocal, (err) => {
                 if (gen === this._generation && !this._disposed) this.error.value = err;
                 this._reportError("local-read", err);
                 // Route the empty set on so the local leg still settles and the content

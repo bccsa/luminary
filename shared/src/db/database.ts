@@ -26,6 +26,7 @@ import { config, getDeleteExpiredIntervalMs } from "../config";
 import { isConnected } from "../socket/socketio";
 import { changeReqErrors, changeReqInfo, changeReqWarnings } from "../config";
 import { cloneDeep } from "lodash-es";
+import { retryOnTransientIndexedDbError } from "./transientRetry";
 
 const dbName: string = "luminary-db";
 
@@ -276,7 +277,12 @@ class Database extends Dexie {
     /**
      * Bulk insert documents into the database, and delete documents that are marked for deletion.
      */
-    async bulkPut(docs: BaseDocumentDto[]) {
+    bulkPut(docs: BaseDocumentDto[]) {
+        // Idempotent, so safe to retry whole after a transient WebKit IndexedDB abort.
+        return retryOnTransientIndexedDbError(() => this.bulkPutOnce(docs));
+    }
+
+    private async bulkPutOnce(docs: BaseDocumentDto[]) {
         const candidateDeleteCmds = docs.filter(
             (doc) =>
                 doc.type === DocType.DeleteCmd && this.validateDeleteCommand(doc as DeleteCmdDto),

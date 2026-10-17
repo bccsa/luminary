@@ -99,6 +99,39 @@ describe("Database", async () => {
         });
     });
 
+    describe("bulkPut transient IndexedDB errors", () => {
+        const newDoc = () => ({ ...mockEnglishContentDto, _id: "content-transient" });
+
+        it("retries once and succeeds when the write fails on a transient error", async () => {
+            const spy = vi
+                .spyOn(db.docs, "bulkPut")
+                .mockRejectedValueOnce(new DOMException("Transaction aborted", "AbortError"));
+
+            await db.bulkPut([newDoc()]);
+
+            expect(spy).toHaveBeenCalledTimes(2);
+            spy.mockRestore();
+        });
+
+        it("rejects after one retry when the transient error persists", async () => {
+            const spy = vi
+                .spyOn(db.docs, "bulkPut")
+                .mockRejectedValue(new DOMException("Transaction aborted", "AbortError"));
+
+            await expect(db.bulkPut([newDoc()])).rejects.toMatchObject({ name: "AbortError" });
+            expect(spy).toHaveBeenCalledTimes(2);
+            spy.mockRestore();
+        });
+
+        it("does not retry a non-transient error", async () => {
+            const spy = vi.spyOn(db.docs, "bulkPut").mockRejectedValue(new Error("boom"));
+
+            await expect(db.bulkPut([newDoc()])).rejects.toThrow("boom");
+            expect(spy).toHaveBeenCalledTimes(1);
+            spy.mockRestore();
+        });
+    });
+
     describe("bulkPut unchanged docs", () => {
         it("writes only the docs that differ from the stored copy", async () => {
             const spy = vi.spyOn(db.docs, "bulkPut");
