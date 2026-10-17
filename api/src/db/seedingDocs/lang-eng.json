@@ -77,6 +77,7 @@
         "content.related_title": "Related",
         "content.read_more": "Read more",
         "content.coming_soon": "Coming soon",
+        "content.video_unavailable": "Sorry, we can't play this video right now. You may not have permission to watch it, or something else went wrong. Please contact us and we'll help you.",
         "content.continueReading.prompt": "Continue where you left off?",
         "content.continueReading.action": "Continue where you left off",
         "content.continueReading.dismiss": "Start from top",
