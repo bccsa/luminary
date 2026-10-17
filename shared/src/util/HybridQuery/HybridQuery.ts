@@ -12,8 +12,7 @@ import {
 } from "vue";
 import { db } from "../../db/database";
 import { HttpReq } from "../../api/http";
-import { getSocket, isConnected } from "../../socket/socketio";
-import { subscribeRooms } from "../../socket/roomSubscriptions";
+import { getChangeFeed, isConnected } from "../../changeFeed/changeFeed";
 import {
     type ApiDataResponseDto,
     type BaseDocumentDto,
@@ -757,11 +756,6 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // Live mode: these docs never flow through Dexie (sync doesn't sync this
             // type), so the socket listener is their only live path.
             if (this._live) {
-                // Subscribe to the type's rooms on demand so the server starts pushing
-                // live updates for this non-synced type. Ref-counted and released with
-                // this generation (rebuild/dispose) — the room is left only once the
-                // last HybridQuery using it disposes. Skipped for a typeless query.
-                if (type) this._generationDisposers.add(subscribeRooms([type]));
                 this._startRemoteLive(this._query, type, gen);
             }
             // COLD-START RE-ROUTE: when sync first registers this type (membership
@@ -967,14 +961,14 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             (connected) => {
                 if (this._disposed) return;
                 // off() first is idempotent and guarantees a single registration.
-                getSocket().off("data", cb);
-                if (connected) getSocket().on("data", cb);
+                getChangeFeed().off("data", cb);
+                if (connected) getChangeFeed().on("data", cb, queryType ? [queryType] : undefined);
             },
             { immediate: true },
         );
 
         this._generationDisposers.add(stop);
-        this._generationDisposers.add(() => getSocket().off("data", cb));
+        this._generationDisposers.add(() => getChangeFeed().off("data", cb));
     }
 
     /**

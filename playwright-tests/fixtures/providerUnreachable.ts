@@ -1,4 +1,5 @@
-import { expect, type Page, type WebSocketRoute } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+import { useShortLivedChangeFeed } from "./changeFeed";
 import { readStoredSession, type ClientTarget, type ProviderConfig } from "./idp";
 import { readActiveProviderId } from "./loginFlow";
 import { waitForAccessMap } from "./readiness";
@@ -42,12 +43,9 @@ export async function assertSessionSurvivesUnreachableProvider(
         await route.abort("connectionfailed");
     });
 
-    // Keep the server-side handle so the connection can be dropped the way a
-    // network blip would, forcing a reconnect with the by-then stale token.
-    let serverSide: WebSocketRoute | undefined;
-    await page.routeWebSocket(/\/socket\.io\//, (ws) => {
-        serverSide = ws.connectToServer();
-    });
+    // Streams end shortly after opening, the way a network blip would, forcing a
+    // reconnect with the by-then stale token.
+    await useShortLivedChangeFeed(page);
 
     await page.goto("/");
     const accessMap = await waitForAccessMap(page);
@@ -64,11 +62,7 @@ export async function assertSessionSurvivesUnreachableProvider(
     }
 
     const stale = await readStoredSession(page, provider);
-    if (!serverSide || !stale) {
-        throw new Error("socket.io never opened a WebSocket; the drop cannot be simulated");
-    }
-
-    await serverSide.close();
+    if (!stale) throw new Error("No stored session to compare against");
 
     // The API rejects the stale token, so recovery must at least be attempted...
     await expect.poll(() => refreshAttempts, { timeout: RETRY_TIMEOUT }).toBeGreaterThan(0);

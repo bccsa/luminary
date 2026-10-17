@@ -7,7 +7,7 @@ import { setupAuth } from "@/auth";
 import { registerAuthFailureHandler } from "@/authFailure";
 import { useNotificationStore } from "./stores/notification";
 import { appPluginsManager } from "@/build-time/contracts/plugin-registry";
-import { getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
+import { getChangeFeed, init, warmMangoCaches, serverError } from "luminary-shared";
 import {
     appSyncedLanguageIdsAsRef,
     initLanguage,
@@ -72,7 +72,7 @@ async function Startup() {
     // copy of the singleton doc, now that it's synced like any other doc type.
     initDefaultAffinitySync();
 
-    const socket = getSocket();
+    const socket = getChangeFeed();
 
     // Advance the session "now" bound when live-sync delivers newly published
     // content, so the Newest feed (and every content feed) picks it up live

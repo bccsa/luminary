@@ -2,8 +2,7 @@ import { watch } from "vue";
 import { DocType, type ApiDataResponseDto, type BaseDocumentDto, type ContentDto } from "../../types";
 import { db } from "../../db/database";
 import { isSyncableDoc } from "../../db/isSyncable";
-import { getSocket } from "../../socket/socketio";
-import { setBaseRooms } from "../../socket/roomSubscriptions";
+import { getChangeFeed } from "../../changeFeed/changeFeed";
 import { getContentPublishDateCutoff } from "../../config";
 import { syncList } from "./state";
 import { splitChunkTypeString } from "./utils";
@@ -11,30 +10,9 @@ import { splitChunkTypeString } from "./utils";
 let _initialized = false;
 
 /**
- * Map the current `syncList` to the set of Socket.io room docTypes to subscribe to.
- * Content updates are broadcast server-side to the PARENT's rooms (`post-{group}` /
- * `tag-{group}`), so a `content:post` entry maps to its subType (`post`); other
- * entries map to their own type. `DeleteCmd` chunks are skipped — the server joins
- * the matching `deleteCmd-{group}` rooms automatically alongside each primary join.
- */
-function roomDocTypesFromSyncList(): DocType[] {
-    const types = new Set<DocType>();
-    for (const entry of syncList.value) {
-        const { type, subType } = splitChunkTypeString(entry.chunkType);
-        if (type === DocType.DeleteCmd) continue;
-        if (type === DocType.Content) {
-            if (subType) types.add(subType);
-        } else {
-            types.add(type);
-        }
-    }
-    return Array.from(types);
-}
-
-/**
- * Apply one Socket.io `"data"` batch to IndexedDB.
+ * Apply one live-stream `"data"` batch to IndexedDB.
  *
- * Socket.io is a pure transport — it does not decide what to persist. This is
+ * The change feed is a pure transport — it does not decide what to persist. This is
  * where that decision lives: incoming live updates are filtered through
  * `isSyncableDoc` (the sync-`syncList`-derived gate), and the result is written
  * via `db.bulkPut` (which resolves `DeleteCmd`s with its own stale-delete guard).
@@ -74,21 +52,16 @@ export async function applyLiveData(data: ApiDataResponseDto): Promise<void> {
 }
 
 /**
- * Subscribe the sync live persister to the Socket.io change feed. Registered once
+ * Subscribe the sync live persister to the live change feed. Registered once
  * at startup from {@link initSync}/`luminary.ts` — the socket re-fires its
  * listeners across reconnects, so a single registration is sufficient.
  */
 export function initLiveSync(): void {
     if (_initialized) return;
     _initialized = true;
-    getSocket().on("data", applyLiveData);
-
-    // Drive Socket.io room subscriptions from what sync actually syncs. As syncList
-    // grows (new groups/languages/types), the set of subscribed rooms widens to match;
-    // held under sync's stable base token so it composes with HybridQuery's per-query
-    // subscriptions for non-synced types.
-    watch(syncList, () => setBaseRooms(roomDocTypesFromSyncList()), {
-        immediate: true,
-        deep: true,
-    });
+    // Only the types sync stores are requested; re-evaluated when sync registers a new type
+    getChangeFeed().on("data", applyLiveData, () =>
+        syncList.value.map((e) => splitChunkTypeString(e.chunkType).type),
+    );
+    watch(syncList, () => getChangeFeed().refreshTypes(), { deep: true });
 }

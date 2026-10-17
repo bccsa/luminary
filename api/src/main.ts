@@ -36,6 +36,13 @@ export async function bootstrap() {
         encodings: ["br", "gzip", "deflate"],
     });
 
+    // Compression would buffer small SSE frames and delay live updates and heartbeats
+    app.getHttpAdapter()
+        .getInstance()
+        .addHook("onRequest", async (request) => {
+            if (request.url.split("?")[0] === "/live") delete request.headers["accept-encoding"];
+        });
+
     const dbService = app.get(DbService);
 
     // Create or update database design docs on api startup
