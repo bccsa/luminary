@@ -121,13 +121,18 @@ const remove = () => {
                 </button>
             </div>
 
-            <ul class="space-y-2">
+            <ul class="space-y-3">
                 <li
                     v-for="(range, index) in shown"
                     :key="`${range.start}-${index}`"
-                    class="border-l-4 pl-3 text-sm text-zinc-700 dark:text-slate-200"
-                    :style="{ borderColor: HIGHLIGHT_COLORS[range.color] }"
+                    role="link"
+                    tabindex="0"
+                    class="cursor-pointer rounded-md border border-l-4 border-zinc-200 bg-white py-2 pl-3 pr-3 text-sm text-zinc-700 shadow-sm transition duration-200 ease-out hover:scale-[1.03] hover:shadow-md focus-visible:scale-[1.03] focus-visible:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:focus-visible:ring-slate-400"
+                    :style="{ borderLeftColor: HIGHLIGHT_COLORS[range.color] }"
                     data-test="highlight-text"
+                    @click="openArticle()"
+                    @keydown.enter.prevent="openArticle()"
+                    @keydown.space.prevent="openArticle()"
                 >
                     {{ range.text }}
                 </li>
