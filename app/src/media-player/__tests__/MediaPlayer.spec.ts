@@ -469,6 +469,32 @@ describe("MediaPlayer", () => {
             await handle.trigger("pointermove", pointer(200));
             expect(sectionStyle(wrapper)).not.toContain("--tw-translate-y");
         });
+
+        it("is drawn down from the audio and video switch too, once the thumb has moved down", async () => {
+            const wrapper = await playing();
+            const audio = find(wrapper, "mediaPlayerAudio");
+            await audio.trigger("pointerdown", pointer(100));
+            // Within a tap's slop the press is still the button's.
+            await audio.trigger("pointermove", pointer(108));
+            expect(sectionStyle(wrapper)).not.toContain("--tw-translate-y");
+
+            await audio.trigger("pointermove", pointer(160));
+            await audio.trigger("pointermove", pointer(500));
+            await audio.trigger("pointerup");
+            expect(find(wrapper, "mediaPlayer").classes()).toContain("translate-y-[110vh]");
+        });
+
+        it("leaves a tap on the switch to the switch", async () => {
+            const wrapper = await playing();
+            const audio = find(wrapper, "mediaPlayerAudio");
+            await audio.trigger("pointerdown", pointer(100));
+            await audio.trigger("pointerup");
+            await audio.trigger("click");
+
+            expect(engine.controller.setAngle).toHaveBeenCalledWith(AUDIO);
+            expect(sectionStyle(wrapper)).not.toContain("--tw-translate-y");
+            expect(find(wrapper, "mediaPlayer").classes()).not.toContain("translate-y-[110vh]");
+        });
     });
 
     describe("the transport", () => {
