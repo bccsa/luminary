@@ -323,10 +323,14 @@ watch(
     { immediate: true },
 );
 
+/** Audio was asked for and the audio-only source is still loading: the picture would only be frozen until it arrives. */
+const audioRequested = ref(false);
 const audioMode = computed(
     () =>
         !!state.value &&
-        (state.value.isAudioOnly || state.value.activeAngleId === AUDIO_ONLY_ANGLE_ID),
+        (audioRequested.value ||
+            state.value.isAudioOnly ||
+            state.value.activeAngleId === AUDIO_ONLY_ANGLE_ID),
 );
 const playing = computed(() => state.value?.playing ?? false);
 const currentTime = computed(() => state.value?.currentTime ?? 0);
@@ -656,15 +660,23 @@ const canSwitch = computed(
 );
 
 async function showAudio() {
-    if (!audioMode.value) await controller.value?.setAngle(AUDIO_ONLY_ANGLE_ID);
+    if (audioMode.value) return;
+    audioRequested.value = true;
+    try {
+        await controller.value?.setAngle(AUDIO_ONLY_ANGLE_ID);
+    } finally {
+        audioRequested.value = false;
+    }
 }
 
 async function showVideo() {
+    const audioPending = audioRequested.value;
+    audioRequested.value = false;
     const target =
         videoAngleId ??
         videoAngles.value.find((angle) => angle.isDefault)?.id ??
         videoAngles.value[0]?.id;
-    if (audioMode.value && target) await controller.value?.setAngle(target);
+    if ((audioMode.value || audioPending) && target) await controller.value?.setAngle(target);
     // Where the platform cannot draw the video in the page, the app shows it in its native
     // full-screen; the web shows it in the player.
     if (isNativeApp() && !inlineVideo.value) await handle.value?.enterFullscreen();
