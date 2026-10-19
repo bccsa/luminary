@@ -133,7 +133,8 @@ const playerExtras = computed(() => ({
     ...(videoPlayer.acceptsNowPlaying
         ? { nowPlaying: nowPlaying.value }
         : { nowPlaying: webNowPlaying.value, appearance: isDarkTheme.value ? "dark" : "light" }),
-    ...(props.inline && videoPlayer.acceptsInline ? { inline: true } : {}),
+    // Withheld until this content's own video is loaded, or the previous video's last frame shows under it.
+    ...(props.inline && videoPlayer.acceptsInline && playingThisContent() ? { inline: true } : {}),
     ...(videoPlayer.acceptsBrowse && props.upNext?.length ? { upNext: props.upNext } : {}),
     ...(videoPlayer.acceptsNextUp && props.nextUp?.length ? { nextUp: props.nextUp } : {}),
 }));
