@@ -160,6 +160,42 @@ describe("useRecommendations useFts option", () => {
     });
 });
 
+describe("useRecommendations freezeSignals option", () => {
+    it("keeps ranking on the mount-time profile when the profile changes later", async () => {
+        const languageId = "lang-eng";
+        const publishDate = Date.now() - 1_000;
+        const first = makeContent("freeze-first", ["tag-freeze-a"], publishDate);
+        const second = makeContent("freeze-second", ["tag-freeze-b"], publishDate);
+        const previousLanguages = [...appLanguageIdsAsRef.value];
+        const previousProfile = affinityProfile.value;
+        const scope = effectScope();
+
+        try {
+            await shared.db.docs.bulkPut([first, second]);
+            appLanguageIdsAsRef.value = [languageId];
+            affinityProfile.value = { affinity: { "tag-freeze-a": 0.8 }, lastDecayUtc: Date.now() };
+            const result = scope.run(() =>
+                useRecommendations({ useFts: false, freezeSignals: true }),
+            );
+            if (!result) throw new Error("recommendation scope did not initialize");
+            await waitForExpect(() =>
+                expect(result.recommended.value.map((d) => d._id)).toContain(first._id),
+            );
+
+            affinityProfile.value = { affinity: { "tag-freeze-b": 0.9 }, lastDecayUtc: Date.now() };
+            await new Promise((resolve) => setTimeout(resolve, 300));
+
+            expect(result.recommended.value.map((d) => d._id)).toContain(first._id);
+            expect(result.recommended.value.map((d) => d._id)).not.toContain(second._id);
+        } finally {
+            scope.stop();
+            affinityProfile.value = previousProfile;
+            appLanguageIdsAsRef.value = previousLanguages;
+            await shared.db.docs.bulkDelete([first._id, second._id]);
+        }
+    });
+});
+
 describe("useRecommendations FTS retrieval", () => {
     it("does not re-fetch when an upstream recompute produces equal tag queries", async () => {
         const languageId = "lang-eng";
@@ -798,5 +834,56 @@ describe("rank", () => {
         expect(
             rank(docs, [], affinity, { now: 0, maxPerDominantTag: 100 }).map((d) => d._id),
         ).toEqual(["a-0", "a-1", "a-2", "a-3", "a-4", "b"]);
+    });
+});
+
+describe("useRecommendations off-screen refresh", () => {
+    it("re-ranks only once hidden, after a few changes", async () => {
+        const first = makeContent("off-first", ["tag-off-a"], Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const second = makeContent(
+            "off-second",
+            ["tag-off-b"],
+            Date.now() - 7 * 24 * 60 * 60 * 1000,
+        );
+        const previousLanguages = [...appLanguageIdsAsRef.value];
+        const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
+        const previousProfile = affinityProfile.value;
+        const scope = effectScope();
+
+        try {
+            await shared.db.docs.bulkPut([first, second]);
+            appLanguageIdsAsRef.value = ["lang-eng"];
+            appSyncedLanguageIdsAsRef.value = ["lang-eng"];
+            affinityProfile.value = { affinity: { "tag-off-a": 0.8 }, lastDecayUtc: Date.now() };
+            const result = scope.run(() =>
+                useRecommendations({ useFts: false, freezeSignals: true }),
+            );
+            if (!result) throw new Error("recommendation scope did not initialize");
+            const ids = () => result.recommended.value.map((d) => d._id);
+
+            await waitForExpect(() => expect(ids()).toContain(first._id));
+
+            const change = async () => {
+                affinityProfile.value = {
+                    affinity: { "tag-off-b": 0.9 },
+                    lastDecayUtc: Date.now(),
+                };
+                await nextTick();
+            };
+
+            for (let i = 0; i < 4; i++) await change();
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            expect(ids()).not.toContain(second._id);
+
+            result.setVisible(false);
+            for (let i = 0; i < 3; i++) await change();
+            await waitForExpect(() => expect(ids()).toContain(second._id));
+        } finally {
+            scope.stop();
+            affinityProfile.value = previousProfile;
+            appLanguageIdsAsRef.value = previousLanguages;
+            appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
+            await shared.db.docs.bulkDelete([first._id, second._id]);
+        }
     });
 });

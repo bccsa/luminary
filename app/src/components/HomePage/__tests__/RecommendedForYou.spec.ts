@@ -12,7 +12,7 @@ vi.mock("vue-i18n", () => ({
 
 const recommended = ref([mockEnglishContentDto]);
 vi.mock("@/composables/useRecommendations", () => ({
-    useRecommendations: () => ({ recommended }),
+    useRecommendations: () => ({ recommended, setVisible: vi.fn() }),
 }));
 
 vi.mock("@/composables/useImpressionTracking", () => ({

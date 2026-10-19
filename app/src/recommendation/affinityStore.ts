@@ -82,10 +82,11 @@ function persist() {
     localStorage.setItem(PROFILE_VERSION_KEY, CURRENT_PROFILE_VERSION);
 }
 
-// Apply the CMS baseline once, only if this browser has never stored an affinity
-// profile. An intentionally empty local profile remains the client's own choice.
+// Apply the CMS baseline to a profile with no evidence. Checking for tags rather than for a
+// stored key matters: an impression miss on a cold profile persists `{ affinity: {} }`, which
+// would otherwise look like an established profile and block the baseline forever.
 watch(defaultAffinity, (serverDefault) => {
-    if (serverDefault && !localStorage.getItem(STORAGE_KEY)) {
+    if (serverDefault && Object.keys(affinityProfile.value.affinity).length === 0) {
         affinityProfile.value = {
             affinity: { ...serverDefault },
             lastDecayUtc: undefined,

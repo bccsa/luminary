@@ -4,9 +4,14 @@ import { useRecommendations } from "@/composables/useRecommendations";
 import { useImpressionTracking } from "@/composables/useImpressionTracking";
 import { recordImpressionMiss } from "@/recommendation/affinityStore";
 import { useI18n } from "vue-i18n";
+import { onActivated, onDeactivated } from "vue";
 
 const { t } = useI18n();
-const { recommended } = useRecommendations();
+const { recommended, setVisible } = useRecommendations({ freezeSignals: true });
+
+// Home is kept alive: while the user reads elsewhere the feed may re-rank off-screen.
+onActivated(() => setVisible(true));
+onDeactivated(() => setVisible(false));
 
 const { root, onContainerClick } = useImpressionTracking(recommended, {
     onMiss: (tagIds) => void recordImpressionMiss(tagIds),

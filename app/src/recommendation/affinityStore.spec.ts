@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { nextTick } from "vue";
 import { db, DocType, PublishStatus, TagType, type ContentDto } from "luminary-shared";
 import { defaultAffinity } from "./defaultAffinityStore";
-import { affinityProfile, recordAffinity, migrateProfileToV2 } from "./affinityStore";
+import {
+    affinityProfile,
+    recordAffinity,
+    recordImpressionMiss,
+    migrateProfileToV2,
+} from "./affinityStore";
 
 describe("affinityStore", () => {
     beforeEach(async () => {
@@ -56,6 +61,14 @@ describe("affinityStore", () => {
         expect(JSON.parse(localStorage.getItem("affinityProfile")!).affinity).toEqual({
             "tag-default": 0.8,
         });
+    });
+
+    it("still seeds the CMS default after an impression miss persisted an empty profile", async () => {
+        await recordImpressionMiss(["tag-a"]);
+        defaultAffinity.value = { "tag-default": 0.8 };
+        await nextTick();
+
+        expect(affinityProfile.value.affinity).toEqual({ "tag-default": 0.8 });
     });
 
     it("does not replace an existing local profile with a later default", async () => {

@@ -1,4 +1,4 @@
-import { computed, onScopeDispose, ref, watch } from "vue";
+import { computed, onScopeDispose, ref, shallowRef, watch } from "vue";
 import {
     decay,
     DocType,
@@ -108,22 +108,43 @@ export type UseRecommendationsOptions = {
      * tag-matched results are enough (e.g. a secondary row on an already-loaded page).
      */
     useFts?: boolean;
+    /**
+     * Rank against the affinity profile and seen ids as they were when the feed mounted, instead
+     * of live. The user's own actions (impressions, opens, completions) write both, so a live
+     * feed re-sorts under their thumb. The profile is re-read only while it is still empty, so a
+     * cold start picks up the CMS default affinity once it arrives. Defaults to false.
+     */
+    freezeSignals?: boolean;
 };
 
 // Content of a pinned parent already has its own home-page collection, so recommending it
 // only duplicates a tile the user is already looking at. The FTS leg is where these reach the
 // feed: it searches every content doc, including a pinned category's own (untagged) doc.
+/** Off-screen re-rank cadence for `freezeSignals` feeds. */
+const REFRESH_EVERY_SIGNALS = 3;
+const OFFSCREEN_QUIET_MS = 4000;
+
 const hasPinnedParent = (doc: ContentDto) => !!doc.parentPinned && doc.parentPinned > 0;
 
 export function useRecommendations({
     limit = DEFAULT_LIMIT,
     retrievalLimit = DEFAULT_RETRIEVAL_LIMIT,
     useFts = true,
+    freezeSignals = false,
 }: UseRecommendationsOptions = {}) {
+    const frozenProfile = shallowRef(affinityProfile.value);
+    if (freezeSignals) {
+        watch(affinityProfile, (profile) => {
+            const hasTags = (p: typeof profile) => Object.keys(p.affinity).length > 0;
+            if (!hasTags(frozenProfile.value) && hasTags(profile)) frozenProfile.value = profile;
+        });
+    }
+    const profileInUse = freezeSignals ? frozenProfile : affinityProfile;
+
     // Decay once per profile update so the retrieval tags and the leg weighting are
     // based on precisely the same evidence.
     const decayedAffinity = computed(
-        () => decay(affinityProfile.value, sessionNow(), affinityConfig.value).affinity,
+        () => decay(profileInUse.value, sessionNow(), affinityConfig.value).affinity,
     );
     const tags = computed(() => topTagsFrom(decayedAffinity.value, TOP_N_TAGS));
     // `$in` has set semantics. Keep its identity canonical so score-only reordering
@@ -393,7 +414,9 @@ export function useRecommendations({
         onScopeDispose(() => clearTimeout(ftsDebounceTimer));
     }
 
+    const frozenSeenIds = shallowRef(new Set(getSeenArticleIds()));
     const seenIds = computed(() => {
+        if (freezeSignals) return frozenSeenIds.value;
         void seenVersion.value; // reactive dependency: getSeenArticleIds itself reads localStorage
         return new Set(getSeenArticleIds());
     });
@@ -418,8 +441,43 @@ export function useRecommendations({
         });
     });
 
+    function refresh() {
+        frozenProfile.value = affinityProfile.value;
+        frozenSeenIds.value = new Set(getSeenArticleIds());
+    }
+
+    // While the feed is off-screen (the user is reading), re-take the snapshot every
+    // REFRESH_EVERY_SIGNALS profile/seen changes, or once they go quiet, so the feed is already
+    // current when they come back. Never while visible: that is what shifts tiles under the user.
+    let offscreen = false;
+    let pendingSignals = 0;
+    let quietTimer: ReturnType<typeof setTimeout> | undefined;
+    const flush = () => {
+        clearTimeout(quietTimer);
+        pendingSignals = 0;
+        refresh();
+    };
+    if (freezeSignals) {
+        watch([affinityProfile, seenVersion], () => {
+            if (!offscreen) return;
+            if (++pendingSignals >= REFRESH_EVERY_SIGNALS) return flush();
+            clearTimeout(quietTimer);
+            quietTimer = setTimeout(flush, OFFSCREEN_QUIET_MS);
+        });
+        onScopeDispose(() => clearTimeout(quietTimer));
+    }
+    /** Tell the feed whether it is on screen; only a hidden feed may re-rank. */
+    function setVisible(visible: boolean) {
+        offscreen = !visible;
+        if (visible) {
+            clearTimeout(quietTimer);
+            pendingSignals = 0;
+        }
+    }
+
     return {
         recommended,
+        setVisible,
         // Reflects only the tag-membership leg's own resolution (the `content` query above),
         // not the FTS leg. The HomePage caller uses the default `useFts: true`, so it does not
         // gate on a fully inclusive readiness signal today; a caller that did would need this
