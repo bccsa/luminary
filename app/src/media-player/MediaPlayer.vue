@@ -889,6 +889,8 @@ let dragStartY: number | null = null;
 let dragLastY = 0;
 let dragLastTime = 0;
 let dragSpeed = 0;
+/** A press that began on one of the bar's buttons: it is the button's until the thumb moves down. */
+let dragFromButton = false;
 let followQueued = false;
 /**
  * The video the platform draws behind the page follows the page's own motion (a scroll, a transition),
@@ -903,17 +905,30 @@ function nudgeInlineVideo() {
     });
 }
 function onDragStart(event: PointerEvent) {
-    // A press on a button is the button's: capturing the pointer here would send its click to this handle.
-    if ((event.target as Element | null)?.closest?.("button, a, input, select, textarea")) return;
     dragStartY = event.clientY;
     dragLastY = event.clientY;
     dragLastTime = event.timeStamp;
     dragSpeed = 0;
+    // A press on a button stays the button's for a tap: capturing the pointer now would send its click
+    // to this handle. The audio and video switch covers most of the bar, so a press there that moves
+    // down still draws the player down.
+    dragFromButton = !!(event.target as Element | null)?.closest?.(
+        "button, a, input, select, textarea",
+    );
     // The rest of the gesture is this handle's, wherever the thumb goes.
-    (event.currentTarget as Element | null)?.setPointerCapture?.(event.pointerId);
+    if (!dragFromButton)
+        (event.currentTarget as Element | null)?.setPointerCapture?.(event.pointerId);
 }
 function onDragMove(event: PointerEvent) {
     if (dragStartY === null) return;
+    if (dragFromButton) {
+        if (event.clientY - dragStartY <= TAP_SLOP_PX) return;
+        // Captured from here on, the release lands on this handle, so the button is not clicked.
+        dragFromButton = false;
+        dragStartY = event.clientY;
+        dragLastY = event.clientY;
+        (event.currentTarget as Element | null)?.setPointerCapture?.(event.pointerId);
+    }
     // A speed is read over a stretch long enough to mean something: two events a hair apart are not one.
     const elapsed = event.timeStamp - dragLastTime;
     if (elapsed >= MIN_SPEED_SAMPLE_MS) dragSpeed = (event.clientY - dragLastY) / elapsed;
@@ -925,6 +940,11 @@ function onDragMove(event: PointerEvent) {
 }
 function onDragEnd() {
     if (dragStartY === null) return;
+    if (dragFromButton) {
+        dragStartY = null;
+        dragFromButton = false;
+        return;
+    }
     const moved = playerDragY.value;
     const away = letsGo(moved, dragSpeed, sectionEl.value?.offsetHeight || window.innerHeight);
     dragStartY = null;
@@ -1092,22 +1112,20 @@ function onKeydown(event: KeyboardEvent) {
                 @pointerup="onDragEnd"
                 @pointercancel="onDragEnd"
             >
+                <!-- The grabber sits in the row's top padding, which matches the bottom one, so the row's
+                     buttons are in the middle of the bar rather than pushed down under the grabber. -->
                 <div
-                    class="flex justify-center pb-1 lg:hidden"
-                    :class="
-                        topBarHeight
-                            ? 'pt-3 [@media(max-height:840px)]:pt-1.5'
-                            : 'pt-[max(env(safe-area-inset-top),0.75rem)]'
-                    "
+                    class="relative flex items-center justify-between px-4 py-5 lg:py-3 [@media(max-height:840px)]:py-4"
+                    :class="{ 'mt-[env(safe-area-inset-top)]': !topBarHeight }"
                 >
                     <div
-                        class="mt-1 h-1.5 w-32 rounded-full bg-zinc-400 opacity-50 dark:bg-slate-400"
-                    />
-                </div>
-
-                <div
-                    class="flex items-center justify-between px-4 pb-3 lg:pt-3 [@media(max-height:840px)]:pb-1"
-                >
+                        class="pointer-events-none absolute inset-x-0 top-2 flex justify-center lg:hidden [@media(max-height:840px)]:top-1.5"
+                        aria-hidden="true"
+                    >
+                        <div
+                            class="h-1.5 w-32 rounded-full bg-zinc-400 opacity-50 dark:bg-slate-400"
+                        />
+                    </div>
                     <button
                         type="button"
                         class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10"
@@ -1257,7 +1275,7 @@ function onKeydown(event: KeyboardEvent) {
                                 <V10Icon
                                     v-else
                                     name="play"
-                                    class="h-7 w-7"
+                                    class="h-7 w-7 translate-x-[8%]"
                                 />
                             </V10Button>
                             <V10Button
@@ -1793,7 +1811,7 @@ function onKeydown(event: KeyboardEvent) {
                             <V10Icon
                                 v-else
                                 name="play"
-                                class="h-[38px] w-[38px]"
+                                class="h-[38px] w-[38px] translate-x-[8%]"
                             />
                         </V10Button>
                         <V10Button
