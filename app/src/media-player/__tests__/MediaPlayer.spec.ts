@@ -2169,6 +2169,20 @@ describe("MediaPlayer", () => {
             expect(screen(wrapper).props().stageHole).toBe(true);
         });
 
+        it("places the picture drawn behind the page again when its stage moves", async () => {
+            const wrapper = await playing();
+            const resized = vi.fn();
+            window.addEventListener("resize", resized);
+            try {
+                screen(wrapper).vm.$emit("stagechange");
+                await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+                await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+                expect(resized).toHaveBeenCalled();
+            } finally {
+                window.removeEventListener("resize", resized);
+            }
+        });
+
         it("minimises from its chevron, and has no close button of its own", async () => {
             const wrapper = await playing();
             expect(find(wrapper, "mediaPlayerClose").exists()).toBe(false);

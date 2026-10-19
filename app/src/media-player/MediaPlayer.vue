@@ -1149,6 +1149,7 @@ function onKeydown(event: KeyboardEvent) {
                     @subtitle-track="(id) => controller?.setSubtitleTrack(id)"
                     @picture-in-picture="handle?.startPictureInPicture?.()"
                     @fullscreen="handle?.enterFullscreen()"
+                    @stagechange="nudgeInlineVideo"
                 >
                     <template #top-end>
                         <button
