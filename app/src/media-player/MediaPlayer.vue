@@ -279,13 +279,16 @@ function openPage() {
     if (slug) void router.push({ name: "content", params: { slug } });
 }
 
-// On a phone the full player covers the page's top bar and the mobile menu; minimising hands the
-// page back with its bars showing, whatever its scroll had done to them meanwhile.
+// On a phone the full player covers the page's top bar and the mobile menu, and puts the chrome
+// away with them: the status bar steps aside with it in the packaged app, for a screen of its own.
+// Minimising hands the page back with its bars showing, whatever its scroll had done meanwhile.
 const mobileChrome = useMobileChromeAutoHide();
 watch(
     expanded,
-    () => {
-        if (item.value) mobileChrome.hidden.value = false;
+    (isExpanded) => {
+        if (!item.value) return;
+        const phone = !window.matchMedia("(min-width: 1024px)").matches;
+        mobileChrome.hidden.value = isExpanded && phone;
     },
     { immediate: true },
 );
@@ -1967,10 +1970,12 @@ function onKeydown(event: KeyboardEvent) {
 
         <!-- Rides on the menu: it moves down with it when the menu steps aside on scroll,
              stopping above the home indicator. -->
+        <!-- Under the bar hangs a strip of its colour as tall as the home indicator's space: covered by the
+             menu while that shows, it reaches the screen's edge once the menu slides away. -->
         <div
             v-if="!expanded && !miniVideo"
             ref="bar"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center justify-between gap-2 border-t-2 border-t-amber-200 bg-amber-50 px-2 pb-2 pt-2.5 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform dark:border-t-slate-600 dark:bg-slate-700 lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border-t-0 lg:shadow-lg"
+            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center justify-between gap-2 border-t-2 border-t-amber-200 bg-amber-50 px-2 pb-2 pt-2.5 after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-amber-50 after:content-[''] dark:after:bg-slate-700 lg:after:hidden transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform dark:border-t-slate-600 dark:bg-slate-700 lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border-t-0 lg:shadow-lg"
             :class="
                 mobileChrome.hidden.value
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'

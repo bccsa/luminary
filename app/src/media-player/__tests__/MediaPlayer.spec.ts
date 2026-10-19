@@ -1352,11 +1352,32 @@ describe("MediaPlayer", () => {
             );
         });
 
-        it("brings the chrome back that scrolling had put away", async () => {
+        it("puts the chrome away while it is open on a phone, which takes the status bar with it", async () => {
             const { hidden } = useMobileChromeAutoHide();
-            hidden.value = true;
+            hidden.value = false;
             await playing();
-            expect(hidden.value).toBe(false);
+            expect(hidden.value).toBe(true);
+        });
+
+        it("leaves the chrome be on a wide screen, where the player is a card in the corner", async () => {
+            await wide(async () => {
+                const { hidden } = useMobileChromeAutoHide();
+                hidden.value = false;
+                await playing();
+                expect(hidden.value).toBe(false);
+            });
+        });
+
+        it("fills the home indicator's space under the minimised bar", async () => {
+            const wrapper = await playing();
+            minimiseMediaPlayer();
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerBar").classes()).toEqual(
+                expect.arrayContaining([
+                    "after:top-full",
+                    "after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))]",
+                ]),
+            );
         });
 
         it("hands the page back with its bars showing when it is minimised", async () => {
