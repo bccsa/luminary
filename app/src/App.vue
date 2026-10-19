@@ -12,6 +12,7 @@ import SearchModal from "@/components/navigation/SearchModal.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { useDismissKeyboardOnTouch } from "@/composables/useDismissKeyboardOnTouch";
+import { useKeyboardOpen } from "@/composables/useKeyboardOpen";
 import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
 import MediaPlayer from "@/media-player/MediaPlayer.vue";
 import { minimiseMediaPlayer } from "@/media-player/mediaPlayer";
@@ -31,6 +32,7 @@ const { available: availableUpdate, applyUpdate } = useAppUpdate();
 const canPrompt = useCanPrompt();
 const mobileChrome = useMobileChromeAutoHide();
 useDismissKeyboardOnTouch();
+useKeyboardOpen();
 
 const router = useRouter();
 

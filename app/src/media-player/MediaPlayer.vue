@@ -45,6 +45,7 @@ import { fallbackImageFor } from "@/util/fallbackArtwork";
 import { coverImageUrl, thumbHashWash } from "./coverImage";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
+import { keyboardOpen } from "@/composables/useKeyboardOpen";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
 import MediaPlayerMenu from "./MediaPlayerMenu.vue";
 import V10Button from "./V10Button.vue";
@@ -376,9 +377,20 @@ const muted = computed(() => handle.value?.muted === true);
  * the rest of the page behind the full player is hidden by the class below.
  */
 const inlineVideo = computed(() => engine.value?.inlineActive === true);
+/** The picture's shape, from the best rendition the master states, so a 4:3 or a square video is not boxed in 16:9. */
+const stageAspect = computed(() => {
+    const best = state.value?.qualities?.find((q) => q.width && q.height);
+    return best ? Math.min(2.4, Math.max(0.5, best.width! / best.height!)) : undefined;
+});
+/** Android draws the subtitles at the foot of the video's place, so this leaves a band there for them. */
+const captionBand = computed(
+    () => /Android/i.test(navigator.userAgent) && isNativeApp() && (state.value?.subtitleTracks.length ?? 0) > 0,
+);
 const inlineHole = computed(() => expanded.value && inlineVideo.value && !audioMode.value);
 watchEffect(() => document.documentElement.classList.toggle("lmc-inline-video", inlineHole.value));
 onBeforeUnmount(() => document.documentElement.classList.remove("lmc-inline-video"));
+
+
 /** `seconds` as a share of the duration, 0 while there is none. */
 function fraction(seconds: number): number {
     return duration.value > 0 && Number.isFinite(duration.value)
@@ -820,6 +832,40 @@ onBeforeUnmount(() => desktopQuery.removeEventListener("change", onDesktopChange
 const miniVideo = computed(
     () => isDesktop.value && !expanded.value && !!item.value && !!state.value && !audioMode.value,
 );
+/**
+ * A phone minimised on a video keeps its picture in the bar: the now-playing screen shrinks to a thumbnail over
+ * the bar's left end, with the platform's video drawn over the page there.
+ */
+const miniStageWanted = computed(
+    () => nowPlaying.value && !expanded.value && !!item.value && !!state.value && !audioMode.value,
+);
+/** The picture's height at the bar's left end when minimised on a video, in CSS pixels. */
+const MINI_PICTURE_HEIGHT = 72;
+const miniSpacer = ref<HTMLElement | null>(null);
+const miniRect = ref<{ x: number; y: number; w: number; h: number } | null>(null);
+const miniStage = computed(() => miniStageWanted.value && miniRect.value !== null);
+let miniFrame = 0;
+function trackMiniSpacer() {
+    const el = miniSpacer.value;
+    if (el) {
+        const r = el.getBoundingClientRect();
+        const prev = miniRect.value;
+        if (!prev || prev.x !== r.left || prev.y !== r.top || prev.w !== r.width || prev.h !== r.height) {
+            miniRect.value = { x: r.left, y: r.top, w: r.width, h: r.height };
+        }
+    }
+    miniFrame = requestAnimationFrame(trackMiniSpacer);
+}
+watch(
+    miniStageWanted,
+    (wanted) => {
+        cancelAnimationFrame(miniFrame);
+        if (wanted) trackMiniSpacer();
+        else miniRect.value = null;
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => cancelAnimationFrame(miniFrame));
 function seekMini(event: MouseEvent) {
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     if (!rect.width || !(duration.value > 0) || !Number.isFinite(duration.value)) return;
@@ -1145,8 +1191,20 @@ function onKeydown(event: KeyboardEvent) {
             :class="[
                 expanded || miniVideo ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
                 miniVideo ? 'lg:w-96 lg:rounded-xl' : 'lg:w-96 lg:rounded-2xl',
+                miniStage ? 'lmc-mini-stage pointer-events-none overflow-hidden rounded-md' : '',
             ]"
             :style="{
+                ...(miniStage && miniRect
+                    ? {
+                          inset: 'auto',
+                          top: `${miniRect.y}px`,
+                          left: `${miniRect.x}px`,
+                          width: `${miniRect.w}px`,
+                          height: `${miniRect.h}px`,
+                          transform: 'none',
+                          transition: 'none',
+                      }
+                    : {}),
                 ...(playerDragging
                     ? { '--tw-translate-y': `${playerDragY}px`, transition: 'none' }
                     : {}),
@@ -1174,6 +1232,8 @@ function onKeydown(event: KeyboardEvent) {
                     appearance="dark"
                     :stage="audioMode ? 'cover' : 'video'"
                     :stage-hole="inlineHole"
+                    :stage-aspect="miniStage ? undefined : stageAspect"
+                    :caption-band="captionBand && !miniStage"
                     :exit-label="t('media_player.minimise')"
                     :chapters="chapters"
                     :current-time="currentTime"
@@ -1289,7 +1349,8 @@ function onKeydown(event: KeyboardEvent) {
                             :next-up="nextUp"
                             autoplay
                             @nextupselect="swapToNext"
-                            inline
+                            :inline="miniStage ? 'front' : true"
+                            :caption-band="captionBand && !miniStage ? 64 : 0"
                             :fullscreen-on-play="isNativeApp()"
                         />
                     </template>
@@ -1341,7 +1402,7 @@ function onKeydown(event: KeyboardEvent) {
                     </div>
                     <button
                         type="button"
-                        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10"
+                        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full [@media(hover:hover)]:hover:bg-black/10 dark:[@media(hover:hover)]:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/10"
                         :aria-label="t('media_player.minimise')"
                         data-test="mediaPlayerMinimise"
                         @click="minimiseMediaPlayer"
@@ -1389,7 +1450,7 @@ function onKeydown(event: KeyboardEvent) {
 
                     <button
                         type="button"
-                        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10"
+                        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full [@media(hover:hover)]:hover:bg-black/10 dark:[@media(hover:hover)]:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/10"
                         :aria-label="t('media_player.close')"
                         data-test="mediaPlayerClose"
                         @click="closeMediaPlayer"
@@ -2227,8 +2288,9 @@ function onKeydown(event: KeyboardEvent) {
              menu while that shows, it reaches the screen's edge once the menu slides away. -->
         <div
             v-if="!expanded && !miniVideo"
+            v-show="!keyboardOpen"
             ref="bar"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center justify-between gap-2 border-t-2 border-t-amber-200 bg-amber-50 px-2 pb-2 pt-2.5 after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-amber-50 after:content-[''] dark:after:bg-slate-700 lg:after:hidden transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform dark:border-t-slate-600 dark:bg-slate-700 lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border-t-0 lg:shadow-lg"
+            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center justify-between gap-2 border-t border-t-white/10 bg-zinc-900/70 text-white backdrop-blur-xl backdrop-saturate-150 px-2 pb-2 pt-2.5 after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-zinc-900/70 after:backdrop-blur-xl after:content-[''] lg:after:hidden transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border-t-0 lg:border lg:border-white/10 lg:shadow-lg"
             :class="
                 mobileChrome.hidden.value
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'
@@ -2249,7 +2311,15 @@ function onKeydown(event: KeyboardEvent) {
                 :aria-label="t('media_player.expand')"
                 @click="expandMediaPlayer"
             >
+                <div
+                    v-if="miniStageWanted"
+                    ref="miniSpacer"
+                    class="flex-none"
+                    :style="{ height: `${MINI_PICTURE_HEIGHT}px`, width: `${Math.min(150, MINI_PICTURE_HEIGHT * (stageAspect ?? 16 / 9))}px` }"
+                    aria-hidden="true"
+                />
                 <LImage
+                    v-else
                     :image="content.parentImageData"
                     :content-parent-id="content.parentId"
                     :parent-image-bucket-id="content.parentImageBucketId"
@@ -2261,7 +2331,7 @@ function onKeydown(event: KeyboardEvent) {
                     <span class="block truncate text-sm font-semibold">{{ content.title }}</span>
                     <span
                         v-if="content.author"
-                        class="block truncate text-xs text-zinc-600 dark:text-slate-400"
+                        class="block truncate text-xs text-white/60"
                         >{{ content.author }}</span
                     >
                 </span>
@@ -2269,38 +2339,38 @@ function onKeydown(event: KeyboardEvent) {
             <button
                 v-if="content.slug"
                 type="button"
-                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10"
+                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full [@media(hover:hover)]:hover:bg-white/10 active:bg-white/10"
                 :aria-label="t('media_player.read')"
                 data-test="mediaPlayerBarRead"
                 @click="openPage"
             >
-                <BookOpenIcon class="h-6 w-6 text-zinc-500 dark:text-slate-400" />
+                <BookOpenIcon class="h-7 w-7 text-white/80" />
             </button>
             <button
                 v-if="state"
                 type="button"
-                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10"
+                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full [@media(hover:hover)]:hover:bg-white/10 active:bg-white/10"
                 :aria-label="playing ? t('media_player.pause') : t('media_player.play')"
                 data-test="mediaPlayerBarPlayPause"
                 @click="togglePlay"
             >
                 <PauseIcon
                     v-if="playing"
-                    class="h-7 w-7 text-zinc-500 dark:text-slate-400"
+                    class="h-7 w-7 text-white/80"
                 />
                 <PlayIcon
                     v-else
-                    class="h-7 w-7 text-zinc-500 dark:text-slate-400"
+                    class="h-7 w-7 text-white/80"
                 />
             </button>
             <button
                 type="button"
-                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10"
+                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full [@media(hover:hover)]:hover:bg-white/10 active:bg-white/10"
                 :aria-label="t('media_player.close')"
                 data-test="mediaPlayerBarClose"
                 @click="closeMediaPlayer"
             >
-                <XMarkIcon class="h-6 w-6 text-zinc-500 dark:text-slate-400" />
+                <XMarkIcon class="h-8 w-8 text-white/80" />
             </button>
         </div>
     </template>

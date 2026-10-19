@@ -56,7 +56,9 @@ type Props = {
     /** Go full-screen when autoplay starts the video, for a player that shows video only there. */
     fullscreenOnPlay?: boolean;
     /** Draw the video in the page where the platform can; see `VideoPlayerHandle.inlineActive`. */
-    inline?: boolean;
+    inline?: boolean | "front";
+    /** Room under the picture for native subtitles, in CSS pixels. */
+    captionBand?: number;
     /** Show the player's own controls in the page, for a player that is not driven from elsewhere. */
     windowedControls?: boolean;
     /** Videos to offer in the player's own chapters / up next panel, where the player has one. */
@@ -134,7 +136,7 @@ const playerExtras = computed(() => ({
         ? { nowPlaying: nowPlaying.value }
         : { nowPlaying: webNowPlaying.value, appearance: isDarkTheme.value ? "dark" : "light" }),
     // Withheld until this content's own video is loaded, or the previous video's last frame shows under it.
-    ...(props.inline && videoPlayer.acceptsInline && playingThisContent() ? { inline: true } : {}),
+    ...(props.inline && videoPlayer.acceptsInline && playingThisContent() ? { inline: props.inline, captionBand: props.captionBand } : {}),
     ...(videoPlayer.acceptsBrowse && props.upNext?.length ? { upNext: props.upNext } : {}),
     ...(videoPlayer.acceptsNextUp && props.nextUp?.length ? { nextUp: props.nextUp } : {}),
 }));

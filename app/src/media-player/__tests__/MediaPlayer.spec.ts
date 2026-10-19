@@ -2539,8 +2539,8 @@ describe("MediaPlayer", () => {
             await flushPromises();
             const classes = find(wrapper, "mediaPlayerBar").classes();
 
-            expect(classes).toContain("bg-amber-50");
-            expect(classes).toContain("dark:bg-slate-700");
+            expect(classes).toContain("bg-zinc-900/70");
+            expect(classes).toContain("backdrop-blur-xl");
             expect(classes).not.toContain("bg-zinc-100");
         });
 
