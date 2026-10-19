@@ -146,6 +146,7 @@
         "activity.highlights.all_colours": "All colours",
         "activity.highlights.open_article": "Open article",
         "activity.highlights.close": "Close",
+        "activity.highlights.remove_passage": "Delete this highlight",
         "activity.remove.label": "Remove from your activity",
         "activity.remove.button": "Delete highlights",
         "activity.remove.confirm.title": "Delete these highlights?",

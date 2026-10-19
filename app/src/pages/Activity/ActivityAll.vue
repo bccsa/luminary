@@ -4,10 +4,11 @@ import { useI18n } from "vue-i18n";
 import { type ContentDto, type HighlightRange, type UserActivityEntry } from "luminary-shared";
 import ActivityCard from "./ActivityCard.vue";
 import ActivityHighlightPanel from "./ActivityHighlightPanel.vue";
+import LDialog from "@/components/common/LDialog.vue";
 import { groupByActivityDate } from "./activityGroups";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
-import { removeUserActivity } from "@/userActivity/store";
+import { removeHighlightRange, removeUserActivity } from "@/userActivity/store";
 
 const { t } = useI18n();
 
@@ -65,7 +66,29 @@ const remove = (entry: Entry) =>
     );
 
 // One panel for the feed rather than one per card: it only ever shows the entry just opened.
-const opened = ref<Entry | undefined>(undefined);
+// Held by row id and looked up again, so removing a passage updates the panel and removing the
+// last one closes it.
+const openedId = ref<string | undefined>(undefined);
+const opened = computed(() => entries.value.find((e) => e.row._id === openedId.value));
+
+// A highlight is the user's own text, so it is asked about first; a view or a like costs nothing to redo.
+const toRemove = ref<Entry | undefined>(undefined);
+const askToRemove = (entry: Entry) =>
+    entry.row.type === "highlighted" ? (toRemove.value = entry) : remove(entry);
+
+const confirmRemove = () => {
+    if (toRemove.value) remove(toRemove.value);
+    toRemove.value = undefined;
+};
+
+const removeRange = (range: HighlightRange) => {
+    const entry = opened.value;
+    if (!entry) return;
+    return removeHighlightRange(
+        { type: "highlighted", contentId: entry.content._id, parentId: entry.content.parentId },
+        range,
+    );
+};
 </script>
 
 <template>
@@ -92,8 +115,8 @@ const opened = ref<Entry | undefined>(undefined);
                     :excerpt-color="rangesOf(entry)[0]?.color"
                     :opens-detail="entry.row.type === 'highlighted'"
                     removable
-                    @remove="remove(entry)"
-                    @open="opened = entry"
+                    @remove="askToRemove(entry)"
+                    @open="openedId = entry.row._id"
                 />
             </div>
         </section>
@@ -105,12 +128,26 @@ const opened = ref<Entry | undefined>(undefined);
             {{ t("activity.all.empty_page") }}
         </div>
 
+        <LDialog
+            v-if="toRemove"
+            :open="true"
+            :title="t('activity.remove.confirm.title')"
+            :description="t('activity.remove.confirm.description')"
+            :primaryAction="confirmRemove"
+            :primaryButtonText="t('activity.remove.button')"
+            :secondaryAction="() => (toRemove = undefined)"
+            :secondaryButtonText="t('activity.remove.confirm.button_cancel')"
+            context="danger"
+            @update:open="toRemove = undefined"
+        />
+
         <ActivityHighlightPanel
             :open="!!opened"
             :content="opened?.content"
             :ranges="opened ? rangesOf(opened) : []"
-            @update:open="opened = undefined"
+            @update:open="openedId = undefined"
             @remove="opened && remove(opened)"
+            @remove-range="removeRange"
         />
     </div>
 </template>
