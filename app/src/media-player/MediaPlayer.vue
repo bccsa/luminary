@@ -96,8 +96,6 @@ const state = computed(() => handle.value?.state ?? null);
 
 const item = mediaPlayerItem;
 const expanded = computed(() => mediaPlayerView.value === "expanded");
-/** The full player is open: it is expanded and something plays. (Expanded is the default view, with or without an item.) */
-const playerOpen = computed(() => expanded.value && !!item.value);
 const content = computed(() => item.value?.content);
 
 /** The lists the sheet under the picture offers: this video's chapters, and what leads to other videos. */
@@ -281,40 +279,16 @@ function openPage() {
     if (slug) void router.push({ name: "content", params: { slug } });
 }
 
-// The full player leaves the chrome in view: it starts below the open page's top bar (each page
-// publishes that height on its own root, so it is measured here) and ends on the mobile menu.
+// On a phone the full player covers the page's top bar and the mobile menu; minimising hands the
+// page back with its bars showing, whatever its scroll had done to them meanwhile.
 const mobileChrome = useMobileChromeAutoHide();
-const topBarHeight = ref(0);
-function measureTopBar() {
-    const topBar = document.querySelector<HTMLElement>("[data-top-bar]");
-    // Hidden from xl up, where the page has no mobile top bar.
-    const shown = !!topBar && getComputedStyle(topBar).display !== "none";
-    topBarHeight.value = shown ? topBar.getBoundingClientRect().height : 0;
-}
 watch(
     expanded,
-    async (isExpanded) => {
-        if (!isExpanded || !item.value) return;
-        mobileChrome.hidden.value = false;
-        await nextTick();
-        measureTopBar();
+    () => {
+        if (item.value) mobileChrome.hidden.value = false;
     },
     { immediate: true },
 );
-watch(
-    () => item.value?.content._id,
-    async () => {
-        await nextTick();
-        measureTopBar();
-    },
-);
-
-// The player is laid out between the bars as measured when it opened: a page scrolling behind it
-// (a phone waking up and restoring the scroll position, say) must not hide them, or the page shows
-// through above and below the player.
-watch(mobileChrome.hidden, (hidden) => {
-    if (hidden && playerOpen.value) mobileChrome.hidden.value = false;
-});
 
 // Pages keep their content clear of the bar through --media-bar-h, as they do for the menu.
 const bar = ref<HTMLElement | null>(null);
@@ -329,20 +303,10 @@ watch(bar, (element, previous) => {
     if (element) barObserver?.observe(element);
     publishBarHeight();
 });
-/** Back from the background (a locked phone, another app): the page may have moved while it slept. */
-function onVisible() {
-    if (document.visibilityState !== "visible" || !playerOpen.value) return;
-    mobileChrome.hidden.value = false;
-    measureTopBar();
-}
 onMounted(() => {
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("resize", measureTopBar);
     if (typeof ResizeObserver !== "undefined") barObserver = new ResizeObserver(publishBarHeight);
 });
 onBeforeUnmount(() => {
-    document.removeEventListener("visibilitychange", onVisible);
-    window.removeEventListener("resize", measureTopBar);
     barObserver?.disconnect();
     document.documentElement.style.removeProperty("--media-bar-h");
 });
@@ -975,14 +939,11 @@ function followGap() {
         if (!section || !inlineHole.value) return endGap();
         const gap = playerDragging.value
             ? playerDragY.value
-            : Math.max(0, section.getBoundingClientRect().top - topBarHeight.value);
+            : Math.max(0, section.getBoundingClientRect().top);
         const root = document.documentElement;
         root.classList.add("lmc-player-dragging");
-        root.style.setProperty("--lmc-gap-top", `${topBarHeight.value}px`);
-        root.style.setProperty(
-            "--lmc-gap-bottom",
-            `${Math.max(0, window.innerHeight - topBarHeight.value - gap)}px`,
-        );
+        root.style.setProperty("--lmc-gap-top", "0px");
+        root.style.setProperty("--lmc-gap-bottom", `${Math.max(0, window.innerHeight - gap)}px`);
         if (playerDragging.value || gap > 0.5) gapFrame = requestAnimationFrame(step);
         else endGap();
     };
@@ -1068,13 +1029,12 @@ function onKeydown(event: KeyboardEvent) {
             role="dialog"
             :aria-label="content.title"
             :aria-hidden="!expanded && !miniVideo"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] top-[var(--media-player-top,0px)] z-40 flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
+            class="fixed inset-0 z-[60] flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
             :class="[
                 expanded || miniVideo ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
                 miniVideo ? 'lg:w-96 lg:rounded-xl' : 'lg:w-96 lg:rounded-2xl',
             ]"
             :style="{
-                '--media-player-top': `${topBarHeight}px`,
                 ...(playerDragging
                     ? { '--tw-translate-y': `${playerDragY}px`, transition: 'none' }
                     : {}),
@@ -1104,7 +1064,7 @@ function onKeydown(event: KeyboardEvent) {
             </div>
             <div
                 v-show="!miniVideo"
-                class="flex-none touch-none bg-amber-50 dark:bg-slate-800"
+                class="flex-none touch-none bg-amber-50 dark:bg-slate-800 max-lg:pt-[env(safe-area-inset-top)]"
                 :class="{ '!bg-transparent': wash }"
                 data-test="mediaPlayerHandle"
                 @pointerdown="onDragStart"
@@ -1116,7 +1076,6 @@ function onKeydown(event: KeyboardEvent) {
                      buttons are in the middle of the bar rather than pushed down under the grabber. -->
                 <div
                     class="relative flex items-center justify-between px-4 py-5 lg:py-3 [@media(max-height:840px)]:py-4"
-                    :class="{ 'mt-[env(safe-area-inset-top)]': !topBarHeight }"
                 >
                     <div
                         class="pointer-events-none absolute inset-x-0 top-2 flex justify-center lg:hidden [@media(max-height:840px)]:top-1.5"
@@ -1836,7 +1795,7 @@ function onKeydown(event: KeyboardEvent) {
                 <div
                     v-if="tabs.length"
                     role="tablist"
-                    class="sticky bottom-0 mt-auto flex h-12 w-full flex-none border-t border-zinc-300/60 bg-amber-50 dark:border-slate-600/60 dark:bg-slate-800 [@media(max-height:840px)]:h-10"
+                    class="sticky bottom-0 mt-auto box-content flex h-12 w-full flex-none border-t border-zinc-300/60 bg-amber-50 dark:border-slate-600/60 dark:bg-slate-800 max-lg:pb-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] [@media(max-height:840px)]:h-10"
                     :class="{ '!bg-transparent': wash, invisible: sheetTab }"
                     :aria-hidden="sheetTab ? 'true' : undefined"
                 >
@@ -1866,7 +1825,7 @@ function onKeydown(event: KeyboardEvent) {
 
             <div
                 v-if="sheetTab"
-                class="absolute inset-x-0 bottom-0 z-20 flex flex-col rounded-t-2xl bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.12)] dark:bg-slate-900"
+                class="absolute inset-x-0 bottom-0 z-20 flex flex-col rounded-t-2xl bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.12)] dark:bg-slate-900 max-lg:pb-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))]"
                 :style="{
                     top: `${sheetTop}px`,
                     transform: sheetDragY ? `translateY(${sheetDragY}px)` : undefined,

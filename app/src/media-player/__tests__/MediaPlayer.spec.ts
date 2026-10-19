@@ -1331,26 +1331,24 @@ describe("MediaPlayer", () => {
         });
     });
 
-    describe("between the chrome", () => {
-        afterEach(() => document.querySelector("[data-top-bar]")?.remove());
-
-        it("starts below the open page's top bar", async () => {
-            const topBar = document.createElement("div");
-            topBar.setAttribute("data-top-bar", "");
-            topBar.getBoundingClientRect = () => ({ height: 90 }) as DOMRect;
-            document.body.appendChild(topBar);
-
+    describe("over the chrome", () => {
+        it("covers the whole screen on a phone, above the page's top bar and the mobile menu", async () => {
             const wrapper = await playing();
-
-            expect(find(wrapper, "mediaPlayer").attributes("style")).toContain(
-                "--media-player-top: 90px",
-            );
+            const section = find(wrapper, "mediaPlayer");
+            // The menu is z-50 and the page's top bar z-30; modals sit higher still, at z-[100].
+            expect(section.classes()).toEqual(expect.arrayContaining(["fixed", "inset-0", "z-[60]"]));
+            expect(section.attributes("style") ?? "").not.toContain("--media-player-top");
         });
 
-        it("starts at the top where the page has no top bar", async () => {
+        it("keeps its top bar clear of the status bar and its tabs clear of the home indicator", async () => {
             const wrapper = await playing();
-            expect(find(wrapper, "mediaPlayer").attributes("style")).toContain(
-                "--media-player-top: 0px",
+            engine.state.chapters = [{ startTime: 0, endTime: 120, title: "One" }];
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerHandle").classes()).toContain(
+                "max-lg:pt-[env(safe-area-inset-top)]",
+            );
+            expect(wrapper.find("[role='tablist']").classes()).toContain(
+                "max-lg:pb-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))]",
             );
         });
 
@@ -1361,12 +1359,12 @@ describe("MediaPlayer", () => {
             expect(hidden.value).toBe(false);
         });
 
-        it("puts the chrome back and measures again when the app returns from the background", async () => {
+        it("hands the page back with its bars showing when it is minimised", async () => {
             const { hidden } = useMobileChromeAutoHide();
             await playing();
-            // Hidden while it slept, with nothing watching: only the return can bring it back.
+            // The page behind scrolled while the player covered it.
             hidden.value = true;
-            document.dispatchEvent(new Event("visibilitychange"));
+            minimiseMediaPlayer();
             await flushPromises();
             expect(hidden.value).toBe(false);
         });
@@ -1380,9 +1378,6 @@ describe("MediaPlayer", () => {
             hidden.value = true;
             await flushPromises();
             expect(hidden.value).toBe(true);
-            document.dispatchEvent(new Event("visibilitychange"));
-            await flushPromises();
-            expect(hidden.value).toBe(true);
         });
 
         it("leaves it be while the player is minimised", async () => {
@@ -1394,15 +1389,6 @@ describe("MediaPlayer", () => {
             hidden.value = true;
             await flushPromises();
             expect(hidden.value).toBe(true);
-        });
-
-        it("keeps the chrome in place while the player is open, however the page behind scrolls", async () => {
-            const { hidden } = useMobileChromeAutoHide();
-            await playing();
-
-            hidden.value = true;
-            await flushPromises();
-            expect(hidden.value).toBe(false);
         });
     });
 
