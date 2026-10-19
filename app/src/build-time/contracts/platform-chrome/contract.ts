@@ -12,4 +12,11 @@ export type PlatformChromeService = {
 
     /** Show/hide the OS status bar. No-op where the platform has none to manage. */
     setStatusBarHidden(hidden: boolean): void;
+
+    /**
+     * Let the app's pages turn with the phone, or keep them upright. Where the pages are held upright
+     * (the packaged app on a phone), a screen that has a landscape layout of its own asks for this while it
+     * is open. Absent where the platform turns pages by itself.
+     */
+    setPagesTurn?(allowed: boolean): void;
 };
