@@ -53,31 +53,16 @@ describe("affinityStore", () => {
         expect(affinityProfile.value.affinity).toEqual({});
     });
 
-    it("seeds a previously unused client from the CMS default", async () => {
+    it("never writes the CMS default into the local profile", async () => {
         defaultAffinity.value = { "tag-default": 0.8 };
         await nextTick();
 
-        expect(affinityProfile.value.affinity).toEqual({ "tag-default": 0.8 });
-        expect(JSON.parse(localStorage.getItem("affinityProfile")!).affinity).toEqual({
-            "tag-default": 0.8,
-        });
-    });
+        expect(affinityProfile.value.affinity).toEqual({});
+        expect(localStorage.getItem("affinityProfile")).toBeNull();
 
-    it("still seeds the CMS default after an impression miss persisted an empty profile", async () => {
-        await recordImpressionMiss(["tag-a"]);
-        defaultAffinity.value = { "tag-default": 0.8 };
-        await nextTick();
-
-        expect(affinityProfile.value.affinity).toEqual({ "tag-default": 0.8 });
-    });
-
-    it("does not replace an existing local profile with a later default", async () => {
         await recordAffinity(["tag-a"]);
-        defaultAffinity.value = { "tag-default": 0.8 };
-        await nextTick();
 
-        expect(affinityProfile.value.affinity["tag-a"]).toBeGreaterThan(0);
-        expect(affinityProfile.value.affinity["tag-default"]).toBeUndefined();
+        expect(Object.keys(affinityProfile.value.affinity)).toEqual(["tag-a"]);
     });
 
     describe("v2 score-scale migration", () => {

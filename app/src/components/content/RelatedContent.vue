@@ -4,7 +4,8 @@ import { computed, shallowRef, watch } from "vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { rank, affinityScoreScale } from "@/recommendation/ranking";
 import { affinityProfile } from "@/recommendation/affinityStore";
-import { affinityConfig } from "@/recommendation/defaultAffinityStore";
+import { affinityConfig, defaultAffinity } from "@/recommendation/defaultAffinityStore";
+import { layerDefaultAffinity } from "@/recommendation/layerDefaultAffinity";
 import { getSeenArticleIds } from "@/recommendation/seenStore";
 import { sessionNow } from "@/util/sessionNow";
 import { useI18n } from "vue-i18n";
@@ -67,11 +68,10 @@ const rankingSeenIds = shallowRef<Set<Uuid>>(new Set());
 watch(
     () => props.selectedContent.parentId,
     () => {
-        rankingAffinity.value = decay(
-            affinityProfile.value,
-            sessionNow(),
-            affinityConfig.value,
-        ).affinity;
+        rankingAffinity.value = layerDefaultAffinity(
+            decay(affinityProfile.value, sessionNow(), affinityConfig.value).affinity,
+            defaultAffinity.value,
+        );
         rankingSeenIds.value = new Set(getSeenArticleIds());
     },
     { immediate: true },

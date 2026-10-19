@@ -9,7 +9,7 @@ import { onActivated, onDeactivated } from "vue";
 const { t } = useI18n();
 const { recommended, setVisible } = useRecommendations({ freezeSignals: true });
 
-// Home is kept alive: while the user reads elsewhere the feed may re-rank off-screen.
+// Home is kept alive: the feed only re-ranks while off-screen, once the profile has drifted enough.
 onActivated(() => setVisible(true));
 onDeactivated(() => setVisible(false));
 

@@ -1,6 +1,6 @@
-import { ref, watch } from "vue";
+import { ref } from "vue";
 import { applyEvent, type AffinityProfile, type Uuid } from "luminary-shared";
-import { defaultAffinity, affinityConfig } from "@/recommendation/defaultAffinityStore";
+import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { filterTopicTagIds } from "@/recommendation/topicTags";
 
 /**
@@ -10,8 +10,8 @@ import { filterTopicTagIds } from "@/recommendation/topicTags";
  * in the Dexie `docs` table, so client retention (`deleteRevoked`) can never purge
  * it. It is deliberately client-local: no affinity document is queued or synced.
  * The CMS-managed baseline (the synced `DefaultAffinity` singleton, see
- * `defaultAffinityStore.ts`) only seeds a new local profile, so administrators can
- * tune recommendations for first-time clients.
+ * `defaultAffinityStore.ts`) is never written into this profile; it is layered beneath it at
+ * ranking time (`layerDefaultAffinity`), so the user's own evidence always takes preference.
  */
 
 const STORAGE_KEY = "affinityProfile";
@@ -81,19 +81,6 @@ function persist() {
     // code (e.g. the CMS-baseline seed below) is never re-migrated on the next load.
     localStorage.setItem(PROFILE_VERSION_KEY, CURRENT_PROFILE_VERSION);
 }
-
-// Apply the CMS baseline to a profile with no evidence. Checking for tags rather than for a
-// stored key matters: an impression miss on a cold profile persists `{ affinity: {} }`, which
-// would otherwise look like an established profile and block the baseline forever.
-watch(defaultAffinity, (serverDefault) => {
-    if (serverDefault && Object.keys(affinityProfile.value.affinity).length === 0) {
-        affinityProfile.value = {
-            affinity: { ...serverDefault },
-            lastDecayUtc: undefined,
-        };
-        persist();
-    }
-});
 
 /**
  * Record that the user engaged with a piece of content: fold its tag ids into the

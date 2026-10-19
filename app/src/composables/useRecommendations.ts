@@ -13,7 +13,8 @@ import {
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useContentQueryWithState } from "@/composables/useContentQueryWithState";
 import { affinityProfile } from "@/recommendation/affinityStore";
-import { affinityConfig } from "@/recommendation/defaultAffinityStore";
+import { affinityConfig, defaultAffinity } from "@/recommendation/defaultAffinityStore";
+import { layerDefaultAffinity } from "@/recommendation/layerDefaultAffinity";
 import {
     highlightVersion,
     loadHighlightQueries,
@@ -120,9 +121,19 @@ export type UseRecommendationsOptions = {
 // Content of a pinned parent already has its own home-page collection, so recommending it
 // only duplicates a tile the user is already looking at. The FTS leg is where these reach the
 // feed: it searches every content doc, including a pinned category's own (untagged) doc.
-/** Off-screen re-rank cadence for `freezeSignals` feeds. */
-const REFRESH_EVERY_SIGNALS = 3;
-const OFFSCREEN_QUIET_MS = 4000;
+/**
+ * Profile drift, on the nominal score scale (one completed video/article ≈ 0.35), at which an
+ * off-screen `freezeSignals` feed re-ranks. Roughly two completions or a bookmark and a highlight.
+ */
+const REFRESH_AFFINITY_DRIFT = 0.7;
+
+/** Total absolute score change between two profiles, on the nominal scale. Exported for tests. */
+export function affinityDrift(from: AffinityMap, to: AffinityMap, scoreScale = 1): number {
+    let drift = 0;
+    for (const tag of new Set([...Object.keys(from), ...Object.keys(to)]))
+        drift += Math.abs((to[tag] ?? 0) - (from[tag] ?? 0));
+    return drift * scoreScale;
+}
 
 const hasPinnedParent = (doc: ContentDto) => !!doc.parentPinned && doc.parentPinned > 0;
 
@@ -140,11 +151,23 @@ export function useRecommendations({
         });
     }
     const profileInUse = freezeSignals ? frozenProfile : affinityProfile;
+    // The CMS default is a fallback beneath the user's profile; frozen alongside it so its late
+    // arrival can't re-rank a painted feed (it is only picked up while the snapshot is empty).
+    const frozenDefault = shallowRef(defaultAffinity.value);
+    if (freezeSignals) {
+        watch(defaultAffinity, (value) => {
+            if (!frozenDefault.value) frozenDefault.value = value;
+        });
+    }
+    const defaultInUse = freezeSignals ? frozenDefault : defaultAffinity;
 
     // Decay once per profile update so the retrieval tags and the leg weighting are
     // based on precisely the same evidence.
-    const decayedAffinity = computed(
-        () => decay(profileInUse.value, sessionNow(), affinityConfig.value).affinity,
+    const decayedAffinity = computed(() =>
+        layerDefaultAffinity(
+            decay(profileInUse.value, sessionNow(), affinityConfig.value).affinity,
+            defaultInUse.value,
+        ),
     );
     const tags = computed(() => topTagsFrom(decayedAffinity.value, TOP_N_TAGS));
     // `$in` has set semantics. Keep its identity canonical so score-only reordering
@@ -443,36 +466,28 @@ export function useRecommendations({
 
     function refresh() {
         frozenProfile.value = affinityProfile.value;
+        frozenDefault.value = defaultAffinity.value;
         frozenSeenIds.value = new Set(getSeenArticleIds());
     }
 
-    // While the feed is off-screen (the user is reading), re-take the snapshot every
-    // REFRESH_EVERY_SIGNALS profile/seen changes, or once they go quiet, so the feed is already
-    // current when they come back. Never while visible: that is what shifts tiles under the user.
+    // While the feed is off-screen, re-take the snapshot once the profile has drifted far enough
+    // from it to change what is worth recommending. Never while visible: that shifts tiles under
+    // the user. Drift accrued while visible is applied as soon as the feed goes off-screen.
     let offscreen = false;
-    let pendingSignals = 0;
-    let quietTimer: ReturnType<typeof setTimeout> | undefined;
-    const flush = () => {
-        clearTimeout(quietTimer);
-        pendingSignals = 0;
-        refresh();
+    const maybeRefresh = () => {
+        if (!offscreen) return;
+        const drift = affinityDrift(
+            frozenProfile.value.affinity,
+            affinityProfile.value.affinity,
+            scoreScale.value,
+        );
+        if (drift >= REFRESH_AFFINITY_DRIFT) refresh();
     };
-    if (freezeSignals) {
-        watch([affinityProfile, seenVersion], () => {
-            if (!offscreen) return;
-            if (++pendingSignals >= REFRESH_EVERY_SIGNALS) return flush();
-            clearTimeout(quietTimer);
-            quietTimer = setTimeout(flush, OFFSCREEN_QUIET_MS);
-        });
-        onScopeDispose(() => clearTimeout(quietTimer));
-    }
+    if (freezeSignals) watch(affinityProfile, maybeRefresh);
     /** Tell the feed whether it is on screen; only a hidden feed may re-rank. */
     function setVisible(visible: boolean) {
         offscreen = !visible;
-        if (visible) {
-            clearTimeout(quietTimer);
-            pendingSignals = 0;
-        }
+        maybeRefresh();
     }
 
     return {

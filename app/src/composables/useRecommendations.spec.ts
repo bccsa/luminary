@@ -6,6 +6,7 @@ import { DocType, PublishStatus, type ContentDto, type FtsSearchResult } from "l
 import { appLanguageIdsAsRef, appSyncedLanguageIdsAsRef } from "@/globalConfig";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import {
+    affinityDrift,
     computeRichness,
     fuseTagFts,
     rank,
@@ -837,8 +838,18 @@ describe("rank", () => {
     });
 });
 
+describe("affinityDrift", () => {
+    it("is below the refresh threshold for a few plain opens", () => {
+        expect(affinityDrift({ x: 0.0035 }, { x: 0.0039 }, 100)).toBeLessThan(0.7);
+    });
+
+    it("sums absolute change across the union of tags, on the nominal scale", () => {
+        expect(affinityDrift({ a: 0.1, b: 0.2 }, { b: 0.1, c: 0.3 }, 10)).toBeCloseTo(5, 10);
+    });
+});
+
 describe("useRecommendations off-screen refresh", () => {
-    it("re-ranks only once hidden, after a few changes", async () => {
+    it("re-ranks only while off-screen and after the profile has drifted enough", async () => {
         const first = makeContent("off-first", ["tag-off-a"], Date.now() - 7 * 24 * 60 * 60 * 1000);
         const second = makeContent(
             "off-second",
@@ -860,23 +871,15 @@ describe("useRecommendations off-screen refresh", () => {
             );
             if (!result) throw new Error("recommendation scope did not initialize");
             const ids = () => result.recommended.value.map((d) => d._id);
-
             await waitForExpect(() => expect(ids()).toContain(first._id));
 
-            const change = async () => {
-                affinityProfile.value = {
-                    affinity: { "tag-off-b": 0.9 },
-                    lastDecayUtc: Date.now(),
-                };
-                await nextTick();
-            };
-
-            for (let i = 0; i < 4; i++) await change();
+            // Large drift while visible: nothing moves.
+            affinityProfile.value = { affinity: { "tag-off-b": 0.9 }, lastDecayUtc: Date.now() };
             await new Promise((resolve) => setTimeout(resolve, 300));
             expect(ids()).not.toContain(second._id);
 
+            // Going off-screen applies the drift accrued so far.
             result.setVisible(false);
-            for (let i = 0; i < 3; i++) await change();
             await waitForExpect(() => expect(ids()).toContain(second._id));
         } finally {
             scope.stop();
