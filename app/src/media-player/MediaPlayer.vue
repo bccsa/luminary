@@ -31,6 +31,7 @@ import {
     rosterFineStep,
     rosterStep,
     rosterTiles,
+    type ScrubPosition,
     type Chapter,
 } from "@luminary-media-converter/player-web";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
@@ -433,17 +434,22 @@ function measurePicture() {
     pictureWidth.value = pictureEl.value?.getBoundingClientRect().width ?? 0;
 }
 /** The frame is a sixth of the width, 16:9, and never smaller than a phone's thumb can read. */
-const rosterHeight = computed(() =>
-    Math.round((Math.min(340, Math.max(168, pictureWidth.value / 6)) * 9) / 16),
-);
+const rosterHeightFor = (width: number) =>
+    Math.round((Math.min(340, Math.max(168, width / 6)) * 9) / 16);
+const rosterHeight = computed(() => rosterHeightFor(pictureWidth.value));
 /** The strip of frames for a moment, `step` seconds to a frame, with the marker `markerX` px from the left. */
-function buildRoster(time: number, markerX: number, step: number) {
+function buildRoster(
+    time: number,
+    markerX: number,
+    step: number,
+    width = pictureWidth.value,
+) {
     const instance = controller.value;
-    const width = pictureWidth.value;
     if (!instance || !(duration.value > 0) || !(width > 0)) return null;
     const sample = instance.thumbnailAt(0);
     if (!sample || !sample.w || !sample.h) return null;
-    const tileWidth = Math.max(24, Math.round((rosterHeight.value * sample.w) / sample.h));
+    const height = rosterHeightFor(width);
+    const tileWidth = Math.max(24, Math.round((height * sample.w) / sample.h));
     const tiles = rosterTiles(time, markerX, width, tileWidth, step, duration.value).map(
         (tile) => ({
             // A different step makes the same index a different slot, so the step is part of the identity.
@@ -453,7 +459,40 @@ function buildRoster(time: number, markerX: number, step: number) {
             cue: instance.thumbnailAt(tile.time),
         }),
     );
-    return { tiles, tileWidth, markerX, time, step };
+    return { tiles, tileWidth, height, markerX, time, step };
+}
+
+/** The now-playing screen's held bar, which has no picture element to measure; null when it is let go. */
+const nowPlayingScrub = ref<ScrubPosition | null>(null);
+/** Where the now-playing screen's frames sit once let go: they stay for slow scrubbing, as in full-screen. */
+const nowPlayingPin = ref<{ width: number; bottom: number } | null>(null);
+const nowPlayingRoster = computed(() => {
+    if (audioMode.value || !state.value?.thumbnailsReady) return null;
+    const scrub = nowPlayingScrub.value;
+    if (scrub) {
+        const roster = buildRoster(scrub.time, scrub.markerX, rosterStep(duration.value), scrub.width);
+        return roster && { ...roster, bottom: scrub.bottom };
+    }
+    const pin = nowPlayingPin.value;
+    if (!pin) return null;
+    const roster = buildRoster(pinnedTime.value, pin.width / 2, rosterFineStep(duration.value), pin.width);
+    return roster && { ...roster, bottom: pin.bottom };
+});
+function onNowPlayingScrub(position: ScrubPosition | null) {
+    if (position) {
+        nowPlayingScrub.value = position;
+        if (nowPlayingRoster.value) {
+            rosterOpened = true;
+            pauseForScrub();
+        }
+        return;
+    }
+    const last = nowPlayingScrub.value;
+    nowPlayingScrub.value = null;
+    if (!last || !rosterOpened || audioMode.value || !state.value?.thumbnailsReady) return;
+    rosterOpened = false;
+    nowPlayingPin.value = { width: last.width, bottom: last.bottom };
+    anchorPin(last.time);
 }
 
 /** The finger is on the bar. (`scrubTime` outlives it until playback arrives, so it cannot say.) */
@@ -526,6 +565,9 @@ const heldRoster = computed(() => {
     return buildRoster(time, markerX, rosterStep(duration.value));
 });
 
+/** The pinned frames being dragged: the desktop strip over the picture, or the now-playing screen's. */
+const dragRoster = computed(() => (nowPlayingPin.value ? nowPlayingRoster.value : heldRoster.value));
+
 /**
  * Whether the roster was shown during this press. Remembered apart from `fingerDown`, because a phone's
  * browser may cancel the pointer when it takes the slider's drag over, and only then report the change:
@@ -560,11 +602,15 @@ const rosterEl = ref<HTMLElement | null>(null);
 function onPressOutsideRoster(event: Event) {
     const target = event.target as Node | null;
     if (target && (seekArea.value?.contains(target) || rosterEl.value?.contains(target))) return;
+    if ((target as Element | null)?.closest?.(".lmpl-afs-bar, .lmpl-afs-scrubzone")) return;
     rosterPinned.value = false;
+    nowPlayingPin.value = null;
     rosterDrag.value = null;
     resumeFromScrub();
 }
-watch(rosterPinned, (pinned) => {
+watch(
+    () => rosterPinned.value || nowPlayingPin.value !== null,
+    (pinned) => {
     cancelAnimationFrame(playheadFrame);
     if (pinned) {
         document.addEventListener("pointerdown", onPressOutsideRoster, true);
@@ -573,13 +619,17 @@ watch(rosterPinned, (pinned) => {
         document.removeEventListener("pointerdown", onPressOutsideRoster, true);
         releasePin();
     }
-});
+    },
+);
 onBeforeUnmount(() => {
     document.removeEventListener("pointerdown", onPressOutsideRoster, true);
     cancelAnimationFrame(playheadFrame);
 });
 // Another video, or no picture to show frames over, leaves nothing to keep.
-watch([() => item.value?.content._id, expanded, audioMode], () => (rosterPinned.value = false));
+watch([() => item.value?.content._id, expanded, audioMode], () => {
+    rosterPinned.value = false;
+    nowPlayingPin.value = null;
+});
 /**
  * What is loaded shows once it reaches past what has played by a visible amount (about 2 px of the
  * bar): a smaller stretch would only be a hairline at the corner of the yellow.
@@ -641,7 +691,8 @@ function holdScrubAt(target: number) {
 function seekTo(event: Event) {
     const target = Number((event.target as HTMLInputElement).value);
     handle.value?.seek(target);
-    resumeFromScrub();
+    // With frames up the video stays paused for slow scrubbing; a press outside resumes it.
+    if (!rosterOpened && !rosterPinned.value) resumeFromScrub();
     fingerDown.value = false;
     // Only a press outside unpins: a second report of the same release (the browser's cancel, then its change) must not.
     if (rosterOpened) rosterPinned.value = true;
@@ -651,7 +702,7 @@ function seekTo(event: Event) {
 }
 
 function onRosterDown(event: PointerEvent) {
-    const roster = heldRoster.value;
+    const roster = dragRoster.value;
     if (!roster) return;
     (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
     pauseForScrub();
@@ -659,7 +710,7 @@ function onRosterDown(event: PointerEvent) {
 }
 function onRosterMove(event: PointerEvent) {
     const drag = rosterDrag.value;
-    const roster = heldRoster.value;
+    const roster = dragRoster.value;
     if (!drag || !roster) return;
     // The strip follows the finger one-to-one, at a scale that does not change during the drag.
     const time = drag.time - (event.clientX - drag.lastX) / (roster.tileWidth / roster.step);
@@ -702,11 +753,12 @@ function onPictureUp(event: PointerEvent) {
 
 function onRosterUp(event: PointerEvent) {
     const drag = rosterDrag.value;
-    const roster = heldRoster.value;
+    const roster = dragRoster.value;
     rosterDrag.value = null;
     // A phone's browser may cancel a drag it takes over: where the strip had got to is still where the viewer went.
     const lifted = event.type === "pointerup" || (event.type === "pointercancel" && !!drag?.moved);
-    if (!drag || !roster || !lifted) return resumeFromScrub();
+    const pinned = rosterPinned.value || nowPlayingPin.value !== null;
+    if (!drag || !roster || !lifted) return pinned ? undefined : resumeFromScrub();
     let target = drag.time;
     if (!drag.moved) {
         // A tap: the frame under the finger, read off the strip's own scale.
@@ -717,7 +769,7 @@ function onRosterUp(event: PointerEvent) {
     handle.value?.seek(target);
     anchorPin(target);
     holdScrubAt(target);
-    resumeFromScrub();
+    if (!pinned) resumeFromScrub();
 }
 
 const openMenu = ref<"speed" | "language" | "subtitles" | "sleep" | null>(null);
@@ -1150,7 +1202,24 @@ function onKeydown(event: KeyboardEvent) {
                     @picture-in-picture="handle?.startPictureInPicture?.()"
                     @fullscreen="handle?.enterFullscreen()"
                     @stagechange="nudgeInlineVideo"
+                    @scrub="onNowPlayingScrub"
                 >
+                    <template v-if="nowPlayingRoster" #roster>
+                        <ScrubRoster
+                            :tiles="nowPlayingRoster.tiles"
+                            :tile-width="nowPlayingRoster.tileWidth"
+                            :height="nowPlayingRoster.height"
+                            :marker-x="nowPlayingRoster.markerX"
+                            :bottom="nowPlayingRoster.bottom"
+                            :interactive="!nowPlayingScrub"
+                            :ref="(el) => (rosterEl = ((el as any)?.$el as HTMLElement) ?? null)"
+                            data-test="mediaPlayerNowPlayingRoster"
+                            @pointerdown.stop="!nowPlayingScrub && onRosterDown($event)"
+                            @pointermove.stop="!nowPlayingScrub && onRosterMove($event)"
+                            @pointerup.stop="!nowPlayingScrub && onRosterUp($event)"
+                            @pointercancel.stop="!nowPlayingScrub && onRosterUp($event)"
+                        />
+                    </template>
                     <template #top-end>
                         <button
                             v-if="handle?.airPlayAvailable || handle?.castAvailable"

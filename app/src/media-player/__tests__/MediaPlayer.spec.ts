@@ -687,14 +687,14 @@ describe("MediaPlayer", () => {
                     expect(engine.handle.pause).toHaveBeenCalled();
                 });
 
-                it("seeks and plays on from there when the finger lifts, and keeps the frames up", async () => {
+                it("seeks and stays paused when the finger lifts, and keeps the frames up", async () => {
                     const { wrapper, bar } = await heldAt90();
                     engine.state.playing = false;
                     await flushPromises();
                     await bar.trigger("change");
 
                     expect(engine.handle.seek).toHaveBeenCalledWith(90);
-                    expect(engine.handle.play).toHaveBeenCalled();
+                    expect(engine.handle.play).not.toHaveBeenCalled();
                     expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(true);
                 });
 
@@ -808,13 +808,13 @@ describe("MediaPlayer", () => {
                     expect(engine.handle.play).not.toHaveBeenCalled();
                 });
 
-                it("plays on when the browser cancels the pointer before reporting the change", async () => {
+                it("stays paused when the browser cancels the pointer before reporting the change", async () => {
                     const { bar } = await heldAt90();
                     await bar.trigger("pointercancel");
                     await bar.trigger("change");
 
                     expect(engine.handle.seek).toHaveBeenCalled();
-                    expect(engine.handle.play).toHaveBeenCalled();
+                    expect(engine.handle.play).not.toHaveBeenCalled();
                 });
 
                 it("keeps the frames up when the browser cancels the pointer, with or without a change after", async () => {
