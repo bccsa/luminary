@@ -213,6 +213,7 @@
         "media_player.sleep_left": "{minutes} min restantes",
         "media_player.fullscreen": "Plein écran",
         "media_player.lyrics": "Paroles",
+        "media_player.lyrics_language": "Langue des paroles",
         "media_player.subtitles": "Sous-titres",
         "media_player.subtitles_off": "Désactivés",
         "media_player.picture_in_picture": "Image dans l'image",
