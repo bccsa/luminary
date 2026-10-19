@@ -156,6 +156,7 @@
         "activity.highlights.all_colours": "Toutes les couleurs",
         "activity.highlights.open_article": "Ouvrir l'article",
         "activity.highlights.close": "Fermer",
+        "activity.highlights.remove_passage": "Supprimer ce surlignage",
         "activity.remove.label": "Retirer de votre activité",
         "activity.remove.button": "Supprimer les surlignages",
         "activity.remove.confirm.title": "Supprimer ces surlignages ?",

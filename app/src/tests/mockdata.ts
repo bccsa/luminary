@@ -436,6 +436,7 @@ export const mockLanguageDtoEng: LanguageDto = {
         "activity.highlights.all_colours": "All colours",
         "activity.highlights.open_article": "Open article",
         "activity.highlights.close": "Close",
+        "activity.highlights.remove_passage": "Delete this highlight",
         "singlecontent.highlightColor.yellow": "Yellow",
         "singlecontent.highlightColor.green": "Green",
         "singlecontent.highlightColor.blue": "Blue",

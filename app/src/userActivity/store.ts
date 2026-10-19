@@ -12,7 +12,13 @@
 
 import { ref } from "vue";
 import Dexie from "dexie";
-import { db, type UserActivityEntry, type UserActivityType, type Uuid } from "luminary-shared";
+import {
+    db,
+    type HighlightRange,
+    type UserActivityEntry,
+    type UserActivityType,
+    type Uuid,
+} from "luminary-shared";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
 
 /**
@@ -82,6 +88,46 @@ export async function removeUserActivity(ref: ActivityRef): Promise<void> {
     });
 
     if (ref.type === "highlighted") await dropStoredHighlight(ref.contentId);
+
+    userActivityVersion.value++;
+}
+
+/**
+ * Delete a single passage from a highlight, keeping the others. Removing the last one removes
+ * the whole activity.
+ *
+ * Both copies change: the row feeds the activity page, while the `highlights` entry is what
+ * `LHighlightable` paints from and saves back — left alone, the next save would restore the passage.
+ */
+export async function removeHighlightRange(
+    ref: Extract<ActivityRef, { type: "highlighted" }>,
+    range: HighlightRange,
+): Promise<void> {
+    const row = await db.userActivity.get(userActivityId(ref));
+    if (!row || row.deleted) return;
+
+    const remaining = (row.payload?.ranges ?? []).filter(
+        (r) => !(r.start === range.start && r.end === range.end),
+    );
+    if (remaining.length === (row.payload?.ranges.length ?? 0)) return;
+
+    if (!remaining.length) return removeUserActivity(ref);
+
+    // The card keeps its place in the feed: tidying a highlight is not new activity.
+    await db.userActivity.put({ ...row, payload: { ranges: remaining } });
+
+    const stored = await db.getLuminaryInternals("highlights");
+    if (stored && typeof stored === "object" && !Array.isArray(stored)) {
+        await db.setLuminaryInternals("highlights", {
+            ...(stored as Record<string, unknown>),
+            [ref.contentId]: {
+                ranges: remaining,
+                updatedAt: row.updatedTimeUtc,
+                parentId: ref.parentId,
+            },
+        });
+        notifyHighlightsChanged();
+    }
 
     userActivityVersion.value++;
 }

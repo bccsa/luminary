@@ -10,6 +10,7 @@ import {
     hasUserActivity,
     pruneUserActivityTombstones,
     recordUserActivity,
+    removeHighlightRange,
     removeUserActivity,
     userActivityId,
 } from "../store";
@@ -158,6 +159,80 @@ describe("userActivity", () => {
 
         it("does not tombstone an activity that was never recorded", async () => {
             await removeUserActivity({ type: "liked", parentId: "never-liked" });
+
+            expect(await db.userActivity.count()).toBe(0);
+        });
+    });
+
+    describe("removing one passage", () => {
+        const ref = { type: "highlighted", contentId: "content-1", parentId: "post-1" } as const;
+        const first: HighlightRange = { start: 0, end: 5, color: "yellow", text: "first" };
+        const second: HighlightRange = { start: 10, end: 16, color: "blue", text: "second" };
+
+        beforeEach(async () => {
+            await db.setLuminaryInternals("highlights", {
+                "content-1": { ranges: [first, second], updatedAt: 1, parentId: "post-1" },
+                "content-2": { ranges: [first], updatedAt: 1, parentId: "post-2" },
+            });
+        });
+
+        it("drops that passage from the row and from the article's copy, and nothing else", async () => {
+            at(1000);
+            await recordUserActivity(ref, { ranges: [first, second] });
+
+            at(5000);
+            await removeHighlightRange(ref, first);
+
+            const row = await db.userActivity.get("highlighted:content-1");
+            expect(row!.payload!.ranges).toEqual([second]);
+
+            const stored = (await db.getLuminaryInternals("highlights")) as Record<
+                string,
+                { ranges: HighlightRange[] }
+            >;
+            expect(stored["content-1"].ranges).toEqual([second]);
+            expect(stored["content-2"].ranges).toEqual([first]);
+        });
+
+        it("keeps the activity where it was in the feed", async () => {
+            at(1000);
+            await recordUserActivity(ref, { ranges: [first, second] });
+
+            at(5000);
+            await removeHighlightRange(ref, second);
+
+            expect((await db.userActivity.get("highlighted:content-1"))!.updatedTimeUtc).toBe(1000);
+        });
+
+        it("removes the whole activity once its last passage goes", async () => {
+            await recordUserActivity(ref, { ranges: [first] });
+
+            await removeHighlightRange(ref, first);
+
+            expect((await db.userActivity.get("highlighted:content-1"))!.deleted).toBe(true);
+            expect(await getUserActivity("highlighted")).toEqual([]);
+            const stored = (await db.getLuminaryInternals("highlights")) as Record<string, unknown>;
+            expect(stored["content-1"]).toBeUndefined();
+        });
+
+        it("leaves everything alone for a passage the highlight does not hold", async () => {
+            await recordUserActivity(ref, { ranges: [first, second] });
+
+            await removeHighlightRange(ref, { ...first, start: 99, end: 104 });
+
+            expect((await db.userActivity.get("highlighted:content-1"))!.payload!.ranges).toEqual([
+                first,
+                second,
+            ]);
+            const stored = (await db.getLuminaryInternals("highlights")) as Record<
+                string,
+                { ranges: HighlightRange[] }
+            >;
+            expect(stored["content-1"].ranges).toEqual([first, second]);
+        });
+
+        it("ignores an activity that was never recorded", async () => {
+            await removeHighlightRange(ref, first);
 
             expect(await db.userActivity.count()).toBe(0);
         });
