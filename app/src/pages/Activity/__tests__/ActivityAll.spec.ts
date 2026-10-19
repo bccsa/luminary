@@ -256,10 +256,18 @@ describe("ActivityAll", () => {
         });
         await wrapper.find("[data-test=activity-remove-highlighted]").trigger("click");
 
+        // Highlights are the reader's own text, so the click asks first and destroys nothing yet.
+        await waitForExpect(() => {
+            expect(wrapper.find("[data-test=modal-primary-button]").exists()).toBe(true);
+        });
+        expect(await getAllUserActivity()).toHaveLength(1);
+        // The passages panel must not have opened in its place.
+        expect(wrapper.find("[data-test=highlight-text]").exists()).toBe(false);
+
+        await wrapper.find("[data-test=modal-primary-button]").trigger("click");
+
         await waitForExpect(async () => {
             expect(await getAllUserActivity()).toEqual([]);
         });
-        // The passages dialog must not have opened in its place.
-        expect(wrapper.find("[data-test=highlight-text]").exists()).toBe(false);
     });
 });

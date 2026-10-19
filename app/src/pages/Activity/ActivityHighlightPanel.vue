@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { type ContentDto, type HighlightColor, type HighlightRange } from "luminary-shared";
 import { XMarkIcon } from "@heroicons/vue/24/outline";
+import { TrashIcon } from "@heroicons/vue/24/solid";
 import LSidePanel from "@/components/common/LSidePanel.vue";
 import LButton from "@/components/button/LButton.vue";
 import LDialog from "@/components/common/LDialog.vue";
@@ -17,7 +18,7 @@ const props = defineProps<{ content?: ContentDto; ranges: HighlightRange[] }>();
 const open = defineModel<boolean>("open", { required: true });
 
 /** Removal is the caller's: only it knows which activity row the passages came from. */
-const emit = defineEmits<{ remove: [] }>();
+const emit = defineEmits<{ remove: []; removeRange: [range: HighlightRange] }>();
 
 const colour = ref<HighlightColor | undefined>(undefined);
 
@@ -127,14 +128,27 @@ const remove = () => {
                     :key="`${range.start}-${index}`"
                     role="link"
                     tabindex="0"
-                    class="cursor-pointer rounded-md border border-l-4 border-zinc-200 bg-white py-2 pl-3 pr-3 text-sm text-zinc-700 shadow-sm transition duration-200 ease-out hover:scale-[1.03] hover:shadow-md focus-visible:scale-[1.03] focus-visible:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:focus-visible:ring-slate-400"
+                    class="flex cursor-pointer items-start gap-2 rounded-md border border-l-4 border-zinc-200 bg-white py-2 pl-3 pr-3 text-sm text-zinc-700 shadow-sm transition duration-200 ease-out hover:scale-[1.03] hover:shadow-md focus-visible:scale-[1.03] focus-visible:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:focus-visible:ring-slate-400"
                     :style="{ borderLeftColor: HIGHLIGHT_COLORS[range.color] }"
                     data-test="highlight-text"
                     @click="openArticle()"
                     @keydown.enter.prevent="openArticle()"
                     @keydown.space.prevent="openArticle()"
                 >
-                    {{ range.text }}
+                    <span class="min-w-0 flex-1">{{ range.text }}</span>
+                    <!-- Inside a card that opens the article, so the click and the keys that
+                         activate the card must not reach it. -->
+                    <button
+                        type="button"
+                        class="-my-1 shrink-0 rounded-full p-1.5 text-zinc-500 transition hover:text-red-600 focus:text-red-600 active:text-red-700 dark:text-slate-400 dark:hover:text-red-400 dark:focus:text-red-400 dark:active:text-red-500"
+                        :aria-label="t('activity.highlights.remove_passage')"
+                        data-test="highlight-passage-remove"
+                        @click.stop.prevent="emit('removeRange', range)"
+                        @keydown.enter.stop
+                        @keydown.space.stop
+                    >
+                        <TrashIcon class="h-4 w-4" />
+                    </button>
                 </li>
             </ul>
         </div>
