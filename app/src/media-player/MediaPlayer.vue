@@ -41,7 +41,7 @@ import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { isDarkTheme, isMac } from "@/globalConfig";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { fallbackImageFor } from "@/util/fallbackArtwork";
-import { coverImageUrl } from "./coverImage";
+import { coverImageUrl, thumbHashWash } from "./coverImage";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
@@ -96,8 +96,6 @@ const state = computed(() => handle.value?.state ?? null);
 
 const item = mediaPlayerItem;
 const expanded = computed(() => mediaPlayerView.value === "expanded");
-/** The full player is open: it is expanded and something plays. (Expanded is the default view, with or without an item.) */
-const playerOpen = computed(() => expanded.value && !!item.value);
 const content = computed(() => item.value?.content);
 
 /** The lists the sheet under the picture offers: this video's chapters, and what leads to other videos. */
@@ -281,40 +279,19 @@ function openPage() {
     if (slug) void router.push({ name: "content", params: { slug } });
 }
 
-// The full player leaves the chrome in view: it starts below the open page's top bar (each page
-// publishes that height on its own root, so it is measured here) and ends on the mobile menu.
+// On a phone the full player covers the page's top bar and the mobile menu, and puts the chrome
+// away with them: the status bar steps aside with it in the packaged app, for a screen of its own.
+// Minimising hands the page back with its bars showing, whatever its scroll had done meanwhile.
 const mobileChrome = useMobileChromeAutoHide();
-const topBarHeight = ref(0);
-function measureTopBar() {
-    const topBar = document.querySelector<HTMLElement>("[data-top-bar]");
-    // Hidden from xl up, where the page has no mobile top bar.
-    const shown = !!topBar && getComputedStyle(topBar).display !== "none";
-    topBarHeight.value = shown ? topBar.getBoundingClientRect().height : 0;
-}
 watch(
     expanded,
-    async (isExpanded) => {
-        if (!isExpanded || !item.value) return;
-        mobileChrome.hidden.value = false;
-        await nextTick();
-        measureTopBar();
+    (isExpanded) => {
+        if (!item.value) return;
+        const phone = !window.matchMedia("(min-width: 1024px)").matches;
+        mobileChrome.hidden.value = isExpanded && phone;
     },
     { immediate: true },
 );
-watch(
-    () => item.value?.content._id,
-    async () => {
-        await nextTick();
-        measureTopBar();
-    },
-);
-
-// The player is laid out between the bars as measured when it opened: a page scrolling behind it
-// (a phone waking up and restoring the scroll position, say) must not hide them, or the page shows
-// through above and below the player.
-watch(mobileChrome.hidden, (hidden) => {
-    if (hidden && playerOpen.value) mobileChrome.hidden.value = false;
-});
 
 // Pages keep their content clear of the bar through --media-bar-h, as they do for the menu.
 const bar = ref<HTMLElement | null>(null);
@@ -329,20 +306,10 @@ watch(bar, (element, previous) => {
     if (element) barObserver?.observe(element);
     publishBarHeight();
 });
-/** Back from the background (a locked phone, another app): the page may have moved while it slept. */
-function onVisible() {
-    if (document.visibilityState !== "visible" || !playerOpen.value) return;
-    mobileChrome.hidden.value = false;
-    measureTopBar();
-}
 onMounted(() => {
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("resize", measureTopBar);
     if (typeof ResizeObserver !== "undefined") barObserver = new ResizeObserver(publishBarHeight);
 });
 onBeforeUnmount(() => {
-    document.removeEventListener("visibilitychange", onVisible);
-    window.removeEventListener("resize", measureTopBar);
     barObserver?.disconnect();
     document.documentElement.style.removeProperty("--media-bar-h");
 });
@@ -774,6 +741,11 @@ const rateLabel = (rate: number) => `${rate}x`;
 /** A wide screen: the player is the card in the corner, and a minimised video keeps only its picture. */
 const desktopQuery = window.matchMedia("(min-width: 1024px)");
 const isDesktop = ref(desktopQuery.matches);
+/**
+ * A phone gets the now-playing screen for sound and picture alike, full screen in portrait; a wide screen keeps
+ * the card in the corner.
+ */
+const nowPlaying = computed(() => !isDesktop.value);
 const onDesktopChange = (event: MediaQueryListEvent) => (isDesktop.value = event.matches);
 desktopQuery.addEventListener("change", onDesktopChange);
 onBeforeUnmount(() => desktopQuery.removeEventListener("change", onDesktopChange));
@@ -855,6 +827,46 @@ watch([audioMode, () => item.value?.content._id], ([isAudio]) => {
 
 const SLEEP_MINUTES = [5, 10, 15, 30, 45, 60];
 const sleepTimer = computed(() => state.value?.sleepTimer ?? null);
+
+// --- the now-playing screen on a phone -----------------------------------------------------------
+
+const nowPlayingWash = computed(() => thumbHashWash(content.value));
+const nowPlayingSubtitle = computed(() =>
+    [content.value?.author, publishDate.value].filter(Boolean).join(" · "),
+);
+
+/**
+ * With sound alone the subtitles are the lyrics, read from the player where it can: a track has to be on for its
+ * words to load, so one is turned on for the sound, in the post's language when there is one, and the viewer's
+ * own choice is put back with the picture.
+ */
+const lyrics = computed(() => (audioMode.value ? (handle.value?.subtitleCues ?? []) : []));
+let lyricsTrackSet = false;
+watch(
+    () => [audioMode.value, state.value?.subtitleTracks.length ?? 0] as const,
+    ([audio, count]) => {
+        const active = state.value?.activeSubtitleTrackId ?? null;
+        if (audio && count > 0 && !active && !lyricsTrackSet) {
+            const tracks = state.value!.subtitleTracks;
+            const own = tracks.find((track) => track.lang === item.value?.language) ?? tracks[0]!;
+            lyricsTrackSet = true;
+            controller.value?.setSubtitleTrack(own.id);
+        } else if (!audio && lyricsTrackSet) {
+            lyricsTrackSet = false;
+            controller.value?.setSubtitleTrack(null);
+        }
+    },
+);
+watch(
+    () => item.value?.content._id,
+    () => (lyricsTrackSet = false),
+);
+
+/** The screen is drawn down from its top line, as the card is from its handle. */
+function onNowPlayingDragStart(event: PointerEvent) {
+    if (!(event.target as Element | null)?.closest?.(".lmpl-afs-top")) return;
+    onDragStart(event);
+}
 /** The minutes a minutes timer has left, rounded up, so it never says 0 while it runs. */
 const sleepMinutesLeft = computed(() =>
     sleepTimer.value?.kind === "minutes"
@@ -975,14 +987,11 @@ function followGap() {
         if (!section || !inlineHole.value) return endGap();
         const gap = playerDragging.value
             ? playerDragY.value
-            : Math.max(0, section.getBoundingClientRect().top - topBarHeight.value);
+            : Math.max(0, section.getBoundingClientRect().top);
         const root = document.documentElement;
         root.classList.add("lmc-player-dragging");
-        root.style.setProperty("--lmc-gap-top", `${topBarHeight.value}px`);
-        root.style.setProperty(
-            "--lmc-gap-bottom",
-            `${Math.max(0, window.innerHeight - topBarHeight.value - gap)}px`,
-        );
+        root.style.setProperty("--lmc-gap-top", "0px");
+        root.style.setProperty("--lmc-gap-bottom", `${Math.max(0, window.innerHeight - gap)}px`);
         if (playerDragging.value || gap > 0.5) gapFrame = requestAnimationFrame(step);
         else endGap();
     };
@@ -1068,13 +1077,12 @@ function onKeydown(event: KeyboardEvent) {
             role="dialog"
             :aria-label="content.title"
             :aria-hidden="!expanded && !miniVideo"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] top-[var(--media-player-top,0px)] z-40 flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
+            class="fixed inset-0 z-[60] flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
             :class="[
                 expanded || miniVideo ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
                 miniVideo ? 'lg:w-96 lg:rounded-xl' : 'lg:w-96 lg:rounded-2xl',
             ]"
             :style="{
-                '--media-player-top': `${topBarHeight}px`,
                 ...(playerDragging
                     ? { '--tw-translate-y': `${playerDragY}px`, transition: 'none' }
                     : {}),
@@ -1083,9 +1091,133 @@ function onKeydown(event: KeyboardEvent) {
             data-test="mediaPlayer"
             @keydown="onKeydown"
         >
+            <!-- A phone: the now-playing screen, for sound and picture alike. The engine plays in its stage. -->
+            <div
+                v-if="nowPlaying"
+                class="lmpl-root [&_.lmpl-afs-top]:touch-none"
+                style="position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto"
+                data-test="mediaPlayerNowPlaying"
+                @pointerdown="onNowPlayingDragStart"
+                @pointermove="onDragMove"
+                @pointerup="onDragEnd"
+                @pointercancel="onDragEnd"
+            >
+                <AudioFullscreen
+                    :title="content.title"
+                    :subtitle="nowPlayingSubtitle"
+                    :artwork="screenArtwork"
+                    :wash="nowPlayingWash"
+                    appearance="dark"
+                    :stage="audioMode ? 'cover' : 'video'"
+                    :stage-hole="inlineHole"
+                    :exit-label="t('media_player.minimise')"
+                    :chapters="chapters"
+                    :current-time="currentTime"
+                    :duration="duration"
+                    :buffered-end="state?.bufferedEnd ?? 0"
+                    :playing="playing"
+                    :live="live"
+                    :chapter-index="screenChapterIndex"
+                    :playback-rate="state?.playbackRate ?? 1"
+                    :audio-tracks="screenTracks"
+                    :active-audio-track-id="state?.activeAudioTrackId ?? null"
+                    :sleep-timer="sleepTimer"
+                    :has-browse="chapters.length > 0 || nextUp.length > 0"
+                    :up-next="nextUp"
+                    chapters-sheet
+                    :skip-back-seconds="SKIP_SECONDS"
+                    :skip-forward-seconds="SKIP_SECONDS"
+                    :chapter-mask="screenChapterMask"
+                    :messages="screenMessages"
+                    :subtitle-tracks="state?.subtitleTracks ?? []"
+                    :active-subtitle-track-id="state?.activeSubtitleTrackId ?? null"
+                    :can-picture-in-picture="!!handle?.canPictureInPicture"
+                    :lyrics="lyrics"
+                    @exit="minimiseMediaPlayer"
+                    @toggle-play="togglePlay"
+                    @seek="(time) => handle?.seek(time)"
+                    @seek-chapter="(chapter) => handle?.seek(chapter.startTime)"
+                    @upnextselect="
+                        (id) => {
+                            const next = nextContents.find((doc) => doc._id === id);
+                            if (next) playNext(next);
+                        }
+                    "
+                    @rate="(rate) => controller?.setPlaybackRate(rate)"
+                    @audio-track="(id) => controller?.setAudioTrack(id)"
+                    @sleep="(option) => controller?.setSleepTimer(option)"
+                    @subtitle-track="(id) => controller?.setSubtitleTrack(id)"
+                    @picture-in-picture="handle?.startPictureInPicture?.()"
+                    @fullscreen="handle?.enterFullscreen()"
+                    @stagechange="nudgeInlineVideo"
+                >
+                    <template #top-end>
+                        <button
+                            v-if="handle?.airPlayAvailable || handle?.castAvailable"
+                            type="button"
+                            class="lmpl-afs-iconbtn"
+                            :aria-label="t(isMac ? 'media_player.airplay' : 'media_player.cast')"
+                            data-test="mediaPlayerNowPlayingCast"
+                            @click="
+                                handle?.airPlayAvailable
+                                    ? handle.showAirPlayPicker?.()
+                                    : handle?.showCastPicker?.()
+                            "
+                        >
+                            <V10Icon
+                                :name="isMac ? 'airplay' : 'cast'"
+                                class="h-[22px] w-[22px]"
+                            />
+                        </button>
+                        <div
+                            v-if="canSwitch"
+                            role="group"
+                            :aria-label="t('media_player.play_as')"
+                            class="flex min-w-0 rounded-full bg-white/10 p-1"
+                        >
+                            <button
+                                type="button"
+                                class="flex h-8 min-w-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold"
+                                :class="audioMode ? 'bg-white text-zinc-900' : 'text-white/75'"
+                                :aria-pressed="audioMode"
+                                data-test="mediaPlayerAudio"
+                                @click="showAudio"
+                            >
+                                <MusicalNoteIcon class="h-4 w-4" />
+                                <span class="truncate">{{ t("media_player.audio") }}</span>
+                            </button>
+                            <button
+                                type="button"
+                                class="flex h-8 min-w-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold"
+                                :class="!audioMode ? 'bg-white text-zinc-900' : 'text-white/75'"
+                                :aria-pressed="!audioMode"
+                                data-test="mediaPlayerVideo"
+                                @click="showVideo"
+                            >
+                                <FilmIcon class="h-4 w-4" />
+                                <span class="truncate">{{ t("media_player.video") }}</span>
+                            </button>
+                        </div>
+                    </template>
+                    <template #stage>
+                        <VideoPlayer
+                            ref="engine"
+                            :content="content"
+                            :language="item.language"
+                            :start-audio="startAudio"
+                            :next-up="nextUp"
+                            autoplay
+                            @nextupselect="swapToNext"
+                            inline
+                            :fullscreen-on-play="isNativeApp()"
+                        />
+                    </template>
+                </AudioFullscreen>
+            </div>
+
             <!-- The cover, blurred and saturated, behind every part, under a scrim to keep the text readable. -->
             <div
-                v-if="wash"
+                v-if="!nowPlaying && wash"
                 class="pointer-events-none absolute inset-0 -z-10 overflow-hidden bg-amber-50 dark:bg-slate-900"
                 aria-hidden="true"
                 data-test="mediaPlayerWash"
@@ -1103,8 +1235,9 @@ function onKeydown(event: KeyboardEvent) {
                 <div class="absolute inset-0 bg-white/45 dark:bg-slate-900/65" />
             </div>
             <div
+                v-if="!nowPlaying"
                 v-show="!miniVideo"
-                class="flex-none touch-none bg-amber-50 dark:bg-slate-800"
+                class="flex-none touch-none bg-amber-50 dark:bg-slate-800 max-lg:pt-[env(safe-area-inset-top)]"
                 :class="{ '!bg-transparent': wash }"
                 data-test="mediaPlayerHandle"
                 @pointerdown="onDragStart"
@@ -1116,7 +1249,6 @@ function onKeydown(event: KeyboardEvent) {
                      buttons are in the middle of the bar rather than pushed down under the grabber. -->
                 <div
                     class="relative flex items-center justify-between px-4 py-5 lg:py-3 [@media(max-height:840px)]:py-4"
-                    :class="{ 'mt-[env(safe-area-inset-top)]': !topBarHeight }"
                 >
                     <div
                         class="pointer-events-none absolute inset-x-0 top-2 flex justify-center lg:hidden [@media(max-height:840px)]:top-1.5"
@@ -1187,6 +1319,7 @@ function onKeydown(event: KeyboardEvent) {
             </div>
 
             <div
+                v-if="!nowPlaying"
                 ref="pictureEl"
                 class="relative w-full flex-none touch-pan-y"
                 :class="
@@ -1409,6 +1542,7 @@ function onKeydown(event: KeyboardEvent) {
                  (Chapters, Up next) scroll inside themselves. Nothing is clipped either: the menus open
                  upward over the picture. -->
             <div
+                v-if="!nowPlaying"
                 v-show="!miniVideo"
                 class="flex min-h-0 flex-1 flex-col overflow-visible bg-amber-50 dark:bg-slate-800"
                 :class="{ '!bg-transparent': wash }"
@@ -1836,7 +1970,7 @@ function onKeydown(event: KeyboardEvent) {
                 <div
                     v-if="tabs.length"
                     role="tablist"
-                    class="sticky bottom-0 mt-auto flex h-12 w-full flex-none border-t border-zinc-300/60 bg-amber-50 dark:border-slate-600/60 dark:bg-slate-800 [@media(max-height:840px)]:h-10"
+                    class="sticky bottom-0 mt-auto box-content flex h-12 w-full flex-none border-t border-zinc-300/60 bg-amber-50 dark:border-slate-600/60 dark:bg-slate-800 max-lg:pb-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] [@media(max-height:840px)]:h-10"
                     :class="{ '!bg-transparent': wash, invisible: sheetTab }"
                     :aria-hidden="sheetTab ? 'true' : undefined"
                 >
@@ -1865,8 +1999,8 @@ function onKeydown(event: KeyboardEvent) {
             </div>
 
             <div
-                v-if="sheetTab"
-                class="absolute inset-x-0 bottom-0 z-20 flex flex-col rounded-t-2xl bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.12)] dark:bg-slate-900"
+                v-if="!nowPlaying && sheetTab"
+                class="absolute inset-x-0 bottom-0 z-20 flex flex-col rounded-t-2xl bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.12)] dark:bg-slate-900 max-lg:pb-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))]"
                 :style="{
                     top: `${sheetTop}px`,
                     transform: sheetDragY ? `translateY(${sheetDragY}px)` : undefined,
@@ -1943,7 +2077,7 @@ function onKeydown(event: KeyboardEvent) {
         </section>
 
         <div
-            v-if="audioFullscreen && content && state"
+            v-if="audioFullscreen && !nowPlaying && content && state"
             ref="screenEl"
             data-lmpl-host-screen
             class="lmpl-root z-[70]"
@@ -2008,10 +2142,12 @@ function onKeydown(event: KeyboardEvent) {
 
         <!-- Rides on the menu: it moves down with it when the menu steps aside on scroll,
              stopping above the home indicator. -->
+        <!-- Under the bar hangs a strip of its colour as tall as the home indicator's space: covered by the
+             menu while that shows, it reaches the screen's edge once the menu slides away. -->
         <div
             v-if="!expanded && !miniVideo"
             ref="bar"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center justify-between gap-2 border-t-2 border-t-amber-200 bg-amber-50 px-2 pb-2 pt-2.5 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform dark:border-t-slate-600 dark:bg-slate-700 lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border-t-0 lg:shadow-lg"
+            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center justify-between gap-2 border-t-2 border-t-amber-200 bg-amber-50 px-2 pb-2 pt-2.5 after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-amber-50 after:content-[''] dark:after:bg-slate-700 lg:after:hidden transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform dark:border-t-slate-600 dark:bg-slate-700 lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border-t-0 lg:shadow-lg"
             :class="
                 mobileChrome.hidden.value
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'

@@ -1,4 +1,5 @@
 import type { ContentDto } from "luminary-shared";
+import { thumbHashToDataURL } from "thumbhash";
 
 const COVER_TARGET_WIDTH = 640;
 
@@ -25,4 +26,25 @@ export function coverImageUrl(content: ContentDto, bucketBaseUrl?: string): stri
             : closest,
     );
     return `${bucketBaseUrl.replace(/\/$/, "")}/${file.filename}`;
+}
+
+/**
+ * The post image's ThumbHash as a small picture, for the now-playing screen's colour: stretched over the screen it
+ * is already soft, so nothing has to blur it, and it is there before any image has downloaded. From the image set
+ * nearest square, as the cover; undefined when the post has none, or it does not decode.
+ */
+export function thumbHashWash(content: ContentDto | undefined): string | undefined {
+    const collections = (content?.parentImageData?.fileCollections ?? []).filter((c) => c.thumbHash);
+    if (!collections.length) return undefined;
+    const collection = collections.reduce((closest, candidate) =>
+        Math.abs(candidate.aspectRatio - 1) < Math.abs(closest.aspectRatio - 1)
+            ? candidate
+            : closest,
+    );
+    try {
+        const bytes = Uint8Array.from(atob(collection.thumbHash!), (char) => char.charCodeAt(0));
+        return thumbHashToDataURL(bytes);
+    } catch {
+        return undefined;
+    }
 }

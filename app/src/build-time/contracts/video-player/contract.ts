@@ -69,6 +69,8 @@ export type VideoPlayerHandle = {
     /** The player's volume, 0 to 1, where the page can set it; a phone keeps its own. */
     readonly volume?: number;
     setVolume?(volume: number): void;
+    /** The words of the subtitles that are on, timed, where the player can read them; for lyrics with sound alone. */
+    readonly subtitleCues?: readonly { start: number; end: number; text: string }[];
     startPictureInPicture?(): void;
     /** Opens the system's AirPlay device list. */
     showAirPlayPicker?(): void;
