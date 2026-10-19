@@ -25,6 +25,8 @@ export function usePlayerMessages() {
     skipForward: t("media_player.skip_forward", { seconds: "{seconds}" }),
     chapterOf: t("video_player.chapter_of", { index: "{index}", count: "{count}" }),
     exitFullscreen: t("video_player.exit_fullscreen"),
+    enterFullscreen: t("media_player.fullscreen"),
+    lyrics: t("media_player.lyrics"),
     audioMenuLabel: t("video_player.audio_menu"),
     subtitlesMenuLabel: t("video_player.subtitles_menu"),
     subtitlesOff: t("video_player.subtitles_off"),
@@ -36,6 +38,7 @@ export function usePlayerMessages() {
     closeBrowse: t("video_player.close_browse"),
     nextUp: t("media_player.up_next"),
     dismiss: t("video_player.dismiss_next_up"),
+    
     // Native full-screen draws its own controls and says these.
     pictureInPicture: t("media_player.picture_in_picture"),
     playbackRate: t("media_player.speed"),

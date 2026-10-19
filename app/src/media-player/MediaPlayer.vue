@@ -41,7 +41,7 @@ import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { isDarkTheme, isMac } from "@/globalConfig";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { fallbackImageFor } from "@/util/fallbackArtwork";
-import { coverImageUrl } from "./coverImage";
+import { coverImageUrl, thumbHashWash } from "./coverImage";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
@@ -741,6 +741,11 @@ const rateLabel = (rate: number) => `${rate}x`;
 /** A wide screen: the player is the card in the corner, and a minimised video keeps only its picture. */
 const desktopQuery = window.matchMedia("(min-width: 1024px)");
 const isDesktop = ref(desktopQuery.matches);
+/**
+ * A phone gets the now-playing screen for sound and picture alike, full screen in portrait; a wide screen keeps
+ * the card in the corner.
+ */
+const nowPlaying = computed(() => !isDesktop.value);
 const onDesktopChange = (event: MediaQueryListEvent) => (isDesktop.value = event.matches);
 desktopQuery.addEventListener("change", onDesktopChange);
 onBeforeUnmount(() => desktopQuery.removeEventListener("change", onDesktopChange));
@@ -822,6 +827,46 @@ watch([audioMode, () => item.value?.content._id], ([isAudio]) => {
 
 const SLEEP_MINUTES = [5, 10, 15, 30, 45, 60];
 const sleepTimer = computed(() => state.value?.sleepTimer ?? null);
+
+// --- the now-playing screen on a phone -----------------------------------------------------------
+
+const nowPlayingWash = computed(() => thumbHashWash(content.value));
+const nowPlayingSubtitle = computed(() =>
+    [content.value?.author, publishDate.value].filter(Boolean).join(" · "),
+);
+
+/**
+ * With sound alone the subtitles are the lyrics, read from the player where it can: a track has to be on for its
+ * words to load, so one is turned on for the sound, in the post's language when there is one, and the viewer's
+ * own choice is put back with the picture.
+ */
+const lyrics = computed(() => (audioMode.value ? (handle.value?.subtitleCues ?? []) : []));
+let lyricsTrackSet = false;
+watch(
+    () => [audioMode.value, state.value?.subtitleTracks.length ?? 0] as const,
+    ([audio, count]) => {
+        const active = state.value?.activeSubtitleTrackId ?? null;
+        if (audio && count > 0 && !active && !lyricsTrackSet) {
+            const tracks = state.value!.subtitleTracks;
+            const own = tracks.find((track) => track.lang === item.value?.language) ?? tracks[0]!;
+            lyricsTrackSet = true;
+            controller.value?.setSubtitleTrack(own.id);
+        } else if (!audio && lyricsTrackSet) {
+            lyricsTrackSet = false;
+            controller.value?.setSubtitleTrack(null);
+        }
+    },
+);
+watch(
+    () => item.value?.content._id,
+    () => (lyricsTrackSet = false),
+);
+
+/** The screen is drawn down from its top line, as the card is from its handle. */
+function onNowPlayingDragStart(event: PointerEvent) {
+    if (!(event.target as Element | null)?.closest?.(".lmpl-afs-top")) return;
+    onDragStart(event);
+}
 /** The minutes a minutes timer has left, rounded up, so it never says 0 while it runs. */
 const sleepMinutesLeft = computed(() =>
     sleepTimer.value?.kind === "minutes"
@@ -1046,9 +1091,132 @@ function onKeydown(event: KeyboardEvent) {
             data-test="mediaPlayer"
             @keydown="onKeydown"
         >
+            <!-- A phone: the now-playing screen, for sound and picture alike. The engine plays in its stage. -->
+            <div
+                v-if="nowPlaying"
+                class="lmpl-root [&_.lmpl-afs-top]:touch-none"
+                style="position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto"
+                data-test="mediaPlayerNowPlaying"
+                @pointerdown="onNowPlayingDragStart"
+                @pointermove="onDragMove"
+                @pointerup="onDragEnd"
+                @pointercancel="onDragEnd"
+            >
+                <AudioFullscreen
+                    :title="content.title"
+                    :subtitle="nowPlayingSubtitle"
+                    :artwork="screenArtwork"
+                    :wash="nowPlayingWash"
+                    appearance="dark"
+                    :stage="audioMode ? 'cover' : 'video'"
+                    :stage-hole="inlineHole"
+                    :exit-label="t('media_player.minimise')"
+                    :chapters="chapters"
+                    :current-time="currentTime"
+                    :duration="duration"
+                    :buffered-end="state?.bufferedEnd ?? 0"
+                    :playing="playing"
+                    :live="live"
+                    :chapter-index="screenChapterIndex"
+                    :playback-rate="state?.playbackRate ?? 1"
+                    :audio-tracks="screenTracks"
+                    :active-audio-track-id="state?.activeAudioTrackId ?? null"
+                    :sleep-timer="sleepTimer"
+                    :has-browse="chapters.length > 0 || nextUp.length > 0"
+                    :up-next="nextUp"
+                    chapters-sheet
+                    :skip-back-seconds="SKIP_SECONDS"
+                    :skip-forward-seconds="SKIP_SECONDS"
+                    :chapter-mask="screenChapterMask"
+                    :messages="screenMessages"
+                    :subtitle-tracks="state?.subtitleTracks ?? []"
+                    :active-subtitle-track-id="state?.activeSubtitleTrackId ?? null"
+                    :can-picture-in-picture="!!handle?.canPictureInPicture"
+                    :lyrics="lyrics"
+                    @exit="minimiseMediaPlayer"
+                    @toggle-play="togglePlay"
+                    @seek="(time) => handle?.seek(time)"
+                    @seek-chapter="(chapter) => handle?.seek(chapter.startTime)"
+                    @upnextselect="
+                        (id) => {
+                            const next = nextContents.find((doc) => doc._id === id);
+                            if (next) playNext(next);
+                        }
+                    "
+                    @rate="(rate) => controller?.setPlaybackRate(rate)"
+                    @audio-track="(id) => controller?.setAudioTrack(id)"
+                    @sleep="(option) => controller?.setSleepTimer(option)"
+                    @subtitle-track="(id) => controller?.setSubtitleTrack(id)"
+                    @picture-in-picture="handle?.startPictureInPicture?.()"
+                    @fullscreen="handle?.enterFullscreen()"
+                >
+                    <template #top-end>
+                        <button
+                            v-if="handle?.airPlayAvailable || handle?.castAvailable"
+                            type="button"
+                            class="lmpl-afs-iconbtn"
+                            :aria-label="t(isMac ? 'media_player.airplay' : 'media_player.cast')"
+                            data-test="mediaPlayerNowPlayingCast"
+                            @click="
+                                handle?.airPlayAvailable
+                                    ? handle.showAirPlayPicker?.()
+                                    : handle?.showCastPicker?.()
+                            "
+                        >
+                            <V10Icon
+                                :name="isMac ? 'airplay' : 'cast'"
+                                class="h-[22px] w-[22px]"
+                            />
+                        </button>
+                        <div
+                            v-if="canSwitch"
+                            role="group"
+                            :aria-label="t('media_player.play_as')"
+                            class="flex min-w-0 rounded-full bg-white/10 p-1"
+                        >
+                            <button
+                                type="button"
+                                class="flex h-8 min-w-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold"
+                                :class="audioMode ? 'bg-white text-zinc-900' : 'text-white/75'"
+                                :aria-pressed="audioMode"
+                                data-test="mediaPlayerAudio"
+                                @click="showAudio"
+                            >
+                                <MusicalNoteIcon class="h-4 w-4" />
+                                <span class="truncate">{{ t("media_player.audio") }}</span>
+                            </button>
+                            <button
+                                type="button"
+                                class="flex h-8 min-w-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold"
+                                :class="!audioMode ? 'bg-white text-zinc-900' : 'text-white/75'"
+                                :aria-pressed="!audioMode"
+                                data-test="mediaPlayerVideo"
+                                @click="showVideo"
+                            >
+                                <FilmIcon class="h-4 w-4" />
+                                <span class="truncate">{{ t("media_player.video") }}</span>
+                            </button>
+                        </div>
+                    </template>
+                    <template #stage>
+                        <VideoPlayer
+                            ref="engine"
+                            :content="content"
+                            :language="item.language"
+                            :start-audio="startAudio"
+                            :next-up="nextUp"
+                            autoplay
+                            @nextupselect="swapToNext"
+                            inline
+                            :fullscreen-on-play="isNativeApp()"
+                        />
+                    </template>
+                </AudioFullscreen>
+            </div>
+
             <!-- The cover, blurred and saturated, behind every part, under a scrim to keep the text readable. -->
             <div
-                v-if="wash"
+                v-if="!nowPlaying && wash"
                 class="pointer-events-none absolute inset-0 -z-10 overflow-hidden bg-amber-50 dark:bg-slate-900"
                 aria-hidden="true"
                 data-test="mediaPlayerWash"
@@ -1066,6 +1234,7 @@ function onKeydown(event: KeyboardEvent) {
                 <div class="absolute inset-0 bg-white/45 dark:bg-slate-900/65" />
             </div>
             <div
+                v-if="!nowPlaying"
                 v-show="!miniVideo"
                 class="flex-none touch-none bg-amber-50 dark:bg-slate-800 max-lg:pt-[env(safe-area-inset-top)]"
                 :class="{ '!bg-transparent': wash }"
@@ -1149,6 +1318,7 @@ function onKeydown(event: KeyboardEvent) {
             </div>
 
             <div
+                v-if="!nowPlaying"
                 ref="pictureEl"
                 class="relative w-full flex-none touch-pan-y"
                 :class="
@@ -1371,6 +1541,7 @@ function onKeydown(event: KeyboardEvent) {
                  (Chapters, Up next) scroll inside themselves. Nothing is clipped either: the menus open
                  upward over the picture. -->
             <div
+                v-if="!nowPlaying"
                 v-show="!miniVideo"
                 class="flex min-h-0 flex-1 flex-col overflow-visible bg-amber-50 dark:bg-slate-800"
                 :class="{ '!bg-transparent': wash }"
@@ -1827,7 +1998,7 @@ function onKeydown(event: KeyboardEvent) {
             </div>
 
             <div
-                v-if="sheetTab"
+                v-if="!nowPlaying && sheetTab"
                 class="absolute inset-x-0 bottom-0 z-20 flex flex-col rounded-t-2xl bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.12)] dark:bg-slate-900 max-lg:pb-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))]"
                 :style="{
                     top: `${sheetTop}px`,
@@ -1905,7 +2076,7 @@ function onKeydown(event: KeyboardEvent) {
         </section>
 
         <div
-            v-if="audioFullscreen && content && state"
+            v-if="audioFullscreen && !nowPlaying && content && state"
             ref="screenEl"
             data-lmpl-host-screen
             class="lmpl-root z-[70]"

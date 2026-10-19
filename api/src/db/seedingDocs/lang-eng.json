@@ -212,6 +212,7 @@
         "media_player.sleep_end_of_chapter": "End of chapter",
         "media_player.sleep_left": "{minutes} min left",
         "media_player.fullscreen": "Full screen",
+        "media_player.lyrics": "Lyrics",
         "media_player.subtitles": "Subtitles",
         "media_player.subtitles_off": "Off",
         "media_player.picture_in_picture": "Picture-in-picture",

@@ -68,19 +68,45 @@ vi.mock("@luminary-media-converter/player-web", async () => {
             name: "AudioFullscreen",
             props: {
                 title: String,
+                subtitle: String,
                 artwork: Object,
                 playing: Boolean,
                 live: Boolean,
                 currentTime: Number,
                 hasBrowse: Boolean,
                 chaptersSheet: Boolean,
+                appearance: String,
+                stage: String,
+                stageHole: Boolean,
+                wash: String,
+                exitLabel: String,
+                subtitleTracks: Array,
+                activeSubtitleTrackId: String,
+                canPictureInPicture: Boolean,
+                lyrics: Array,
             },
-            emits: ["exit", "toggle-play", "seek", "sleep", "rate", "seek-chapter", "upnextselect"],
+            emits: [
+                "exit",
+                "toggle-play",
+                "seek",
+                "sleep",
+                "rate",
+                "seek-chapter",
+                "upnextselect",
+                "subtitle-track",
+                "picture-in-picture",
+                "fullscreen",
+            ],
+            // Its top line and its stage, as the real screen draws them, so a host's switch and engine live in it.
             setup: (props, { slots }) => () =>
                 h("div", { "data-test": "audioFullscreenStub" }, [
+                    h("div", { class: "lmpl-afs-top", "data-test": "audioFullscreenTop" }, [
+                        slots["top-end"]?.(),
+                    ]),
                     props.title,
                     slots.sheet?.({ close: () => {} }),
                     slots.cast?.(),
+                    h("div", { "data-test": "audioFullscreenStage" }, [slots.stage?.()]),
                 ]),
         }),
         rosterStep: () => 4,
@@ -238,6 +264,35 @@ async function mountPlayer() {
 async function playing() {
     openMediaPlayer(mockEnglishContentDto, "en");
     return mountPlayer();
+}
+
+/**
+ * The width the spec runs at: the card layout these tests describe is the wide screen's, so that is the default; a
+ * phone, where the now-playing screen takes its place, is asked for with `narrow`.
+ */
+let screenWide = true;
+const setupMatchMedia = window.matchMedia;
+beforeEach(() => {
+    screenWide = true;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes("1024px") ? screenWide : false,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+});
+afterEach(() => {
+    window.matchMedia = setupMatchMedia;
+});
+
+/** A phone for the length of `run`: the media query for 1024 px and up does not match. */
+async function narrow(run: () => Promise<void>) {
+    screenWide = false;
+    try {
+        await run();
+    } finally {
+        screenWide = true;
+    }
 }
 
 /** A wide screen for the length of `run`: the media query for 1024 px and up matches. */
@@ -452,8 +507,9 @@ describe("MediaPlayer", () => {
         });
 
         it("slides into the bar when it is let go far enough down", async () => {
+            screenWide = false;
             const wrapper = await playing();
-            const handle = find(wrapper, "mediaPlayerHandle");
+            const handle = find(wrapper, "audioFullscreenTop");
             await handle.trigger("pointerdown", pointer(100));
             await handle.trigger("pointermove", pointer(450));
             await handle.trigger("pointerup");
@@ -471,6 +527,7 @@ describe("MediaPlayer", () => {
         });
 
         it("is drawn down from the audio and video switch too, once the thumb has moved down", async () => {
+            screenWide = false;
             const wrapper = await playing();
             const audio = find(wrapper, "mediaPlayerAudio");
             await audio.trigger("pointerdown", pointer(100));
@@ -1353,10 +1410,12 @@ describe("MediaPlayer", () => {
         });
 
         it("puts the chrome away while it is open on a phone, which takes the status bar with it", async () => {
-            const { hidden } = useMobileChromeAutoHide();
-            hidden.value = false;
-            await playing();
-            expect(hidden.value).toBe(true);
+            await narrow(async () => {
+                const { hidden } = useMobileChromeAutoHide();
+                hidden.value = false;
+                await playing();
+                expect(hidden.value).toBe(true);
+            });
         });
 
         it("leaves the chrome be on a wide screen, where the player is a card in the corner", async () => {
@@ -1369,6 +1428,7 @@ describe("MediaPlayer", () => {
         });
 
         it("fills the home indicator's space under the minimised bar", async () => {
+            screenWide = false;
             const wrapper = await playing();
             minimiseMediaPlayer();
             await flushPromises();
@@ -2019,8 +2079,10 @@ describe("MediaPlayer", () => {
         });
 
         it("goes to the page of what plays from the bar", async () => {
+            screenWide = false;
             const wrapper = await withText();
-            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            minimiseMediaPlayer();
+            await flushPromises();
             await find(wrapper, "mediaPlayerBarRead").trigger("click");
             expect(routerPush).toHaveBeenCalledWith({
                 name: "content",
@@ -2066,6 +2128,111 @@ describe("MediaPlayer", () => {
 
             await find(wrapper, "mediaPlayer").trigger("keydown", { key: "Escape" });
             expect(mediaPlayerView.value).toBe("mini");
+        });
+    });
+
+    describe("on a phone: the now-playing screen", () => {
+        beforeEach(() => {
+            screenWide = false;
+        });
+        const screen = (wrapper: VueWrapper) => wrapper.findComponent({ name: "AudioFullscreen" });
+
+        it("takes the card's place, dark, with the engine playing in its stage", async () => {
+            const wrapper = await playing();
+            expect(find(wrapper, "mediaPlayerNowPlaying").exists()).toBe(true);
+            expect(find(wrapper, "mediaPlayerPlayPause").exists()).toBe(false);
+            expect(engine.mounts).toBe(1);
+            expect(find(wrapper, "audioFullscreenStage").find("*").exists()).toBe(true);
+
+            const props = screen(wrapper).props();
+            expect(props.stage).toBe("video");
+            expect(props.appearance).toBe("dark");
+            expect(props.exitLabel).toBe("media_player.minimise");
+            expect(props.stageHole).toBe(false);
+            expect(props.title).toBe(mockEnglishContentDto.title);
+        });
+
+        it("switches to the sound alone on the same engine, which never stops", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(screen(wrapper).props().stage).toBe("cover");
+            expect(engine.mounts).toBe(1);
+            expect(
+                find(wrapper, "audioFullscreenTop").find("[data-test='mediaPlayerVideo']").exists(),
+            ).toBe(true);
+        });
+
+        it("leaves its stage clear for a picture the platform draws behind the page", async () => {
+            engine.inlineActive = true;
+            const wrapper = await playing();
+            expect(screen(wrapper).props().stageHole).toBe(true);
+        });
+
+        it("minimises from its chevron, and has no close button of its own", async () => {
+            const wrapper = await playing();
+            expect(find(wrapper, "mediaPlayerClose").exists()).toBe(false);
+            screen(wrapper).vm.$emit("exit");
+            await flushPromises();
+            expect(mediaPlayerView.value).toBe("mini");
+            expect(find(wrapper, "mediaPlayerBar").exists()).toBe(true);
+        });
+
+        it("is drawn down only from its top line", async () => {
+            const wrapper = await playing();
+            const sectionStyle = () => find(wrapper, "mediaPlayer").attributes("style") ?? "";
+            await find(wrapper, "audioFullscreenStub").trigger("pointerdown", { clientY: 100, pointerId: 1 });
+            await find(wrapper, "audioFullscreenStub").trigger("pointermove", { clientY: 200, pointerId: 1 });
+            expect(sectionStyle()).not.toContain("--tw-translate-y");
+
+            await find(wrapper, "audioFullscreenTop").trigger("pointerdown", { clientY: 100, pointerId: 1 });
+            await find(wrapper, "audioFullscreenTop").trigger("pointermove", { clientY: 160, pointerId: 1 });
+            expect(sectionStyle()).toContain("--tw-translate-y: 60px");
+        });
+
+        it("hands what is asked to the player", async () => {
+            const wrapper = await playing();
+            const view = screen(wrapper);
+            view.vm.$emit("toggle-play");
+            view.vm.$emit("seek", 42);
+            view.vm.$emit("subtitle-track", "sub-fr");
+            view.vm.$emit("picture-in-picture");
+            view.vm.$emit("fullscreen");
+            view.vm.$emit("rate", 1.5);
+            await flushPromises();
+            expect(engine.handle.pause).toHaveBeenCalled();
+            expect(engine.handle.seek).toHaveBeenCalledWith(42);
+            expect(engine.controller.setSubtitleTrack).toHaveBeenCalledWith("sub-fr");
+            expect(engine.handle.startPictureInPicture).toHaveBeenCalled();
+            expect(engine.handle.enterFullscreen).toHaveBeenCalled();
+            expect(engine.controller.setPlaybackRate).toHaveBeenCalledWith(1.5);
+        });
+
+        it("turns a subtitle track on for the lyrics with sound alone, and gives the picture its own choice back", async () => {
+            const wrapper = await playing();
+            engine.handle.subtitleCues = [{ start: 1, end: 3, text: "Help me, Your Word to obey!" }];
+            expect(screen(wrapper).props().lyrics).toEqual([]);
+
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(engine.controller.setSubtitleTrack).toHaveBeenLastCalledWith("sub-fr");
+            expect(screen(wrapper).props().lyrics).toEqual(engine.handle.subtitleCues);
+
+            await find(wrapper, "mediaPlayerVideo").trigger("click");
+            await flushPromises();
+            expect(engine.controller.setSubtitleTrack).toHaveBeenLastCalledWith(null);
+            expect(screen(wrapper).props().lyrics).toEqual([]);
+        });
+
+        it("leaves the subtitles the viewer chose alone", async () => {
+            const wrapper = await playing();
+            engine.state.activeSubtitleTrackId = "sub-fr";
+            await flushPromises();
+            engine.controller.setSubtitleTrack.mockClear();
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await find(wrapper, "mediaPlayerVideo").trigger("click");
+            await flushPromises();
+            expect(engine.controller.setSubtitleTrack).not.toHaveBeenCalled();
         });
     });
 
@@ -2272,8 +2439,10 @@ describe("MediaPlayer", () => {
         });
 
         it("keeps the bar on a phone, for video too", async () => {
+            screenWide = false;
             const wrapper = await playing();
-            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            minimiseMediaPlayer();
+            await flushPromises();
             await flushPromises();
             expect(find(wrapper, "mediaPlayerBar").exists()).toBe(true);
             expect(wrapper.find("[data-test='mediaPlayerMiniVideo']").exists()).toBe(false);
@@ -2331,9 +2500,15 @@ describe("MediaPlayer", () => {
     });
 
     describe("minimised", () => {
+        // The bar is a phone's; a wide screen keeps the picture in the corner instead.
+        beforeEach(() => {
+            screenWide = false;
+        });
+
         it("moves down with the menu when the menu steps aside", async () => {
             const wrapper = await playing();
-            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            minimiseMediaPlayer();
+            await flushPromises();
             const { hidden } = useMobileChromeAutoHide();
             hidden.value = true;
             await flushPromises();
@@ -2346,7 +2521,8 @@ describe("MediaPlayer", () => {
 
         it("has a colour of its own, the player's, apart from the menu below it", async () => {
             const wrapper = await playing();
-            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            minimiseMediaPlayer();
+            await flushPromises();
             const classes = find(wrapper, "mediaPlayerBar").classes();
 
             expect(classes).toContain("bg-amber-50");
@@ -2356,7 +2532,8 @@ describe("MediaPlayer", () => {
 
         it("shows how far the item has played", async () => {
             const wrapper = await playing();
-            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            minimiseMediaPlayer();
+            await flushPromises();
 
             expect(find(wrapper, "mediaPlayerBarProgress").attributes("style")).toContain(
                 "width: 25%",
@@ -2365,7 +2542,8 @@ describe("MediaPlayer", () => {
 
         it("becomes the bar, keeping the same playback", async () => {
             const wrapper = await playing();
-            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            minimiseMediaPlayer();
+            await flushPromises();
 
             expect(mediaPlayerView.value).toBe("mini");
             expect(find(wrapper, "mediaPlayerBar").text()).toContain(mockEnglishContentDto.title);
@@ -2374,7 +2552,8 @@ describe("MediaPlayer", () => {
 
         it("reopens from the bar", async () => {
             const wrapper = await playing();
-            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            minimiseMediaPlayer();
+            await flushPromises();
             await find(wrapper, "mediaPlayerBar").find("button").trigger("click");
 
             expect(mediaPlayerView.value).toBe("expanded");
@@ -2382,7 +2561,8 @@ describe("MediaPlayer", () => {
 
         it("pauses from the bar", async () => {
             const wrapper = await playing();
-            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            minimiseMediaPlayer();
+            await flushPromises();
             await find(wrapper, "mediaPlayerBarPlayPause").trigger("click");
 
             expect(engine.handle.pause).toHaveBeenCalled();
@@ -2390,7 +2570,8 @@ describe("MediaPlayer", () => {
 
         it("stops from the bar", async () => {
             const wrapper = await playing();
-            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            minimiseMediaPlayer();
+            await flushPromises();
             await find(wrapper, "mediaPlayerBarClose").trigger("click");
 
             expect(mediaPlayerItem.value).toBeNull();
