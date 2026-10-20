@@ -55,7 +55,7 @@ type Props = {
     autoplay?: boolean;
     /** Go full-screen when autoplay starts the video, for a player that shows video only there. */
     fullscreenOnPlay?: boolean;
-    /** Keep the browser from drawing the subtitles on the picture: the host shows them itself, under it. */
+    /** Keep the player from drawing the subtitles on the picture: the host shows them itself, or the page covers it. */
     captionsHidden?: boolean;
     /** Draw the video in the page where the platform can; see `VideoPlayerHandle.inlineActive`. */
     inline?: boolean | "front";
@@ -142,7 +142,7 @@ const playerExtras = computed(() => ({
     ...(props.inline && videoPlayer.acceptsInline && playingThisContent() ? { inline: props.inline, captionBand: props.captionBand } : {}),
     // The media player's picture takes the video's own shape, so cover only trims a sliver of rounding at its edges.
     ...(props.inline && !videoPlayer.acceptsInline ? { windowedFit: "cover" as const } : {}),
-    ...(props.captionsHidden && !videoPlayer.acceptsInline ? { captionsHidden: true } : {}),
+    ...(props.captionsHidden ? { captionsHidden: true } : {}),
     ...(videoPlayer.acceptsBrowse && props.upNext?.length ? { upNext: props.upNext } : {}),
     ...(videoPlayer.acceptsNextUp && props.nextUp?.length ? { nextUp: props.nextUp } : {}),
 }));

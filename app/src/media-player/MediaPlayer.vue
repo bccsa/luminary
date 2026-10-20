@@ -403,6 +403,8 @@ const webCaptionsBelow = computed(
         !audioMode.value &&
         !!state.value?.activeSubtitleTrackId,
 );
+/** A menu or the chapters panel is over the now-playing screen: the platform's own subtitles must not draw across it. */
+const screenCovered = ref(false);
 const webCaption = computed(() => {
     if (!webCaptionsBelow.value) return "";
     const time = currentTime.value;
@@ -967,6 +969,12 @@ const screenChapterIndex = computed(() => chapterIndexAt(chapters.value, current
 const screenChapterMask = computed(() =>
     chapterMask(chapterSegments(chapters.value, duration.value)),
 );
+/** The renditions to hold the picture to, tallest first; the player's own choice is the menu's Auto. */
+const screenQualities = computed(() =>
+    [...(state.value?.qualities ?? [])]
+        .sort((a, b) => (b.height ?? 0) - (a.height ?? 0))
+        .map((quality) => ({ id: quality.id, label: quality.label })),
+);
 const screenTracks = computed(() =>
     (state.value?.audioTracks ?? []).map((track) => ({ id: track.id, label: track.label })),
 );
@@ -1286,6 +1294,7 @@ function onKeydown(event: KeyboardEvent) {
                     :stage-aspect="miniStage ? undefined : stageAspect"
                     :caption-band="captionBand && !miniStage"
                     :caption="webCaption"
+                    @covered="screenCovered = $event"
                     :exit-label="t('media_player.minimise')"
                     :chapters="chapters"
                     :current-time="currentTime"
@@ -1295,6 +1304,8 @@ function onKeydown(event: KeyboardEvent) {
                     :live="live"
                     :chapter-index="screenChapterIndex"
                     :playback-rate="state?.playbackRate ?? 1"
+                    :qualities="screenQualities"
+                    :active-quality-id="state?.activeQualityId ?? 'auto'"
                     :audio-tracks="screenTracks"
                     :active-audio-track-id="state?.activeAudioTrackId ?? null"
                     :sleep-timer="sleepTimer"
@@ -1321,6 +1332,7 @@ function onKeydown(event: KeyboardEvent) {
                     "
                     @rate="(rate) => controller?.setPlaybackRate(rate)"
                     @audio-track="(id) => controller?.setAudioTrack(id)"
+                    @quality="(id) => controller?.setQuality(id)"
                     @sleep="(option) => controller?.setSleepTimer(option)"
                     @subtitle-track="(id) => controller?.setSubtitleTrack(id)"
                     @picture-in-picture="handle?.startPictureInPicture?.()"
@@ -1406,7 +1418,7 @@ function onKeydown(event: KeyboardEvent) {
                             :inline="miniStage ? 'front' : true"
                             :caption-band="captionBand && !miniStage ? 64 : 0"
                             :fullscreen-on-play="isNativeApp()"
-                            :captions-hidden="webCaptionsBelow"
+                            :captions-hidden="webCaptionsBelow || (isNativeApp() && screenCovered)"
                         />
                     </template>
                 </AudioFullscreen>
