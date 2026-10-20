@@ -64,6 +64,15 @@ watch(userDataSaverEnabled, (enabled) => {
 });
 
 /**
+ * Where the media player puts a video's subtitles: over the foot of the picture (true), or in a band under it
+ * (false, the default). Persisted to localStorage and toggled from the Settings page.
+ */
+export const subtitlesOnVideo = ref(localStorage.getItem("subtitlesOnVideo") === "true");
+watch(subtitlesOnVideo, (onVideo) => {
+    localStorage.setItem("subtitlesOnVideo", String(onVideo));
+});
+
+/**
  * Get device information.
  * @returns
  */

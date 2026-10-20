@@ -45,6 +45,7 @@ import { fallbackImageFor } from "@/util/fallbackArtwork";
 import { coverImageUrl, thumbHashWash } from "./coverImage";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
+import { subtitlesOnVideo } from "@/globalConfig";
 import { keyboardOpen } from "@/composables/useKeyboardOpen";
 import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
@@ -388,7 +389,25 @@ const stageAspect = computed(() => {
     return best ? Math.min(2.4, Math.max(0.5, best.width! / best.height!)) : undefined;
 });
 /** The packaged app draws the subtitles at the foot of the video's place, so this leaves a band there for them. */
-const captionBand = computed(() => isNativeApp() && (state.value?.subtitleTracks.length ?? 0) > 0);
+const captionBand = computed(
+    () => !subtitlesOnVideo.value && isNativeApp() && (state.value?.subtitleTracks.length ?? 0) > 0,
+);
+/**
+ * In a browser the subtitles go under the picture, unless the viewer keeps them on it: the words are drawn there and
+ * the browser's own drawing is hidden. The packaged apps draw their own.
+ */
+const webCaptionsBelow = computed(
+    () =>
+        !isNativeApp() &&
+        !subtitlesOnVideo.value &&
+        !audioMode.value &&
+        !!state.value?.activeSubtitleTrackId,
+);
+const webCaption = computed(() => {
+    if (!webCaptionsBelow.value) return "";
+    const time = currentTime.value;
+    return (handle.value?.subtitleCues ?? []).find((cue) => cue.start <= time && time < cue.end)?.text ?? "";
+});
 const inlineHole = computed(() => expanded.value && inlineVideo.value && !audioMode.value);
 watchEffect(() => document.documentElement.classList.toggle("lmc-inline-video", inlineHole.value));
 onBeforeUnmount(() => document.documentElement.classList.remove("lmc-inline-video"));
@@ -1266,6 +1285,7 @@ function onKeydown(event: KeyboardEvent) {
                     :stage-hole="inlineHole"
                     :stage-aspect="miniStage ? undefined : stageAspect"
                     :caption-band="captionBand && !miniStage"
+                    :caption="webCaption"
                     :exit-label="t('media_player.minimise')"
                     :chapters="chapters"
                     :current-time="currentTime"
@@ -1386,6 +1406,7 @@ function onKeydown(event: KeyboardEvent) {
                             :inline="miniStage ? 'front' : true"
                             :caption-band="captionBand && !miniStage ? 64 : 0"
                             :fullscreen-on-play="isNativeApp()"
+                            :captions-hidden="webCaptionsBelow"
                         />
                     </template>
                 </AudioFullscreen>

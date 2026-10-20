@@ -11,6 +11,7 @@ import {
     userDataSaverEnabled,
     localCacheVersion,
     youtubeAlwaysAllow,
+    subtitlesOnVideo,
 } from "@/globalConfig";
 
 vi.mock("@/globalConfig", async () => {
@@ -18,6 +19,10 @@ vi.mock("@/globalConfig", async () => {
     const userDataSaverEnabled = ref(false);
     const localCacheVersion = ref(0);
     const youtubeAlwaysAllow = ref(false);
+    const subtitlesOnVideo = ref(false);
+    watch(subtitlesOnVideo, (onVideo) => {
+        localStorage.setItem("subtitlesOnVideo", String(onVideo));
+    });
     watch(youtubeAlwaysAllow, (allowed) => {
         localStorage.setItem("youtubeAlwaysAllow", String(allowed));
     });
@@ -30,6 +35,7 @@ vi.mock("@/globalConfig", async () => {
         userDataSaverEnabled,
         localCacheVersion,
         youtubeAlwaysAllow,
+        subtitlesOnVideo,
     };
 });
 vi.mock("@/components/BasePage.vue", async () => {
@@ -180,6 +186,18 @@ describe("SettingsPage data saver", () => {
 
         expect(userDataSaverEnabled.value).toBe(true);
         expect(localStorage.getItem("dataSaver")).toBe("true");
+    });
+
+    it("lets the viewer choose where subtitles go: under the video by default, or over it", async () => {
+        const wrapper = mountSettingsPage();
+        const toggle = wrapper.find("[data-test='subtitlesOnVideoToggle']");
+        expect(toggle.exists()).toBe(true);
+        expect(subtitlesOnVideo.value).toBe(false);
+
+        await toggle.trigger("click");
+
+        expect(subtitlesOnVideo.value).toBe(true);
+        expect(localStorage.getItem("subtitlesOnVideo")).toBe("true");
     });
 
     it('turns off "always allow" for videos hosted by YouTube', async () => {

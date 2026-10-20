@@ -55,6 +55,8 @@ type Props = {
     autoplay?: boolean;
     /** Go full-screen when autoplay starts the video, for a player that shows video only there. */
     fullscreenOnPlay?: boolean;
+    /** Keep the browser from drawing the subtitles on the picture: the host shows them itself, under it. */
+    captionsHidden?: boolean;
     /** Draw the video in the page where the platform can; see `VideoPlayerHandle.inlineActive`. */
     inline?: boolean | "front";
     /** Room under the picture for native subtitles, in CSS pixels. */
@@ -108,6 +110,7 @@ const fallbackArtworkUrl = ref<string | undefined>(undefined);
  */
 const nowPlaying = computed<VideoNowPlaying>(() => ({
     title: props.content.title,
+    ...(props.content.author ? { subtitle: props.content.author } : {}),
     artworkUrl: shareImageUrl(props.content, imageBucketBaseUrl.value),
     ...(fallbackArtworkUrl.value ? { fallbackArtworkUrl: fallbackArtworkUrl.value } : {}),
 }));
@@ -137,6 +140,9 @@ const playerExtras = computed(() => ({
         : { nowPlaying: webNowPlaying.value, appearance: isDarkTheme.value ? "dark" : "light" }),
     // Withheld until this content's own video is loaded, or the previous video's last frame shows under it.
     ...(props.inline && videoPlayer.acceptsInline && playingThisContent() ? { inline: props.inline, captionBand: props.captionBand } : {}),
+    // The media player's picture takes the video's own shape, so cover only trims a sliver of rounding at its edges.
+    ...(props.inline && !videoPlayer.acceptsInline ? { windowedFit: "cover" as const } : {}),
+    ...(props.captionsHidden && !videoPlayer.acceptsInline ? { captionsHidden: true } : {}),
     ...(videoPlayer.acceptsBrowse && props.upNext?.length ? { upNext: props.upNext } : {}),
     ...(videoPlayer.acceptsNextUp && props.nextUp?.length ? { nextUp: props.nextUp } : {}),
 }));

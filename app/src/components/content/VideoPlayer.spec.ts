@@ -612,6 +612,7 @@ describe("VideoPlayer", () => {
 
             expect(wrapper.findComponent(NativeStub).props("nowPlaying")).toEqual({
                 title: mockEnglishContentDto.title,
+                subtitle: mockEnglishContentDto.author,
                 artworkUrl: shareImageUrl(content(), "https://bucket.example.com"),
             });
         });
@@ -623,6 +624,7 @@ describe("VideoPlayer", () => {
 
             expect(wrapper.findComponent(NativeStub).props("nowPlaying")).toEqual({
                 title: mockEnglishContentDto.title,
+                subtitle: mockEnglishContentDto.author,
                 artworkUrl: shareImageUrl(content(), "https://bucket.example.com"),
                 fallbackArtworkUrl: "data:image/jpeg;base64,AAAA",
             });
