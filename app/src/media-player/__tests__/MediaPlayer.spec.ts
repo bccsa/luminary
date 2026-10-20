@@ -72,6 +72,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 subtitle: String,
                 artwork: Object,
                 playing: Boolean,
+                busy: Boolean,
                 live: Boolean,
                 currentTime: Number,
                 hasBrowse: Boolean,
@@ -2170,6 +2171,24 @@ describe("MediaPlayer", () => {
             expect(
                 find(wrapper, "audioFullscreenTop").find("[data-test='mediaPlayerVideo']").exists(),
             ).toBe(true);
+        });
+
+        it("shows the player busy while the source loads, or when playback is stuck, and not once it plays", async () => {
+            const wrapper = await playing();
+            expect(screen(wrapper).props().busy).toBe(false);
+
+            engine.state.lifecycle = "loading";
+            await flushPromises();
+            expect(screen(wrapper).props().busy).toBe(true);
+
+            engine.state.lifecycle = "ready";
+            engine.state.stalled = true;
+            await flushPromises();
+            expect(screen(wrapper).props().busy).toBe(true);
+
+            engine.state.stalled = false;
+            await flushPromises();
+            expect(screen(wrapper).props().busy).toBe(false);
         });
 
         it("lets the pages turn with the phone while the sound screen is open, and only then", async () => {
