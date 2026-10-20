@@ -262,8 +262,33 @@ function playChapter(chapter: Chapter) {
     void handle.value?.play();
 }
 
+/**
+ * A video picked to play next is on its way from the tap until it plays: the page fetches its key and loads it
+ * meanwhile, while the video before stands paused. The screen shows the player busy through that, for a while at most.
+ */
+const SWAP_LIMIT_MS = 15_000;
+const swapping = ref(false);
+let swapLimit: ReturnType<typeof setTimeout> | undefined;
+function startSwap() {
+    swapping.value = true;
+    clearTimeout(swapLimit);
+    swapLimit = setTimeout(() => (swapping.value = false), SWAP_LIMIT_MS);
+}
+watch(
+    () => [item.value?.content._id, state.value?.playing === true, state.value?.lifecycle] as const,
+    ([, isPlaying, lifecycle], before) => {
+        const sameItem = before && before[0] === item.value?.content._id;
+        if (swapping.value && sameItem && (isPlaying || lifecycle === "error")) {
+            swapping.value = false;
+            clearTimeout(swapLimit);
+        }
+    },
+);
+onBeforeUnmount(() => clearTimeout(swapLimit));
+
 /** Another video, offered under this one: it takes the player. */
 function playNext(next: ContentDto) {
+    startSwap();
     openMediaPlayer(next, item.value?.language);
 }
 
@@ -277,6 +302,7 @@ function swapToNext(id: string) {
     if (!next || next.parentId === content.value?.parentId) return;
     const location = { name: "content", params: { slug: next.slug } };
     markPlayerSwap(router.resolve(location).fullPath);
+    startSwap();
     openMediaPlayer(next, item.value?.language);
     void router.push(location);
 }
@@ -1301,6 +1327,7 @@ function onKeydown(event: KeyboardEvent) {
                     :duration="duration"
                     :buffered-end="state?.bufferedEnd ?? 0"
                     :playing="playing"
+                    :busy="starting || swapping || state?.stalled === true"
                     :live="live"
                     :chapter-index="screenChapterIndex"
                     :playback-rate="state?.playbackRate ?? 1"
@@ -2307,6 +2334,7 @@ function onKeydown(event: KeyboardEvent) {
                 :duration="duration"
                 :buffered-end="state.bufferedEnd"
                 :playing="playing"
+                :busy="starting || swapping || state?.stalled === true"
                 :live="live"
                 :chapter-index="screenChapterIndex"
                 :playback-rate="state.playbackRate"

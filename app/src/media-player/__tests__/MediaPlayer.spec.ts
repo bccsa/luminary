@@ -72,6 +72,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 subtitle: String,
                 artwork: Object,
                 playing: Boolean,
+                busy: Boolean,
                 live: Boolean,
                 currentTime: Number,
                 hasBrowse: Boolean,
@@ -2170,6 +2171,60 @@ describe("MediaPlayer", () => {
             expect(
                 find(wrapper, "audioFullscreenTop").find("[data-test='mediaPlayerVideo']").exists(),
             ).toBe(true);
+        });
+
+        it("shows the player busy while the source loads, or when playback is stuck, and not once it plays", async () => {
+            const wrapper = await playing();
+            expect(screen(wrapper).props().busy).toBe(false);
+
+            engine.state.lifecycle = "loading";
+            await flushPromises();
+            expect(screen(wrapper).props().busy).toBe(true);
+
+            engine.state.lifecycle = "ready";
+            engine.state.stalled = true;
+            await flushPromises();
+            expect(screen(wrapper).props().busy).toBe(true);
+
+            engine.state.stalled = false;
+            await flushPromises();
+            expect(screen(wrapper).props().busy).toBe(false);
+        });
+
+        it("shows the player busy from a pick until the picked video plays, and for a while at most", async () => {
+            const next = {
+                ...mockEnglishContentDto,
+                _id: "next-1",
+                parentId: "next-1-parent",
+                title: "The next one",
+                video: "https://cdn.example.com/next.m3u8",
+            };
+            const after = { ...next, _id: "next-2", parentId: "next-2-parent", title: "The one after" };
+            upNextDocs.value = [next, after];
+            const wrapper = await playing();
+            screen(wrapper).vm.$emit("upnextselect", "next-1");
+            await flushPromises();
+            expect(mediaPlayerItem.value?.content._id).toBe("next-1");
+            // The video before stands paused while the next one is prepared.
+            engine.state.playing = false;
+            await flushPromises();
+            expect(screen(wrapper).props().busy).toBe(true);
+
+            engine.state.playing = true;
+            await flushPromises();
+            expect(screen(wrapper).props().busy).toBe(false);
+
+            vi.useFakeTimers();
+            try {
+                screen(wrapper).vm.$emit("upnextselect", "next-2");
+                await flushPromises();
+                expect(screen(wrapper).props().busy).toBe(true);
+                vi.advanceTimersByTime(15_000);
+                await flushPromises();
+                expect(screen(wrapper).props().busy).toBe(false);
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it("lets the pages turn with the phone while the sound screen is open, and only then", async () => {
