@@ -27,6 +27,7 @@ export function usePlayerMessages() {
     exitFullscreen: t("video_player.exit_fullscreen"),
     enterFullscreen: t("media_player.fullscreen"),
     lyrics: t("media_player.lyrics"),
+    lyricsLanguage: t("media_player.lyrics_language"),
     audioMenuLabel: t("video_player.audio_menu"),
     subtitlesMenuLabel: t("video_player.subtitles_menu"),
     subtitlesOff: t("video_player.subtitles_off"),

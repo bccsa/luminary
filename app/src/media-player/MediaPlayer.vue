@@ -5,7 +5,7 @@
  * menu, showing the picture or the cover with the transport; minimised, a bar riding on the menu. `VideoPlayer` stays mounted in the picture area for as long as an item
  * plays, so minimising never restarts it.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, watchEffect } from "vue";
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch, watchEffect } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import {
@@ -46,6 +46,7 @@ import { coverImageUrl, thumbHashWash } from "./coverImage";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
 import { keyboardOpen } from "@/composables/useKeyboardOpen";
+import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
 import MediaPlayerMenu from "./MediaPlayerMenu.vue";
 import V10Button from "./V10Button.vue";
@@ -386,10 +387,8 @@ const stageAspect = computed(() => {
     const best = state.value?.qualities?.find((q) => q.width && q.height);
     return best ? Math.min(2.4, Math.max(0.5, best.width! / best.height!)) : undefined;
 });
-/** Android draws the subtitles at the foot of the video's place, so this leaves a band there for them. */
-const captionBand = computed(
-    () => /Android/i.test(navigator.userAgent) && isNativeApp() && (state.value?.subtitleTracks.length ?? 0) > 0,
-);
+/** The packaged app draws the subtitles at the foot of the video's place, so this leaves a band there for them. */
+const captionBand = computed(() => isNativeApp() && (state.value?.subtitleTracks.length ?? 0) > 0);
 const inlineHole = computed(() => expanded.value && inlineVideo.value && !audioMode.value);
 watchEffect(() => document.documentElement.classList.toggle("lmc-inline-video", inlineHole.value));
 onBeforeUnmount(() => document.documentElement.classList.remove("lmc-inline-video"));
@@ -963,6 +962,17 @@ const sleepTimer = computed(() => state.value?.sleepTimer ?? null);
 // --- the now-playing screen on a phone -----------------------------------------------------------
 
 const nowPlayingWash = computed(() => thumbHashWash(content.value));
+
+/**
+ * The sound screen has a landscape layout of its own, so while it is open the pages may turn with the phone;
+ * everywhere else they stay upright, and the picture turns in its own full screen.
+ */
+const platformChrome = inject(PlatformChromeKey, null);
+const pagesTurn = computed(() => nowPlaying.value && expanded.value && audioMode.value);
+watch(pagesTurn, (allowed) => platformChrome?.setPagesTurn?.(allowed), { immediate: true });
+onBeforeUnmount(() => {
+    if (pagesTurn.value) platformChrome?.setPagesTurn?.(false);
+});
 const nowPlayingSubtitle = computed(() =>
     [content.value?.author, publishDate.value].filter(Boolean).join(" · "),
 );

@@ -7,6 +7,7 @@ import { isPlayerSwap, clearSwaps } from "@/util/playerSwap";
 import { markSeen } from "@/recommendation/seenStore";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import MediaPlayer from "../MediaPlayer.vue";
+import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 import {
     closeMediaPlayer,
     mediaPlayerItem,
@@ -156,6 +157,7 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                 autoplay: Boolean,
                 fullscreenOnPlay: Boolean,
                 inline: Boolean,
+                captionBand: Number,
                 upNext: Array,
                 nextUp: Array,
             },
@@ -254,8 +256,8 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
 
 const wrappers: VueWrapper[] = [];
 
-async function mountPlayer() {
-    const wrapper = mount(MediaPlayer, { global: { stubs: { LImage: true } } });
+async function mountPlayer(provide: Record<symbol, unknown> = {}) {
+    const wrapper = mount(MediaPlayer, { global: { stubs: { LImage: true }, provide } });
     wrappers.push(wrapper);
     await flushPromises();
     return wrapper;
@@ -2168,6 +2170,40 @@ describe("MediaPlayer", () => {
             expect(
                 find(wrapper, "audioFullscreenTop").find("[data-test='mediaPlayerVideo']").exists(),
             ).toBe(true);
+        });
+
+        it("lets the pages turn with the phone while the sound screen is open, and only then", async () => {
+            const setPagesTurn = vi.fn();
+            openMediaPlayer(mockEnglishContentDto, "en");
+            const wrapper = await mountPlayer({
+                [PlatformChromeKey]: { chromeFadeEnabled: false, setStatusBarHidden: vi.fn(), setPagesTurn },
+            });
+            expect(setPagesTurn).toHaveBeenLastCalledWith(false);
+
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(setPagesTurn).toHaveBeenLastCalledWith(true);
+
+            minimiseMediaPlayer();
+            await flushPromises();
+            expect(setPagesTurn).toHaveBeenLastCalledWith(false);
+
+            openMediaPlayer(mockEnglishContentDto, "en");
+            await flushPromises();
+            expect(setPagesTurn).toHaveBeenLastCalledWith(true);
+            wrappers.splice(wrappers.indexOf(wrapper), 1);
+            wrapper.unmount();
+            expect(setPagesTurn).toHaveBeenLastCalledWith(false);
+        });
+
+        it("leaves a band under the picture for the subtitles the packaged app draws, on every phone", async () => {
+            vi.stubEnv("VITE_BUILD_TARGET", "native");
+            try {
+                const wrapper = await playing();
+                expect(wrapper.findComponent({ name: "VideoPlayer" }).props("captionBand")).toBeGreaterThan(0);
+            } finally {
+                vi.unstubAllEnvs();
+            }
         });
 
         it("leaves its stage clear for a picture the platform draws behind the page", async () => {
