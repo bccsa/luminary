@@ -2191,6 +2191,42 @@ describe("MediaPlayer", () => {
             expect(screen(wrapper).props().busy).toBe(false);
         });
 
+        it("shows the player busy from a pick until the picked video plays, and for a while at most", async () => {
+            const next = {
+                ...mockEnglishContentDto,
+                _id: "next-1",
+                parentId: "next-1-parent",
+                title: "The next one",
+                video: "https://cdn.example.com/next.m3u8",
+            };
+            const after = { ...next, _id: "next-2", parentId: "next-2-parent", title: "The one after" };
+            upNextDocs.value = [next, after];
+            const wrapper = await playing();
+            screen(wrapper).vm.$emit("upnextselect", "next-1");
+            await flushPromises();
+            expect(mediaPlayerItem.value?.content._id).toBe("next-1");
+            // The video before stands paused while the next one is prepared.
+            engine.state.playing = false;
+            await flushPromises();
+            expect(screen(wrapper).props().busy).toBe(true);
+
+            engine.state.playing = true;
+            await flushPromises();
+            expect(screen(wrapper).props().busy).toBe(false);
+
+            vi.useFakeTimers();
+            try {
+                screen(wrapper).vm.$emit("upnextselect", "next-2");
+                await flushPromises();
+                expect(screen(wrapper).props().busy).toBe(true);
+                vi.advanceTimersByTime(15_000);
+                await flushPromises();
+                expect(screen(wrapper).props().busy).toBe(false);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
         it("lets the pages turn with the phone while the sound screen is open, and only then", async () => {
             const setPagesTurn = vi.fn();
             openMediaPlayer(mockEnglishContentDto, "en");
