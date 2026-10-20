@@ -387,10 +387,8 @@ const stageAspect = computed(() => {
     const best = state.value?.qualities?.find((q) => q.width && q.height);
     return best ? Math.min(2.4, Math.max(0.5, best.width! / best.height!)) : undefined;
 });
-/** Android draws the subtitles at the foot of the video's place, so this leaves a band there for them. */
-const captionBand = computed(
-    () => /Android/i.test(navigator.userAgent) && isNativeApp() && (state.value?.subtitleTracks.length ?? 0) > 0,
-);
+/** The packaged app draws the subtitles at the foot of the video's place, so this leaves a band there for them. */
+const captionBand = computed(() => isNativeApp() && (state.value?.subtitleTracks.length ?? 0) > 0);
 const inlineHole = computed(() => expanded.value && inlineVideo.value && !audioMode.value);
 watchEffect(() => document.documentElement.classList.toggle("lmc-inline-video", inlineHole.value));
 onBeforeUnmount(() => document.documentElement.classList.remove("lmc-inline-video"));
