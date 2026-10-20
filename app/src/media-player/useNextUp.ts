@@ -1,6 +1,6 @@
 import { computed, type ComputedRef, type Ref } from "vue";
 import { useI18n } from "vue-i18n";
-import type { ContentDto } from "luminary-shared";
+import type { ContentDto, Uuid } from "luminary-shared";
 import type { PlayerUpNextItem } from "@luminary-media-converter/player-web";
 import { useStorageBuckets } from "@/composables/useBucketInfo";
 import { shareImageUrl } from "@/composables/useSocialShare";
@@ -40,49 +40,67 @@ export function imageSrcsetFor(doc: ContentDto, bucketUrl: string | undefined): 
 /**
  * The videos the player offers at the end of the current one: the next in its series, then
  * related, without repeats. Returned as the documents (to navigate to) and as the player's plain items.
+ * The browse panel gets its own list: the whole series with the playing one marked, then related.
  */
-export function useNextUp(upNext: Ref<UpNext>): {
+export function useNextUp(
+    upNext: Ref<UpNext>,
+    currentId: () => Uuid | undefined = () => undefined,
+): {
     nextContents: ComputedRef<ContentDto[]>;
     nextUp: ComputedRef<PlayerUpNextItem[]>;
+    browseContents: ComputedRef<ContentDto[]>;
+    browseUpNext: ComputedRef<PlayerUpNextItem[]>;
 } {
     const { t } = useI18n();
     const buckets = useStorageBuckets();
 
-    const sections = computed(() => {
+    const collect = (lists: [ContentDto[], string][]) => {
         const seen = new Set<string>();
         const out: { doc: ContentDto; section: string }[] = [];
-        const add = (docs: ContentDto[], section: string) => {
+        for (const [docs, section] of lists) {
             for (const doc of docs) {
                 if (seen.has(doc._id)) continue;
                 seen.add(doc._id);
                 out.push({ doc, section });
             }
+        }
+        return out;
+    };
+
+    const toItem = ({ doc, section }: { doc: ContentDto; section: string }): PlayerUpNextItem => {
+        const bucketUrl = buckets.value.find((b) => b._id === doc.parentImageBucketId)?.publicUrl;
+        const imageUrl = shareImageUrl(doc, bucketUrl, NEXT_UP_IMAGE_WIDTH);
+        const imageSrcset = imageSrcsetFor(doc, bucketUrl);
+        const fallbackImageUrl = fallbackImageFor(doc.parentId);
+        const current = doc.parentId === currentId();
+        return {
+            id: doc._id,
+            title: doc.title,
+            section,
+            ...(current ? { current, subtitle: t("media_player.now_playing") } : {}),
+            ...(imageUrl ? { imageUrl } : {}),
+            ...(imageSrcset ? { imageSrcset } : {}),
+            ...(fallbackImageUrl ? { fallbackImageUrl } : {}),
         };
-        add(upNext.value.next, t("media_player.next_in_series"));
-        add(upNext.value.related, t("media_player.related"));
-        return out.slice(0, NEXT_UP_LIMIT);
-    });
+    };
 
-    const nextContents = computed(() => sections.value.map((entry) => entry.doc));
-
-    const nextUp = computed<PlayerUpNextItem[]>(() =>
-        sections.value.map(({ doc, section }) => {
-            const bucketUrl = buckets.value.find(
-                (b) => b._id === doc.parentImageBucketId,
-            )?.publicUrl;
-            const imageUrl = shareImageUrl(doc, bucketUrl, NEXT_UP_IMAGE_WIDTH);
-            const imageSrcset = imageSrcsetFor(doc, bucketUrl);
-            const fallbackImageUrl = fallbackImageFor(doc.parentId);
-            return {
-                id: doc._id,
-                title: doc.title,
-                section,
-                ...(imageUrl ? { imageUrl } : {}),
-                ...(imageSrcset ? { imageSrcset } : {}),
-                ...(fallbackImageUrl ? { fallbackImageUrl } : {}),
-            };
-        }),
+    const sections = computed(() =>
+        collect([
+            [upNext.value.next, t("media_player.next_in_series")],
+            [upNext.value.related, t("media_player.related")],
+        ]).slice(0, NEXT_UP_LIMIT),
+    );
+    const browseSections = computed(() =>
+        collect([
+            [upNext.value.series, t("media_player.in_series")],
+            [upNext.value.related, t("media_player.related")],
+        ]),
     );
 
-    return { nextContents, nextUp };
+    const nextContents = computed(() => sections.value.map((entry) => entry.doc));
+    const nextUp = computed<PlayerUpNextItem[]>(() => sections.value.map(toItem));
+    const browseContents = computed(() => browseSections.value.map((entry) => entry.doc));
+    const browseUpNext = computed<PlayerUpNextItem[]>(() => browseSections.value.map(toItem));
+
+    return { nextContents, nextUp, browseContents, browseUpNext };
 }

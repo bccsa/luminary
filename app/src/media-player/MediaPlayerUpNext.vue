@@ -14,8 +14,11 @@ import LImage from "@/components/images/LImage.vue";
 import type { UpNextTag } from "./useUpNext";
 
 const props = defineProps<{
-    next: ContentDto[];
+    /** The whole series, the playing one in it: it is marked where it stands, and does nothing when tapped. */
+    series: ContentDto[];
     related: ContentDto[];
+    /** The playing content's parent id. */
+    currentId?: Uuid;
     /** The tags of what plays, to narrow the lists to: shown when there are two or more. */
     tags?: UpNextTag[];
     /** The tag the lists are narrowed to; none is "All". */
@@ -25,16 +28,21 @@ const { t } = useI18n();
 
 const sections = computed(() =>
     [
-        { id: "next", label: t("media_player.next_in_series"), items: props.next },
+        { id: "series", label: t("media_player.in_series"), items: props.series },
         { id: "related", label: t("media_player.related"), items: props.related },
     ].filter((section) => section.items.length),
 );
-const items = computed(() => [...props.next, ...props.related]);
+const items = computed(() => [...props.series, ...props.related]);
 const emit = defineEmits<{ select: [content: ContentDto]; "select-tag": [tag: Uuid | null] }>();
 
 const showTags = computed(() => (props.tags?.length ?? 0) >= 2);
 /** Tapping the chosen tag again goes back to all of them. */
 const chooseTag = (id: Uuid) => emit("select-tag", props.selectedTag === id ? null : id);
+
+const isCurrent = (content: ContentDto) => content.parentId === props.currentId;
+const pick = (content: ContentDto) => {
+    if (!isCurrent(content)) emit("select", content);
+};
 
 const summaryText = (content: ContentDto): string => content.summary?.trim() ?? "";
 
@@ -120,9 +128,16 @@ const tagsFor = (content: ContentDto): ContentDto[] => {
                 >
                     <button
                         type="button"
-                        class="group flex w-full gap-2 overflow-hidden rounded-lg bg-white text-left shadow ring-1 ring-zinc-950/10 transition hover:shadow-lg dark:bg-slate-800 dark:ring-white/10"
+                        class="group flex w-full gap-2 overflow-hidden rounded-lg bg-white text-left shadow ring-1 transition hover:shadow-lg dark:bg-slate-800"
+                        :class="
+                            isCurrent(item)
+                                ? 'ring-2 ring-yellow-500'
+                                : 'ring-zinc-950/10 dark:ring-white/10'
+                        "
+                        :aria-current="isCurrent(item) ? 'true' : undefined"
                         data-test="mediaPlayerUpNextItem"
-                        @click="$emit('select', item)"
+                        :data-current="isCurrent(item) ? 'true' : undefined"
+                        @click="pick(item)"
                     >
                         <!-- The thumbnail fills the card's height, as the related cards' does. -->
                         <div
@@ -136,7 +151,18 @@ const tagsFor = (content: ContentDto): ContentDto[] => {
                                 size="thumbnailCompact"
                                 :rounded="false"
                             />
-                            <div class="absolute inset-0 flex items-center justify-center">
+                            <div
+                                v-if="isCurrent(item)"
+                                class="absolute inset-0 flex items-end justify-start bg-black/40 p-1"
+                            >
+                                <span
+                                    class="rounded bg-yellow-500 px-1.5 py-0.5 text-xs font-semibold text-zinc-900"
+                                    data-test="mediaPlayerUpNextNowPlaying"
+                                >
+                                    {{ t("media_player.now_playing") }}
+                                </span>
+                            </div>
+                            <div v-else class="absolute inset-0 flex items-center justify-center">
                                 <PlayIcon class="h-7 w-7 text-black blur-sm" />
                                 <PlayIcon class="absolute h-7 w-7 text-white" />
                             </div>

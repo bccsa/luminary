@@ -35,7 +35,7 @@ const doc = (id: string, extra: Record<string, unknown> = {}) =>
     }) as unknown as ContentDto;
 
 const upNext = (next: ContentDto[], related: ContentDto[]) =>
-    computed<UpNext>(() => ({ next, related, tags: [] }));
+    computed<UpNext>(() => ({ series: [], next, related, tags: [] }));
 
 describe("useNextUp", () => {
     it("lists the next in the series before related content", () => {
@@ -54,6 +54,24 @@ describe("useNextUp", () => {
         expect(ids).toHaveLength(5);
         expect(new Set(ids).size).toBe(5);
         expect(ids.slice(0, 3)).toEqual(["r0", "s1", "r1"]);
+    });
+
+    it("browses the whole series, the playing one marked and not repeated in related", () => {
+        const series = [doc("a"), doc("b"), doc("c")];
+        const { browseContents, browseUpNext, nextUp } = useNextUp(
+            computed<UpNext>(() => ({ series, next: [doc("c")], related: [doc("r")], tags: [] })),
+            () => "b-parent",
+        );
+        expect(browseContents.value.map((d) => d._id)).toEqual(["a", "b", "c", "r"]);
+        expect(browseUpNext.value.map((i) => i.section)).toEqual([
+            "media_player.in_series",
+            "media_player.in_series",
+            "media_player.in_series",
+            "media_player.related",
+        ]);
+        expect(browseUpNext.value.filter((i) => i.current).map((i) => i.id)).toEqual(["b"]);
+        expect(browseUpNext.value[1]?.subtitle).toBe("media_player.now_playing");
+        expect(nextUp.value.map((i) => i.id)).toEqual(["c", "r"]);
     });
 
     it("offers nothing when there is nothing to follow", () => {

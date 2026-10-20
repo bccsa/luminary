@@ -232,6 +232,8 @@
         "singlecontent.chapters_panel_hide": "Masquer les chapitres et à suivre",
         "singlecontent.chapters_panel_show": "Afficher les chapitres et à suivre",
         "media_player.next_in_series": "Suivant dans cette série",
+        "media_player.in_series": "Dans cette série",
+        "media_player.now_playing": "En cours de lecture",
         "media_player.related": "À découvrir",
         "media_player.all_tags": "Tout",
         "media_player.no_more_with_tag": "Rien d'autre avec ce tag pour le moment.",

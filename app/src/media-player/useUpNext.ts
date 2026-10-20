@@ -18,21 +18,32 @@ import { hasVideoSource } from "@/util/videoSource";
 
 /** How many of each to offer: a handful, not a feed. */
 const UP_NEXT_LIMIT = 10;
+/** A series is shown whole, up to the size of the query that fetches it. */
+const SERIES_LIMIT = 50;
 /** The related-content ranking's tie-break weight: affinity only orders near-equals. */
 const AFFINITY_WEIGHT = 0.01;
 
 /** A tag the content has, to narrow what is offered to: a series is a category, the rest topics. */
 export type UpNextTag = { id: Uuid; title: string; series: boolean };
 
-/** What is offered after what plays: the next in its series, then related content. */
-export type UpNext = { next: ContentDto[]; related: ContentDto[]; tags: UpNextTag[] };
+/**
+ * What is offered after what plays: the series it belongs to (all of it, the playing one included, so the
+ * viewer sees where it sits), the ones still to come in it, then related content.
+ */
+export type UpNext = {
+    series: ContentDto[];
+    next: ContentDto[];
+    related: ContentDto[];
+    tags: UpNextTag[];
+};
 
 /**
  * What to play after `content`.
  *
- * **Next in the series.** A series is a category the content is tagged with (a conference, a
- * gathering): its other contents that come later, in date order, so the Friday evening is followed
- * by the Saturday afternoon, not by whichever was published last.
+ * **The series.** A series is a category the content is tagged with (a conference, a
+ * gathering): all its contents that have media, in date order, so the Friday evening is followed
+ * by the Saturday afternoon, not by whichever was published last. The playing one is among them.
+ * **Next** is those that come after it.
  *
  * **Related.** Everything else from the same topics, chosen the way the article's related content
  * is: ranked by tag overlap and recency with affinity as a mild tie-break. Unlike an article, a
@@ -54,8 +65,13 @@ export function useUpNext(
                 ? [selectedTag.value]
                 : (content.value?.parentTags ?? []);
             return [
-                { video: { $exists: true, $ne: "" } },
-                { video: { $ne: null } },
+                // Newer content has only the parent's encoded media, older only the per-language URL.
+                {
+                    $or: [
+                        { $and: [{ video: { $exists: true, $ne: "" } }, { video: { $ne: null } }] },
+                        { "parentMedia.hlsUrl": { $exists: true, $ne: "" } },
+                    ],
+                },
                 {
                     $or: [
                         { parentPostType: { $exists: false } },
@@ -124,13 +140,13 @@ export function useUpNext(
 
     return computed(() => {
         const current = content.value;
-        if (!current) return { next: [], related: [], tags: [] };
-        const candidates = docs.value.filter(
+        if (!current) return { series: [], next: [], related: [], tags: [] };
+        const withMedia = docs.value.filter(
             (doc) =>
-                doc.parentId !== current.parentId &&
                 hasVideoSource(doc) &&
                 (!selectedTag.value || (doc.parentTags ?? []).includes(selectedTag.value)),
         );
+        const candidates = withMedia.filter((doc) => doc.parentId !== current.parentId);
 
         const seriesTagIds = new Set(categories.value.map((tag) => tag.parentId));
         const chosen = selectedTag.value;
@@ -139,13 +155,24 @@ export function useUpNext(
             chosen
                 ? seriesTagIds.has(chosen) && (doc.parentTags ?? []).includes(chosen)
                 : (doc.parentTags ?? []).some((tagId) => seriesTagIds.has(tagId));
+        const byDate = (a: ContentDto, b: ContentDto) =>
+            (a.publishDate ?? 0) - (b.publishDate ?? 0);
+        // The playing one may be missing from the query's answer (its own translation, say): it is
+        // still the one to mark, so it is put in.
+        const seriesDocs = [
+            ...(withMedia.some((doc) => doc.parentId === current.parentId) ? [] : [current]),
+            ...withMedia,
+        ]
+            .filter((doc) => doc.parentId === current.parentId || inSeries(doc))
+            .sort(byDate);
+        const series = seriesDocs.length > 1 ? seriesDocs.slice(0, SERIES_LIMIT) : [];
         const after = current.publishDate ?? 0;
         const next = candidates
             .filter((doc) => inSeries(doc) && (doc.publishDate ?? 0) > after)
-            .sort((a, b) => (a.publishDate ?? 0) - (b.publishDate ?? 0))
+            .sort(byDate)
             .slice(0, UP_NEXT_LIMIT);
 
-        const nextIds = new Set(next.map((doc) => doc._id));
+        const nextIds = new Set(series.map((doc) => doc._id));
         const tags = new Set(chosen ? [chosen] : (current.parentTags ?? []));
         const ranked = rank(
             candidates.filter((doc) => !nextIds.has(doc._id)),
@@ -179,6 +206,6 @@ export function useUpNext(
             }))
             .sort((a, b) => Number(b.series) - Number(a.series));
 
-        return { next, related, tags: tagList };
+        return { series, next, related, tags: tagList };
     });
 }

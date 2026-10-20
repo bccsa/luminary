@@ -232,6 +232,8 @@
         "singlecontent.chapters_panel_hide": "Hide chapters and up next",
         "singlecontent.chapters_panel_show": "Show chapters and up next",
         "media_player.next_in_series": "Next in this series",
+        "media_player.in_series": "In this series",
+        "media_player.now_playing": "Now playing",
         "media_player.related": "Related",
         "media_player.all_tags": "All",
         "media_player.no_more_with_tag": "Nothing else with this tag yet.",

@@ -1895,13 +1895,20 @@ describe("MediaPlayer", () => {
                 find(wrapper, `mediaPlayerUpNext-${section}`)
                     .findAll("[data-test='mediaPlayerUpNextItem']")
                     .map((row) => row.text());
-            const next = rows("next");
-            expect(next).toHaveLength(2);
-            expect(next[0]).toContain("saturday");
-            expect(next[1]).toContain("sunday");
+            // The whole series in date order, the playing one marked where it stands.
+            const series = rows("series");
+            expect(series).toHaveLength(4);
+            expect(series[0]).toContain("thursday");
+            expect(series[2]).toContain("saturday");
+            expect(series[3]).toContain("sunday");
+            const playing = find(wrapper, "mediaPlayerUpNext-series").findAll(
+                "[data-test='mediaPlayerUpNextItem'][data-current='true']",
+            );
+            expect(playing).toHaveLength(1);
+            expect(playing[0].text()).toBe(series[1]);
             const related = rows("related").join(" ");
-            expect(related).toContain("thursday");
             expect(related).toContain("other-topic");
+            expect(related).not.toContain("thursday");
             expect(related).not.toContain("saturday");
         });
 
@@ -1970,10 +1977,10 @@ describe("MediaPlayer", () => {
                 const wrapper = await openWithTags(["youth", "conf", "prayer"]);
                 await find(wrapper, "mediaPlayerUpNextTag-conf").trigger("click");
 
-                const next = rows(wrapper, "next");
-                expect(next).toHaveLength(2);
-                expect(next[0]).toContain("saturday");
-                expect(next[1]).toContain("sunday");
+                const series = rows(wrapper, "series");
+                expect(series).toHaveLength(3);
+                expect(series[1]).toContain("saturday");
+                expect(series[2]).toContain("sunday");
                 expect(rows(wrapper, "related").join(" ")).not.toContain("worship");
             });
 
@@ -1981,7 +1988,7 @@ describe("MediaPlayer", () => {
                 const wrapper = await openWithTags(["youth", "conf", "prayer"]);
                 await find(wrapper, "mediaPlayerUpNextTag-youth").trigger("click");
 
-                expect(wrapper.find("[data-test='mediaPlayerUpNext-next']").exists()).toBe(false);
+                expect(wrapper.find("[data-test='mediaPlayerUpNext-series']").exists()).toBe(false);
                 const related = rows(wrapper, "related").join(" ");
                 expect(related).toContain("saturday");
                 expect(related).toContain("worship");
@@ -1998,7 +2005,7 @@ describe("MediaPlayer", () => {
 
                 await find(wrapper, "mediaPlayerUpNextTag-prayer").trigger("click");
                 await find(wrapper, "mediaPlayerUpNextTag-all").trigger("click");
-                expect(rows(wrapper, "next")).toHaveLength(2);
+                expect(rows(wrapper, "series")).toHaveLength(3);
             });
 
             it("says so, and keeps the tab, when a tag has nothing else", async () => {
@@ -2027,7 +2034,7 @@ describe("MediaPlayer", () => {
                 upNextDocs.value = kept;
                 await find(wrapper, "mediaPlayerUpNextTag-conf").trigger("click");
                 await flushPromises();
-                expect(rows(wrapper, "next")).toHaveLength(2);
+                expect(rows(wrapper, "series")).toHaveLength(3);
             });
 
             it("starts the next video at All", async () => {
@@ -2401,7 +2408,7 @@ describe("MediaPlayer", () => {
                 expect(find(wrapper, "mediaPlayerMiniVideo").exists()).toBe(true);
                 expect(wrapper.find("[data-test='mediaPlayerBar']").exists()).toBe(false);
                 expect(find(wrapper, "mediaPlayerMiniVideo").html()).toContain("group-hover:opacity-100");
-                expect(wrapper.find("[data-test='mediaPlayer']").attributes("aria-hidden")).toBe("false");
+                expect(wrapper.find("[data-test='mediaPlayer']").attributes("inert")).toBeUndefined();
             });
         });
 

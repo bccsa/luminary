@@ -107,7 +107,10 @@ const sheetTab = ref<SheetTab | null>(null);
 /** The tag the Up next lists are narrowed to; it goes with the video, and the next one starts at All. */
 const upNextTag = ref<Uuid | null>(null);
 const upNext = useUpNext(content, upNextTag);
-const { nextContents, nextUp } = useNextUp(upNext);
+const { nextContents, nextUp, browseContents, browseUpNext } = useNextUp(
+    upNext,
+    () => content.value?.parentId,
+);
 /** Up next has had something to offer for this video: the tab stays while a new choice loads. */
 const hadUpNext = ref(false);
 watch(
@@ -118,7 +121,7 @@ watch(
     },
 );
 watch(
-    () => upNext.value.next.length + upNext.value.related.length,
+    () => upNext.value.series.length + upNext.value.next.length + upNext.value.related.length,
     (count) => {
         if (count) hadUpNext.value = true;
     },
@@ -136,7 +139,8 @@ const tabs = computed<{ id: SheetTab; label: string }[]>(() => [
         ? [{ id: "chapters" as const, label: t("media_player.chapters") }]
         : []),
     // A chosen tag that has nothing left, or lists still loading, keep the tab: the viewer goes back to All.
-    ...(upNext.value.next.length ||
+    ...(upNext.value.series.length ||
+    upNext.value.next.length ||
     upNext.value.related.length ||
     upNextTag.value ||
     hadUpNext.value
@@ -267,8 +271,8 @@ function playNext(next: ContentDto) {
  * is let through only for this one.
  */
 function swapToNext(id: string) {
-    const next = nextContents.value.find((doc) => doc._id === id);
-    if (!next) return;
+    const next = browseContents.value.find((doc) => doc._id === id);
+    if (!next || next.parentId === content.value?.parentId) return;
     const location = { name: "content", params: { slug: next.slug } };
     markPlayerSwap(router.resolve(location).fullPath);
     openMediaPlayer(next, item.value?.language);
@@ -822,9 +826,24 @@ const isDesktop = ref(desktopQuery.matches);
  * the card in the corner.
  */
 const nowPlaying = computed(() => !isDesktop.value);
-const onDesktopChange = (event: MediaQueryListEvent) => (isDesktop.value = event.matches);
+/**
+ * Full screen makes the window as wide as the display, which can cross the breakpoint: the layout then swaps
+ * and the player is remounted, which drops the full-screen element and ends full screen at once. So the layout
+ * holds while the browser is full screen, and follows the window again when it leaves.
+ */
+const onDesktopChange = (event: MediaQueryListEvent) => {
+    if (document.fullscreenElement) return;
+    isDesktop.value = event.matches;
+};
+const syncDesktopAfterFullscreen = () => {
+    if (!document.fullscreenElement) isDesktop.value = desktopQuery.matches;
+};
 desktopQuery.addEventListener("change", onDesktopChange);
-onBeforeUnmount(() => desktopQuery.removeEventListener("change", onDesktopChange));
+document.addEventListener("fullscreenchange", syncDesktopAfterFullscreen);
+onBeforeUnmount(() => {
+    desktopQuery.removeEventListener("change", onDesktopChange);
+    document.removeEventListener("fullscreenchange", syncDesktopAfterFullscreen);
+});
 /**
  * On a wide screen a video that is minimised keeps only its picture, bottom right, with its controls
  * showing while the pointer is over it. Sound alone, and phones, keep the bar.
@@ -866,6 +885,9 @@ watch(
     { immediate: true },
 );
 onBeforeUnmount(() => cancelAnimationFrame(miniFrame));
+// The slot can move without resizing (the window turning upright), which sends no frame of its own: the
+// platform's video would be left where the slot was.
+watch(miniRect, () => nudgeInlineVideo());
 function seekMini(event: MouseEvent) {
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     if (!rect.width || !(duration.value > 0) || !Number.isFinite(duration.value)) return;
@@ -1186,7 +1208,7 @@ function onKeydown(event: KeyboardEvent) {
         <section
             role="dialog"
             :aria-label="content.title"
-            :aria-hidden="!expanded && !miniVideo"
+            :inert="(!expanded && !miniVideo) || undefined"
             class="fixed inset-0 z-[60] flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
             :class="[
                 expanded || miniVideo ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
@@ -1246,8 +1268,8 @@ function onKeydown(event: KeyboardEvent) {
                     :audio-tracks="screenTracks"
                     :active-audio-track-id="state?.activeAudioTrackId ?? null"
                     :sleep-timer="sleepTimer"
-                    :has-browse="chapters.length > 0 || nextUp.length > 0"
-                    :up-next="nextUp"
+                    :has-browse="tabs.length > 0"
+                    :up-next="browseUpNext"
                     chapters-sheet
                     :skip-back-seconds="SKIP_SECONDS"
                     :skip-forward-seconds="SKIP_SECONDS"
@@ -1263,7 +1285,7 @@ function onKeydown(event: KeyboardEvent) {
                     @seek-chapter="(chapter) => handle?.seek(chapter.startTime)"
                     @upnextselect="
                         (id) => {
-                            const next = nextContents.find((doc) => doc._id === id);
+                            const next = browseContents.find((doc) => doc._id === id);
                             if (next) playNext(next);
                         }
                     "
@@ -1347,8 +1369,10 @@ function onKeydown(event: KeyboardEvent) {
                             :language="item.language"
                             :start-audio="startAudio"
                             :next-up="nextUp"
+                            :up-next="browseUpNext"
                             autoplay
                             @nextupselect="swapToNext"
+                            @upnextselect="swapToNext"
                             :inline="miniStage ? 'front' : true"
                             :caption-band="captionBand && !miniStage ? 64 : 0"
                             :fullscreen-on-play="isNativeApp()"
@@ -1484,8 +1508,10 @@ function onKeydown(event: KeyboardEvent) {
                         :language="item.language"
                         :start-audio="startAudio"
                         :next-up="nextUp"
+                        :up-next="browseUpNext"
                         autoplay
                         @nextupselect="swapToNext"
+                        @upnextselect="swapToNext"
                         inline
                         :fullscreen-on-play="isNativeApp()"
                     />
@@ -2201,8 +2227,9 @@ function onKeydown(event: KeyboardEvent) {
 
                 <MediaPlayerUpNext
                     v-if="sheetTab === 'upnext'"
-                    :next="upNext.next"
+                    :series="upNext.series"
                     :related="upNext.related"
+                    :current-id="content?.parentId"
                     :tags="upNext.tags"
                     :selected-tag="upNextTag"
                     @select="playNext"
@@ -2243,8 +2270,8 @@ function onKeydown(event: KeyboardEvent) {
                 :audio-tracks="screenTracks"
                 :active-audio-track-id="state.activeAudioTrackId"
                 :sleep-timer="sleepTimer"
-                :has-browse="chapters.length > 0 || nextUp.length > 0"
-                :up-next="nextUp"
+                :has-browse="tabs.length > 0"
+                :up-next="browseUpNext"
                 chapters-sheet
                 :skip-back-seconds="SKIP_SECONDS"
                 :skip-forward-seconds="SKIP_SECONDS"
@@ -2256,7 +2283,7 @@ function onKeydown(event: KeyboardEvent) {
                 @seek-chapter="(chapter) => controller?.seek(chapter.startTime)"
                 @upnextselect="
                     (id) => {
-                        const next = nextContents.find((doc) => doc._id === id);
+                        const next = browseContents.find((doc) => doc._id === id);
                         if (next) playNext(next);
                     }
                 "
@@ -2290,7 +2317,7 @@ function onKeydown(event: KeyboardEvent) {
             v-if="!expanded && !miniVideo"
             v-show="!keyboardOpen"
             ref="bar"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center justify-between gap-2 border-t border-t-white/10 bg-zinc-900/70 text-white backdrop-blur-xl backdrop-saturate-150 px-2 pb-2 pt-2.5 after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-zinc-900/70 after:backdrop-blur-xl after:content-[''] lg:after:hidden transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border-t-0 lg:border lg:border-white/10 lg:shadow-lg"
+            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center gap-3 border-t border-t-white/10 bg-zinc-900/70 px-2 pb-2 pt-2.5 text-white backdrop-blur-xl backdrop-saturate-150 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-zinc-900/70 after:backdrop-blur-xl after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border lg:border-t-0 lg:border-white/10 lg:shadow-lg lg:after:hidden"
             :class="
                 mobileChrome.hidden.value
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'
@@ -2305,9 +2332,11 @@ function onKeydown(event: KeyboardEvent) {
                 aria-hidden="true"
                 data-test="mediaPlayerBarProgress"
             />
+            <!-- The picture stands at the left. On a narrow bar the words ride over the buttons beside it, so a long
+                 title is not cut short by them; wider, they share one row. -->
             <button
                 type="button"
-                class="flex min-w-0 flex-1 items-center gap-2 text-left"
+                class="flex flex-none items-center text-left"
                 :aria-label="t('media_player.expand')"
                 @click="expandMediaPlayer"
             >
@@ -2315,7 +2344,10 @@ function onKeydown(event: KeyboardEvent) {
                     v-if="miniStageWanted"
                     ref="miniSpacer"
                     class="flex-none"
-                    :style="{ height: `${MINI_PICTURE_HEIGHT}px`, width: `${Math.min(150, MINI_PICTURE_HEIGHT * (stageAspect ?? 16 / 9))}px` }"
+                    :style="{
+                        height: `${MINI_PICTURE_HEIGHT}px`,
+                        width: `${Math.min(150, MINI_PICTURE_HEIGHT * (stageAspect ?? 16 / 9))}px`,
+                    }"
                     aria-hidden="true"
                 />
                 <LImage
@@ -2327,51 +2359,62 @@ function onKeydown(event: KeyboardEvent) {
                     size="smallSquare"
                     rounded
                 />
-                <span class="flex min-w-0 flex-col">
-                    <span class="block truncate text-sm font-semibold">{{ content.title }}</span>
-                    <span
-                        v-if="content.author"
-                        class="block truncate text-xs text-white/60"
-                        >{{ content.author }}</span
+            </button>
+            <div class="flex min-w-0 flex-1 flex-col min-[480px]:max-lg:flex-row min-[480px]:max-lg:items-center min-[480px]:max-lg:gap-2">
+                <button
+                    type="button"
+                    class="flex w-full min-w-0 flex-col text-left min-[480px]:max-lg:w-auto min-[480px]:max-lg:flex-1"
+                    data-test="mediaPlayerBarTitle"
+                    @click="expandMediaPlayer"
+                >
+                    <span class="flex min-w-0 flex-col">
+                        <span class="block truncate text-sm font-semibold">{{ content.title }}</span>
+                        <span
+                            v-if="content.author"
+                            class="block truncate text-xs text-white/60"
+                            >{{ content.author }}</span
+                        >
+                    </span>
+                </button>
+                <div class="-mx-1.5 flex items-center justify-between min-[480px]:max-lg:m-0 min-[480px]:max-lg:justify-end min-[480px]:max-lg:gap-2">
+                    <button
+                        v-if="content.slug"
+                        type="button"
+                        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:bg-white/10 [@media(hover:hover)]:hover:bg-white/10"
+                        :aria-label="t('media_player.read')"
+                        data-test="mediaPlayerBarRead"
+                        @click="openPage"
                     >
-                </span>
-            </button>
-            <button
-                v-if="content.slug"
-                type="button"
-                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full [@media(hover:hover)]:hover:bg-white/10 active:bg-white/10"
-                :aria-label="t('media_player.read')"
-                data-test="mediaPlayerBarRead"
-                @click="openPage"
-            >
-                <BookOpenIcon class="h-7 w-7 text-white/80" />
-            </button>
-            <button
-                v-if="state"
-                type="button"
-                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full [@media(hover:hover)]:hover:bg-white/10 active:bg-white/10"
-                :aria-label="playing ? t('media_player.pause') : t('media_player.play')"
-                data-test="mediaPlayerBarPlayPause"
-                @click="togglePlay"
-            >
-                <PauseIcon
-                    v-if="playing"
-                    class="h-7 w-7 text-white/80"
-                />
-                <PlayIcon
-                    v-else
-                    class="h-7 w-7 text-white/80"
-                />
-            </button>
-            <button
-                type="button"
-                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full [@media(hover:hover)]:hover:bg-white/10 active:bg-white/10"
-                :aria-label="t('media_player.close')"
-                data-test="mediaPlayerBarClose"
-                @click="closeMediaPlayer"
-            >
-                <XMarkIcon class="h-8 w-8 text-white/80" />
-            </button>
+                        <BookOpenIcon class="h-7 w-7 text-white/80" />
+                    </button>
+                    <button
+                        v-if="state"
+                        type="button"
+                        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:bg-white/10 [@media(hover:hover)]:hover:bg-white/10"
+                        :aria-label="playing ? t('media_player.pause') : t('media_player.play')"
+                        data-test="mediaPlayerBarPlayPause"
+                        @click="togglePlay"
+                    >
+                        <PauseIcon
+                            v-if="playing"
+                            class="h-7 w-7 text-white/80"
+                        />
+                        <PlayIcon
+                            v-else
+                            class="h-7 w-7 text-white/80"
+                        />
+                    </button>
+                    <button
+                        type="button"
+                        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:bg-white/10 [@media(hover:hover)]:hover:bg-white/10"
+                        :aria-label="t('media_player.close')"
+                        data-test="mediaPlayerBarClose"
+                        @click="closeMediaPlayer"
+                    >
+                        <XMarkIcon class="h-8 w-8 text-white/80" />
+                    </button>
+                </div>
+            </div>
         </div>
     </template>
 </template>
