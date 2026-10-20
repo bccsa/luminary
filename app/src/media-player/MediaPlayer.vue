@@ -2348,6 +2348,9 @@ function onKeydown(event: KeyboardEvent) {
                 :skip-forward-seconds="SKIP_SECONDS"
                 :chapter-mask="screenChapterMask"
                 :messages="screenMessages"
+                :subtitle-tracks="state.subtitleTracks"
+                :active-subtitle-track-id="state.activeSubtitleTrackId"
+                :lyrics="lyrics"
                 @exit="audioFullscreen = false"
                 @toggle-play="togglePlay"
                 @seek="(time) => controller?.seek(time)"
@@ -2361,6 +2364,7 @@ function onKeydown(event: KeyboardEvent) {
                 @rate="(rate) => controller?.setPlaybackRate(rate)"
                 @audio-track="(id) => controller?.setAudioTrack(id)"
                 @sleep="(option) => controller?.setSleepTimer(option)"
+                @subtitle-track="(id) => controller?.setSubtitleTrack(id)"
             >
                 <template #cast>
                     <button
