@@ -10,6 +10,8 @@ import { reportBreadcrumb } from "../diagnostics";
  */
 type ClientConfig = {
     maxUploadFileSize: number;
+    /** Absent from servers that predate it. */
+    maxQueryLanguages?: number;
     accessMap: AccessMap;
 };
 
@@ -22,6 +24,12 @@ export const isConnected = ref(false);
  * Maximum file size for uploads in bytes as a Vue ref
  */
 export const maxUploadFileSize = useLocalStorage("maxUploadFileSize", 0);
+
+/**
+ * Most distinct languages the server lets a non-CMS query reference, as a Vue ref.
+ * 0 until the server has sent it (or when it predates the setting).
+ */
+export const maxQueryLanguages = useLocalStorage("maxQueryLanguages", 0);
 
 class SocketIO {
     private socket: Socket;
@@ -83,6 +91,7 @@ class SocketIO {
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
+            if (c.maxQueryLanguages) maxQueryLanguages.value = c.maxQueryLanguages;
             if (c.accessMap) accessMap.value = c.accessMap;
             reportBreadcrumb("Socket connected and configured", { area: "socket", op: "connect" });
             isConnected.value = true; // Only set isConnected after configuration has been received from the API

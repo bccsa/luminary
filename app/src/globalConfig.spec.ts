@@ -6,7 +6,8 @@ import {
     appLanguageIdsAsRef,
     appSyncedLanguageIdsAsRef,
     cmsLanguages,
-    MAX_PREFERRED_LANGUAGES,
+    DEFAULT_MAX_PREFERRED_LANGUAGES,
+    maxPreferredLanguages,
     MAX_SYNCED_LANGUAGES,
     normalizePreferredLanguages,
     normalizeSyncedLanguages,
@@ -25,7 +26,7 @@ import {
     mockLanguageDtoSwa,
 } from "./tests/mockdata";
 import type { ContentDto } from "luminary-shared";
-import { db } from "luminary-shared";
+import { db, maxQueryLanguages } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 
 describe("globalConfig.ts", () => {
@@ -118,9 +119,9 @@ describe("globalConfig.ts", () => {
     });
 
     describe("normalizePreferredLanguages", () => {
-        it("caps the preferred order to MAX_PREFERRED_LANGUAGES", () => {
+        it("caps the preferred order to maxPreferredLanguages", () => {
             expect(normalizePreferredLanguages(["a", "b", "c", "d", "e"])).toEqual(
-                ["a", "b", "c", "d", "e"].slice(0, MAX_PREFERRED_LANGUAGES),
+                ["a", "b", "c", "d", "e"].slice(0, maxPreferredLanguages.value),
             );
         });
 
@@ -139,6 +140,37 @@ describe("globalConfig.ts", () => {
         it("is idempotent", () => {
             const once = normalizePreferredLanguages(["a", "b", "c", "d"]);
             expect(normalizePreferredLanguages(once)).toEqual(once);
+        });
+    });
+
+    describe("maxPreferredLanguages", () => {
+        afterEach(() => {
+            maxQueryLanguages.value = 0;
+        });
+
+        it("leaves room for the auto-appended default under the API's query language cap", () => {
+            maxQueryLanguages.value = 6;
+            expect(maxPreferredLanguages.value).toBe(5);
+            expect(normalizePreferredLanguages(["a", "b", "c", "d", "e", "f"])).toHaveLength(5);
+        });
+
+        it("falls back to the default cap until the API has sent one", () => {
+            maxQueryLanguages.value = 0;
+            expect(maxPreferredLanguages.value).toBe(DEFAULT_MAX_PREFERRED_LANGUAGES);
+            maxQueryLanguages.value = 1;
+            expect(maxPreferredLanguages.value).toBe(DEFAULT_MAX_PREFERRED_LANGUAGES);
+        });
+
+        it("trims the preferred set when the API lowers its cap", async () => {
+            maxQueryLanguages.value = 5;
+            appLanguageIdsAsRef.value = ["lang-eng", "lang-fra", "lang-swa", "lang-x"];
+            await waitForExpect(() => expect(appLanguageIdsAsRef.value).toHaveLength(4));
+
+            maxQueryLanguages.value = 3;
+
+            await waitForExpect(() =>
+                expect(appLanguageIdsAsRef.value).toEqual(["lang-eng", "lang-fra"]),
+            );
         });
     });
 
