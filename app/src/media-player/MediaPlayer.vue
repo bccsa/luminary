@@ -873,6 +873,11 @@ const isDesktop = ref(desktopQuery.matches);
  */
 const nowPlaying = computed(() => !isDesktop.value);
 /**
+ * The now-playing screen is what the full player shows on a phone, and on a computer too, as the card in the
+ * corner. A computer's minimised video keeps only its picture, which the old markup below draws.
+ */
+const screen = computed(() => nowPlaying.value || expanded.value);
+/**
  * Full screen makes the window as wide as the display, which can cross the breakpoint: the layout then swaps
  * and the player is remounted, which drops the full-screen element and ends full screen at once. So the layout
  * holds while the browser is full screen, and follows the window again when it leaves.
@@ -1276,6 +1281,8 @@ function onKeydown(event: KeyboardEvent) {
             :class="[
                 expanded || miniVideo ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
                 miniVideo ? 'lg:w-96 lg:rounded-xl' : 'lg:w-96 lg:rounded-2xl',
+                // The screen has no height of its own, so on a computer the card is as tall as a phone's screen.
+                screen && expanded ? 'lg:h-[min(46rem,calc(100dvh-2.5rem))]' : '',
                 miniStage ? 'lmc-mini-stage pointer-events-none overflow-hidden rounded-md' : '',
             ]"
             :style="{
@@ -1300,7 +1307,7 @@ function onKeydown(event: KeyboardEvent) {
         >
             <!-- A phone: the now-playing screen, for sound and picture alike. The engine plays in its stage. -->
             <div
-                v-if="nowPlaying"
+                v-if="screen"
                 class="lmpl-root [&_.lmpl-afs-top]:touch-none"
                 style="position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto"
                 data-test="mediaPlayerNowPlaying"
@@ -1385,6 +1392,19 @@ function onKeydown(event: KeyboardEvent) {
                     </template>
                     <template #top-end>
                         <button
+                            v-if="isDesktop && audioMode"
+                            type="button"
+                            class="lmpl-afs-iconbtn"
+                            :aria-label="t('media_player.fullscreen')"
+                            data-test="mediaPlayerAudioFullscreenOpen"
+                            @click="audioFullscreen = true"
+                        >
+                            <V10Icon
+                                name="fullscreenEnter"
+                                class="h-[22px] w-[22px]"
+                            />
+                        </button>
+                        <button
                             v-if="handle?.airPlayAvailable || handle?.castAvailable"
                             type="button"
                             class="lmpl-afs-iconbtn"
@@ -1453,7 +1473,7 @@ function onKeydown(event: KeyboardEvent) {
 
             <!-- The cover, blurred and saturated, behind every part, under a scrim to keep the text readable. -->
             <div
-                v-if="!nowPlaying && wash"
+                v-if="!screen && wash"
                 class="pointer-events-none absolute inset-0 -z-10 overflow-hidden bg-amber-50 dark:bg-slate-900"
                 aria-hidden="true"
                 data-test="mediaPlayerWash"
@@ -1471,7 +1491,7 @@ function onKeydown(event: KeyboardEvent) {
                 <div class="absolute inset-0 bg-white/45 dark:bg-slate-900/65" />
             </div>
             <div
-                v-if="!nowPlaying"
+                v-if="!screen"
                 v-show="!miniVideo"
                 class="flex-none touch-none bg-amber-50 dark:bg-slate-800 max-lg:pt-[env(safe-area-inset-top)]"
                 :class="{ '!bg-transparent': wash }"
@@ -1555,7 +1575,7 @@ function onKeydown(event: KeyboardEvent) {
             </div>
 
             <div
-                v-if="!nowPlaying"
+                v-if="!screen"
                 ref="pictureEl"
                 class="relative w-full flex-none touch-pan-y"
                 :class="
@@ -1780,7 +1800,7 @@ function onKeydown(event: KeyboardEvent) {
                  (Chapters, Up next) scroll inside themselves. Nothing is clipped either: the menus open
                  upward over the picture. -->
             <div
-                v-if="!nowPlaying"
+                v-if="!screen"
                 v-show="!miniVideo"
                 class="flex min-h-0 flex-1 flex-col overflow-visible bg-amber-50 dark:bg-slate-800"
                 :class="{ '!bg-transparent': wash }"
@@ -2237,7 +2257,7 @@ function onKeydown(event: KeyboardEvent) {
             </div>
 
             <div
-                v-if="!nowPlaying && sheetTab"
+                v-if="!screen && sheetTab"
                 class="absolute inset-x-0 bottom-0 z-20 flex flex-col rounded-t-2xl bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.12)] dark:bg-slate-900 max-lg:pb-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))]"
                 :style="{
                     top: `${sheetTop}px`,
