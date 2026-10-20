@@ -78,6 +78,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 chaptersSheet: Boolean,
                 appearance: String,
                 stage: String,
+                fill: Boolean,
                 stageHole: Boolean,
                 wash: String,
                 exitLabel: String,
@@ -158,6 +159,7 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                 fullscreenOnPlay: Boolean,
                 inline: Boolean,
                 captionBand: Number,
+                windowedControls: Boolean,
                 upNext: Array,
                 nextUp: Array,
             },
@@ -273,11 +275,13 @@ async function playing() {
  * phone, where the now-playing screen takes its place, is asked for with `narrow`.
  */
 let screenWide = true;
+let screenLandscape = false;
 const setupMatchMedia = window.matchMedia;
 beforeEach(() => {
     screenWide = true;
+    screenLandscape = false;
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-        matches: query.includes("1024px") ? screenWide : false,
+        matches: query.includes("1024px") ? screenWide : query.includes("landscape") ? screenLandscape : false,
         media: query,
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
@@ -709,6 +713,32 @@ describe("MediaPlayer", () => {
                 expect(screen(wrapper).props().busy).toBe(false);
             } finally {
                 vi.useRealTimers();
+            }
+        });
+
+        it("lets a video fill the window of a phone's browser turned sideways, with the player's own controls", async () => {
+            screenLandscape = true;
+            const wrapper = await playing();
+            expect(screen(wrapper).props().fill).toBe(true);
+            expect(wrapper.findComponent({ name: "VideoPlayer" }).props("windowedControls")).toBe(true);
+
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(screen(wrapper).props().fill).toBe(false);
+            expect(wrapper.findComponent({ name: "VideoPlayer" }).props("windowedControls")).toBe(false);
+        });
+
+        it("keeps the now-playing screen upright, and in the packaged app, which turns to its own full screen", async () => {
+            const upright = await playing();
+            expect(screen(upright).props().fill).toBe(false);
+
+            screenLandscape = true;
+            vi.stubEnv("VITE_BUILD_TARGET", "native");
+            try {
+                const app = await playing();
+                expect(screen(app).props().fill).toBe(false);
+            } finally {
+                vi.unstubAllEnvs();
             }
         });
 
