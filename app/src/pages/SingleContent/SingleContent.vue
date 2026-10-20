@@ -1134,6 +1134,7 @@ watch([isLoading, content, is404], async () => {
         :isVisible="showCategoryModal"
         @close="showCategoryModal = false"
         :heading="selectedCategory?.title || ''"
+        closeButton
     >
         <div class="max-h-[calc(80%)] overflow-y-auto">
             <div class="">
