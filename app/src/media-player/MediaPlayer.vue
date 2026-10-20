@@ -872,6 +872,19 @@ const isDesktop = ref(desktopQuery.matches);
  * the card in the corner.
  */
 const nowPlaying = computed(() => !isDesktop.value);
+
+/**
+ * A phone's browser turned sideways on a video: a page cannot take the screen without a tap, so the picture fills
+ * the window instead, with the player's own controls; turning upright gives the now-playing screen back.
+ */
+const landscapeQuery = window.matchMedia("(orientation: landscape)");
+const landscape = ref(landscapeQuery.matches);
+const onLandscapeChange = (event: MediaQueryListEvent) => (landscape.value = event.matches);
+landscapeQuery.addEventListener("change", onLandscapeChange);
+onBeforeUnmount(() => landscapeQuery.removeEventListener("change", onLandscapeChange));
+const webFill = computed(
+    () => nowPlaying.value && !isNativeApp() && landscape.value && expanded.value && !audioMode.value,
+);
 /**
  * The now-playing screen is what the full player shows on a phone, and on a computer too, as the card in the
  * corner. A computer's minimised video keeps only its picture, which the old markup below draws.
@@ -1323,6 +1336,7 @@ function onKeydown(event: KeyboardEvent) {
                     :wash="nowPlayingWash"
                     appearance="dark"
                     :stage="audioMode ? 'cover' : 'video'"
+                    :fill="webFill"
                     :stage-hole="inlineHole"
                     :stage-aspect="miniStage ? undefined : stageAspect"
                     :caption-band="captionBand && !miniStage"
@@ -1465,7 +1479,8 @@ function onKeydown(event: KeyboardEvent) {
                             :inline="miniStage ? 'front' : true"
                             :caption-band="captionBand && !miniStage ? 64 : 0"
                             :fullscreen-on-play="isNativeApp()"
-                            :captions-hidden="webCaptionsBelow || (isNativeApp() && screenCovered)"
+                            :windowed-controls="webFill"
+                            :captions-hidden="(webCaptionsBelow && !webFill) || (isNativeApp() && screenCovered)"
                         />
                     </template>
                 </AudioFullscreen>
