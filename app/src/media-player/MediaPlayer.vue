@@ -39,7 +39,7 @@ import { DateTime } from "luxon";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LImage from "@/components/images/LImage.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
-import { isDarkTheme, isMac } from "@/globalConfig";
+import { isMac } from "@/globalConfig";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { fallbackImageFor } from "@/util/fallbackArtwork";
 import { coverImageUrl, thumbHashWash } from "./coverImage";
@@ -2361,9 +2361,10 @@ function onKeydown(event: KeyboardEvent) {
         >
             <AudioFullscreen
                 :title="content.title"
-                :subtitle="content.author"
+                :subtitle="nowPlayingSubtitle"
                 :artwork="screenArtwork"
-                :appearance="isDarkTheme ? 'dark' : 'light'"
+                :wash="nowPlayingWash"
+                appearance="dark"
                 :chapters="chapters"
                 :current-time="currentTime"
                 :duration="duration"
