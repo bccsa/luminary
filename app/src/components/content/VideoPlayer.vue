@@ -420,6 +420,8 @@ const RESUME_REWIND_SECONDS = 30;
  * position and the play state they had: a paused video stays paused where it is.
  */
 let startHandled = false;
+/** Until this content's own metadata arrives, the time reported is still the previous video's, and is not its progress. */
+let loadedContentId: string | undefined;
 watch(
     () => props.content._id,
     () => (startHandled = false),
@@ -427,6 +429,7 @@ watch(
 
 function onLoadedMetadata() {
     if (!playingThisContent()) return;
+    loadedContentId = props.content._id;
     leaving = false;
     completed = false;
     watchTracker.reset();
@@ -455,7 +458,7 @@ defineExpose({ player, inlineActive });
 
 function onTimeUpdate(currentTime: number, duration: number) {
     // The video being swapped out is still playing while the next one's key is fetched.
-    if (leaving || !playingThisContent()) return;
+    if (leaving || !playingThisContent() || loadedContentId !== props.content._id) return;
     watchTracker.track(currentTime);
     if (
         watchTracker.claimCompletionIfWatched(duration, affinityConfig.value.mediaCompletionPercent)

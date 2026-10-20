@@ -425,6 +425,7 @@ describe("VideoPlayer", () => {
     describe("resume position", () => {
         it("saves the position once past the resume threshold", async () => {
             const wrapper = await mountPlayer();
+            stub(wrapper).vm.$emit("loadedmetadata");
 
             stub(wrapper).vm.$emit("timeupdate", 90, 600);
 
@@ -436,6 +437,14 @@ describe("VideoPlayer", () => {
                 90,
                 600,
             );
+        });
+
+        it("does not save the previous video's position before this one has loaded", async () => {
+            const wrapper = await mountPlayer();
+
+            stub(wrapper).vm.$emit("timeupdate", 1031, 5509);
+
+            expect(setMediaProgressMock).not.toHaveBeenCalled();
         });
 
         it("does not save a position too early to be worth resuming", async () => {
@@ -664,6 +673,7 @@ describe("VideoPlayer", () => {
         it("detects the end from the position when `ended` never arrives", async () => {
             // The normal case on YouTube, whose tech is known to drop the event.
             const wrapper = await mountPlayer();
+            stub(wrapper).vm.$emit("loadedmetadata");
 
             stub(wrapper).vm.$emit("timeupdate", 599.5, 600);
 
