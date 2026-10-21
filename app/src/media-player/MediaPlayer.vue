@@ -1372,6 +1372,7 @@ function onKeydown(event: KeyboardEvent) {
                     :subtitle-tracks="state?.subtitleTracks ?? []"
                     :active-subtitle-track-id="state?.activeSubtitleTrackId ?? null"
                     :can-picture-in-picture="!!handle?.canPictureInPicture"
+                    :fullscreen-tool="isDesktop && audioMode"
                     :lyrics="lyrics"
                     @exit="minimiseMediaPlayer"
                     @toggle-play="togglePlay"
@@ -1389,7 +1390,7 @@ function onKeydown(event: KeyboardEvent) {
                     @sleep="(option) => controller?.setSleepTimer(option)"
                     @subtitle-track="(id) => controller?.setSubtitleTrack(id)"
                     @picture-in-picture="handle?.startPictureInPicture?.()"
-                    @fullscreen="handle?.enterFullscreen()"
+                    @fullscreen="audioMode ? (audioFullscreen = true) : handle?.enterFullscreen()"
                     @stagechange="nudgeInlineVideo"
                     @scrub="onNowPlayingScrub"
                 >
@@ -1410,19 +1411,6 @@ function onKeydown(event: KeyboardEvent) {
                         />
                     </template>
                     <template #top-end>
-                        <button
-                            v-if="isDesktop && audioMode"
-                            type="button"
-                            class="lmpl-afs-iconbtn"
-                            :aria-label="t('media_player.fullscreen')"
-                            data-test="mediaPlayerAudioFullscreenOpen"
-                            @click="audioFullscreen = true"
-                        >
-                            <V10Icon
-                                name="fullscreenEnter"
-                                class="h-[22px] w-[22px]"
-                            />
-                        </button>
                         <button
                             v-if="handle?.airPlayAvailable || handle?.castAvailable"
                             type="button"
