@@ -10,7 +10,13 @@ import { userDataSaverEnabled } from "@/globalConfig";
 const i18n = createI18n({
     legacy: false,
     locale: "eng",
-    messages: { eng: { "media_player.watch": "Watch", "media_player.listen": "Listen" } },
+    messages: {
+        eng: {
+            "media_player.watch": "Watch",
+            "media_player.listen": "Listen",
+            "media_player.play": "Play",
+        },
+    },
 });
 
 const mountAction = () =>
@@ -33,6 +39,19 @@ describe("MediaAction", () => {
         await wrapper.find("[data-test='mediaAction']").trigger("click");
         expect(mediaPlayerItem.value?.content._id).toBe(mockEnglishContentDto._id);
         expect(mediaPlayerItem.value?.language).toBe("eng");
+        expect(mediaPlayerView.value).toBe("expanded");
+    });
+
+    it("is the picture's play button on it, and opens the media player", async () => {
+        const wrapper = mount(MediaAction, {
+            props: { content: mockEnglishContentDto, language: "eng", onPicture: true },
+            global: { plugins: [i18n] },
+        });
+        expect(wrapper.text()).toBe("Play");
+        expect(wrapper.classes()).toContain("absolute");
+
+        await wrapper.find("[data-test='mediaAction']").trigger("click");
+        expect(mediaPlayerItem.value?.content._id).toBe(mockEnglishContentDto._id);
         expect(mediaPlayerView.value).toBe("expanded");
     });
 
