@@ -432,7 +432,6 @@ const inlineHole = computed(() => expanded.value && inlineVideo.value && !audioM
 watchEffect(() => document.documentElement.classList.toggle("lmc-inline-video", inlineHole.value));
 onBeforeUnmount(() => document.documentElement.classList.remove("lmc-inline-video"));
 
-
 /** `seconds` as a share of the duration, 0 while there is none. */
 function fraction(seconds: number): number {
     return duration.value > 0 && Number.isFinite(duration.value)
@@ -901,18 +900,11 @@ onBeforeUnmount(() => {
     document.removeEventListener("fullscreenchange", syncDesktopAfterFullscreen);
 });
 /**
- * On a wide screen a video that is minimised keeps only its picture, bottom right, with its controls
- * showing while the pointer is over it. Sound alone, and phones, keep the bar.
- */
-const miniVideo = computed(
-    () => isDesktop.value && !expanded.value && !!item.value && !!state.value && !audioMode.value,
-);
-/**
- * A phone minimised on a video keeps its picture in the bar: the now-playing screen shrinks to a thumbnail over
- * the bar's left end, with the platform's video drawn over the page there.
+ * Minimised on a video, phone and computer alike, the bar keeps its picture: the player shrinks to a thumbnail
+ * over the bar's left end, with the platform's video drawn over the page there.
  */
 const miniStageWanted = computed(
-    () => nowPlaying.value && !expanded.value && !!item.value && !!state.value && !audioMode.value,
+    () => !expanded.value && !!item.value && !!state.value && !audioMode.value,
 );
 /** The picture's height at the bar's left end when minimised on a video, in CSS pixels: the bar's own. */
 const MINI_PICTURE_HEIGHT = 64;
@@ -961,11 +953,6 @@ onBeforeUnmount(() => cancelAnimationFrame(miniFrame));
 // The slot can move without resizing (the window turning upright), which sends no frame of its own: the
 // platform's video would be left where the slot was.
 watch(miniRect, () => nudgeInlineVideo());
-function seekMini(event: MouseEvent) {
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    if (!rect.width || !(duration.value > 0) || !Number.isFinite(duration.value)) return;
-    handle.value?.seek(Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)) * duration.value);
-}
 
 /** The sound alone wears the cover's colour over the whole player: pale in the light theme, dark in the dark one. */
 const wash = computed(() => audioMode.value);
@@ -1298,11 +1285,11 @@ function onKeydown(event: KeyboardEvent) {
         <section
             role="dialog"
             :aria-label="content.title"
-            :inert="(!expanded && !miniVideo) || undefined"
+            :inert="!expanded || undefined"
             class="fixed inset-0 z-[60] flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
             :class="[
-                expanded || miniVideo ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
-                miniVideo ? 'lg:w-96 lg:rounded-xl' : 'lg:w-96 lg:rounded-2xl',
+                expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
+                miniStage ? 'lg:rounded-none lg:rounded-l-xl lg:shadow-none' : 'lg:w-96 lg:rounded-2xl',
                 // The screen has no height of its own, so on a computer the card is as tall as a phone's screen.
                 screen && expanded ? 'lg:h-[min(46rem,calc(100dvh-2.5rem))]' : '',
                 miniStage ? 'lmc-mini-stage pointer-events-none overflow-hidden' : '',
@@ -1516,7 +1503,7 @@ function onKeydown(event: KeyboardEvent) {
             </div>
             <div
                 v-if="!screen"
-                v-show="!miniVideo"
+                v-show="!miniStage"
                 class="flex-none touch-none bg-amber-50 dark:bg-slate-800 max-lg:pt-[env(safe-area-inset-top)]"
                 :class="{ '!bg-transparent': wash }"
                 data-test="mediaPlayerHandle"
@@ -1631,132 +1618,6 @@ function onKeydown(event: KeyboardEvent) {
                     />
                 </div>
 
-                <!-- Minimised on a wide screen: the picture alone; pointing at it brings its controls, a press expands. -->
-                <div
-                    v-if="miniVideo"
-                    class="group absolute inset-0 z-10 cursor-pointer"
-                    data-test="mediaPlayerMiniVideo"
-                    @click="expandMediaPlayer"
-                >
-                    <!-- Always shown, as on the phone's bar: how far it has played, and the way back up. -->
-                    <div
-                        v-if="!live"
-                        class="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] bg-white/30"
-                        aria-hidden="true"
-                    >
-                        <div
-                            class="h-full bg-yellow-500"
-                            :style="{ width: `${progress * 100}%` }"
-                            data-test="mediaPlayerMiniProgress"
-                        />
-                    </div>
-                    <button
-                        type="button"
-                        class="absolute left-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white"
-                        :aria-label="t('media_player.expand')"
-                        data-test="mediaPlayerMiniExpand"
-                        @click.stop="expandMediaPlayer"
-                    >
-                        <ChevronUpIcon class="h-5 w-5" />
-                    </button>
-                    <div
-                        class="absolute inset-0 flex flex-col justify-between bg-gradient-to-b from-black/55 via-transparent to-black/70 p-2 text-white opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
-                    >
-                        <div class="flex justify-end gap-1">
-                            <V10Button
-                                round
-                                class="h-9 w-9"
-                                :label="t('media_player.close')"
-                                data-test="mediaPlayerMiniClose"
-                                @click.stop="closeMediaPlayer"
-                            >
-                                <XMarkIcon class="h-4 w-4" />
-                            </V10Button>
-                        </div>
-                        <div class="flex items-center justify-center gap-4">
-                            <V10Button
-                                v-if="!live"
-                                round
-                                class="h-10 w-10"
-                                :label="t('media_player.skip_back', { seconds: SKIP_SECONDS })"
-                                data-test="mediaPlayerMiniBack"
-                                @click.stop="skip(-SKIP_SECONDS)"
-                            >
-                                <V10Icon
-                                    :skip="{ seconds: SKIP_SECONDS, direction: 'back' }"
-                                    class="h-6 w-6"
-                                />
-                            </V10Button>
-                            <V10Button
-                                round
-                                class="h-14 w-14"
-                                :label="playing ? t('media_player.pause') : t('media_player.play')"
-                                data-test="mediaPlayerMiniPlay"
-                                @click.stop="togglePlay"
-                            >
-                                <V10Icon
-                                    v-if="playing"
-                                    name="pause"
-                                    class="h-7 w-7"
-                                />
-                                <V10Icon
-                                    v-else
-                                    name="play"
-                                    class="h-7 w-7 translate-x-[8%]"
-                                />
-                            </V10Button>
-                            <V10Button
-                                v-if="!live"
-                                round
-                                class="h-10 w-10"
-                                :label="t('media_player.skip_forward', { seconds: SKIP_SECONDS })"
-                                data-test="mediaPlayerMiniForward"
-                                @click.stop="skip(SKIP_SECONDS)"
-                            >
-                                <V10Icon
-                                    :skip="{ seconds: SKIP_SECONDS, direction: 'forward' }"
-                                    class="h-6 w-6"
-                                />
-                            </V10Button>
-                        </div>
-                        <div
-                            v-if="live"
-                            class="flex justify-center"
-                            data-test="mediaPlayerMiniLive"
-                        >
-                            <span
-                                class="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white"
-                            >
-                                <span
-                                    class="h-1.5 w-1.5 rounded-full bg-white"
-                                    aria-hidden="true"
-                                />
-                                {{ t("media_player.live") }}
-                            </span>
-                        </div>
-                        <div
-                            v-else
-                            class="flex flex-col gap-1"
-                        >
-                            <div
-                                class="h-1.5 cursor-pointer rounded-full bg-white/35"
-                                role="presentation"
-                                data-test="mediaPlayerMiniSeek"
-                                @click.stop="seekMini"
-                            >
-                                <div
-                                    class="h-full rounded-full bg-yellow-500"
-                                    :style="{ width: `${progress * 100}%` }"
-                                />
-                            </div>
-                            <div class="flex justify-between text-[10px] tabular-nums">
-                                <span>{{ formatTime(currentTime) }}</span>
-                                <span>-{{ formatTime(Math.max(0, duration - currentTime)) }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- The frames around the dot while it is dragged, over the foot of the picture as in
                      full-screen; the picture is as wide as the bar's row, so one marker position serves both. -->
                 <div
@@ -1837,7 +1698,7 @@ function onKeydown(event: KeyboardEvent) {
                  upward over the picture. -->
             <div
                 v-if="!screen"
-                v-show="!miniVideo"
+                v-show="!miniStage"
                 class="flex min-h-0 flex-1 flex-col overflow-visible bg-amber-50 dark:bg-slate-800"
                 :class="{ '!bg-transparent': wash }"
                 data-test="mediaPlayerScroll"
@@ -2447,7 +2308,7 @@ function onKeydown(event: KeyboardEvent) {
              menu while that shows, it reaches the screen's edge once the menu slides away. -->
         <!-- One flat colour, the post image's own, so nothing behind the bar has to be blurred. -->
         <div
-            v-if="!expanded && !miniVideo"
+            v-if="!expanded"
             v-show="!keyboardOpen"
             ref="bar"
             class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex h-16 w-full items-center gap-0.5 pr-1 text-white transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
