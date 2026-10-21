@@ -43,7 +43,9 @@ html.dark.lmc-inline-video.lmc-player-dragging main {
 .lmc-mini-stage .lmpl-afs-info,
 .lmc-mini-stage .lmpl-afs-bg,
 .lmc-mini-stage .lmpl-afs-scrubzone,
-.lmc-mini-stage .lmpl-afs-cueline {
+.lmc-mini-stage .lmpl-afs-cueline,
+/* No room for the message and its Retry: opening the player shows them. */
+.lmc-mini-stage .lmpl-error {
     display: none !important;
 }
 .lmc-mini-stage .lmpl-afs-main {
