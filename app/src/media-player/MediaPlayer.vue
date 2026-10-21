@@ -904,10 +904,21 @@ onBeforeUnmount(() => {
 const miniStageWanted = computed(
     () => !expanded.value && !!item.value && !!state.value && !audioMode.value,
 );
-/** The picture's height at the bar's left end when minimised on a video, in CSS pixels: the bar's, less its progress line. */
-const MINI_PICTURE_HEIGHT = 61;
+/**
+ * The picture's height at the bar's left end when minimised on a video, in CSS pixels: on a phone the bar's less
+ * its progress line along the top; on a computer the card's whole height, its corners the card's.
+ */
+const MINI_PICTURE_HEIGHT = computed(() => (isDesktop.value ? 64 : 61));
 /** The widest the picture gets, so a wide video still leaves the title its room. */
 const MINI_PICTURE_MAX_WIDTH = 114;
+/** The picture's width at the bar's left end: the video's shape at the bar's height, or the square cover. */
+const miniPictureWidth = computed(() =>
+    miniStageWanted.value
+        ? Math.round(
+              Math.min(MINI_PICTURE_MAX_WIDTH, MINI_PICTURE_HEIGHT.value * (stageAspect.value ?? 16 / 9)),
+          )
+        : MINI_PICTURE_HEIGHT.value,
+);
 /** The bar's fill: the post image's colour, or the plain dark bar when it has none. */
 const barTint = computed(() => thumbHashTint(content.value));
 /** The player busy, shown alike in the bar and the full player: the spinner standing in for play. */
@@ -2322,13 +2333,17 @@ function onKeydown(event: KeyboardEvent) {
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'
                     : 'translate-y-0',
             ]"
-            :style="barTint ? { backgroundColor: barTint } : undefined"
+            :style="{
+                ...(barTint ? { backgroundColor: barTint } : {}),
+                // On a computer the progress line starts where the picture ends, which fills the card's height.
+                '--mini-picture-w': `${miniPictureWidth}px`,
+            }"
             data-test="mediaPlayerBar"
         >
             <!-- Along the bar's top on a phone; on a computer along its foot, under the picture too. -->
             <div
                 v-if="!live"
-                class="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] bg-white/25 lg:bottom-0 lg:top-auto"
+                class="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] bg-white/25 lg:bottom-0 lg:left-[var(--mini-picture-w)] lg:top-auto"
                 aria-hidden="true"
             >
                 <div
@@ -2348,9 +2363,9 @@ function onKeydown(event: KeyboardEvent) {
                 <div
                     v-if="miniStageWanted"
                     ref="miniSpacer"
-                    class="h-[calc(100%-3px)] flex-none self-end lg:self-start"
+                    class="h-[calc(100%-3px)] flex-none self-end lg:h-full"
                     :style="{
-                        width: `${Math.round(Math.min(MINI_PICTURE_MAX_WIDTH, MINI_PICTURE_HEIGHT * (stageAspect ?? 16 / 9)))}px`,
+                        width: `${miniPictureWidth}px`,
                     }"
                     aria-hidden="true"
                 />
@@ -2358,13 +2373,13 @@ function onKeydown(event: KeyboardEvent) {
                     v-else-if="barCover"
                     :src="barCover"
                     alt=""
-                    class="h-[61px] w-[61px] flex-none self-end object-cover lg:self-start"
+                    class="h-[61px] w-[61px] flex-none self-end object-cover lg:h-16 lg:w-16"
                     draggable="false"
                     @error="barCoverFailed = true"
                 />
                 <span
                     v-else
-                    class="flex h-[61px] w-[61px] flex-none self-end items-center justify-center bg-white/10 text-white/70 lg:self-start"
+                    class="flex h-[61px] w-[61px] flex-none self-end items-center justify-center bg-white/10 text-white/70 lg:h-16 lg:w-16"
                     aria-hidden="true"
                 >
                     <MusicalNoteIcon class="h-6 w-6" />
