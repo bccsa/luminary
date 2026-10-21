@@ -1473,6 +1473,7 @@ function onKeydown(event: KeyboardEvent) {
                             @nextupselect="swapToNext"
                             @upnextselect="swapToNext"
                             :inline="miniStage ? 'front' : true"
+                            :inline-badge="miniStage"
                             :caption-band="captionBand && !miniStage ? 64 : 0"
                             :fullscreen-on-play="isNativeApp()"
                             :windowed-controls="webFill"
