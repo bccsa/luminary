@@ -9,6 +9,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch, wat
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import {
+    BookOpenIcon,
     ChevronUpIcon,
     ChevronDownIcon,
     FilmIcon,
@@ -296,6 +297,18 @@ function playNext(next: ContentDto) {
  * full-screen carries on, and its page opens behind. The route change would minimise the player, which
  * is let through only for this one.
  */
+/**
+ * Back to the page of what plays, from the full player: the route change minimises it; already on that page, the
+ * player only minimises.
+ */
+function openArticle() {
+    const slug = content.value?.slug;
+    if (!slug) return;
+    const current = router.currentRoute.value;
+    if (current.name === "content" && current.params.slug === slug) minimiseMediaPlayer();
+    else void router.push({ name: "content", params: { slug } });
+}
+
 function swapToNext(id: string) {
     const next = browseContents.value.find((doc) => doc._id === id);
     if (!next || next.parentId === content.value?.parentId) return;
@@ -1500,6 +1513,20 @@ function onKeydown(event: KeyboardEvent) {
                             @pointerup.stop="!nowPlayingScrub && onRosterUp($event)"
                             @pointercancel.stop="!nowPlayingScrub && onRosterUp($event)"
                         />
+                    </template>
+                    <template
+                        v-if="content.slug"
+                        #under-title
+                    >
+                        <button
+                            type="button"
+                            class="lmpl-afs-pill"
+                            data-test="mediaPlayerReadArticle"
+                            @click="openArticle"
+                        >
+                            <BookOpenIcon aria-hidden="true" />
+                            {{ t("media_player.read") }}
+                        </button>
                     </template>
                     <template #top-end>
                         <button

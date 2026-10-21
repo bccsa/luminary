@@ -13,6 +13,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
 import { type ContentDto } from "luminary-shared";
+import { SignalSlashIcon } from "@heroicons/vue/24/outline";
 import LImage from "../images/LImage.vue";
 import { isDataSaverEnabled, userDataSaverEnabled, youtubeAlwaysAllow } from "@/globalConfig";
 import { isNativeApp } from "@/util/inAppBrowser";
@@ -35,6 +36,19 @@ const dataSaver = computed(() => userDataSaverEnabled.value || isDataSaverEnable
 const chosen = ref(false);
 /** The box on the notice: remembered once Play is pressed. */
 const remember = ref(false);
+
+/** YouTube plays only online: offline, its place says so rather than showing a frame that cannot load. */
+const online = ref(typeof navigator === "undefined" ? true : navigator.onLine);
+const onOnline = () => (online.value = true);
+const onOffline = () => (online.value = false);
+onMounted(() => {
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+});
+onBeforeUnmount(() => {
+    window.removeEventListener("online", onOnline);
+    window.removeEventListener("offline", onOffline);
+});
 
 const loaded = computed(
     () => !!id.value && (chosen.value || (youtubeAlwaysAllow.value && !dataSaver.value)),
@@ -193,8 +207,30 @@ defineExpose({
         class="relative aspect-video w-full overflow-hidden bg-black md:rounded-lg"
         data-test="youtubeEmbed"
     >
+        <div
+            v-if="!online"
+            class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-800 p-6 text-center text-white"
+            role="status"
+            data-test="youtubeOffline"
+        >
+            <SignalSlashIcon
+                class="h-8 w-8"
+                aria-hidden="true"
+            />
+            <p class="text-sm font-bold sm:text-base">
+                {{ t("youtube.offline_title", "You're offline") }}
+            </p>
+            <p class="max-w-prose text-xs leading-snug text-white/80 sm:text-sm">
+                {{
+                    t(
+                        "youtube.offline_body",
+                        "This video plays from YouTube, so it needs the internet. It will be ready as soon as you're back online.",
+                    )
+                }}
+            </p>
+        </div>
         <iframe
-            v-if="loaded && frameSrc"
+            v-else-if="loaded && frameSrc"
             ref="frame"
             :src="frameSrc"
             :title="content.title"
@@ -208,12 +244,12 @@ defineExpose({
              (it would open YouTube, or its own full-screen). A tap plays or pauses it, as its play symbol
              promises. Left off where the frame is YouTube's embed, whose controls are the only ones there. -->
         <div
-            v-if="loaded && driven"
+            v-if="online && loaded && driven"
             class="absolute inset-0"
             data-test="youtubeShield"
             @click="togglePlay"
         />
-        <template v-else>
+        <template v-else-if="online">
             <LImage
                 :image="content.parentImageData"
                 aspectRatio="video"

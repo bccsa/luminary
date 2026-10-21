@@ -60,6 +60,8 @@
         "youtube.notice_title": "Cette vidéo est hébergée par YouTube",
         "youtube.notice_body": "La lire vous connecte à Google, qui peut voir votre adresse IP et déposer des cookies. Rien n'est chargé tant que vous n'avez pas choisi.",
         "youtube.play": "Lire",
+        "youtube.offline_title": "Vous êtes hors ligne",
+        "youtube.offline_body": "Cette vidéo est lue depuis YouTube et a besoin d'internet. Elle sera prête dès votre retour en ligne.",
         "youtube.always_allow": "Toujours autoriser sur cet appareil",
         "settings.subtitles.title": "Sous-titres",
         "settings.subtitles.description": "Afficher les sous-titres sur le bas de la vidéo plutôt que dans une bande en dessous.",
