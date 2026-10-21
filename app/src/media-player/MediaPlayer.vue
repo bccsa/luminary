@@ -2325,10 +2325,10 @@ function onKeydown(event: KeyboardEvent) {
             :style="barTint ? { backgroundColor: barTint } : undefined"
             data-test="mediaPlayerBar"
         >
-            <!-- Along the bar's foot, where it meets the menu, under the picture too. -->
+            <!-- Along the bar's top on a phone; on a computer along its foot, under the picture too. -->
             <div
                 v-if="!live"
-                class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[3px] bg-white/25"
+                class="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] bg-white/25 lg:bottom-0 lg:top-auto"
                 aria-hidden="true"
             >
                 <div
@@ -2348,7 +2348,7 @@ function onKeydown(event: KeyboardEvent) {
                 <div
                     v-if="miniStageWanted"
                     ref="miniSpacer"
-                    class="h-[calc(100%-3px)] flex-none self-start"
+                    class="h-[calc(100%-3px)] flex-none self-end lg:self-start"
                     :style="{
                         width: `${Math.round(Math.min(MINI_PICTURE_MAX_WIDTH, MINI_PICTURE_HEIGHT * (stageAspect ?? 16 / 9)))}px`,
                     }"
@@ -2358,20 +2358,20 @@ function onKeydown(event: KeyboardEvent) {
                     v-else-if="barCover"
                     :src="barCover"
                     alt=""
-                    class="h-[61px] w-[61px] flex-none self-start object-cover"
+                    class="h-[61px] w-[61px] flex-none self-end object-cover lg:self-start"
                     draggable="false"
                     @error="barCoverFailed = true"
                 />
                 <span
                     v-else
-                    class="flex h-[61px] w-[61px] flex-none self-start items-center justify-center bg-white/10 text-white/70"
+                    class="flex h-[61px] w-[61px] flex-none self-end items-center justify-center bg-white/10 text-white/70 lg:self-start"
                     aria-hidden="true"
                 >
                     <MusicalNoteIcon class="h-6 w-6" />
                 </span>
                 <span
                     v-if="!miniStageWanted"
-                    class="absolute left-1.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/55"
+                    class="absolute left-1.5 top-[13px] flex h-6 w-6 items-center justify-center rounded-full bg-black/55 lg:top-2.5"
                     aria-hidden="true"
                     data-test="mediaPlayerBarExpandBadge"
                 >
