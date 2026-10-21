@@ -1501,7 +1501,7 @@ function onKeydown(event: KeyboardEvent) {
                             @pointercancel.stop="!nowPlayingScrub && onRosterUp($event)"
                         />
                     </template>
-                    <template #audio-tool>
+                    <template #top-end>
                         <button
                             v-if="handle?.airPlayAvailable || handle?.castAvailable"
                             type="button"
