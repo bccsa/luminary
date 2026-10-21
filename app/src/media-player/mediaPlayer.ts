@@ -6,6 +6,8 @@ import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
 export type MediaPlayerItem = {
     content: ContentDto;
     language: string | null | undefined;
+    /** The viewer asked for the sound only (true) or the picture (false); unset, Data Saver decides. */
+    audio?: boolean;
 };
 
 /** The full player, or the bar it shrinks to while the viewer browses on. */
@@ -22,10 +24,20 @@ export const mediaPlayerView = ref<MediaPlayerView>("expanded");
  */
 export const startsAsAudio = computed(() => userDataSaverEnabled.value || isDataSaverEnabled());
 
-/** Plays `content` in the media player, opened full; the content already playing just reopens. */
-export function openMediaPlayer(content: ContentDto, language: string | null | undefined): void {
-    if (mediaPlayerItem.value?.content._id !== content._id) {
-        mediaPlayerItem.value = { content, language };
+/**
+ * Plays `content` in the media player, opened full; the content already playing just reopens.
+ * `audio` asks for the sound only or the picture, and switches the content already playing to it.
+ */
+export function openMediaPlayer(
+    content: ContentDto,
+    language: string | null | undefined,
+    options: { audio?: boolean } = {},
+): void {
+    const current = mediaPlayerItem.value;
+    if (current?.content._id !== content._id) {
+        mediaPlayerItem.value = { content, language, audio: options.audio };
+    } else if (options.audio !== undefined) {
+        mediaPlayerItem.value = { ...current, audio: options.audio };
     }
     mediaPlayerView.value = "expanded";
 }

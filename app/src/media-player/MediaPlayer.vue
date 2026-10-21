@@ -358,7 +358,7 @@ onBeforeUnmount(() => {
 const startAudio = ref(false);
 watch(
     () => item.value?.content._id,
-    () => (startAudio.value = startsAsAudio.value),
+    () => (startAudio.value = item.value?.audio ?? startsAsAudio.value),
     { immediate: true },
 );
 
@@ -784,6 +784,12 @@ async function showVideo() {
     // full-screen; the web shows it in the player.
     if (isNativeApp() && !inlineVideo.value) await handle.value?.enterFullscreen();
 }
+
+// Watch or Listen asked for again on what is already playing: switch to it, as the player's own buttons do.
+watch(item, (now, before) => {
+    if (now?.audio === undefined || now.content._id !== before?.content._id) return;
+    void (now.audio ? showAudio() : showVideo());
+});
 
 function togglePlay() {
     if (playing.value) handle.value?.pause();
