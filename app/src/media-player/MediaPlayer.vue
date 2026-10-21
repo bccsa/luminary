@@ -14,8 +14,6 @@ import {
     FilmIcon,
     MoonIcon,
     MusicalNoteIcon,
-    PauseIcon,
-    PlayIcon,
     XMarkIcon,
 } from "@heroicons/vue/20/solid";
 import {
@@ -906,14 +904,14 @@ onBeforeUnmount(() => {
 const miniStageWanted = computed(
     () => !expanded.value && !!item.value && !!state.value && !audioMode.value,
 );
-/** The picture's height at the bar's left end when minimised on a video, in CSS pixels: the bar's own. */
-const MINI_PICTURE_HEIGHT = 64;
+/** The picture's height at the bar's left end when minimised on a video, in CSS pixels: the bar's, less its progress line. */
+const MINI_PICTURE_HEIGHT = 61;
 /** The widest the picture gets, so a wide video still leaves the title its room. */
 const MINI_PICTURE_MAX_WIDTH = 114;
 /** The bar's fill: the post image's colour, or the plain dark bar when it has none. */
 const barTint = computed(() => thumbHashTint(content.value));
-/** The bar shows the player busy as the full player does, the spinner standing in for play. */
-const barBusy = computed(() => starting.value || swapping.value || state.value?.stalled === true);
+/** The player busy, shown alike in the bar and the full player: the spinner standing in for play. */
+const playerBusy = computed(() => starting.value || swapping.value || stalled.value);
 const barCoverFailed = ref(false);
 /** The cover at the bar's left end for sound alone: the post's own, else the app's stand-in, else a note. */
 const barCover = computed(() => {
@@ -1289,7 +1287,7 @@ function onKeydown(event: KeyboardEvent) {
             class="fixed inset-0 z-[60] flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
             :class="[
                 expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
-                miniStage ? 'lg:rounded-none lg:rounded-l-xl lg:shadow-none' : 'lg:w-96 lg:rounded-2xl',
+                miniStage ? 'lg:shadow-none' : 'lg:w-96',
                 // The screen has no height of its own, so on a computer the card is as tall as a phone's screen.
                 screen && expanded ? 'lg:h-[min(46rem,calc(100dvh-2.5rem))]' : '',
                 miniStage ? 'lmc-mini-stage pointer-events-none overflow-hidden' : '',
@@ -1344,7 +1342,7 @@ function onKeydown(event: KeyboardEvent) {
                     :duration="duration"
                     :buffered-end="state?.bufferedEnd ?? 0"
                     :playing="playing"
-                    :busy="starting || swapping || state?.stalled === true"
+                    :busy="playerBusy"
                     :live="live"
                     :chapter-index="screenChapterIndex"
                     :playback-rate="state?.playbackRate ?? 1"
@@ -1654,19 +1652,6 @@ function onKeydown(event: KeyboardEvent) {
                         aspectRatio="video"
                         size="post"
                         class="h-full w-full object-cover opacity-70"
-                    />
-                </div>
-
-                <div
-                    v-if="(starting || stalled) && !audioMode"
-                    class="pointer-events-none absolute inset-0 flex items-center justify-center"
-                    role="status"
-                    :aria-label="t('video_player.loading')"
-                    :data-test="starting ? 'mediaPlayerStarting' : 'mediaPlayerStalled'"
-                >
-                    <span
-                        class="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white"
-                        aria-hidden="true"
                     />
                 </div>
 
@@ -2086,15 +2071,33 @@ function onKeydown(event: KeyboardEvent) {
                         </V10Button>
                         <V10Button
                             round
-                            class="h-20 w-20 disabled:opacity-60 [@media(max-height:840px)]:h-16 [@media(max-height:840px)]:w-16"
-                            :class="{ invisible: starting }"
-                            :label="playing ? t('media_player.pause') : t('media_player.play')"
-                            data-test="mediaPlayerPlayPause"
+                            class="h-20 w-20 disabled:opacity-100 [@media(max-height:840px)]:h-16 [@media(max-height:840px)]:w-16"
+                            :label="
+                                playerBusy
+                                    ? t('video_player.loading')
+                                    : playing
+                                      ? t('media_player.pause')
+                                      : t('media_player.play')
+                            "
+                            :data-test="playerBusy ? (starting ? 'mediaPlayerStarting' : 'mediaPlayerStalled') : 'mediaPlayerPlayPause'"
                             :disabled="starting"
                             @click="togglePlay"
                         >
+                            <!-- The player busy shows here, in play's place, as on the phone and the bar. -->
+                            <svg
+                                v-if="playerBusy"
+                                class="h-[38px] w-[38px] animate-spin"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2.4"
+                                stroke-linecap="round"
+                                aria-hidden="true"
+                            >
+                                <path d="M12 3a9 9 0 1 1-9 9" />
+                            </svg>
                             <V10Icon
-                                v-if="playing"
+                                v-else-if="playing"
                                 name="pause"
                                 class="h-[38px] w-[38px]"
                             />
@@ -2253,7 +2256,7 @@ function onKeydown(event: KeyboardEvent) {
                 :duration="duration"
                 :buffered-end="state.bufferedEnd"
                 :playing="playing"
-                :busy="starting || swapping || state?.stalled === true"
+                :busy="playerBusy"
                 :live="live"
                 :chapter-index="screenChapterIndex"
                 :playback-rate="state.playbackRate"
@@ -2312,7 +2315,7 @@ function onKeydown(event: KeyboardEvent) {
             v-if="!expanded"
             v-show="!keyboardOpen"
             ref="bar"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex h-16 w-full items-center gap-0.5 pr-1 text-white transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
+            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex h-16 w-full items-center gap-0.5 pr-1 text-white transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
             :class="[
                 barTint ? '' : 'bg-zinc-900',
                 mobileChrome.hidden.value
@@ -2322,9 +2325,10 @@ function onKeydown(event: KeyboardEvent) {
             :style="barTint ? { backgroundColor: barTint } : undefined"
             data-test="mediaPlayerBar"
         >
+            <!-- Along the bar's foot, where it meets the menu, under the picture too. -->
             <div
                 v-if="!live"
-                class="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] bg-white/25"
+                class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[3px] bg-white/25"
                 aria-hidden="true"
             >
                 <div
@@ -2344,7 +2348,7 @@ function onKeydown(event: KeyboardEvent) {
                 <div
                     v-if="miniStageWanted"
                     ref="miniSpacer"
-                    class="h-full flex-none"
+                    class="h-[calc(100%-3px)] flex-none self-start"
                     :style="{
                         width: `${Math.round(Math.min(MINI_PICTURE_MAX_WIDTH, MINI_PICTURE_HEIGHT * (stageAspect ?? 16 / 9)))}px`,
                     }"
@@ -2354,13 +2358,13 @@ function onKeydown(event: KeyboardEvent) {
                     v-else-if="barCover"
                     :src="barCover"
                     alt=""
-                    class="h-16 w-16 flex-none object-cover"
+                    class="h-[61px] w-[61px] flex-none self-start object-cover"
                     draggable="false"
                     @error="barCoverFailed = true"
                 />
                 <span
                     v-else
-                    class="flex h-16 w-16 flex-none items-center justify-center bg-white/10 text-white/70"
+                    class="flex h-[61px] w-[61px] flex-none self-start items-center justify-center bg-white/10 text-white/70"
                     aria-hidden="true"
                 >
                     <MusicalNoteIcon class="h-6 w-6" />
@@ -2371,7 +2375,18 @@ function onKeydown(event: KeyboardEvent) {
                     aria-hidden="true"
                     data-test="mediaPlayerBarExpandBadge"
                 >
-                    <ChevronUpIcon class="h-4 w-4" />
+                    <svg
+                        class="h-3.5 w-3.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                    >
+                        <path d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+                    </svg>
                 </span>
             </button>
             <button
@@ -2388,7 +2403,7 @@ function onKeydown(event: KeyboardEvent) {
                 >
             </button>
             <span
-                v-if="barBusy"
+                v-if="playerBusy || !state"
                 class="flex h-11 w-11 flex-shrink-0 items-center justify-center"
                 role="status"
                 :aria-label="t('video_player.loading')"
@@ -2407,20 +2422,22 @@ function onKeydown(event: KeyboardEvent) {
                 </svg>
             </span>
             <button
-                v-else-if="state"
+                v-else
                 type="button"
                 class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:bg-white/10 [@media(hover:hover)]:hover:bg-white/10"
                 :aria-label="playing ? t('media_player.pause') : t('media_player.play')"
                 data-test="mediaPlayerBarPlayPause"
                 @click="togglePlay"
             >
-                <PauseIcon
+                <V10Icon
                     v-if="playing"
+                    name="pause"
                     class="h-7 w-7"
                 />
-                <PlayIcon
+                <V10Icon
                     v-else
-                    class="h-7 w-7"
+                    name="play"
+                    class="h-7 w-7 translate-x-[8%]"
                 />
             </button>
             <button
@@ -2444,7 +2461,18 @@ function onKeydown(event: KeyboardEvent) {
             data-test="mediaPlayerBarExpandBadge"
             @click="expandMediaPlayer"
         >
-            <ChevronUpIcon class="h-4 w-4" />
+            <svg
+                        class="h-3.5 w-3.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                    >
+                        <path d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+                    </svg>
         </button>
     </template>
 </template>
