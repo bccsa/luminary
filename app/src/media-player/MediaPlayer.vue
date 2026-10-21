@@ -1287,7 +1287,7 @@ function onKeydown(event: KeyboardEvent) {
             class="fixed inset-0 z-[60] flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
             :class="[
                 expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
-                miniStage ? 'lg:shadow-none' : 'lg:w-96',
+                miniStage ? 'lg:rounded-l-xl lg:shadow-none' : 'lg:w-96 lg:rounded-xl',
                 // The screen has no height of its own, so on a computer the card is as tall as a phone's screen.
                 screen && expanded ? 'lg:h-[min(46rem,calc(100dvh-2.5rem))]' : '',
                 miniStage ? 'lmc-mini-stage pointer-events-none overflow-hidden' : '',
@@ -2315,7 +2315,7 @@ function onKeydown(event: KeyboardEvent) {
             v-if="!expanded"
             v-show="!keyboardOpen"
             ref="bar"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex h-16 w-full items-center gap-0.5 pr-1 text-white transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
+            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex h-16 w-full items-center gap-0.5 pr-1 text-white transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
             :class="[
                 barTint ? '' : 'bg-zinc-900',
                 mobileChrome.hidden.value
