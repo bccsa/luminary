@@ -1,5 +1,5 @@
 import { computed, type ComputedRef } from "vue";
-import type { BaseDocumentDto } from "../../types";
+import type { HybridDoc } from "./hybridDoc";
 import { DocType } from "../../types";
 import { syncList } from "../../api/sync/state";
 import { splitChunkTypeString, OPEN_MIN } from "../../api/sync/utils";
@@ -141,7 +141,7 @@ export function withPublishDate(selector: MangoSelector, cutoff: number): MangoS
  * When there is no cutoff (`OPEN_MIN` — full-corpus sync) the API has nothing to
  * supply, so this returns `undefined` and the read is Dexie-only.
  */
-export function decideContentApiQuery<T extends BaseDocumentDto>(
+export function decideContentApiQuery<T extends HybridDoc>(
     query: MangoQuery,
     localDocs: readonly T[],
 ): MangoQuery | undefined {

@@ -29,6 +29,7 @@ import { mangoToDexie } from "../MangoQuery/mangoToDexie";
 import { runInWorker } from "../../worker/workerClient";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
 import { useDexieLiveQuery } from "../useDexieLiveQuery/useDexieLiveQuery";
+import type { HybridDoc } from "./hybridDoc";
 import { applySortLimit, mergeById, sameWindow } from "./mergeDocs";
 import { SeedRetention } from "./seedRetention";
 import {
@@ -376,7 +377,7 @@ export type HybridQueryOptions = {
  * class watches the connection and fires it once it becomes true (run-once). The
  * watcher is registered for teardown on `dispose()`.
  */
-export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
+export class HybridQuery<T extends HybridDoc = BaseDocumentDto> {
     public readonly output: ShallowRef<T[]>;
     // `true` from (re)build until the generation's COMPLETE first result settles —
     // the local Dexie read AND (where applicable) the remote supplement POST. Data
@@ -805,13 +806,16 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      */
     private _startLocal(gen: number, onLocal: (docs: T[]) => void): void {
         if (!this._live) {
-            void (runInWorker("mangoQuery", this._query) as Promise<T[]>).then(onLocal, (err) => {
-                if (gen === this._generation && !this._disposed) this.error.value = err;
-                this._reportError("local-read", err);
-                // Route the empty set on so the local leg still settles and the content
-                // branch still makes its API decision (preserves the original behaviour).
-                onLocal([]);
-            });
+            void (runInWorker("mangoQuery", this._query) as unknown as Promise<T[]>).then(
+                onLocal,
+                (err) => {
+                    if (gen === this._generation && !this._disposed) this.error.value = err;
+                    this._reportError("local-read", err);
+                    // Route the empty set on so the local leg still settles and the content
+                    // branch still makes its API decision (preserves the original behaviour).
+                    onLocal([]);
+                },
+            );
             return;
         }
 
@@ -891,8 +895,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             );
             if (fulfilled.length < settled.length) {
                 const firstErr = settled.find((s) => s.status === "rejected") as
-                    | PromiseRejectedResult
-                    | undefined;
+                    PromiseRejectedResult | undefined;
                 this._reportError("remote-query", firstErr?.reason, {
                     failed: settled.length - fulfilled.length,
                     total: settled.length,
@@ -921,7 +924,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // type check is the correct floor (it still excludes non-content types like the CMS
             // `user`, which must never touch IndexedDB).
             if (this._persistOffline) {
-                const toPersist = remote.filter((d) => d.type === DocType.Content);
+                const toPersist = (remote as unknown as BaseDocumentDto[]).filter(
+                    (d) => d.type === DocType.Content,
+                );
                 if (toPersist.length) {
                     void db
                         .bulkPut(toPersist)
@@ -1012,7 +1017,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                     this._tombstones.set(cmd.docId, cmd.updatedTimeUtc);
                 }
             } else if (matchP(doc)) {
-                upserts.push(doc as T);
+                upserts.push(doc as unknown as T);
             }
         }
 
@@ -1129,8 +1134,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         if (cutoff !== OPEN_MIN) {
             const stampIds: string[] = [];
             for (const d of this._local) {
-                const pd = (d as { publishDate?: number }).publishDate;
-                if (d.type === DocType.Content && pd !== undefined && pd < cutoff) {
+                const { type, publishDate: pd } = d as unknown as BaseDocumentDto & {
+                    publishDate?: number;
+                };
+                if (type === DocType.Content && pd !== undefined && pd < cutoff) {
                     stampIds.push(d._id);
                 }
             }

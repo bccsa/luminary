@@ -29,7 +29,7 @@
 
 import { normalizeSelector, hashString } from "../MangoQuery/templateNormalize";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
-import type { BaseDocumentDto } from "../../types";
+import type { HybridDoc } from "./hybridDoc";
 
 const STORAGE_PREFIX = "hqcache:";
 
@@ -48,7 +48,7 @@ const DEFAULT_MAX_DOCS = 500;
  * seed `_local` and `_remote` separately. `local` heads the window (newer); `remote`
  * is the older tail only the API supplies.
  */
-export interface CachedWindow<T extends BaseDocumentDto> {
+export interface CachedWindow<T extends HybridDoc> {
     local: T[];
     remote: T[];
 }
@@ -88,7 +88,7 @@ export function structuralCacheKey(query: MangoQuery, cacheId?: string): string 
  * empty/both-empty entry, or a corrupt / wrong-shape one — so the caller can treat
  * all of them as "no seed".
  */
-export function readResponseCache<T extends BaseDocumentDto>(
+export function readResponseCache<T extends HybridDoc>(
     key: string,
 ): CachedWindow<T> | undefined {
     try {
@@ -117,7 +117,7 @@ export function readResponseCache<T extends BaseDocumentDto>(
  * (see the module doc comment), and by {@link HybridQuery}'s `stripFields` to drop
  * them from the live `output` (heap) as docs are ingested.
  */
-export function omitFields<T extends BaseDocumentDto>(doc: T, fields: readonly string[]): T {
+export function omitFields<T extends HybridDoc>(doc: T, fields: readonly string[]): T {
     if (!fields.length) return doc;
     let copy: Record<string, unknown> | undefined;
     for (const f of fields) {
@@ -138,7 +138,7 @@ export function omitFields<T extends BaseDocumentDto>(doc: T, fields: readonly s
  * and drops any stale entry for the key, so the feature degrades to "no seed" and
  * never throws onto the recompute path.
  */
-export function writeResponseCache<T extends BaseDocumentDto>(
+export function writeResponseCache<T extends HybridDoc>(
     key: string,
     window: CachedWindow<T>,
     maxDocs: number | undefined = DEFAULT_MAX_DOCS,
