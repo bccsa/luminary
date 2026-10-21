@@ -19,4 +19,10 @@ export type PlatformChromeService = {
      * is open. Absent where the platform turns pages by itself.
      */
     setPagesTurn?(allowed: boolean): void;
+
+    /**
+     * Hold the screen in landscape, or let the device's rotation decide again. Only where the shell
+     * holds pages upright on a phone; a screen asks for it when the viewer chooses landscape.
+     */
+    lockLandscape?(locked: boolean): void;
 };

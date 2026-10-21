@@ -121,7 +121,7 @@ export default defineConfig({
     },
     build: {
         target: "es2015",
-        sourcemap: true,
+        sourcemap: env.VITE_BUILD_TARGET !== "native",
         minify: env.VITE_BYPASS_MINIFY !== "true",
         rollupOptions: {
             output: {

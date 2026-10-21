@@ -19,6 +19,7 @@ import {
 import {
     AUDIO_ONLY_ANGLE_ID,
     AudioFullscreen,
+    ScrubPicture,
     ScrubRoster,
     chapterIndexAt,
     chapterMask,
@@ -28,6 +29,7 @@ import {
     rosterStep,
     rosterTiles,
     type ScrubPosition,
+    type ThumbnailSpriteCue,
     type Chapter,
 } from "@luminary-media-converter/player-web";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
@@ -41,8 +43,9 @@ import { fallbackImageFor } from "@/util/fallbackArtwork";
 import { coverImageUrl, thumbHashTint, thumbHashWash } from "./coverImage";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
-import { subtitlesOnVideo } from "@/globalConfig";
+import { subtitlePreference, subtitlesOnVideo } from "@/globalConfig";
 import { keyboardOpen } from "@/composables/useKeyboardOpen";
+import { useScreenWakeHold } from "@/composables/screenWakeHolds";
 import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
 import MediaPlayerMenu from "./MediaPlayerMenu.vue";
@@ -520,7 +523,7 @@ function buildRoster(
 /** The now-playing screen's held bar, which has no picture element to measure; null when it is let go. */
 const nowPlayingScrub = ref<ScrubPosition | null>(null);
 /** Where the now-playing screen's frames sit once let go: they stay for slow scrubbing, as in full-screen. */
-const nowPlayingPin = ref<{ width: number; bottom: number } | null>(null);
+const nowPlayingPin = ref<{ width: number; bottom: number; markerX: number } | null>(null);
 const nowPlayingRoster = computed(() => {
     if (audioMode.value || !state.value?.thumbnailsReady) return null;
     const scrub = nowPlayingScrub.value;
@@ -530,7 +533,7 @@ const nowPlayingRoster = computed(() => {
     }
     const pin = nowPlayingPin.value;
     if (!pin) return null;
-    const roster = buildRoster(pinnedTime.value, pin.width / 2, rosterFineStep(duration.value), pin.width);
+    const roster = buildRoster(pinnedTime.value, pin.markerX, rosterFineStep(duration.value), pin.width);
     return roster && { ...roster, bottom: pin.bottom };
 });
 function onNowPlayingScrub(position: ScrubPosition | null) {
@@ -546,7 +549,7 @@ function onNowPlayingScrub(position: ScrubPosition | null) {
     nowPlayingScrub.value = null;
     if (!last || !rosterOpened || audioMode.value || !state.value?.thumbnailsReady) return;
     rosterOpened = false;
-    nowPlayingPin.value = { width: last.width, bottom: last.bottom };
+    nowPlayingPin.value = { width: last.width, bottom: last.bottom, markerX: last.markerX };
     anchorPin(last.time);
 }
 
@@ -605,14 +608,20 @@ const TAP_SLOP_PX = 10;
 
 /**
  * While the bar is held, the fast way through the video: the frames follow the dot along the bar, several
- * seconds to a frame. Once let go they are centred and finer, to be dragged.
+ * seconds to a frame. Once let go the marker stays where the dot was, and they are finer, to be dragged.
  */
+/** Where the held bar's dot is, which the pinned frames' marker keeps once the finger lifts. */
+const heldMarkerX = computed(() => {
+    const barWidth = pictureWidth.value - 2 * SEEK_PADDING_PX - 2 * SEEK_THUMB_INSET_PX;
+    return SEEK_PADDING_PX + SEEK_THUMB_INSET_PX + barWidth * fraction(shownTime.value);
+});
+const pinnedMarkerX = ref<number | null>(null);
 const heldRoster = computed(() => {
     // Sound alone has no picture to show frames of.
     if (!(fingerDown.value || rosterPinned.value) || !state.value?.thumbnailsReady) return null;
     if (audioMode.value) return null;
     if (!fingerDown.value) {
-        return buildRoster(pinnedTime.value, pictureWidth.value / 2, rosterFineStep(duration.value));
+        return buildRoster(pinnedTime.value, pinnedMarkerX.value ?? pictureWidth.value / 2, rosterFineStep(duration.value));
     }
     const time = shownTime.value;
     const barWidth = pictureWidth.value - 2 * SEEK_PADDING_PX - 2 * SEEK_THUMB_INSET_PX;
@@ -622,6 +631,36 @@ const heldRoster = computed(() => {
 
 /** The pinned frames being dragged: the desktop strip over the picture, or the now-playing screen's. */
 const dragRoster = computed(() => (nowPlayingPin.value ? nowPlayingRoster.value : heldRoster.value));
+
+/**
+ * The time the frame over the picture is for: while the bar is held or the pinned frames are dragged, on
+ * the picture or on the now-playing screen's stage. Null when no frame is up.
+ */
+const scrubPictureTime = computed<number | null>(() => {
+    if (audioMode.value || !state.value?.thumbnailsReady) return null;
+    if (screen.value) {
+        if (nowPlayingScrub.value) return nowPlayingScrub.value.time;
+        return nowPlayingPin.value && rosterDrag.value?.moved ? pinnedTime.value : null;
+    }
+    if (fingerDown.value) return shownTime.value;
+    return rosterDrag.value?.moved ? pinnedTime.value : null;
+});
+const scrubCue = computed(() => {
+    const time = scrubPictureTime.value;
+    if (time === null || !controller.value) return null;
+    return controller.value.thumbnailAt(Math.min(time, duration.value - 0.001));
+});
+/** Held while the frame is up, so a gap between cues keeps the last frame rather than blanking. */
+const lastScrubCue = ref<ThumbnailSpriteCue | null>(null);
+watch(scrubCue, (cue) => {
+    if (cue) lastScrubCue.value = cue;
+});
+watch(scrubPictureTime, (time) => {
+    if (time === null) lastScrubCue.value = null;
+});
+const scrubPictureCue = computed(() =>
+    scrubPictureTime.value === null ? null : (scrubCue.value ?? lastScrubCue.value),
+);
 
 /**
  * Whether the roster was shown during this press. Remembered apart from `fingerDown`, because a phone's
@@ -758,7 +797,10 @@ function seekTo(event: Event) {
     if (!rosterOpened && !rosterPinned.value) resumeFromScrub();
     fingerDown.value = false;
     // Only a press outside unpins: a second report of the same release (the browser's cancel, then its change) must not.
-    if (rosterOpened) rosterPinned.value = true;
+    if (rosterOpened) {
+        if (!rosterPinned.value) pinnedMarkerX.value = heldMarkerX.value;
+        rosterPinned.value = true;
+    }
     if (rosterPinned.value) anchorPin(target);
     rosterOpened = false;
     holdScrubAt(target);
@@ -1049,35 +1091,84 @@ watch(pagesTurn, (allowed) => platformChrome?.setPagesTurn?.(allowed), { immedia
 onBeforeUnmount(() => {
     if (pagesTurn.value) platformChrome?.setPagesTurn?.(false);
 });
+
+/**
+ * The sound screen on a phone can be held in landscape by its own button, since the phone
+ * may be upright. It lets go as soon as the player minimises, or audio gives way to video.
+ */
+const audioLandscapeLocked = ref(false);
+function toggleAudioLandscape() {
+    audioLandscapeLocked.value = !audioLandscapeLocked.value;
+    platformChrome?.lockLandscape?.(audioLandscapeLocked.value);
+}
+function releaseAudioLandscape() {
+    if (!audioLandscapeLocked.value) return;
+    audioLandscapeLocked.value = false;
+    platformChrome?.lockLandscape?.(false);
+}
+watch([expanded, audioMode], ([open, audio]) => {
+    if (!open || !audio) releaseAudioLandscape();
+});
+onBeforeUnmount(releaseAudioLandscape);
+
+/** The screen stays on for video and for landscape viewing; a mini bar or upright audio lets the OS time it out. */
+const playerWake = useScreenWakeHold("player");
+const keepScreenOn = computed(
+    () =>
+        playing.value &&
+        expanded.value &&
+        (!audioMode.value || landscape.value || audioLandscapeLocked.value),
+);
+watch(keepScreenOn, (on) => (on ? playerWake.hold() : playerWake.release()), { immediate: true });
 const nowPlayingSubtitle = computed(() =>
     [content.value?.author, publishDate.value].filter(Boolean).join(" · "),
 );
 
-/**
- * With sound alone the subtitles are the lyrics, read from the player where it can: a track has to be on for its
- * words to load, so one is turned on for the sound, in the post's language when there is one, and the viewer's
- * own choice is put back with the picture.
- */
+/** With sound alone the subtitles are the lyrics, read from the player where it can. */
 const lyrics = computed(() => (audioMode.value ? (handle.value?.subtitleCues ?? []) : []));
-let lyricsTrackSet = false;
+
+/**
+ * Subtitles follow the viewer's last choice: left on once, every video and sound opens with them on, in the language
+ * they picked when the new one has it, else the post's own, else its first.
+ */
+let automaticId: string | null | undefined;
+let tracksKey = "";
+let appliedFor: string | undefined;
 watch(
-    () => [audioMode.value, state.value?.subtitleTracks.length ?? 0] as const,
-    ([audio, count]) => {
-        const active = state.value?.activeSubtitleTrackId ?? null;
-        if (audio && count > 0 && !active && !lyricsTrackSet) {
-            const tracks = state.value!.subtitleTracks;
-            const own = tracks.find((track) => track.lang === item.value?.language) ?? tracks[0]!;
-            lyricsTrackSet = true;
-            controller.value?.setSubtitleTrack(own.id);
-        } else if (!audio && lyricsTrackSet) {
-            lyricsTrackSet = false;
-            controller.value?.setSubtitleTrack(null);
-        }
+    () => [item.value?.content._id, (state.value?.subtitleTracks ?? []).map((t) => t.id).join()] as const,
+    ([id, key]) => {
+        if (id !== appliedFor) automaticId = undefined;
+        const tracks = state.value?.subtitleTracks ?? [];
+        if (!key || id === appliedFor || !subtitlePreference.value.on || state.value?.activeSubtitleTrackId) return;
+        const wanted = subtitlePreference.value.lang;
+        const pick =
+            tracks.find((track) => track.lang === wanted) ??
+            tracks.find((track) => track.lang === item.value?.language) ??
+            tracks[0]!;
+        appliedFor = id;
+        automaticId = pick.id;
+        controller.value?.setSubtitleTrack(pick.id);
     },
 );
+/** A change that is not the automatic one above, with the same tracks listed, is the viewer's own. */
 watch(
-    () => item.value?.content._id,
-    () => (lyricsTrackSet = false),
+    () =>
+        [
+            state.value?.activeSubtitleTrackId ?? null,
+            (state.value?.subtitleTracks ?? []).map((t) => t.id).join(),
+        ] as const,
+    ([active, key]) => {
+        const sameTracks = key === tracksKey;
+        tracksKey = key;
+        if (automaticId !== undefined) {
+            const mine = automaticId === active;
+            automaticId = undefined;
+            if (mine) return;
+        }
+        if (!sameTracks || !key) return;
+        const lang = state.value?.subtitleTracks.find((track) => track.id === active)?.lang;
+        subtitlePreference.value = { on: !!active, lang: lang ?? subtitlePreference.value.lang };
+    },
 );
 
 /** The screen is drawn down from its top line, as the card is from its handle. */
@@ -1410,7 +1501,7 @@ function onKeydown(event: KeyboardEvent) {
                             @pointercancel.stop="!nowPlayingScrub && onRosterUp($event)"
                         />
                     </template>
-                    <template #top-end>
+                    <template #audio-tool>
                         <button
                             v-if="handle?.airPlayAvailable || handle?.castAvailable"
                             type="button"
@@ -1476,6 +1567,9 @@ function onKeydown(event: KeyboardEvent) {
                             :windowed-controls="webFill"
                             :captions-hidden="(webCaptionsBelow && !webFill) || (isNativeApp() && screenCovered)"
                         />
+                        <div v-if="scrubPictureCue" class="absolute inset-0 z-[1]">
+                            <ScrubPicture :cue="scrubPictureCue" data-test="mediaPlayerScrubPicture" />
+                        </div>
                     </template>
                 </AudioFullscreen>
             </div>

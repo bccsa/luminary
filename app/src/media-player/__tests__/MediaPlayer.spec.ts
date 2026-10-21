@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { rgbaToThumbHash } from "thumbhash";
 import type { ContentDto } from "luminary-shared";
 import { mockEnglishContentDto } from "@/tests/mockdata";
-import { userDataSaverEnabled } from "@/globalConfig";
+import { subtitlePreference, userDataSaverEnabled } from "@/globalConfig";
 import { isPlayerSwap, clearSwaps } from "@/util/playerSwap";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import MediaPlayer from "../MediaPlayer.vue";
@@ -280,6 +280,7 @@ let screenWide = true;
 let screenLandscape = false;
 const setupMatchMedia = window.matchMedia;
 beforeEach(() => {
+    subtitlePreference.value = { on: false };
     screenWide = true;
     screenLandscape = false;
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
@@ -835,20 +836,30 @@ describe("MediaPlayer", () => {
             expect(engine.controller.setPlaybackRate).toHaveBeenCalledWith(1.5);
         });
 
-        it("turns a subtitle track on for the lyrics with sound alone, and gives the picture its own choice back", async () => {
+        it("opens with the subtitles on when the viewer last left them on, as the lyrics with sound alone", async () => {
+            subtitlePreference.value = { on: true, lang: "fr" };
             const wrapper = await playing();
             engine.handle.subtitleCues = [{ start: 1, end: 3, text: "Help me, Your Word to obey!" }];
-            expect(screen(wrapper).props().lyrics).toEqual([]);
-
             await find(wrapper, "mediaPlayerAudio").trigger("click");
             await flushPromises();
             expect(engine.controller.setSubtitleTrack).toHaveBeenLastCalledWith("sub-fr");
             expect(screen(wrapper).props().lyrics).toEqual(engine.handle.subtitleCues);
+        });
 
-            await find(wrapper, "mediaPlayerVideo").trigger("click");
+        it("leaves the subtitles off for a viewer who left them off", async () => {
+            await playing();
             await flushPromises();
-            expect(engine.controller.setSubtitleTrack).toHaveBeenLastCalledWith(null);
-            expect(screen(wrapper).props().lyrics).toEqual([]);
+            expect(engine.controller.setSubtitleTrack).not.toHaveBeenCalled();
+        });
+
+        it("remembers the viewer's own choice, on or off", async () => {
+            await playing();
+            engine.state.activeSubtitleTrackId = "sub-fr";
+            await flushPromises();
+            expect(subtitlePreference.value).toEqual({ on: true, lang: "fr" });
+            engine.state.activeSubtitleTrackId = null;
+            await flushPromises();
+            expect(subtitlePreference.value).toEqual({ on: false, lang: "fr" });
         });
 
         it("leaves the subtitles the viewer chose alone", async () => {

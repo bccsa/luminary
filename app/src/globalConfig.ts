@@ -73,6 +73,25 @@ watch(subtitlesOnVideo, (onVideo) => {
 });
 
 /**
+ * The subtitles the viewer last chose, carried to every video and audio opened after: `on` is whether they were left
+ * on, `lang` the language picked. Persisted to localStorage.
+ */
+export const subtitlePreference = ref<{ on: boolean; lang?: string }>(
+    (() => {
+        try {
+            const stored = JSON.parse(localStorage.getItem("subtitlePreference") ?? "null");
+            if (stored && typeof stored.on === "boolean") return stored;
+        } catch {
+            /* an unreadable value is no preference */
+        }
+        return { on: false };
+    })(),
+);
+watch(subtitlePreference, (preference) => {
+    localStorage.setItem("subtitlePreference", JSON.stringify(preference));
+});
+
+/**
  * Get device information.
  * @returns
  */
