@@ -527,7 +527,8 @@ function onEnded() {
 </script>
 
 <template>
-    <div class="relative bg-transparent md:rounded-lg">
+    <!-- Square, as the player around it: the poster shows at its corners until the video draws. -->
+    <div class="relative bg-transparent">
         <div
             v-if="inlineActive"
             class="aspect-video w-full"
@@ -537,6 +538,7 @@ function onEnded() {
             :image="content.parentImageData"
             aspectRatio="video"
             size="post"
+            :rounded="false"
             :content-parent-id="content.parentId"
             :parent-image-bucket-id="content.parentImageBucketId"
         />
