@@ -1060,6 +1060,40 @@ describe("MediaPlayer", () => {
             );
         });
 
+        it("shows the spinner in play's place while it loads or is stuck, and play once it plays", async () => {
+            const wrapper = await playing();
+            minimiseMediaPlayer();
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerBarPlayPause").exists()).toBe(true);
+            expect(wrapper.find("[data-test='mediaPlayerBarBusy']").exists()).toBe(false);
+
+            engine.state.lifecycle = "loading";
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerBarBusy").exists()).toBe(true);
+            expect(wrapper.find("[data-test='mediaPlayerBarPlayPause']").exists()).toBe(false);
+
+            engine.state.lifecycle = "ready";
+            engine.state.stalled = true;
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerBarBusy").exists()).toBe(true);
+
+            engine.state.stalled = false;
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerBarBusy']").exists()).toBe(false);
+            expect(find(wrapper, "mediaPlayerBarPlayPause").exists()).toBe(true);
+        });
+
+        it("shows no spinner in the bar over an error", async () => {
+            const wrapper = await playing();
+            minimiseMediaPlayer();
+            await flushPromises();
+            engine.state.playing = false;
+            engine.state.duration = 0;
+            engine.state.lifecycle = "error";
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerBarBusy']").exists()).toBe(false);
+        });
+
         it("becomes the bar, keeping the same playback", async () => {
             const wrapper = await playing();
             minimiseMediaPlayer();
