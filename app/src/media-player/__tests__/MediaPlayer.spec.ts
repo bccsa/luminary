@@ -388,6 +388,18 @@ describe("MediaPlayer", () => {
             expect(engine.controller.setAngle).toHaveBeenLastCalledWith("angle_0");
         });
 
+        it("switches to the camera when it was opened on the sound alone", async () => {
+            openMediaPlayer(mockEnglishContentDto, "en", { audio: true });
+            const wrapper = await mountPlayer();
+            expect(engine.props.startAudio).toBe(true);
+            engine.state.activeAngleId = AUDIO;
+            await flushPromises();
+            await find(wrapper, "mediaPlayerVideo").trigger("click");
+            await flushPromises();
+
+            expect(engine.controller.setAngle).toHaveBeenLastCalledWith("angle_0");
+        });
+
         it("is not offered when the source has no audio-only angle", async () => {
             const wrapper = await playing();
             engine.state.angles = [{ id: "angle_0", name: "Wide", isDefault: true }];
