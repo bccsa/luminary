@@ -54,4 +54,9 @@ html.dark.lmc-inline-video.lmc-player-dragging main {
     height: 100%;
     max-height: none;
     aspect-ratio: auto;
+    /* Edge to edge in the bar: the wide screen's rounding and lift are for the picture on a screen of its own. */
+    border-radius: 0;
+}
+.lmc-mini-stage .lmpl-afs-stage {
+    box-shadow: none;
 }
