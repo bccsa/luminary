@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
+import { rgbaToThumbHash } from "thumbhash";
+import type { ContentDto } from "luminary-shared";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { userDataSaverEnabled } from "@/globalConfig";
 import { isPlayerSwap, clearSwaps } from "@/util/playerSwap";
@@ -617,16 +619,14 @@ describe("MediaPlayer", () => {
             expect(find(wrapper, "mediaPlayerAbout").exists()).toBe(false);
         });
 
-        it("goes to the page of what plays from the bar", async () => {
+        it("keeps the bar to the picture, the title, play and close", async () => {
             screenWide = false;
             const wrapper = await withText();
             minimiseMediaPlayer();
             await flushPromises();
-            await find(wrapper, "mediaPlayerBarRead").trigger("click");
-            expect(routerPush).toHaveBeenCalledWith({
-                name: "content",
-                params: { slug: "the-slug" },
-            });
+            expect(wrapper.find("[data-test='mediaPlayerBarRead']").exists()).toBe(false);
+            expect(find(wrapper, "mediaPlayerBarPlayPause").exists()).toBe(true);
+            expect(find(wrapper, "mediaPlayerBarClose").exists()).toBe(true);
         });
     });
 
@@ -1002,15 +1002,52 @@ describe("MediaPlayer", () => {
             hidden.value = false;
         });
 
-        it("has a colour of its own, the player's, apart from the menu below it", async () => {
+        it("is the plain dark bar, with nothing blurred, when the post has no ThumbHash", async () => {
             const wrapper = await playing();
             minimiseMediaPlayer();
             await flushPromises();
-            const classes = find(wrapper, "mediaPlayerBar").classes();
+            const bar = find(wrapper, "mediaPlayerBar");
 
-            expect(classes).toContain("bg-zinc-900/70");
-            expect(classes).toContain("backdrop-blur-xl");
-            expect(classes).not.toContain("bg-zinc-100");
+            expect(bar.classes()).toContain("bg-zinc-900");
+            expect(bar.classes().join(" ")).not.toContain("backdrop-blur");
+            expect(bar.attributes("style") ?? "").not.toContain("background-color");
+        });
+
+        it("takes the post image's colour, darkened, from its ThumbHash", async () => {
+            const rgba = new Uint8Array(8 * 8 * 4);
+            for (let i = 0; i < 64; i++) rgba.set([240, 220, 200, 255], i * 4);
+            const thumbHash = btoa(String.fromCharCode(...rgbaToThumbHash(8, 8, rgba)));
+            openMediaPlayer(
+                {
+                    ...mockEnglishContentDto,
+                    parentImageData: {
+                        fileCollections: [{ aspectRatio: 1, imageFiles: [], thumbHash }],
+                    },
+                } as unknown as ContentDto,
+                "en",
+            );
+            const wrapper = await mountPlayer();
+            minimiseMediaPlayer();
+            await flushPromises();
+            const bar = find(wrapper, "mediaPlayerBar");
+
+            expect(bar.classes()).not.toContain("bg-zinc-900");
+            const [r, g, b] = (bar.attributes("style") ?? "")
+                .match(/rgb\((\d+), (\d+), (\d+)\)/)!
+                .slice(1)
+                .map(Number);
+            // A light picture still gives a bar white text reads on.
+            expect(Math.max(r, g, b)).toBeLessThan(140);
+            expect(r).toBeGreaterThan(b);
+        });
+
+        it("marks the way up on the picture", async () => {
+            const wrapper = await playing();
+            minimiseMediaPlayer();
+            await flushPromises();
+            await find(wrapper, "mediaPlayerBarPicture").trigger("click");
+
+            expect(mediaPlayerView.value).toBe("expanded");
         });
 
         it("shows how far the item has played", async () => {

@@ -9,7 +9,6 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch, wat
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import {
-    BookOpenIcon,
     ChevronUpIcon,
     ChevronDownIcon,
     FilmIcon,
@@ -18,7 +17,6 @@ import {
     PauseIcon,
     PlayIcon,
     XMarkIcon,
-    ArrowsPointingOutIcon,
 } from "@heroicons/vue/20/solid";
 import {
     AUDIO_ONLY_ANGLE_ID,
@@ -42,7 +40,7 @@ import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { isMac } from "@/globalConfig";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { fallbackImageFor } from "@/util/fallbackArtwork";
-import { coverImageUrl, thumbHashWash } from "./coverImage";
+import { coverImageUrl, thumbHashTint, thumbHashWash } from "./coverImage";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
 import { subtitlesOnVideo } from "@/globalConfig";
@@ -305,12 +303,6 @@ function swapToNext(id: string) {
     startSwap();
     openMediaPlayer(next, item.value?.language);
     void router.push(location);
-}
-
-/** The page of what plays, which also minimises the player: the route change does it. */
-function openPage() {
-    const slug = content.value?.slug;
-    if (slug) void router.push({ name: "content", params: { slug } });
 }
 
 // On a phone the full player covers the page's top bar and the mobile menu, and puts the chrome
@@ -922,8 +914,25 @@ const miniVideo = computed(
 const miniStageWanted = computed(
     () => nowPlaying.value && !expanded.value && !!item.value && !!state.value && !audioMode.value,
 );
-/** The picture's height at the bar's left end when minimised on a video, in CSS pixels. */
-const MINI_PICTURE_HEIGHT = 72;
+/** The picture's height at the bar's left end when minimised on a video, in CSS pixels: the bar's own. */
+const MINI_PICTURE_HEIGHT = 64;
+/** The widest the picture gets, so a wide video still leaves the title its room. */
+const MINI_PICTURE_MAX_WIDTH = 114;
+/** The bar's fill: the post image's colour, or the plain dark bar when it has none. */
+const barTint = computed(() => thumbHashTint(content.value));
+/** The bar shows the player busy as the full player does, the spinner standing in for play. */
+const barBusy = computed(() => starting.value || swapping.value || state.value?.stalled === true);
+const barCoverFailed = ref(false);
+/** The cover at the bar's left end for sound alone: the post's own, else the app's stand-in, else a note. */
+const barCover = computed(() => {
+    const artwork = screenArtwork.value;
+    if (!artwork) return undefined;
+    return barCoverFailed.value ? artwork.fallback : artwork.src;
+});
+watch(
+    () => content.value?._id,
+    () => (barCoverFailed.value = false),
+);
 const miniSpacer = ref<HTMLElement | null>(null);
 const miniRect = ref<{ x: number; y: number; w: number; h: number } | null>(null);
 const miniStage = computed(() => miniStageWanted.value && miniRect.value !== null);
@@ -1296,7 +1305,7 @@ function onKeydown(event: KeyboardEvent) {
                 miniVideo ? 'lg:w-96 lg:rounded-xl' : 'lg:w-96 lg:rounded-2xl',
                 // The screen has no height of its own, so on a computer the card is as tall as a phone's screen.
                 screen && expanded ? 'lg:h-[min(46rem,calc(100dvh-2.5rem))]' : '',
-                miniStage ? 'lmc-mini-stage pointer-events-none overflow-hidden rounded-md' : '',
+                miniStage ? 'lmc-mini-stage pointer-events-none overflow-hidden' : '',
             ]"
             :style="{
                 ...(miniStage && miniRect
@@ -1629,19 +1638,31 @@ function onKeydown(event: KeyboardEvent) {
                     data-test="mediaPlayerMiniVideo"
                     @click="expandMediaPlayer"
                 >
+                    <!-- Always shown, as on the phone's bar: how far it has played, and the way back up. -->
+                    <div
+                        v-if="!live"
+                        class="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] bg-white/30"
+                        aria-hidden="true"
+                    >
+                        <div
+                            class="h-full bg-yellow-500"
+                            :style="{ width: `${progress * 100}%` }"
+                            data-test="mediaPlayerMiniProgress"
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        class="absolute left-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white"
+                        :aria-label="t('media_player.expand')"
+                        data-test="mediaPlayerMiniExpand"
+                        @click.stop="expandMediaPlayer"
+                    >
+                        <ChevronUpIcon class="h-5 w-5" />
+                    </button>
                     <div
                         class="absolute inset-0 flex flex-col justify-between bg-gradient-to-b from-black/55 via-transparent to-black/70 p-2 text-white opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
                     >
                         <div class="flex justify-end gap-1">
-                            <V10Button
-                                round
-                                class="h-9 w-9"
-                                :label="t('media_player.expand')"
-                                data-test="mediaPlayerMiniExpand"
-                                @click.stop="expandMediaPlayer"
-                            >
-                                <ArrowsPointingOutIcon class="h-4 w-4" />
-                            </V10Button>
                             <V10Button
                                 round
                                 class="h-9 w-9"
@@ -2424,108 +2445,144 @@ function onKeydown(event: KeyboardEvent) {
              stopping above the home indicator. -->
         <!-- Under the bar hangs a strip of its colour as tall as the home indicator's space: covered by the
              menu while that shows, it reaches the screen's edge once the menu slides away. -->
+        <!-- One flat colour, the post image's own, so nothing behind the bar has to be blurred. -->
         <div
             v-if="!expanded && !miniVideo"
             v-show="!keyboardOpen"
             ref="bar"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center gap-3 border-t border-t-white/10 bg-zinc-900/70 px-2 pb-2 pt-2.5 text-white backdrop-blur-xl backdrop-saturate-150 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-zinc-900/70 after:backdrop-blur-xl after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border lg:border-t-0 lg:border-white/10 lg:shadow-lg lg:after:hidden"
-            :class="
+            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex h-16 w-full items-center gap-0.5 pr-1 text-white transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
+            :class="[
+                barTint ? '' : 'bg-zinc-900',
                 mobileChrome.hidden.value
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'
-                    : 'translate-y-0'
-            "
+                    : 'translate-y-0',
+            ]"
+            :style="barTint ? { backgroundColor: barTint } : undefined"
             data-test="mediaPlayerBar"
         >
             <div
                 v-if="!live"
-                class="absolute inset-x-0 top-0 h-0.5 bg-yellow-500"
-                :style="{ width: `${progress * 100}%` }"
+                class="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] bg-white/25"
                 aria-hidden="true"
-                data-test="mediaPlayerBarProgress"
-            />
-            <!-- The picture stands at the left. On a narrow bar the words ride over the buttons beside it, so a long
-                 title is not cut short by them; wider, they share one row. -->
+            >
+                <div
+                    class="h-full bg-yellow-500"
+                    :style="{ width: `${progress * 100}%` }"
+                    data-test="mediaPlayerBarProgress"
+                />
+            </div>
+            <!-- The picture fills the bar's left end, edge to edge; on a video the platform's picture is drawn there. -->
             <button
                 type="button"
-                class="flex flex-none items-center text-left"
+                class="relative flex h-full flex-none text-left"
                 :aria-label="t('media_player.expand')"
+                data-test="mediaPlayerBarPicture"
                 @click="expandMediaPlayer"
             >
                 <div
                     v-if="miniStageWanted"
                     ref="miniSpacer"
-                    class="flex-none"
+                    class="h-full flex-none"
                     :style="{
-                        height: `${MINI_PICTURE_HEIGHT}px`,
-                        width: `${Math.min(150, MINI_PICTURE_HEIGHT * (stageAspect ?? 16 / 9))}px`,
+                        width: `${Math.round(Math.min(MINI_PICTURE_MAX_WIDTH, MINI_PICTURE_HEIGHT * (stageAspect ?? 16 / 9)))}px`,
                     }"
                     aria-hidden="true"
                 />
-                <LImage
+                <img
+                    v-else-if="barCover"
+                    :src="barCover"
+                    alt=""
+                    class="h-16 w-16 flex-none object-cover"
+                    draggable="false"
+                    @error="barCoverFailed = true"
+                />
+                <span
                     v-else
-                    :image="content.parentImageData"
-                    :content-parent-id="content.parentId"
-                    :parent-image-bucket-id="content.parentImageBucketId"
-                    aspectRatio="square"
-                    size="smallSquare"
-                    rounded
+                    class="flex h-16 w-16 flex-none items-center justify-center bg-white/10 text-white/70"
+                    aria-hidden="true"
+                >
+                    <MusicalNoteIcon class="h-6 w-6" />
+                </span>
+                <span
+                    v-if="!miniStageWanted"
+                    class="absolute left-1.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/55"
+                    aria-hidden="true"
+                    data-test="mediaPlayerBarExpandBadge"
+                >
+                    <ChevronUpIcon class="h-4 w-4" />
+                </span>
+            </button>
+            <button
+                type="button"
+                class="flex min-w-0 flex-1 flex-col pl-3 text-left"
+                data-test="mediaPlayerBarTitle"
+                @click="expandMediaPlayer"
+            >
+                <span class="block w-full truncate text-sm font-semibold">{{ content.title }}</span>
+                <span
+                    v-if="content.author"
+                    class="block w-full truncate text-xs text-white/75"
+                    >{{ content.author }}</span
+                >
+            </button>
+            <span
+                v-if="barBusy"
+                class="flex h-11 w-11 flex-shrink-0 items-center justify-center"
+                role="status"
+                :aria-label="t('video_player.loading')"
+                data-test="mediaPlayerBarBusy"
+            >
+                <svg
+                    class="h-6 w-6 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    aria-hidden="true"
+                >
+                    <path d="M12 3a9 9 0 1 1-9 9" />
+                </svg>
+            </span>
+            <button
+                v-else-if="state"
+                type="button"
+                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:bg-white/10 [@media(hover:hover)]:hover:bg-white/10"
+                :aria-label="playing ? t('media_player.pause') : t('media_player.play')"
+                data-test="mediaPlayerBarPlayPause"
+                @click="togglePlay"
+            >
+                <PauseIcon
+                    v-if="playing"
+                    class="h-7 w-7"
+                />
+                <PlayIcon
+                    v-else
+                    class="h-7 w-7"
                 />
             </button>
-            <div class="flex min-w-0 flex-1 flex-col min-[480px]:max-lg:flex-row min-[480px]:max-lg:items-center min-[480px]:max-lg:gap-2">
-                <button
-                    type="button"
-                    class="flex w-full min-w-0 flex-col text-left min-[480px]:max-lg:w-auto min-[480px]:max-lg:flex-1"
-                    data-test="mediaPlayerBarTitle"
-                    @click="expandMediaPlayer"
-                >
-                    <span class="flex min-w-0 flex-col">
-                        <span class="block truncate text-sm font-semibold">{{ content.title }}</span>
-                        <span
-                            v-if="content.author"
-                            class="block truncate text-xs text-white/60"
-                            >{{ content.author }}</span
-                        >
-                    </span>
-                </button>
-                <div class="-mx-1.5 flex items-center justify-between min-[480px]:max-lg:m-0 min-[480px]:max-lg:justify-end min-[480px]:max-lg:gap-2">
-                    <button
-                        v-if="content.slug"
-                        type="button"
-                        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:bg-white/10 [@media(hover:hover)]:hover:bg-white/10"
-                        :aria-label="t('media_player.read')"
-                        data-test="mediaPlayerBarRead"
-                        @click="openPage"
-                    >
-                        <BookOpenIcon class="h-7 w-7 text-white/80" />
-                    </button>
-                    <button
-                        v-if="state"
-                        type="button"
-                        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:bg-white/10 [@media(hover:hover)]:hover:bg-white/10"
-                        :aria-label="playing ? t('media_player.pause') : t('media_player.play')"
-                        data-test="mediaPlayerBarPlayPause"
-                        @click="togglePlay"
-                    >
-                        <PauseIcon
-                            v-if="playing"
-                            class="h-7 w-7 text-white/80"
-                        />
-                        <PlayIcon
-                            v-else
-                            class="h-7 w-7 text-white/80"
-                        />
-                    </button>
-                    <button
-                        type="button"
-                        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:bg-white/10 [@media(hover:hover)]:hover:bg-white/10"
-                        :aria-label="t('media_player.close')"
-                        data-test="mediaPlayerBarClose"
-                        @click="closeMediaPlayer"
-                    >
-                        <XMarkIcon class="h-8 w-8 text-white/80" />
-                    </button>
-                </div>
-            </div>
+            <button
+                type="button"
+                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:bg-white/10 [@media(hover:hover)]:hover:bg-white/10"
+                :aria-label="t('media_player.close')"
+                data-test="mediaPlayerBarClose"
+                @click="closeMediaPlayer"
+            >
+                <XMarkIcon class="h-7 w-7 text-white/85" />
+            </button>
         </div>
+        <!-- On a video the platform's picture is drawn in front of the bar, so its way up rides above it. -->
+        <button
+            v-if="!expanded && miniStage && miniRect"
+            v-show="!keyboardOpen"
+            type="button"
+            class="fixed z-[61] flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white"
+            :style="{ left: `${miniRect.x + 6}px`, top: `${miniRect.y + 10}px` }"
+            :aria-label="t('media_player.expand')"
+            data-test="mediaPlayerBarExpandBadge"
+            @click="expandMediaPlayer"
+        >
+            <ChevronUpIcon class="h-4 w-4" />
+        </button>
     </template>
 </template>
