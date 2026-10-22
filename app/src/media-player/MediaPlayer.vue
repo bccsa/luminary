@@ -1100,12 +1100,15 @@ const sleepTimer = computed(() => state.value?.sleepTimer ?? null);
 
 const nowPlayingWash = computed(() => thumbHashWash(content.value));
 
-/**
- * The sound screen has a landscape layout of its own, so while it is open the pages may turn with the phone;
- * everywhere else they stay upright, and the picture turns in its own full screen.
- */
 const platformChrome = inject(PlatformChromeKey, null);
-const pagesTurn = computed(() => nowPlaying.value && expanded.value && audioMode.value);
+const soundScreen = computed(() => nowPlaying.value && expanded.value && audioMode.value);
+/**
+ * Where the platform says when the phone is turned, the sound screen goes to its own full screen then, as a video
+ * does, and the pages stay upright. Elsewhere its landscape layout comes by the pages turning with the phone while it
+ * is open; everywhere else they stay upright, and the picture turns in its own full screen.
+ */
+const turnsToFullscreen = !!platformChrome?.onPhoneTurned && !!platformChrome.lockLandscape;
+const pagesTurn = computed(() => soundScreen.value && !turnsToFullscreen);
 watch(pagesTurn, (allowed) => platformChrome?.setPagesTurn?.(allowed), { immediate: true });
 onBeforeUnmount(() => {
     if (pagesTurn.value) platformChrome?.setPagesTurn?.(false);
@@ -1116,11 +1119,35 @@ onBeforeUnmount(() => {
  * may be upright. It lets go as soon as the player minimises, or audio gives way to video.
  */
 const audioLandscapeLocked = ref(false);
+/**
+ * Upright, the button turns the sound screen sideways; held sideways, the X turns it back. Pages turned by hand have
+ * nothing to let go of, so they offer neither: turning back is the way out.
+ */
+const audioLandscapeTool = computed(
+    () =>
+        nowPlaying.value &&
+        audioMode.value &&
+        !!platformChrome?.lockLandscape &&
+        (!landscape.value || audioLandscapeLocked.value),
+);
+/** The phone was last reported on its side, and the X was pressed while it was: no turn counts until it is upright. */
+let phoneSideways = false;
+let leftWhileSideways = false;
+/** Held sideways by its button rather than by a turn: only its X lets go, whatever the phone does. */
+let heldByButton = false;
+function holdAudioLandscape(byButton: boolean) {
+    heldByButton ||= byButton;
+    if (audioLandscapeLocked.value) return;
+    audioLandscapeLocked.value = true;
+    platformChrome?.lockLandscape?.(true);
+}
 function toggleAudioLandscape() {
-    audioLandscapeLocked.value = !audioLandscapeLocked.value;
-    platformChrome?.lockLandscape?.(audioLandscapeLocked.value);
+    if (!audioLandscapeLocked.value) return holdAudioLandscape(true);
+    leftWhileSideways = phoneSideways;
+    releaseAudioLandscape();
 }
 function releaseAudioLandscape() {
+    heldByButton = false;
     if (!audioLandscapeLocked.value) return;
     audioLandscapeLocked.value = false;
     platformChrome?.lockLandscape?.(false);
@@ -1128,7 +1155,31 @@ function releaseAudioLandscape() {
 watch([expanded, audioMode], ([open, audio]) => {
     if (!open || !audio) releaseAudioLandscape();
 });
+// Left by the platform's own way (a browser's full screen closed with its back gesture): the lock is let go too.
+watch(landscape, (now, before) => {
+    if (before && !now) releaseAudioLandscape();
+});
 onBeforeUnmount(releaseAudioLandscape);
+let stopTurns: (() => void) | undefined;
+watch(
+    soundScreen,
+    (open) => {
+        stopTurns?.();
+        stopTurns = undefined;
+        if (!open || !turnsToFullscreen) return;
+        stopTurns = platformChrome?.onPhoneTurned?.((sideways) => {
+            phoneSideways = sideways;
+            if (sideways) {
+                if (!leftWhileSideways) holdAudioLandscape(false);
+                return;
+            }
+            leftWhileSideways = false;
+            if (!heldByButton) releaseAudioLandscape();
+        });
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => stopTurns?.());
 
 /** The screen stays on for video and for landscape viewing; a mini bar or upright audio lets the OS time it out. */
 const playerWake = useScreenWakeHold("player");
@@ -1482,7 +1533,8 @@ function onKeydown(event: KeyboardEvent) {
                     :subtitle-tracks="state?.subtitleTracks ?? []"
                     :active-subtitle-track-id="state?.activeSubtitleTrackId ?? null"
                     :can-picture-in-picture="!!handle?.canPictureInPicture"
-                    :fullscreen-tool="isDesktop && audioMode"
+                    :fullscreen-tool="(isDesktop && audioMode) || audioLandscapeTool"
+                    :fullscreen-active="audioLandscapeLocked"
                     :lyrics="lyrics"
                     @exit="minimiseMediaPlayer"
                     @toggle-play="togglePlay"
@@ -1500,7 +1552,13 @@ function onKeydown(event: KeyboardEvent) {
                     @sleep="(option) => controller?.setSleepTimer(option)"
                     @subtitle-track="(id) => controller?.setSubtitleTrack(id)"
                     @picture-in-picture="handle?.startPictureInPicture?.()"
-                    @fullscreen="audioMode ? (audioFullscreen = true) : handle?.enterFullscreen()"
+                    @fullscreen="
+                        !audioMode
+                            ? handle?.enterFullscreen()
+                            : nowPlaying
+                              ? toggleAudioLandscape()
+                              : (audioFullscreen = true)
+                    "
                     @stagechange="nudgeInlineVideo"
                     @scrub="onNowPlayingScrub"
                 >
