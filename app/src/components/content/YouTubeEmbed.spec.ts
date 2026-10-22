@@ -80,6 +80,47 @@ describe("YouTubeEmbed", () => {
         expect(localStorage.getItem("youtubeAlwaysAllow")).toBe("true");
     });
 
+    describe("offline", () => {
+        const goOnline = (online: boolean) => {
+            vi.spyOn(navigator, "onLine", "get").mockReturnValue(online);
+            window.dispatchEvent(new Event(online ? "online" : "offline"));
+        };
+        afterEach(() => vi.restoreAllMocks());
+
+        it("says so and loads nothing, even for a viewer who always allows YouTube", () => {
+            youtubeAlwaysAllow.value = true;
+            vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+            const wrapper = mountEmbed();
+
+            expect(wrapper.find("[data-test='youtubeOffline']").exists()).toBe(true);
+            expect(wrapper.find("iframe").exists()).toBe(false);
+            expect(wrapper.find("[data-test='youtubeNotice']").exists()).toBe(false);
+            expect(wrapper.html()).not.toContain("youtube-embed");
+        });
+
+        it("loads once the connection is back", async () => {
+            youtubeAlwaysAllow.value = true;
+            vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+            const wrapper = mountEmbed();
+            goOnline(true);
+            await nextTick();
+
+            expect(wrapper.find("[data-test='youtubeOffline']").exists()).toBe(false);
+            expect(wrapper.find("iframe").exists()).toBe(true);
+        });
+
+        it("takes the frame away when the connection goes", async () => {
+            youtubeAlwaysAllow.value = true;
+            const wrapper = mountEmbed();
+            expect(wrapper.find("iframe").exists()).toBe(true);
+            goOnline(false);
+            await nextTick();
+
+            expect(wrapper.find("iframe").exists()).toBe(false);
+            expect(wrapper.find("[data-test='youtubeOffline']").exists()).toBe(true);
+        });
+    });
+
     it("loads straight away for a viewer who always allows it", () => {
         youtubeAlwaysAllow.value = true;
         const wrapper = mountEmbed();
