@@ -8,7 +8,7 @@ import { db, type HighlightRange } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { setReadingProgress, syncContentProgressFromStorage } from "@/contentProgress";
-import { getAllUserActivity, recordUserActivity } from "@/userActivity/store";
+import { recordUserActivity } from "@/userActivity/store";
 import { HIGHLIGHT_COLORS } from "@/util/highlightRanges";
 import ActivityAll from "../ActivityAll.vue";
 
@@ -68,8 +68,8 @@ describe("ActivityAll", () => {
         const wrapper = mount(ActivityAll);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=activity-remove-viewed]").exists()).toBe(true);
-            expect(wrapper.find("[data-test=activity-remove-liked]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-viewed-icon]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-liked-icon]").exists()).toBe(true);
         });
     });
 
@@ -115,7 +115,7 @@ describe("ActivityAll", () => {
         const wrapper = mount(ActivityAll);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=activity-remove-liked]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-liked-icon]").exists()).toBe(true);
         });
         expect(wrapper.findAll("[role=progressbar]")).toHaveLength(1);
     });
@@ -130,23 +130,6 @@ describe("ActivityAll", () => {
         });
         expect(wrapper.text()).toContain("Today");
     });
-
-    it("removes the one activity its card stands for, leaving the others", async () => {
-        await recordUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId });
-        await recordUserActivity({ type: "liked", parentId: mockEnglishContentDto.parentId });
-
-        const wrapper = mount(ActivityAll);
-
-        await waitForExpect(() => {
-            expect(wrapper.find("[data-test=activity-remove-liked]").exists()).toBe(true);
-        });
-        await wrapper.find("[data-test=activity-remove-liked]").trigger("click");
-
-        await waitForExpect(async () => {
-            expect((await getAllUserActivity()).map((row) => row.type)).toEqual(["viewed"]);
-        });
-    });
-
     it("opens the passages of a highlight rather than navigating", async () => {
         await recordUserActivity(
             {
@@ -237,37 +220,5 @@ describe("ActivityAll", () => {
         expect(wrapper.find("[data-test=activity-excerpt]").attributes("style")).toContain(
             HIGHLIGHT_COLORS.green,
         );
-    });
-
-    it("does not let the card's capture swallow its remove button", async () => {
-        await recordUserActivity(
-            {
-                type: "highlighted",
-                contentId: mockEnglishContentDto._id,
-                parentId: mockEnglishContentDto.parentId,
-            },
-            { ranges: [range("a passage")] },
-        );
-
-        const wrapper = mount(ActivityAll);
-
-        await waitForExpect(() => {
-            expect(wrapper.find("[data-test=activity-remove-highlighted]").exists()).toBe(true);
-        });
-        await wrapper.find("[data-test=activity-remove-highlighted]").trigger("click");
-
-        // Highlights are the reader's own text, so the click asks first and destroys nothing yet.
-        await waitForExpect(() => {
-            expect(wrapper.find("[data-test=modal-primary-button]").exists()).toBe(true);
-        });
-        expect(await getAllUserActivity()).toHaveLength(1);
-        // The passages panel must not have opened in its place.
-        expect(wrapper.find("[data-test=highlight-text]").exists()).toBe(false);
-
-        await wrapper.find("[data-test=modal-primary-button]").trigger("click");
-
-        await waitForExpect(async () => {
-            expect(await getAllUserActivity()).toEqual([]);
-        });
     });
 });
