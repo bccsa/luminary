@@ -3,7 +3,6 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { type ContentDto } from "luminary-shared";
 import ActivityCard from "./ActivityCard.vue";
-import { removeUserActivity } from "@/userActivity/store";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
 
@@ -33,8 +32,6 @@ const sorted = computed(
                 :key="item._id"
                 :content="item"
                 type="viewed"
-                removable
-                @remove="removeUserActivity({ type: 'viewed', parentId: item.parentId })"
             />
         </div>
         <div

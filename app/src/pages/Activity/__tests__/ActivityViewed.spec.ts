@@ -7,7 +7,7 @@ import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
-import { getUserActivity, recordUserActivity } from "@/userActivity/store";
+import { recordUserActivity } from "@/userActivity/store";
 import ActivityViewed from "../ActivityViewed.vue";
 
 vi.mock("vue-router");
@@ -56,19 +56,5 @@ describe("ActivityViewed", () => {
         const wrapper = mount(ActivityViewed);
 
         expect(wrapper.text()).toContain("Posts you read or watch will show up here.");
-    });
-
-    it("removes an entry straight away", async () => {
-        await recordUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId });
-        const wrapper = mount(ActivityViewed);
-
-        await waitForExpect(() => {
-            expect(wrapper.find("[data-test=activity-remove-viewed]").exists()).toBe(true);
-        });
-        await wrapper.find("[data-test=activity-remove-viewed]").trigger("click");
-
-        await waitForExpect(async () => {
-            expect(await getUserActivity("viewed")).toEqual([]);
-        });
     });
 });

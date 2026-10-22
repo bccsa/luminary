@@ -4,7 +4,6 @@ import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { type ContentDto, type HighlightColor, type HighlightRange } from "luminary-shared";
 import { XMarkIcon } from "@heroicons/vue/24/outline";
-import { TrashIcon } from "@heroicons/vue/24/solid";
 import LSidePanel from "@/components/common/LSidePanel.vue";
 import LButton from "@/components/button/LButton.vue";
 import LDialog from "@/components/common/LDialog.vue";
@@ -18,7 +17,7 @@ const props = defineProps<{ content?: ContentDto; ranges: HighlightRange[] }>();
 const open = defineModel<boolean>("open", { required: true });
 
 /** Removal is the caller's: only it knows which activity row the passages came from. */
-const emit = defineEmits<{ remove: []; removeRange: [range: HighlightRange] }>();
+const emit = defineEmits<{ remove: [] }>();
 
 const colour = ref<HighlightColor | undefined>(undefined);
 
@@ -222,18 +221,6 @@ const remove = () => {
                     @keydown.space.prevent="openArticle(range)"
                 >
                     <span class="min-w-0 flex-1">{{ range.text }}</span>
-
-                    <button
-                        type="button"
-                        class="-my-1 shrink-0 rounded-full p-1.5 text-zinc-500 transition hover:text-red-600 focus:text-red-600 active:text-red-700 dark:text-slate-400 dark:hover:text-red-400 dark:focus:text-red-400 dark:active:text-red-500"
-                        :aria-label="t('activity.highlights.remove_passage')"
-                        data-test="highlight-passage-remove"
-                        @click.stop.prevent="emit('removeRange', range)"
-                        @keydown.enter.stop
-                        @keydown.space.stop
-                    >
-                        <TrashIcon class="h-4 w-4" />
-                    </button>
                 </li>
             </ul>
         </div>
