@@ -68,7 +68,7 @@ const sections = computed(() => groupByActivityDate(entries.value, (e) => e.row.
                 {{ t(`activity.group.${section.group}`) }}
             </h2>
 
-            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-3">
                 <ActivityCard
                     v-for="entry in section.items"
                     :key="`${entry.row._id}-${entry.range?.start ?? ''}`"
