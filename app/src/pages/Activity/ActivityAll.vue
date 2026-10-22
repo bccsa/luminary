@@ -7,7 +7,6 @@ import ActivityHighlightPanel from "./ActivityHighlightPanel.vue";
 import { groupByActivityDate } from "./activityGroups";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
-import { removeUserActivity } from "@/userActivity/store";
 
 const { t } = useI18n();
 
@@ -52,17 +51,6 @@ const entries = computed<Entry[]>(() =>
 const sections = computed(() => groupByActivityDate(entries.value, (e) => e.row.updatedTimeUtc));
 
 const rangesOf = (entry: Entry): HighlightRange[] => entry.row.payload?.ranges ?? [];
-
-const remove = (entry: Entry) =>
-    removeUserActivity(
-        entry.row.type === "highlighted"
-            ? {
-                  type: "highlighted",
-                  contentId: entry.content._id,
-                  parentId: entry.content.parentId,
-              }
-            : { type: entry.row.type, parentId: entry.row.parentId },
-    );
 
 // One panel for the feed rather than one per card: it only ever shows the entry just opened.
 // Held by row id and looked up again, so removing a passage updates the panel and removing the
@@ -111,7 +99,6 @@ const opened = computed(() => entries.value.find((e) => e.row._id === openedId.v
             :content="opened?.content"
             :ranges="opened ? rangesOf(opened) : []"
             @update:open="openedId = undefined"
-            @remove="opened && remove(opened)"
         />
     </div>
 </template>

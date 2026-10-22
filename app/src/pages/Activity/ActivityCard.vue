@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { useI18n } from "vue-i18n";
 import { type ContentDto, type HighlightColor, type UserActivityType } from "luminary-shared";
-import { EyeIcon } from "@heroicons/vue/24/solid";
 import { HeartIcon } from "@heroicons/vue/24/solid";
 import ContentTile from "@/components/content/ContentTile.vue";
 import { HIGHLIGHT_COLORS } from "@/util/highlightRanges";
@@ -94,20 +93,6 @@ const onClick = (event: MouseEvent) => {
             <!-- In the combined feed the heart is the only thing telling a liked card from a
                  viewed one, so it has to be readable rather than purely decorative. -->
             <span class="sr-only">{{ t("activity.marker.liked") }}</span>
-        </span>
-
-        <!-- Marks the card as viewed content, the counterpart of the heart above. Decorative,
-             so it never intercepts the tile's click. -->
-        <span
-            v-if="type === 'viewed'"
-            class="pointer-events-none absolute right-2.5 top-2"
-            data-test="activity-viewed-icon"
-        >
-            <EyeIcon
-                class="h-4 w-4 text-zinc-500 dark:text-yellow-400"
-                aria-hidden="true"
-            />
-            <span class="sr-only">{{ t("activity.marker.viewed") }}</span>
         </span>
     </div>
 </template>

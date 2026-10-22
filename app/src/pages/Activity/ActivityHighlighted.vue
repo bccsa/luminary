@@ -6,7 +6,6 @@ import ActivityCard from "./ActivityCard.vue";
 import ActivityHighlightPanel from "./ActivityHighlightPanel.vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
-import { removeUserActivity } from "@/userActivity/store";
 
 const { t } = useI18n();
 
@@ -40,15 +39,6 @@ const entries = computed<Entry[]>(() =>
 // last one closes it.
 const openedId = ref<string | undefined>(undefined);
 const opened = computed(() => entries.value.find((e) => e.content._id === openedId.value));
-
-const remove = async (entry: Entry | undefined = opened.value) => {
-    if (!entry) return;
-    await removeUserActivity({
-        type: "highlighted",
-        contentId: entry.content._id,
-        parentId: entry.content.parentId,
-    });
-};
 </script>
 
 <template>
@@ -77,7 +67,6 @@ const remove = async (entry: Entry | undefined = opened.value) => {
             :content="opened?.content"
             :ranges="opened?.ranges ?? []"
             @update:open="openedId = undefined"
-            @remove="remove()"
         />
     </div>
 </template>

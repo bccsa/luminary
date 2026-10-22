@@ -68,8 +68,7 @@ describe("ActivityAll", () => {
         const wrapper = mount(ActivityAll);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=activity-viewed-icon]").exists()).toBe(true);
-            expect(wrapper.find("[data-test=activity-liked-icon]").exists()).toBe(true);
+            expect(wrapper.text().split(mockEnglishContentDto.title).length - 1).toBe(2);
         });
     });
 
