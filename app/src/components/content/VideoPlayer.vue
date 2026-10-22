@@ -61,6 +61,8 @@ type Props = {
     inline?: boolean | "front";
     /** With `inline: "front"`, the platform draws the page's chevron on the picture, which the page cannot draw over. */
     inlineBadge?: boolean;
+    /** With `inline: "front"`, the picture's corners, to fit the rounded card the page draws around it. */
+    inlineRadius?: number;
     /** Room under the picture for native subtitles, in CSS pixels. */
     captionBand?: number;
     /** Show the player's own controls in the page, for a player that is not driven from elsewhere. */
@@ -141,7 +143,7 @@ const playerExtras = computed(() => ({
         ? { nowPlaying: nowPlaying.value }
         : { nowPlaying: webNowPlaying.value, appearance: isDarkTheme.value ? "dark" : "light" }),
     // Withheld until this content's own video is loaded, or the previous video's last frame shows under it.
-    ...(props.inline && videoPlayer.acceptsInline && playingThisContent() ? { inline: props.inline, captionBand: props.captionBand, inlineBadge: props.inlineBadge === true } : {}),
+    ...(props.inline && videoPlayer.acceptsInline && playingThisContent() ? { inline: props.inline, captionBand: props.captionBand, inlineBadge: props.inlineBadge === true, inlineRadius: props.inlineRadius ?? 0 } : {}),
     // The media player's picture takes the video's own shape, so cover only trims a sliver of rounding at its edges.
     ...(props.inline && !videoPlayer.acceptsInline ? { windowedFit: "cover" as const } : {}),
     ...(props.captionsHidden ? { captionsHidden: true } : {}),

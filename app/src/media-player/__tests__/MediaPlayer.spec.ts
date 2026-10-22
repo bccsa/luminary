@@ -655,6 +655,34 @@ describe("MediaPlayer", () => {
             currentRoute.value = { name: "home", params: {} };
         });
 
+        it("is a rounded card while reading a post on a phone with the menu away, and the bar on the menu otherwise", async () => {
+            screenWide = false;
+            currentRoute.value = { name: "content", params: { slug: "the-slug" } };
+            const { hidden } = useMobileChromeAutoHide();
+            try {
+                openMediaPlayer(mockEnglishContentDto, "en");
+                minimiseMediaPlayer();
+                const reading = await mountPlayer();
+                const bar = () => find(reading, "mediaPlayerBar").classes();
+                hidden.value = false;
+                await flushPromises();
+                expect(bar()).toContain("inset-x-0");
+                expect(bar()).not.toContain("rounded-[14px]");
+
+                hidden.value = true;
+                await flushPromises();
+                expect(bar()).toEqual(expect.arrayContaining(["rounded-[14px]", "inset-x-2"]));
+                reading.unmount();
+
+                currentRoute.value = { name: "home", params: {} };
+                const browsing = await mountPlayer();
+                expect(find(browsing, "mediaPlayerBar").classes()).not.toContain("rounded-[14px]");
+            } finally {
+                hidden.value = false;
+                currentRoute.value = { name: "home", params: {} };
+            }
+        });
+
         it("keeps the bar to the picture, the title, play and close", async () => {
             screenWide = false;
             const wrapper = await withText();
