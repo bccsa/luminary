@@ -3,6 +3,7 @@ import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { userDataSaverEnabled, youtubeAlwaysAllow } from "@/globalConfig";
+import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 import YouTubeEmbed from "./YouTubeEmbed.vue";
 
 const URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
@@ -26,15 +27,31 @@ type Exposed = {
     setMuted(muted: boolean): void;
 };
 
+const lockLandscape = vi.fn();
+let lockableScreen = false;
+
 function mountEmbed(attach = false) {
     return mount(YouTubeEmbed, {
         props: { content: mockEnglishContentDto, url: URL },
-        global: { stubs: { LImage: true } },
+        global: {
+            stubs: { LImage: true },
+            provide: lockableScreen
+                ? {
+                      [PlatformChromeKey as symbol]: {
+                          chromeFadeEnabled: false,
+                          setStatusBarHidden: () => {},
+                          lockLandscape,
+                      },
+                  }
+                : {},
+        },
         ...(attach ? { attachTo: document.body } : {}),
     });
 }
 
 afterEach(() => {
+    lockableScreen = false;
+    lockLandscape.mockClear();
     vi.unstubAllEnvs();
     hostedOrigin.value = "";
 });
@@ -264,6 +281,22 @@ describe("YouTubeEmbed", () => {
                 { src: "lmc-yt", cmd: "fullscreen", value: 1, inset: 0 },
                 { src: "lmc-yt", cmd: "fullscreen", value: 0, inset: 0 },
             ]);
+            wrapper.unmount();
+        });
+
+        it("holds the screen in landscape while the frame is full-screen, where the platform can turn it", async () => {
+            lockableScreen = true;
+            const { wrapper } = await playing();
+            const frame = wrapper.get("[data-test='youtubeFrame']").element;
+
+            Object.defineProperty(document, "fullscreenElement", { value: frame, configurable: true });
+            document.dispatchEvent(new Event("fullscreenchange"));
+            expect(lockLandscape).toHaveBeenLastCalledWith(true);
+
+            Object.defineProperty(document, "fullscreenElement", { value: null, configurable: true });
+            document.dispatchEvent(new Event("fullscreenchange"));
+            expect(lockLandscape).toHaveBeenLastCalledWith(false);
+            expect(lockLandscape).toHaveBeenCalledTimes(2);
             wrapper.unmount();
         });
 

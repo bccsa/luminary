@@ -10,13 +10,14 @@
  * same handle the player package's component does. Where that page is not available (a native build with no
  * web address set) the frame is YouTube's embed with its own controls, and there is no handle.
  */
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, inject, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
 import { type ContentDto } from "luminary-shared";
 import { SignalSlashIcon } from "@heroicons/vue/24/outline";
 import LImage from "../images/LImage.vue";
 import { isDataSaverEnabled, userDataSaverEnabled, youtubeAlwaysAllow } from "@/globalConfig";
 import { isNativeApp } from "@/util/inAppBrowser";
+import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 import { publicUrl } from "@/seo/publicSite";
 import { youTubeEmbedUrl, youTubeIdOf } from "@/util/youtube";
 import { createYouTubePlayer, isYouTubeReport, type YouTubeCommand } from "@/util/youtubePlayer";
@@ -97,10 +98,23 @@ function onMessage(event: MessageEvent) {
     youtube.receive(event.data);
 }
 
+/**
+ * A web view's full screen keeps the screen upright and cannot lock the orientation itself, so where the platform
+ * can turn the screen it is asked to while the frame is full-screen.
+ */
+const platformChrome = inject(PlatformChromeKey, null);
+let landscapeHeld = false;
+function holdLandscape(held: boolean) {
+    if (held === landscapeHeld || !platformChrome?.lockLandscape) return;
+    landscapeHeld = held;
+    platformChrome.lockLandscape(held);
+}
+
 /** The frame went full-screen or left it, however: our button, the system's gesture, or the page's exit. */
 function onFullscreenChange() {
     if (!driven.value) return;
     const on = !!frame.value && document.fullscreenElement === frame.value;
+    holdLandscape(on);
     youtube.setFullscreen(on, notchSize());
     if (!on) settleLayout();
 }
@@ -152,6 +166,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
     window.removeEventListener("message", onMessage);
     document.removeEventListener("fullscreenchange", onFullscreenChange);
+    holdLandscape(false);
     cancelSettle();
 });
 
