@@ -5,7 +5,7 @@ import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { useDesktopSidebar } from "@/composables/useDesktopSidebar";
 import {
-    BuildingLibraryIcon,
+    HeartIcon,
     Cog6ToothIcon,
     SunIcon,
     LanguageIcon,
@@ -14,7 +14,7 @@ import {
     ChevronRightIcon,
 } from "@heroicons/vue/24/outline";
 import {
-    BuildingLibraryIcon as FilledBuildingLibraryIcon,
+    HeartIcon as FilledHeartIcon,
     Cog6ToothIcon as FilledCog6ToothIcon,
     UserIcon,
     ArrowRightEndOnRectangleIcon,
@@ -264,7 +264,7 @@ const handleLogin = () => {
                     @click="navigate"
                 >
                     <component
-                        :is="isActive ? FilledBuildingLibraryIcon : BuildingLibraryIcon"
+                        :is="isActive ? FilledHeartIcon : HeartIcon"
                         :class="navIconClass"
                         aria-hidden="true"
                     />
