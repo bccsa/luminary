@@ -655,6 +655,25 @@ describe("MediaPlayer", () => {
             currentRoute.value = { name: "home", params: {} };
         });
 
+        it("is a rounded card while reading a post on a phone, and the edge-to-edge bar elsewhere", async () => {
+            screenWide = false;
+            currentRoute.value = { name: "content", params: { slug: "the-slug" } };
+            try {
+                openMediaPlayer(mockEnglishContentDto, "en");
+                minimiseMediaPlayer();
+                const reading = await mountPlayer();
+                expect(find(reading, "mediaPlayerBar").classes()).toEqual(expect.arrayContaining(["rounded-[14px]", "inset-x-2"]));
+                reading.unmount();
+
+                currentRoute.value = { name: "home", params: {} };
+                const browsing = await mountPlayer();
+                expect(find(browsing, "mediaPlayerBar").classes()).not.toContain("rounded-[14px]");
+                expect(find(browsing, "mediaPlayerBar").classes()).toContain("inset-x-0");
+            } finally {
+                currentRoute.value = { name: "home", params: {} };
+            }
+        });
+
         it("keeps the bar to the picture, the title, play and close", async () => {
             screenWide = false;
             const wrapper = await withText();

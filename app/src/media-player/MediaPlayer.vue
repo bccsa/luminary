@@ -969,7 +969,14 @@ const miniStageWanted = computed(
  * The picture's height at the bar's left end when minimised on a video, in CSS pixels: on a phone the bar's less
  * its progress line along the top; on a computer the card's whole height, its corners the card's.
  */
-const MINI_PICTURE_HEIGHT = computed(() => (isDesktop.value ? 64 : 61));
+/**
+ * While reading a post on a phone, the bar is a card floating over the page's foot, as the computer's is in its corner:
+ * rounded, clear of the edges and of the home indicator, its progress line along its foot.
+ */
+const floatingCard = computed(() => !isDesktop.value && router.currentRoute.value?.name === "content");
+/** The card's corners, which the picture at its left end follows. */
+const CARD_RADIUS = 14;
+const MINI_PICTURE_HEIGHT = computed(() => (isDesktop.value || floatingCard.value ? 64 : 61));
 /** The widest the picture gets, so a wide video still leaves the title its room. */
 const MINI_PICTURE_MAX_WIDTH = 114;
 /** The picture's width at the bar's left end: the video's shape at the bar's height, or the square cover. */
@@ -1466,6 +1473,7 @@ function onKeydown(event: KeyboardEvent) {
             :class="[
                 expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
                 miniStage ? 'lg:rounded-l-xl lg:shadow-none' : 'lg:w-96 lg:rounded-xl',
+                miniStage && floatingCard ? 'rounded-l-[14px]' : '',
                 // The screen has no height of its own, so on a computer the card is as tall as a phone's screen.
                 screen && expanded ? 'lg:h-[min(46rem,calc(100dvh-2.5rem))]' : '',
                 miniStage ? 'lmc-mini-stage pointer-events-none overflow-hidden' : '',
@@ -1660,6 +1668,7 @@ function onKeydown(event: KeyboardEvent) {
                             @upnextselect="swapToNext"
                             :inline="miniStage ? 'front' : true"
                             :inline-badge="miniStage"
+                            :inline-radius="miniStage && floatingCard ? CARD_RADIUS : 0"
                             :caption-band="captionBand && !miniStage ? 64 : 0"
                             :fullscreen-on-play="isNativeApp()"
                             :windowed-controls="webFill"
@@ -2507,8 +2516,11 @@ function onKeydown(event: KeyboardEvent) {
             v-if="!expanded"
             v-show="!keyboardOpen"
             ref="bar"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex h-16 w-full items-center gap-0.5 pr-1 text-white transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
+            class="fixed z-40 flex h-16 items-center gap-0.5 pr-1 text-white transition-transform after:content-[''] duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
             :class="[
+                floatingCard
+                    ? 'inset-x-2 bottom-[calc(var(--mobile-menu-h,0px)+8px)] overflow-hidden rounded-[14px] shadow-xl shadow-black/30'
+                    : 'inset-x-0 bottom-[var(--mobile-menu-h,0px)] w-full after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit',
                 barTint ? '' : 'bg-zinc-900',
                 mobileChrome.hidden.value
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'
@@ -2521,10 +2533,12 @@ function onKeydown(event: KeyboardEvent) {
             }"
             data-test="mediaPlayerBar"
         >
-            <!-- Along the bar's top on a phone; on a computer along its foot, under the picture too. -->
+            <!-- Along the bar's top on a phone; along the foot of a card (a computer's, or a phone's while reading),
+                 from where the picture ends. -->
             <div
                 v-if="!live"
-                class="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] bg-white/25 lg:bottom-0 lg:left-[var(--mini-picture-w)] lg:top-auto"
+                class="pointer-events-none absolute inset-x-0 z-10 h-[3px] bg-white/25 lg:bottom-0 lg:left-[var(--mini-picture-w)] lg:top-auto"
+                :class="floatingCard ? 'bottom-0 left-[var(--mini-picture-w)]' : 'top-0'"
                 aria-hidden="true"
             >
                 <div
@@ -2544,7 +2558,8 @@ function onKeydown(event: KeyboardEvent) {
                 <div
                     v-if="miniStageWanted"
                     ref="miniSpacer"
-                    class="h-[calc(100%-3px)] flex-none self-end lg:h-full"
+                    class="flex-none self-end lg:h-full"
+                    :class="floatingCard ? 'h-full' : 'h-[calc(100%-3px)]'"
                     :style="{
                         width: `${miniPictureWidth}px`,
                     }"
