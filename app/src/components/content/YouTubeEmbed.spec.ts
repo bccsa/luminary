@@ -85,7 +85,9 @@ describe("YouTubeEmbed", () => {
             vi.spyOn(navigator, "onLine", "get").mockReturnValue(online);
             window.dispatchEvent(new Event(online ? "online" : "offline"));
         };
-        afterEach(() => vi.restoreAllMocks());
+        afterEach(() => {
+            vi.restoreAllMocks();
+        });
 
         it("says so and loads nothing, even for a viewer who always allows YouTube", () => {
             youtubeAlwaysAllow.value = true;
