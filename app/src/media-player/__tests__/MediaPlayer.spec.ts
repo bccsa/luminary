@@ -108,6 +108,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                         slots["top-end"]?.(),
                     ]),
                     props.title,
+                    slots["under-title"]?.(),
                     slots.sheet?.({ close: () => {} }),
                     slots.cast?.(),
                     h("div", { "data-test": "audioFullscreenStage" }, [slots.stage?.()]),
@@ -141,9 +142,11 @@ vi.mock("@/composables/useContentQuery", async () => {
 });
 
 const routerPush = vi.hoisted(() => vi.fn());
+const currentRoute = vi.hoisted(() => ({ value: { name: "home", params: {} as Record<string, string> } }));
 vi.mock("vue-router", () => ({
     useRouter: () => ({
         push: routerPush,
+        currentRoute,
         resolve: (to: { params: { slug: string } }) => ({ fullPath: `/${to.params.slug}` }),
     }),
 }));
@@ -385,6 +388,18 @@ describe("MediaPlayer", () => {
             expect(engine.controller.setAngle).toHaveBeenLastCalledWith("angle_0");
         });
 
+        it("switches to the camera when it was opened on the sound alone", async () => {
+            openMediaPlayer(mockEnglishContentDto, "en", { audio: true });
+            const wrapper = await mountPlayer();
+            expect(engine.props.startAudio).toBe(true);
+            engine.state.activeAngleId = AUDIO;
+            await flushPromises();
+            await find(wrapper, "mediaPlayerVideo").trigger("click");
+            await flushPromises();
+
+            expect(engine.controller.setAngle).toHaveBeenLastCalledWith("angle_0");
+        });
+
         it("is not offered when the source has no audio-only angle", async () => {
             const wrapper = await playing();
             engine.state.angles = [{ id: "angle_0", name: "Wide", isDefault: true }];
@@ -618,6 +633,24 @@ describe("MediaPlayer", () => {
             const wrapper = await withText();
             expect(wrapper.find("[data-test^='mediaPlayerTab-']").exists()).toBe(false);
             expect(find(wrapper, "mediaPlayerAbout").exists()).toBe(false);
+        });
+
+        it("goes back to the page of what plays from the full player, under the title", async () => {
+            screenWide = false;
+            currentRoute.value = { name: "home", params: {} };
+            const wrapper = await withText();
+            await find(wrapper, "mediaPlayerReadArticle").trigger("click");
+            expect(routerPush).toHaveBeenCalledWith({ name: "content", params: { slug: "the-slug" } });
+        });
+
+        it("only minimises from the full player when its page is already open", async () => {
+            screenWide = false;
+            currentRoute.value = { name: "content", params: { slug: "the-slug" } };
+            const wrapper = await withText();
+            await find(wrapper, "mediaPlayerReadArticle").trigger("click");
+            expect(routerPush).not.toHaveBeenCalled();
+            expect(mediaPlayerView.value).toBe("mini");
+            currentRoute.value = { name: "home", params: {} };
         });
 
         it("keeps the bar to the picture, the title, play and close", async () => {

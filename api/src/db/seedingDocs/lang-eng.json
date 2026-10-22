@@ -60,6 +60,8 @@
         "youtube.notice_title": "This video is hosted by YouTube",
         "youtube.notice_body": "Playing it connects you to Google, which can see your IP address and may set cookies. Nothing is loaded until you choose.",
         "youtube.play": "Play",
+        "youtube.offline_title": "You're offline",
+        "youtube.offline_body": "This video plays from YouTube, so it needs the internet. It will be ready as soon as you're back online.",
         "youtube.always_allow": "Always allow on this device",
         "settings.subtitles.title": "Subtitles",
         "settings.subtitles.description": "Show subtitles over the bottom of the video instead of in a band below it.",

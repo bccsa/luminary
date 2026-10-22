@@ -276,7 +276,7 @@ describe("SingleContent", () => {
             const media = wrapper!.findComponent(IgnorePagePadding).element.parentElement!;
             expect(media.className).toBe("lg:mt-2");
             expect(wrapper!.html()).toContain("test-image.webp");
-            expect(wrapper!.find("[data-test='mediaAction']").exists()).toBe(true);
+            expect(wrapper!.find("[data-test='mediaWatch']").exists()).toBe(true);
         });
     });
 
@@ -296,7 +296,7 @@ describe("SingleContent", () => {
             expect(
                 wrapper!.find("[data-test='title']").exists() || wrapper!.html().length > 0,
             ).toBe(true);
-            expect(wrapper!.find("[data-test='mediaAction']").exists()).toBe(false);
+            expect(wrapper!.find("[data-test='mediaWatch']").exists()).toBe(false);
         });
     });
 

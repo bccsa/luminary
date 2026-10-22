@@ -8,6 +8,7 @@ import { VitePWA } from "vite-plugin-pwa";
 import movePreloadScriptsToBody from "./src/assets/vite-plugins/movePreloadScriptsToBody.js";
 import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 import { bootSplash } from "./vite-plugins/bootSplash";
+import { youtubeEmbedPage } from "./vite-plugins/youtubeEmbedPage";
 
 const env = loadEnv("", process.cwd());
 
@@ -57,6 +58,7 @@ export default defineConfig({
         blockGeneratedOutput(),
         buildTargetVirtuals(),
         bootSplash(env.VITE_LOGO),
+        youtubeEmbedPage(),
         visualizer({ open: false }), // Open visualiser when reviewing build bundle size
         vue(),
         viteStaticCopy({
