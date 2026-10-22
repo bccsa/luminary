@@ -6,7 +6,6 @@ import { type ContentDto, type HighlightColor, type HighlightRange } from "lumin
 import { XMarkIcon } from "@heroicons/vue/24/outline";
 import LSidePanel from "@/components/common/LSidePanel.vue";
 import LButton from "@/components/button/LButton.vue";
-import LDialog from "@/components/common/LDialog.vue";
 import { HIGHLIGHT_COLORS } from "@/util/highlightRanges";
 
 const { t } = useI18n();
@@ -15,9 +14,6 @@ const router = useRouter();
 const props = defineProps<{ content?: ContentDto; ranges: HighlightRange[] }>();
 
 const open = defineModel<boolean>("open", { required: true });
-
-/** Removal is the caller's: only it knows which activity row the passages came from. */
-const emit = defineEmits<{ remove: [] }>();
 
 const colour = ref<HighlightColor | undefined>(undefined);
 
@@ -138,14 +134,6 @@ const scrollToPassage = (range: HighlightRange, attempt = 0) => {
 
     if (attempt < 40) setTimeout(() => scrollToPassage(range, attempt + 1), 200);
 };
-
-const confirming = ref(false);
-
-const remove = () => {
-    confirming.value = false;
-    emit("remove");
-    open.value = false;
-};
 </script>
 
 <template>
@@ -236,27 +224,7 @@ const remove = () => {
                 >
                     {{ t("activity.highlights.open_article") }}
                 </LButton>
-                <LButton
-                    variant="danger"
-                    data-test="highlight-panel-remove"
-                    @click="confirming = true"
-                >
-                    {{ t("activity.remove.button") }}
-                </LButton>
             </div>
         </template>
     </LSidePanel>
-
-    <LDialog
-        v-if="confirming"
-        :open="true"
-        :title="t('activity.remove.confirm.title')"
-        :description="t('activity.remove.confirm.description')"
-        :primaryAction="remove"
-        :primaryButtonText="t('activity.remove.button')"
-        :secondaryAction="() => (confirming = false)"
-        :secondaryButtonText="t('activity.remove.confirm.button_cancel')"
-        context="danger"
-        @update:open="confirming = false"
-    />
 </template>
