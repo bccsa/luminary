@@ -979,7 +979,10 @@ const floatingCard = computed(
 );
 /** The card's corners, which the picture at its left end follows. */
 const CARD_RADIUS = 14;
-const MINI_PICTURE_HEIGHT = computed(() => (isDesktop.value || floatingCard.value ? 64 : 61));
+/** The progress line runs under the whole bar, at its foot on a card (a computer's, or a phone's while reading). */
+const lineAtFoot = computed(() => isDesktop.value || floatingCard.value);
+/** The picture's height: the bar's less the progress line, which it leaves clear above or below it. */
+const MINI_PICTURE_HEIGHT = computed(() => 61);
 /** The widest the picture gets, so a wide video still leaves the title its room. */
 const MINI_PICTURE_MAX_WIDTH = 114;
 /** The picture's width at the bar's left end: the video's shape at the bar's height, or the square cover. */
@@ -1475,8 +1478,8 @@ function onKeydown(event: KeyboardEvent) {
             class="fixed inset-0 z-[60] flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
             :class="[
                 expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
-                miniStage ? 'lg:rounded-l-xl lg:shadow-none' : 'lg:w-96 lg:rounded-xl',
-                miniStage && floatingCard ? 'rounded-l-[14px]' : '',
+                miniStage ? 'lg:rounded-tl-xl lg:shadow-none' : 'lg:w-96 lg:rounded-xl',
+                miniStage && floatingCard ? 'rounded-tl-[14px]' : '',
                 // The screen has no height of its own, so on a computer the card is as tall as a phone's screen.
                 screen && expanded ? 'lg:h-[min(46rem,calc(100dvh-2.5rem))]' : '',
                 miniStage ? 'lmc-mini-stage pointer-events-none overflow-hidden' : '',
@@ -2529,19 +2532,15 @@ function onKeydown(event: KeyboardEvent) {
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'
                     : 'translate-y-0',
             ]"
-            :style="{
-                ...(barTint ? { backgroundColor: barTint } : {}),
-                // On a computer the progress line starts where the picture ends, which fills the card's height.
-                '--mini-picture-w': `${miniPictureWidth}px`,
-            }"
+            :style="barTint ? { backgroundColor: barTint } : {}"
             data-test="mediaPlayerBar"
         >
-            <!-- Along the bar's top on a phone; along the foot of a card (a computer's, or a phone's while reading),
-                 from where the picture ends. -->
+            <!-- Along the bar's top on a phone; along the whole foot of a card (a computer's, or a phone's while
+                 reading), under the picture too. -->
             <div
                 v-if="!live"
-                class="pointer-events-none absolute inset-x-0 z-10 h-[3px] bg-white/25 lg:bottom-0 lg:left-[var(--mini-picture-w)] lg:top-auto"
-                :class="floatingCard ? 'bottom-0 left-[var(--mini-picture-w)]' : 'top-0'"
+                class="pointer-events-none absolute inset-x-0 z-10 h-[3px] bg-white/25 lg:bottom-0 lg:top-auto"
+                :class="floatingCard ? 'bottom-0' : 'top-0'"
                 aria-hidden="true"
             >
                 <div
@@ -2561,8 +2560,8 @@ function onKeydown(event: KeyboardEvent) {
                 <div
                     v-if="miniStageWanted"
                     ref="miniSpacer"
-                    class="flex-none self-end lg:h-full"
-                    :class="floatingCard ? 'h-full' : 'h-[calc(100%-3px)]'"
+                    class="h-[calc(100%-3px)] flex-none"
+                    :class="lineAtFoot ? 'self-start' : 'self-end'"
                     :style="{
                         width: `${miniPictureWidth}px`,
                     }"
@@ -2572,20 +2571,23 @@ function onKeydown(event: KeyboardEvent) {
                     v-else-if="barCover"
                     :src="barCover"
                     alt=""
-                    class="h-[61px] w-[61px] flex-none self-end object-cover lg:h-16 lg:w-16"
+                    class="h-[61px] w-[61px] flex-none object-cover"
+                    :class="lineAtFoot ? 'self-start' : 'self-end'"
                     draggable="false"
                     @error="barCoverFailed = true"
                 />
                 <span
                     v-else
-                    class="flex h-[61px] w-[61px] flex-none self-end items-center justify-center bg-white/10 text-white/70 lg:h-16 lg:w-16"
+                    class="flex h-[61px] w-[61px] flex-none items-center justify-center bg-white/10 text-white/70"
+                    :class="lineAtFoot ? 'self-start' : 'self-end'"
                     aria-hidden="true"
                 >
                     <MusicalNoteIcon class="h-6 w-6" />
                 </span>
                 <span
                     v-if="!miniStageWanted"
-                    class="absolute left-1.5 top-[13px] flex h-6 w-6 items-center justify-center rounded-full bg-black/55 lg:top-2.5"
+                    class="absolute left-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/55"
+                    :class="lineAtFoot ? 'top-2.5' : 'top-[13px]'"
                     aria-hidden="true"
                     data-test="mediaPlayerBarExpandBadge"
                 >
