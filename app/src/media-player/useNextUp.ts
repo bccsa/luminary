@@ -88,6 +88,11 @@ export function useNextUp(
         collect([
             [upNext.value.next, t("media_player.next_in_series")],
             [upNext.value.related, t("media_player.related")],
+            // The last of a series has nothing after it: its earlier parts still follow rather than nothing.
+            [
+                upNext.value.series.filter((doc) => doc.parentId !== currentId()),
+                t("media_player.in_series"),
+            ],
         ]).slice(0, NEXT_UP_LIMIT),
     );
     const browseSections = computed(() =>

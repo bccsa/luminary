@@ -71,7 +71,17 @@ describe("useNextUp", () => {
         ]);
         expect(browseUpNext.value.filter((i) => i.current).map((i) => i.id)).toEqual(["b"]);
         expect(browseUpNext.value[1]?.subtitle).toBe("media_player.now_playing");
-        expect(nextUp.value.map((i) => i.id)).toEqual(["c", "r"]);
+        // The series' earlier parts follow related content in the strip.
+        expect(nextUp.value.map((i) => i.id)).toEqual(["c", "r", "a"]);
+    });
+
+    it("offers the earlier parts of a series when its last part plays", () => {
+        const series = [doc("a"), doc("b"), doc("c")];
+        const { nextContents } = useNextUp(
+            computed<UpNext>(() => ({ series, next: [], related: [], tags: [] })),
+            () => "c-parent",
+        );
+        expect(nextContents.value.map((d) => d._id)).toEqual(["a", "b"]);
     });
 
     it("offers nothing when there is nothing to follow", () => {
