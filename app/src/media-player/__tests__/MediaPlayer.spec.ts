@@ -78,6 +78,8 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 currentTime: Number,
                 hasBrowse: Boolean,
                 chaptersSheet: Boolean,
+                fullscreenTool: Boolean,
+                fullscreenActive: Boolean,
                 appearance: String,
                 stage: String,
                 fill: Boolean,
@@ -774,6 +776,40 @@ describe("MediaPlayer", () => {
             } finally {
                 vi.unstubAllEnvs();
             }
+        });
+
+        it("turns the sound screen sideways from its button, and the X turns it back", async () => {
+            const lockLandscape = vi.fn();
+            openMediaPlayer(mockEnglishContentDto, "en");
+            const wrapper = await mountPlayer({
+                [PlatformChromeKey]: { chromeFadeEnabled: false, setStatusBarHidden: vi.fn(), lockLandscape },
+            });
+            expect(screen(wrapper).props().fullscreenTool).toBe(false);
+
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(screen(wrapper).props().fullscreenTool).toBe(true);
+            expect(screen(wrapper).props().fullscreenActive).toBe(false);
+
+            screen(wrapper).vm.$emit("fullscreen");
+            await flushPromises();
+            expect(lockLandscape).toHaveBeenLastCalledWith(true);
+            expect(screen(wrapper).props().fullscreenActive).toBe(true);
+
+            screen(wrapper).vm.$emit("fullscreen");
+            await flushPromises();
+            expect(lockLandscape).toHaveBeenLastCalledWith(false);
+            expect(screen(wrapper).props().fullscreenActive).toBe(false);
+        });
+
+        it("offers no way to turn the sound screen where the platform cannot", async () => {
+            openMediaPlayer(mockEnglishContentDto, "en");
+            const wrapper = await mountPlayer({
+                [PlatformChromeKey]: { chromeFadeEnabled: false, setStatusBarHidden: vi.fn() },
+            });
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(screen(wrapper).props().fullscreenTool).toBe(false);
         });
 
         it("lets the pages turn with the phone while the sound screen is open, and only then", async () => {

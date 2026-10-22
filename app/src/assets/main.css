@@ -52,14 +52,6 @@ html.dark.lmc-inline-video.lmc-player-dragging main {
     padding: 0;
     gap: 0;
 }
-/* The picture's group sizes to its contents on a screen; in the bar it fills the thumbnail, or the picture has no size. */
-.lmc-mini-stage .lmpl-afs-artwrap {
-    flex: 1;
-    align-self: stretch;
-    align-items: stretch;
-    gap: 0;
-    min-height: 0;
-}
 .lmc-mini-stage .lmpl-afs-video .lmpl-afs-art {
     width: 100%;
     height: 100%;

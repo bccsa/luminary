@@ -1116,6 +1116,17 @@ onBeforeUnmount(() => {
  * may be upright. It lets go as soon as the player minimises, or audio gives way to video.
  */
 const audioLandscapeLocked = ref(false);
+/**
+ * Upright, the button turns the sound screen sideways; held sideways, it is the X that turns it back. A phone
+ * turned by hand has nothing to let go of, so it offers neither: turning back is the way out.
+ */
+const audioLandscapeTool = computed(
+    () =>
+        nowPlaying.value &&
+        audioMode.value &&
+        !!platformChrome?.lockLandscape &&
+        (!landscape.value || audioLandscapeLocked.value),
+);
 function toggleAudioLandscape() {
     audioLandscapeLocked.value = !audioLandscapeLocked.value;
     platformChrome?.lockLandscape?.(audioLandscapeLocked.value);
@@ -1127,6 +1138,10 @@ function releaseAudioLandscape() {
 }
 watch([expanded, audioMode], ([open, audio]) => {
     if (!open || !audio) releaseAudioLandscape();
+});
+// Left by the platform's own way (a browser's full screen closed with its back gesture): the lock is let go too.
+watch(landscape, (now, before) => {
+    if (before && !now) releaseAudioLandscape();
 });
 onBeforeUnmount(releaseAudioLandscape);
 
@@ -1482,7 +1497,8 @@ function onKeydown(event: KeyboardEvent) {
                     :subtitle-tracks="state?.subtitleTracks ?? []"
                     :active-subtitle-track-id="state?.activeSubtitleTrackId ?? null"
                     :can-picture-in-picture="!!handle?.canPictureInPicture"
-                    :fullscreen-tool="isDesktop && audioMode"
+                    :fullscreen-tool="(isDesktop && audioMode) || audioLandscapeTool"
+                    :fullscreen-active="audioLandscapeLocked"
                     :lyrics="lyrics"
                     @exit="minimiseMediaPlayer"
                     @toggle-play="togglePlay"
@@ -1500,7 +1516,13 @@ function onKeydown(event: KeyboardEvent) {
                     @sleep="(option) => controller?.setSleepTimer(option)"
                     @subtitle-track="(id) => controller?.setSubtitleTrack(id)"
                     @picture-in-picture="handle?.startPictureInPicture?.()"
-                    @fullscreen="audioMode ? (audioFullscreen = true) : handle?.enterFullscreen()"
+                    @fullscreen="
+                        !audioMode
+                            ? handle?.enterFullscreen()
+                            : nowPlaying
+                              ? toggleAudioLandscape()
+                              : (audioFullscreen = true)
+                    "
                     @stagechange="nudgeInlineVideo"
                     @scrub="onNowPlayingScrub"
                 >
