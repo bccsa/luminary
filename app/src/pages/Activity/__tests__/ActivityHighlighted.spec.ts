@@ -42,11 +42,14 @@ describe("ActivityHighlighted", () => {
     });
 
     it("displays the translation a highlight belongs to", async () => {
-        await recordUserActivity({
-            type: "highlighted",
-            contentId: mockEnglishContentDto._id,
-            parentId: mockEnglishContentDto.parentId,
-        });
+        await recordUserActivity(
+            {
+                type: "highlighted",
+                contentId: mockEnglishContentDto._id,
+                parentId: mockEnglishContentDto.parentId,
+            },
+            { ranges: [{ start: 0, end: 5, color: "yellow" as const, text: "first" }] },
+        );
 
         const wrapper = mount(ActivityHighlighted);
 
@@ -70,16 +73,22 @@ describe("ActivityHighlighted", () => {
             title: "Poste 1",
         };
         await db.docs.bulkPut([french]);
-        await recordUserActivity({
-            type: "highlighted",
-            contentId: mockEnglishContentDto._id,
-            parentId: mockEnglishContentDto.parentId,
-        });
-        await recordUserActivity({
-            type: "highlighted",
-            contentId: french._id,
-            parentId: french.parentId,
-        });
+        await recordUserActivity(
+            {
+                type: "highlighted",
+                contentId: mockEnglishContentDto._id,
+                parentId: mockEnglishContentDto.parentId,
+            },
+            { ranges: [{ start: 0, end: 5, color: "yellow" as const, text: "first" }] },
+        );
+        await recordUserActivity(
+            {
+                type: "highlighted",
+                contentId: french._id,
+                parentId: french.parentId,
+            },
+            { ranges: [{ start: 0, end: 5, color: "yellow" as const, text: "first" }] },
+        );
 
         const wrapper = mount(ActivityHighlighted);
 
@@ -89,14 +98,11 @@ describe("ActivityHighlighted", () => {
         });
     });
 
-    it("opens the passages, and filters them by colour", async () => {
+    it("shows one card per passage, narrowed by the colour", async () => {
         const ranges = [
             { start: 0, end: 5, color: "yellow" as const, text: "first" },
             { start: 10, end: 16, color: "green" as const, text: "second" },
         ];
-        await db.setLuminaryInternals("highlights", {
-            [mockEnglishContentDto._id]: { ranges, updatedAt: 1 },
-        });
         await recordUserActivity(
             {
                 type: "highlighted",
@@ -108,51 +114,12 @@ describe("ActivityHighlighted", () => {
         const wrapper = mount(ActivityHighlighted);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=activity-open-highlights]").exists()).toBe(true);
+            expect(wrapper.findAll("[data-test=activity-excerpt]")).toHaveLength(2);
         });
-        await wrapper.find("[data-test=activity-open-highlights]").trigger("click");
 
-        // Both passages, then only the green one once that colour is picked.
-        await waitForExpect(() => {
-            expect(wrapper.findAll("[data-test=highlight-text]")).toHaveLength(2);
-        });
-        await wrapper.find("[data-test=highlight-colour-green]").trigger("click");
-        const shown = wrapper.findAll("[data-test=highlight-text]");
+        await wrapper.setProps({ colour: "green" });
+        const shown = wrapper.findAll("[data-test=activity-excerpt]");
         expect(shown).toHaveLength(1);
         expect(shown[0].text()).toBe("second");
-    });
-
-    it("shows the passages in a side panel, closed by its own button", async () => {
-        const ranges = [{ start: 0, end: 5, color: "yellow" as const, text: "first" }];
-        await recordUserActivity(
-            {
-                type: "highlighted",
-                contentId: mockEnglishContentDto._id,
-                parentId: mockEnglishContentDto.parentId,
-            },
-            { ranges },
-        );
-        const wrapper = mount(ActivityHighlighted);
-
-        await waitForExpect(() => {
-            expect(wrapper.find("[data-test=activity-open-highlights]").exists()).toBe(true);
-        });
-        await wrapper.find("[data-test=activity-open-highlights]").trigger("click");
-
-        await waitForExpect(() => {
-            // A drawer, not a dialog box: it is pinned to the right edge of the viewport.
-            const panel = wrapper.find("aside");
-            expect(panel.exists()).toBe(true);
-            expect(panel.classes()).toContain("right-0");
-            expect(wrapper.find("[data-test=highlight-panel-title]").text()).toBe(
-                mockEnglishContentDto.title,
-            );
-        });
-
-        await wrapper.find("[data-test=highlight-panel-close]").trigger("click");
-
-        await waitForExpect(() => {
-            expect(wrapper.find("[data-test=highlight-text]").exists()).toBe(false);
-        });
     });
 });
