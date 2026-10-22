@@ -15,8 +15,8 @@ type Props = {
     excerpt?: string;
     /** The colour the passage was highlighted in, painted behind it. */
     excerptColor?: HighlightColor;
-    /** Click the card to open its detail instead of navigating to the article. */
-    opensDetail?: boolean;
+    /** Click the card to open its passage instead of navigating to the top of the article. */
+    opensPassage?: boolean;
 };
 
 const props = defineProps<Props>();
@@ -25,11 +25,11 @@ const emit = defineEmits<{ open: [] }>();
 
 /**
  * Capturing the click leaves ContentTile untouched — its link, hover and focus all keep
- * working — while the card opens its detail instead of navigating. The card's own buttons
+ * working — while the card opens its passage instead of navigating. The card's own buttons
  * are let through, since capture would otherwise swallow them before they ever fire.
  */
 const onClick = (event: MouseEvent) => {
-    if (!props.opensDetail) return;
+    if (!props.opensPassage) return;
     if ((event.target as Element | null)?.closest("button")) return;
 
     event.stopPropagation();
@@ -41,8 +41,8 @@ const onClick = (event: MouseEvent) => {
 <template>
     <div
         class="group relative [&_[data-card-text]]:pr-10"
-        :class="{ 'cursor-pointer': opensDetail }"
-        :data-test="opensDetail ? 'activity-open-highlights' : undefined"
+        :class="{ 'cursor-pointer': opensPassage }"
+        :data-test="opensPassage ? 'activity-open-highlights' : undefined"
         @click.capture="onClick"
     >
         <!-- No publish date: in a list ordered by what the reader did, when the post came

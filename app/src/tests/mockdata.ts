@@ -434,8 +434,6 @@ export const mockLanguageDtoEng: LanguageDto = {
             "Your history, likes and highlights have been erased.",
         "activity.title": "My Activity",
         "activity.highlights.all_colours": "All colours",
-        "activity.highlights.open_article": "Open article",
-        "activity.highlights.close": "Close",
         "singlecontent.highlightColor.yellow": "Yellow",
         "singlecontent.highlightColor.green": "Green",
         "singlecontent.highlightColor.blue": "Blue",

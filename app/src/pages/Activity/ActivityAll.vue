@@ -1,14 +1,16 @@
 <script lang="ts" setup>
-import { computed, ref } from "vue";
+import { computed } from "vue";
+import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { type ContentDto, type HighlightRange, type UserActivityEntry } from "luminary-shared";
 import ActivityCard from "./ActivityCard.vue";
-import ActivityHighlightPanel from "./ActivityHighlightPanel.vue";
 import { groupByActivityDate } from "./activityGroups";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
+import { openHighlight } from "@/util/openHighlight";
 
 const { t } = useI18n();
+const router = useRouter();
 
 const activity = useUserActivity("all");
 
@@ -31,32 +33,25 @@ const translations = useContentQuery(() => [{ _id: { $in: highlightedIds.value }
     keepPreviousResult: true,
 });
 
-type Entry = { row: UserActivityEntry; content: ContentDto };
+type Entry = { row: UserActivityEntry; content: ContentDto; range?: HighlightRange };
 
 /**
  * One card per activity, in the order the table returned — so the same post appears once
- * per thing the reader did to it. An activity whose content is not available is left out.
+ * per thing the reader did to it. A highlight gets one card per saved passage. An activity
+ * whose content is not available is left out.
  */
 const entries = computed<Entry[]>(() =>
-    activity.value
-        .map((row) => ({
-            row,
-            content: row.contentId
-                ? translations.value.find((c) => c._id === row.contentId)
-                : posts.value.find((c) => c.parentId === row.parentId),
-        }))
-        .filter((entry): entry is Entry => !!entry.content),
+    activity.value.flatMap((row) => {
+        const content = row.contentId
+            ? translations.value.find((c) => c._id === row.contentId)
+            : posts.value.find((c) => c.parentId === row.parentId);
+        if (!content) return [];
+        if (row.type !== "highlighted") return [{ row, content }];
+        return (row.payload?.ranges ?? []).map((range) => ({ row, content, range }));
+    }),
 );
 
 const sections = computed(() => groupByActivityDate(entries.value, (e) => e.row.updatedTimeUtc));
-
-const rangesOf = (entry: Entry): HighlightRange[] => entry.row.payload?.ranges ?? [];
-
-// One panel for the feed rather than one per card: it only ever shows the entry just opened.
-// Held by row id and looked up again, so removing a passage updates the panel and removing the
-// last one closes it.
-const openedId = ref<string | undefined>(undefined);
-const opened = computed(() => entries.value.find((e) => e.row._id === openedId.value));
 </script>
 
 <template>
@@ -76,13 +71,13 @@ const opened = computed(() => entries.value.find((e) => e.row._id === openedId.v
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 <ActivityCard
                     v-for="entry in section.items"
-                    :key="entry.row._id"
+                    :key="`${entry.row._id}-${entry.range?.start ?? ''}`"
                     :content="entry.content"
                     :type="entry.row.type"
-                    :excerpt="rangesOf(entry)[0]?.text"
-                    :excerpt-color="rangesOf(entry)[0]?.color"
-                    :opens-detail="entry.row.type === 'highlighted'"
-                    @open="openedId = entry.row._id"
+                    :excerpt="entry.range?.text"
+                    :excerpt-color="entry.range?.color"
+                    :opens-passage="!!entry.range"
+                    @open="entry.range && openHighlight(router, entry.content.slug, entry.range)"
                 />
             </div>
         </section>
@@ -93,12 +88,5 @@ const opened = computed(() => entries.value.find((e) => e.row._id === openedId.v
         >
             {{ t("activity.all.empty_page") }}
         </div>
-
-        <ActivityHighlightPanel
-            :open="!!opened"
-            :content="opened?.content"
-            :ranges="opened ? rangesOf(opened) : []"
-            @update:open="openedId = undefined"
-        />
     </div>
 </template>

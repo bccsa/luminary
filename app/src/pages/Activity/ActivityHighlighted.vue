@@ -1,16 +1,20 @@
 <script lang="ts" setup>
-import { computed, ref } from "vue";
+import { computed } from "vue";
+import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { type ContentDto, type HighlightRange } from "luminary-shared";
+import { type ContentDto, type HighlightColor, type HighlightRange } from "luminary-shared";
 import ActivityCard from "./ActivityCard.vue";
-import ActivityHighlightPanel from "./ActivityHighlightPanel.vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
+import { openHighlight } from "@/util/openHighlight";
 
 const { t } = useI18n();
+const router = useRouter();
 
-// A highlight belongs to one translation, so this panel shows that translation rather than
-// the post: two languages of the same post are two separate entries here.
+const props = defineProps<{ colour?: HighlightColor }>();
+
+// A highlight belongs to one translation, so its card shows that translation rather than the
+// post: two languages of the same post are two separate entries here.
 const highlighted = useUserActivity("highlighted");
 const contentIds = computed(() => highlighted.value.map((row) => row.contentId as string));
 
@@ -22,23 +26,19 @@ const content = useContentQuery(() => [{ _id: { $in: contentIds.value } }], {
     keepPreviousResult: true,
 });
 
-type Entry = { content: ContentDto; ranges: HighlightRange[] };
+type Entry = { content: ContentDto; range: HighlightRange };
 
-/** Each translation paired with the passages saved against it, in activity order. */
+/** One entry per saved passage, so each can be filtered by colour and opened on its own. */
 const entries = computed<Entry[]>(() =>
     highlighted.value
-        .map((row) => ({
-            content: content.value.find((c) => c._id === row.contentId),
-            ranges: row.payload?.ranges ?? [],
-        }))
-        .filter((entry): entry is Entry => !!entry.content),
+        .flatMap((row) => {
+            const translation = content.value.find((c) => c._id === row.contentId);
+            return translation
+                ? (row.payload?.ranges ?? []).map((range) => ({ content: translation, range }))
+                : [];
+        })
+        .filter((entry) => !props.colour || entry.range.color === props.colour),
 );
-
-// One panel for the tab rather than one per tile: it only ever shows the entry just opened.
-// Held by id and looked up again, so removing a passage updates the panel and removing the
-// last one closes it.
-const openedId = ref<string | undefined>(undefined);
-const opened = computed(() => entries.value.find((e) => e.content._id === openedId.value));
 </script>
 
 <template>
@@ -46,13 +46,13 @@ const opened = computed(() => entries.value.find((e) => e.content._id === opened
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             <ActivityCard
                 v-for="entry in entries"
-                :key="entry.content._id"
+                :key="`${entry.content._id}-${entry.range.start}`"
                 :content="entry.content"
                 type="highlighted"
-                :excerpt="entry.ranges[0]?.text"
-                :excerpt-color="entry.ranges[0]?.color"
-                opens-detail
-                @open="openedId = entry.content._id"
+                :excerpt="entry.range.text"
+                :excerpt-color="entry.range.color"
+                opens-passage
+                @open="openHighlight(router, entry.content.slug, entry.range)"
             />
         </div>
         <div
@@ -61,12 +61,5 @@ const opened = computed(() => entries.value.find((e) => e.content._id === opened
         >
             {{ t("activity.highlighted.empty_page") }}
         </div>
-
-        <ActivityHighlightPanel
-            :open="!!opened"
-            :content="opened?.content"
-            :ranges="opened?.ranges ?? []"
-            @update:open="openedId = undefined"
-        />
     </div>
 </template>
