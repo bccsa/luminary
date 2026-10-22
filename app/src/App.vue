@@ -214,7 +214,7 @@ onErrorCaptured((err) => {
         v-if="!isAppLoading"
         class="absolute bottom-0 left-0 right-0 top-0 flex w-full flex-col overflow-hidden"
     >
-        <div class="flex-1 overflow-y-scroll scrollbar-hide">
+        <div class="lmc-page flex-1 overflow-y-scroll scrollbar-hide">
             <RouterView v-slot="{ Component }">
                 <!-- :key on KeepAlive — bumping localCacheVersion (on clear-local-cache) discards the
                      cached page instances so Home/Explore/Watch/Search re-create from the purged cache. -->
@@ -239,7 +239,7 @@ onErrorCaptured((err) => {
              animation reads as the text jumping. Content clears the bar through
              --mobile-menu-h padding. -->
         <div
-            class="absolute inset-x-0 bottom-0 z-50 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform lg:hidden"
+            class="lmc-page absolute inset-x-0 bottom-0 z-50 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform lg:hidden"
             :class="mobileChrome.hidden.value ? 'translate-y-full' : 'translate-y-0'"
         >
             <MobileMenu class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50" />
