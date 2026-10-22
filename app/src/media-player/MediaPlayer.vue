@@ -970,10 +970,13 @@ const miniStageWanted = computed(
  * its progress line along the top; on a computer the card's whole height, its corners the card's.
  */
 /**
- * While reading a post on a phone, the bar is a card floating over the page's foot, as the computer's is in its corner:
- * rounded, clear of the edges and of the home indicator, its progress line along its foot.
+ * While reading a post on a phone, once the menu has stepped aside, the bar is a card floating over the page's foot, as
+ * the computer's is in its corner: rounded, clear of the edges and of the home indicator, its progress line along its
+ * foot. With the menu showing it is the bar on the menu, as on every other page.
  */
-const floatingCard = computed(() => !isDesktop.value && router.currentRoute.value?.name === "content");
+const floatingCard = computed(
+    () => !isDesktop.value && router.currentRoute.value?.name === "content" && mobileChrome.hidden.value,
+);
 /** The card's corners, which the picture at its left end follows. */
 const CARD_RADIUS = 14;
 const MINI_PICTURE_HEIGHT = computed(() => (isDesktop.value || floatingCard.value ? 64 : 61));
