@@ -1076,6 +1076,12 @@ const screenArtwork = computed(() => {
     return fallback ? { src: fallback } : null;
 });
 const screenChapterIndex = computed(() => chapterIndexAt(chapters.value, currentTime.value));
+/** The preview frame at a time, for the chapters' pictures, once the thumbnails are in. */
+const chapterThumbnailAt = computed(() =>
+    state.value?.thumbnailsReady
+        ? (seconds: number) => controller.value?.thumbnailAt(seconds) ?? null
+        : undefined,
+);
 const screenChapterMask = computed(() =>
     chapterMask(chapterSegments(chapters.value, duration.value)),
 );
@@ -1529,6 +1535,7 @@ function onKeydown(event: KeyboardEvent) {
                     :skip-back-seconds="SKIP_SECONDS"
                     :skip-forward-seconds="SKIP_SECONDS"
                     :chapter-mask="screenChapterMask"
+                    :thumbnail-at="chapterThumbnailAt"
                     :messages="screenMessages"
                     :subtitle-tracks="state?.subtitleTracks ?? []"
                     :active-subtitle-track-id="state?.activeSubtitleTrackId ?? null"
@@ -2453,6 +2460,7 @@ function onKeydown(event: KeyboardEvent) {
                 :skip-back-seconds="SKIP_SECONDS"
                 :skip-forward-seconds="SKIP_SECONDS"
                 :chapter-mask="screenChapterMask"
+                :thumbnail-at="chapterThumbnailAt"
                 :messages="screenMessages"
                 :subtitle-tracks="state.subtitleTracks"
                 :active-subtitle-track-id="state.activeSubtitleTrackId"
