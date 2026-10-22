@@ -40,14 +40,11 @@ const onClick = (event: MouseEvent) => {
 
 <template>
     <div
-        class="group relative [&_[data-card-text]]:pr-10"
+        class="group relative"
         :class="{ 'cursor-pointer': opensPassage }"
         :data-test="opensPassage ? 'activity-open-highlights' : undefined"
         @click.capture="onClick"
     >
-        <!-- No publish date: in a list ordered by what the reader did, when the post came
-             out says nothing, and the room goes to the passage instead. Progress is shown
-             on a view alone — a like or a highlight says nothing about how far they got. -->
         <ContentTile
             :content="content"
             layout="card"
@@ -59,12 +56,7 @@ const onClick = (event: MouseEvent) => {
                 v-if="excerpt"
                 #summary
             >
-                <!-- The leading is what shapes the bands: a background paints the line's
-                     content area only, so the room between lines comes from the padding
-                     below and the gap between bands from what the leading leaves over. -->
                 <p class="line-clamp-3 text-sm leading-7">
-                    <!-- The palette is half-transparent, meant to sit over article text, so the
-                         passage keeps body-text colour rather than the summary's grey. -->
                     <mark
                         class="bg-transparent box-decoration-clone px-1.5 py-1 pr-3.5 text-zinc-800 dark:text-slate-100"
                         :style="
@@ -77,21 +69,15 @@ const onClick = (event: MouseEvent) => {
             </template>
         </ContentTile>
 
-        <!-- Marks the card as liked content. Decorative, so it never intercepts the tile's click.
-             A highlight needs no mark of its own — the coloured passage already says what it is.
-             The span carries the hook: a heroicon is a functional component with no declared
-             props, so only `class` falls through to its `<svg>`. -->
         <span
             v-if="type === 'liked'"
-            class="pointer-events-none absolute right-2 top-2"
+            class="pointer-events-none absolute left-2 top-2"
             data-test="activity-liked-icon"
         >
             <HeartIcon
-                class="h-5 w-5 text-yellow-400 drop-shadow"
+                class="h-6 w-6 text-yellow-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]"
                 aria-hidden="true"
             />
-            <!-- In the combined feed the heart is the only thing telling a liked card from a
-                 viewed one, so it has to be readable rather than purely decorative. -->
             <span class="sr-only">{{ t("activity.marker.liked") }}</span>
         </span>
     </div>
