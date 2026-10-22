@@ -3,7 +3,7 @@ import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { type ContentDto, type HighlightColor, type HighlightRange } from "luminary-shared";
-import ActivityCard from "./ActivityCard.vue";
+import HighlightCard from "./HighlightCard.vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
 import { openHighlight } from "@/util/openHighlight";
@@ -43,15 +43,12 @@ const entries = computed<Entry[]>(() =>
 
 <template>
     <div data-test="activity-highlighted">
-        <div class="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-3">
-            <ActivityCard
+        <div class="flex flex-col gap-3">
+            <HighlightCard
                 v-for="entry in entries"
                 :key="`${entry.content._id}-${entry.range.start}`"
                 :content="entry.content"
-                type="highlighted"
-                :excerpt="entry.range.text"
-                :excerpt-color="entry.range.color"
-                opens-passage
+                :range="entry.range"
                 @open="openHighlight(router, entry.content.slug, entry.range)"
             />
         </div>
