@@ -26,7 +26,7 @@ const sorted = computed(
 
 <template>
     <div data-test="activity-viewed">
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+        <div class="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-3">
             <ActivityCard
                 v-for="item in sorted"
                 :key="item._id"
