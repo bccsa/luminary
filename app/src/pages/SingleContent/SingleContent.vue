@@ -941,12 +941,19 @@ watch([isLoading, content, is404], async () => {
                                             {{ content.summary }}
                                         </p>
                                     </div>
+                                    <MediaAction
+                                        v-if="hasVideoSource(content)"
+                                        :key="content._id"
+                                        :content="content"
+                                        :language="selectedLanguageCode"
+                                        corner
+                                    />
                                 </div>
                             </IgnorePagePadding>
                         </div>
 
                         <MediaAction
-                            v-if="hasVideoSource(content)"
+                            v-if="hasVideoSource(content) && !hasHeroImage"
                             :key="content._id"
                             :content="content"
                             :language="selectedLanguageCode"

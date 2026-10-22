@@ -8,17 +8,12 @@ import { mediaPlayerItem, mediaPlayerView } from "../mediaPlayer";
 const i18n = createI18n({
     legacy: false,
     locale: "eng",
-    messages: {
-        eng: {
-            "media_player.watch": "Watch",
-            "media_player.listen": "Listen",
-        },
-    },
+    messages: { eng: { "media_player.play": "Play" } },
 });
 
-const mountAction = () =>
+const mountAction = (corner = false) =>
     mount(MediaAction, {
-        props: { content: mockEnglishContentDto, language: "eng" },
+        props: { content: mockEnglishContentDto, language: "eng", corner },
         global: { plugins: [i18n] },
     });
 
@@ -28,32 +23,26 @@ describe("MediaAction", () => {
         mediaPlayerView.value = "mini";
     });
 
-    it("offers to watch or to listen", () => {
+    it("is one Play button under the title, and opens the media player on the content", async () => {
         const wrapper = mountAction();
-        expect(wrapper.find("[data-test='mediaWatch']").text()).toBe("Watch");
-        expect(wrapper.find("[data-test='mediaListen']").text()).toBe("Listen");
-    });
+        const play = wrapper.find("[data-test='mediaPlay']");
+        expect(play.text()).toBe("Play");
 
-    it("watching opens the media player on the content with its picture", async () => {
-        await mountAction().find("[data-test='mediaWatch']").trigger("click");
+        await play.trigger("click");
         expect(mediaPlayerItem.value?.content._id).toBe(mockEnglishContentDto._id);
         expect(mediaPlayerItem.value?.language).toBe("eng");
-        expect(mediaPlayerItem.value?.audio).toBe(false);
+        // Sound or picture is the player's choice (Data Saver), switched there.
+        expect(mediaPlayerItem.value?.audio).toBeUndefined();
         expect(mediaPlayerView.value).toBe("expanded");
     });
 
-    it("listening opens the media player with the sound only", async () => {
-        await mountAction().find("[data-test='mediaListen']").trigger("click");
-        expect(mediaPlayerItem.value?.audio).toBe(true);
-        expect(mediaPlayerView.value).toBe("expanded");
-    });
+    it("sits in the picture's top-right corner as a round button named Play", async () => {
+        const wrapper = mountAction(true);
+        const play = wrapper.find("[data-test='mediaPlay']");
+        expect(play.classes()).toEqual(expect.arrayContaining(["absolute", "right-3", "top-3", "rounded-full"]));
+        expect(play.attributes("aria-label")).toBe("Play");
 
-    it("listening to what already plays switches it to the sound only", async () => {
-        const wrapper = mountAction();
-        await wrapper.find("[data-test='mediaWatch']").trigger("click");
-        const playing = mediaPlayerItem.value;
-        await wrapper.find("[data-test='mediaListen']").trigger("click");
-        expect(mediaPlayerItem.value?.content).toBe(playing?.content);
-        expect(mediaPlayerItem.value?.audio).toBe(true);
+        await play.trigger("click");
+        expect(mediaPlayerView.value).toBe("expanded");
     });
 });

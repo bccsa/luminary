@@ -27,6 +27,10 @@ html.lmc-inline-video #app {
 html.lmc-inline-video main {
     visibility: hidden;
 }
+/* The page's own bars too (its top bar, the menu at the foot): the picture's place can reach under them. */
+html.lmc-inline-video:not(.lmc-player-dragging) .lmc-page {
+    visibility: hidden;
+}
 /* Drawing the full player down uncovers a strip above it. The page behind shows through that strip only
    (clipped to it, on a ground of its own), not the black of the video drawn behind the web view. */
 html.lmc-inline-video.lmc-player-dragging main {
