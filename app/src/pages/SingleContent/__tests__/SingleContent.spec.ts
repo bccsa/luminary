@@ -556,7 +556,7 @@ describe("SingleContent", () => {
 
         expect(recordAffinityMock).toHaveBeenCalledWith(
             mockEnglishContentDto.parentTags,
-            EventWeight.BookmarkRemoved,
+            EventWeight.LikeRemoved,
         );
         wrapper.unmount();
     });

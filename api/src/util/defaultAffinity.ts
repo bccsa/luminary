@@ -23,8 +23,8 @@ export const DEFAULT_AFFINITY_CONFIG: AffinityConfigDto = {
     readFloorPercent: 20,
     mediaCompletionPercent: 75,
     eventWeight: {
-        bookmark: 0.0025,
-        bookmarkRemoved: -0.0015,
+        like: 0.0025,
+        likeRemoved: -0.0015,
         completion: 0.0035,
         readCompletion: 0.0035,
         highlight: 0.003,

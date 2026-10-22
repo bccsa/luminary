@@ -62,14 +62,14 @@ export type AffinityConfig = {
     mediaCompletionPercent: number;
     /** Shared vocabulary for interaction strength — see {@link EventWeight}. */
     eventWeight: {
-        /** The user explicitly bookmarked the content. Strong, unambiguous intent. */
-        bookmark: number;
+        /** The user explicitly liked the content. Strong, unambiguous intent. */
+        like: number;
         /**
-         * Reverses 60% of a bookmark signal, leaving a small net-positive edge through
+         * Reverses 60% of a like signal, leaving a small net-positive edge through
          * repeated add/remove churn. Undoing an explicit action is weaker evidence against
          * a tag than the original action was evidence for it.
          */
-        bookmarkRemoved: number;
+        likeRemoved: number;
         /** A video/audio track played to completion. Strong engagement signal. */
         completion: number;
         /**
@@ -80,10 +80,10 @@ export type AffinityConfig = {
         readCompletion: number;
         /**
          * The user highlighted a passage of text. Kept as its own named weight (not
-         * reused from `bookmark`) so the two can be tuned independently.
+         * reused from `like`) so the two can be tuned independently.
          */
         highlight: number;
-        /** Reverses 60% of a highlight signal — mirrors `bookmarkRemoved`. */
+        /** Reverses 60% of a highlight signal — mirrors `likeRemoved`. */
         highlightRemoved: number;
         /**
          * The user clicked a result in the search modal. An immediate open-intent signal
@@ -119,8 +119,8 @@ export const DEFAULT_AFFINITY_CONFIG: AffinityConfig = {
     readFloorPercent: 20,
     mediaCompletionPercent: 75,
     eventWeight: {
-        bookmark: 0.0025,
-        bookmarkRemoved: -0.0015,
+        like: 0.0025,
+        likeRemoved: -0.0015,
         completion: 0.0035,
         readCompletion: 0.0035,
         highlight: 0.003,
@@ -135,17 +135,32 @@ export const DEFAULT_AFFINITY_CONFIG: AffinityConfig = {
  * knob existed yields that knob's default rather than `undefined`.
  */
 export function resolveAffinityConfig(config?: Partial<AffinityConfig>): AffinityConfig {
+    const {
+        bookmark,
+        bookmarkRemoved,
+        ...eventWeight
+    } = (config?.eventWeight ?? {}) as Partial<AffinityConfig["eventWeight"]> & {
+        bookmark?: number;
+        bookmarkRemoved?: number;
+    };
+
     return {
         ...DEFAULT_AFFINITY_CONFIG,
         ...config,
-        eventWeight: { ...DEFAULT_AFFINITY_CONFIG.eventWeight, ...config?.eventWeight },
+        eventWeight: {
+            ...DEFAULT_AFFINITY_CONFIG.eventWeight,
+            ...eventWeight,
+            like: eventWeight.like ?? bookmark ?? DEFAULT_AFFINITY_CONFIG.eventWeight.like,
+            likeRemoved:
+                eventWeight.likeRemoved ?? bookmarkRemoved ?? DEFAULT_AFFINITY_CONFIG.eventWeight.likeRemoved,
+        },
     };
 }
 
 /**
  * Shared vocabulary for interaction strength, so every call site agrees on relative
  * weight instead of picking its own number. `Open` is the implicit default in
- * {@link applyEvent}. Explicit intent (bookmarking) and completion (finishing a
+ * {@link applyEvent}. Explicit intent (liking) and completion (finishing a
  * video/audio track) are stronger, less ambiguous signals than merely opening a
  * page — the user might have opened it and immediately left.
  *
@@ -156,16 +171,16 @@ export function resolveAffinityConfig(config?: Partial<AffinityConfig>): Affinit
 export const EventWeight = {
     /** Content was opened/viewed. Weak signal — could be an immediate bounce. */
     Open: DEFAULT_AFFINITY_CONFIG.hitWeight,
-    /** The user explicitly bookmarked the content. Strong, unambiguous intent. */
-    Bookmark: DEFAULT_AFFINITY_CONFIG.eventWeight.bookmark,
+    /** The user explicitly liked the content. Strong, unambiguous intent. */
+    Like: DEFAULT_AFFINITY_CONFIG.eventWeight.like,
     /**
-     * Reverses 60% of a bookmark signal, leaving a small net-positive edge through
+     * Reverses 60% of a like signal, leaving a small net-positive edge through
      * repeated add/remove churn. Undoing an explicit action is weaker evidence against
      * a tag than the original action was evidence for it. Uses the same negative-weight
      * decay-toward-zero mechanism as `Impression`, not a literal inverse of the specific
-     * gain contributed by the original bookmark. Derived as -60% × 0.0025 = -0.0015.
+     * gain contributed by the original like. Derived as -60% × 0.0025 = -0.0015.
      */
-    BookmarkRemoved: DEFAULT_AFFINITY_CONFIG.eventWeight.bookmarkRemoved,
+    LikeRemoved: DEFAULT_AFFINITY_CONFIG.eventWeight.likeRemoved,
     /** A video/audio track played to completion. Strong engagement signal. */
     Completion: DEFAULT_AFFINITY_CONFIG.eventWeight.completion,
     /**
@@ -176,9 +191,9 @@ export const EventWeight = {
     ReadCompletion: DEFAULT_AFFINITY_CONFIG.eventWeight.readCompletion,
     /**
      * The user highlighted a passage of text. Selecting specific text requires
-     * closer engagement than a single tap (bookmark) — an equally strong,
+     * closer engagement than a single tap (like) — an equally strong,
      * unambiguous signal. Kept as its own named weight (not reused from
-     * `Bookmark`) so the two can be tuned independently later.
+     * `Like`) so the two can be tuned independently later.
      */
     Highlight: DEFAULT_AFFINITY_CONFIG.eventWeight.highlight,
     /**
@@ -199,7 +214,7 @@ export const EventWeight = {
     /**
      * A recommended tag was shown to the user and scrolled past without a click. The
      * cheapest, most abundant negative signal available — without it, a tag that got
-     * one accidental bookmark keeps polluting retrieval for a full decay half-life.
+     * one accidental like keeps polluting retrieval for a full decay half-life.
      * Small and negative: many impressions are needed to meaningfully suppress a tag,
      * so a single scroll-past can't outweigh a real interaction.
      */
@@ -263,7 +278,7 @@ export function applyEvent(
         if (weight >= 0) {
             // Diminishing returns: each event closes a fraction (`weight`, damped by profile
             // depth) of the remaining gap to 1, so repeat casual opens can't saturate a tag
-            // as fast as one bookmark — score growth naturally slows as confidence in a tag
+            // as fast as one like — score growth naturally slows as confidence in a tag
             // rises, and further slows as the overall profile matures.
             affinity[tag] = current + weight * factor * (1 - current);
         } else {

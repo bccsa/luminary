@@ -539,7 +539,7 @@ const toggleBookmark = () => {
         if (content.value) {
             recordAffinity(
                 content.value.parentTags,
-                affinityConfig.value.eventWeight.bookmarkRemoved,
+                affinityConfig.value.eventWeight.likeRemoved,
             );
         }
     } else {
@@ -547,7 +547,7 @@ const toggleBookmark = () => {
         if (!content.value) return;
         userPreferencesAsRef.value.bookmarks.push({ id: content.value.parentId, ts: Date.now() });
         // Bookmarking is explicit, unambiguous intent — weight it above a plain open.
-        recordAffinity(content.value.parentTags, affinityConfig.value.eventWeight.bookmark);
+        recordAffinity(content.value.parentTags, affinityConfig.value.eventWeight.like);
         useNotificationStore().addNotification({
             id: "bookmark-added",
             title: t("bookmarks.notification.title"),

@@ -18,6 +18,12 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
  */
 function normalizeConfig(config: Partial<AffinityConfigDto> | undefined): AffinityConfigDto {
     const c = config ?? {};
+    const eventWeight = c.eventWeight as
+        | (Partial<AffinityConfigDto["eventWeight"]> & {
+              like?: number;
+              likeRemoved?: number;
+          })
+        | undefined;
 
     return {
         halfLifeDays: clampNumber(c.halfLifeDays, 1, 3650, DEFAULT_AFFINITY_CONFIG.halfLifeDays),
@@ -35,12 +41,17 @@ function normalizeConfig(config: Partial<AffinityConfigDto> | undefined): Affini
             DEFAULT_AFFINITY_CONFIG.mediaCompletionPercent,
         ),
         eventWeight: {
-            bookmark: clampNumber(c.eventWeight?.bookmark, -1, 1, DEFAULT_AFFINITY_CONFIG.eventWeight.bookmark),
-            bookmarkRemoved: clampNumber(
-                c.eventWeight?.bookmarkRemoved,
+            like: clampNumber(
+                eventWeight?.like === undefined ? eventWeight?.like : eventWeight.like,
                 -1,
                 1,
-                DEFAULT_AFFINITY_CONFIG.eventWeight.bookmarkRemoved,
+                DEFAULT_AFFINITY_CONFIG.eventWeight.like,
+            ),
+            likeRemoved: clampNumber(
+                eventWeight?.likeRemoved === undefined ? eventWeight?.likeRemoved : eventWeight.likeRemoved,
+                -1,
+                1,
+                DEFAULT_AFFINITY_CONFIG.eventWeight.likeRemoved,
             ),
             completion: clampNumber(
                 c.eventWeight?.completion,

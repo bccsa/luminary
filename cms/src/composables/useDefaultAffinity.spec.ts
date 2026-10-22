@@ -15,8 +15,8 @@ const DEFAULT_AFFINITY_CONFIG = vi.hoisted(() => ({
     readFloorPercent: 20,
     mediaCompletionPercent: 75,
     eventWeight: {
-        bookmark: 0.25,
-        bookmarkRemoved: -0.15,
+        like: 0.25,
+        likeRemoved: -0.15,
         completion: 0.35,
         readCompletion: 0.35,
         highlight: 0.3,

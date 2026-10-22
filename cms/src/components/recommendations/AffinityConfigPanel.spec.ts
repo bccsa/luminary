@@ -16,8 +16,8 @@ const DEFAULT_AFFINITY_CONFIG = {
     readFloorPercent: 20,
     mediaCompletionPercent: 75,
     eventWeight: {
-        bookmark: 0.25,
-        bookmarkRemoved: -0.15,
+        like: 0.25,
+        likeRemoved: -0.15,
         completion: 0.35,
         readCompletion: 0.35,
         highlight: 0.3,
@@ -72,6 +72,23 @@ describe("AffinityConfigPanel", () => {
         expect(mockSaveConfig).toHaveBeenCalledWith(expect.objectContaining({ hitWeight: 1 }), [
             "group-super-admins",
         ]);
+    });
+
+    it("saves the like and like-removal weights under their renamed fields", async () => {
+        const wrapper = mount(AffinityConfigPanel);
+
+        expect(wrapper.find("input[name='eventWeight-like']").exists()).toBe(true);
+        expect(wrapper.find("input[name='eventWeight-likeRemoved']").exists()).toBe(true);
+        await wrapper.find("input[name='eventWeight-like']").setValue("30");
+        await wrapper.find("button[data-test='affinity-config-save']").trigger("click");
+        await flushPromises();
+
+        expect(mockSaveConfig).toHaveBeenCalledWith(
+            expect.objectContaining({
+                eventWeight: expect.objectContaining({ like: 0.3, likeRemoved: -0.15 }),
+            }),
+            ["group-super-admins"],
+        );
     });
 
     it("shows a success notification on save", async () => {

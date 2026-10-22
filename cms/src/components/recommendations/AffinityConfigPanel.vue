@@ -76,13 +76,13 @@ const minScorePercent = percentField(
     () => form.value.minScore,
     (value) => (form.value.minScore = value),
 );
-const bookmarkPercent = percentField(
-    () => form.value.eventWeight.bookmark,
-    (value) => (form.value.eventWeight.bookmark = value),
+const likePercent = percentField(
+    () => form.value.eventWeight.like,
+    (value) => (form.value.eventWeight.like = value),
 );
-const bookmarkRemovedPercent = percentField(
-    () => form.value.eventWeight.bookmarkRemoved,
-    (value) => (form.value.eventWeight.bookmarkRemoved = value),
+const likeRemovedPercent = percentField(
+    () => form.value.eventWeight.likeRemoved,
+    (value) => (form.value.eventWeight.likeRemoved = value),
 );
 const completionPercent = percentField(
     () => form.value.eventWeight.completion,
@@ -132,12 +132,12 @@ function normalizedConfig(): AffinityConfig {
             savedConfig.value.mediaCompletionPercent,
         ),
         eventWeight: {
-            bookmark: clamp(c.eventWeight.bookmark, -1, 1, savedConfig.value.eventWeight.bookmark),
-            bookmarkRemoved: clamp(
-                c.eventWeight.bookmarkRemoved,
+            like: clamp(c.eventWeight.like, -1, 1, savedConfig.value.eventWeight.like),
+            likeRemoved: clamp(
+                c.eventWeight.likeRemoved,
                 -1,
                 1,
-                savedConfig.value.eventWeight.bookmarkRemoved,
+                savedConfig.value.eventWeight.likeRemoved,
             ),
             completion: clamp(
                 c.eventWeight.completion,
@@ -252,24 +252,24 @@ async function save() {
                         data-test="affinity-config-hitWeight"
                     />
                     <LInput
-                        name="eventWeight-bookmark"
-                        label="Saving/bookmarking"
+                        name="eventWeight-like"
+                        label="Liking"
                         type="number"
                         step="0.01"
                         size="sm"
                         rightAddOn="%"
-                        v-model="bookmarkPercent"
-                        data-test="affinity-config-eventWeight-bookmark"
+                        v-model="likePercent"
+                        data-test="affinity-config-eventWeight-like"
                     />
                     <LInput
-                        name="eventWeight-bookmarkRemoved"
-                        label="Un-saving"
+                        name="eventWeight-likeRemoved"
+                        label="Removing a like"
                         type="number"
                         step="0.01"
                         size="sm"
                         rightAddOn="%"
-                        v-model="bookmarkRemovedPercent"
-                        data-test="affinity-config-eventWeight-bookmarkRemoved"
+                        v-model="likeRemovedPercent"
+                        data-test="affinity-config-eventWeight-likeRemoved"
                     />
                     <LInput
                         name="eventWeight-completion"

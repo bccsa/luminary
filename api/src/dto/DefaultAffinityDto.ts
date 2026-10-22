@@ -19,8 +19,8 @@ export type AffinityConfigDto = {
     readFloorPercent: number;
     mediaCompletionPercent: number;
     eventWeight: {
-        bookmark: number;
-        bookmarkRemoved: number;
+    like: number;
+    likeRemoved: number;
         completion: number;
         readCompletion: number;
         highlight: number;
