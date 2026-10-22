@@ -78,6 +78,8 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 currentTime: Number,
                 hasBrowse: Boolean,
                 chaptersSheet: Boolean,
+                fullscreenTool: Boolean,
+                fullscreenActive: Boolean,
                 appearance: String,
                 stage: String,
                 fill: Boolean,
@@ -774,6 +776,105 @@ describe("MediaPlayer", () => {
             } finally {
                 vi.unstubAllEnvs();
             }
+        });
+
+        it("turns the sound screen sideways from its button, and the X turns it back", async () => {
+            const lockLandscape = vi.fn();
+            openMediaPlayer(mockEnglishContentDto, "en");
+            const wrapper = await mountPlayer({
+                [PlatformChromeKey]: { chromeFadeEnabled: false, setStatusBarHidden: vi.fn(), lockLandscape },
+            });
+            expect(screen(wrapper).props().fullscreenTool).toBe(false);
+
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(screen(wrapper).props().fullscreenTool).toBe(true);
+            expect(screen(wrapper).props().fullscreenActive).toBe(false);
+
+            screen(wrapper).vm.$emit("fullscreen");
+            await flushPromises();
+            expect(lockLandscape).toHaveBeenLastCalledWith(true);
+            expect(screen(wrapper).props().fullscreenActive).toBe(true);
+
+            screen(wrapper).vm.$emit("fullscreen");
+            await flushPromises();
+            expect(lockLandscape).toHaveBeenLastCalledWith(false);
+            expect(screen(wrapper).props().fullscreenActive).toBe(false);
+        });
+
+        it("goes to the sound screen's full screen when the phone is turned, as a video does", async () => {
+            const lockLandscape = vi.fn();
+            const setPagesTurn = vi.fn();
+            let turned: ((sideways: boolean) => void) | undefined;
+            const onPhoneTurned = vi.fn((listener: (sideways: boolean) => void) => {
+                turned = listener;
+                return () => (turned = undefined);
+            });
+            openMediaPlayer(mockEnglishContentDto, "en");
+            const wrapper = await mountPlayer({
+                [PlatformChromeKey]: {
+                    chromeFadeEnabled: false,
+                    setStatusBarHidden: vi.fn(),
+                    setPagesTurn,
+                    lockLandscape,
+                    onPhoneTurned,
+                },
+            });
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            // The pages stay upright: the turn is the screen's to take.
+            expect(setPagesTurn).not.toHaveBeenCalledWith(true);
+
+            turned!(true);
+            await flushPromises();
+            expect(lockLandscape).toHaveBeenLastCalledWith(true);
+            expect(screen(wrapper).props().fullscreenActive).toBe(true);
+
+            // The X while still on its side: back upright, and no turn counts until the phone is upright.
+            screen(wrapper).vm.$emit("fullscreen");
+            await flushPromises();
+            expect(lockLandscape).toHaveBeenLastCalledWith(false);
+            turned!(true);
+            await flushPromises();
+            expect(screen(wrapper).props().fullscreenActive).toBe(false);
+
+            turned!(false);
+            turned!(true);
+            await flushPromises();
+            expect(screen(wrapper).props().fullscreenActive).toBe(true);
+
+            // Turned back upright: it leaves, as a video's full screen does.
+            turned!(false);
+            await flushPromises();
+            expect(lockLandscape).toHaveBeenLastCalledWith(false);
+            expect(screen(wrapper).props().fullscreenActive).toBe(false);
+
+            // Held sideways by its button, it stays so whatever the phone does: only the X lets go.
+            screen(wrapper).vm.$emit("fullscreen");
+            await flushPromises();
+            expect(lockLandscape).toHaveBeenLastCalledWith(true);
+            turned!(true);
+            turned!(false);
+            await flushPromises();
+            expect(screen(wrapper).props().fullscreenActive).toBe(true);
+            screen(wrapper).vm.$emit("fullscreen");
+            await flushPromises();
+            expect(lockLandscape).toHaveBeenLastCalledWith(false);
+            expect(screen(wrapper).props().fullscreenActive).toBe(false);
+
+            minimiseMediaPlayer();
+            await flushPromises();
+            expect(turned).toBeUndefined();
+        });
+
+        it("offers no way to turn the sound screen where the platform cannot", async () => {
+            openMediaPlayer(mockEnglishContentDto, "en");
+            const wrapper = await mountPlayer({
+                [PlatformChromeKey]: { chromeFadeEnabled: false, setStatusBarHidden: vi.fn() },
+            });
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(screen(wrapper).props().fullscreenTool).toBe(false);
         });
 
         it("lets the pages turn with the phone while the sound screen is open, and only then", async () => {

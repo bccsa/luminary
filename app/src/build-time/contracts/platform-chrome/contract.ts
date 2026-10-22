@@ -21,8 +21,15 @@ export type PlatformChromeService = {
     setPagesTurn?(allowed: boolean): void;
 
     /**
-     * Hold the screen in landscape, or let the device's rotation decide again. Only where the shell
-     * holds pages upright on a phone; a screen asks for it when the viewer chooses landscape.
+     * Hold the screen in landscape, or let the device's rotation decide again. Only where the platform can
+     * turn the screen itself; a screen asks for it when the viewer chooses landscape.
      */
     lockLandscape?(locked: boolean): void;
+
+    /**
+     * Tells when the phone is turned on its side (`true`) or back upright (`false`) while the pages are held upright,
+     * so a screen can go to its own full screen as a video does. Returns the way to stop listening. Only where the
+     * platform holds the pages upright and can read how the phone is held.
+     */
+    onPhoneTurned?(listener: (sideways: boolean) => void): () => void;
 };
