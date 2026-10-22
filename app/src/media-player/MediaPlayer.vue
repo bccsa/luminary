@@ -1478,8 +1478,10 @@ function onKeydown(event: KeyboardEvent) {
             class="fixed inset-0 z-[60] flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
             :class="[
                 expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
-                miniStage ? 'lg:rounded-tl-xl lg:shadow-none' : 'lg:w-96 lg:rounded-xl',
-                miniStage && floatingCard ? 'rounded-tl-[14px]' : '',
+                // The picture follows the card's left corners; at the foot it stops above the progress line, so its
+                // corner there is the card's less the line.
+                miniStage ? 'lg:rounded-bl-[9px] lg:rounded-tl-xl lg:shadow-none' : 'lg:w-96 lg:rounded-xl',
+                miniStage && floatingCard ? 'rounded-bl-[11px] rounded-tl-[14px]' : '',
                 // The screen has no height of its own, so on a computer the card is as tall as a phone's screen.
                 screen && expanded ? 'lg:h-[min(46rem,calc(100dvh-2.5rem))]' : '',
                 miniStage ? 'lmc-mini-stage pointer-events-none overflow-hidden' : '',
