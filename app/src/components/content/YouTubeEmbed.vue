@@ -113,7 +113,8 @@ function holdLandscape(held: boolean) {
 /** The frame went full-screen or left it, however: our button, the system's gesture, or the page's exit. */
 function onFullscreenChange() {
     if (!driven.value) return;
-    const on = !!frame.value && document.fullscreenElement === frame.value;
+    const doc = document as Document & { webkitFullscreenElement?: Element | null };
+    const on = !!frame.value && (doc.fullscreenElement ?? doc.webkitFullscreenElement) === frame.value;
     holdLandscape(on);
     youtube.setFullscreen(on, notchSize());
     if (!on) settleLayout();
@@ -162,10 +163,13 @@ function notchSize(): number {
 onMounted(() => {
     window.addEventListener("message", onMessage);
     document.addEventListener("fullscreenchange", onFullscreenChange);
+    // Safari's web views report a frame's full screen under the prefixed name.
+    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
 });
 onBeforeUnmount(() => {
     window.removeEventListener("message", onMessage);
     document.removeEventListener("fullscreenchange", onFullscreenChange);
+    document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
     holdLandscape(false);
     cancelSettle();
 });
