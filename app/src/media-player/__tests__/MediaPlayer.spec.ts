@@ -849,6 +849,19 @@ describe("MediaPlayer", () => {
             expect(lockLandscape).toHaveBeenLastCalledWith(false);
             expect(screen(wrapper).props().fullscreenActive).toBe(false);
 
+            // Held sideways by its button, it stays so whatever the phone does: only the X lets go.
+            screen(wrapper).vm.$emit("fullscreen");
+            await flushPromises();
+            expect(lockLandscape).toHaveBeenLastCalledWith(true);
+            turned!(true);
+            turned!(false);
+            await flushPromises();
+            expect(screen(wrapper).props().fullscreenActive).toBe(true);
+            screen(wrapper).vm.$emit("fullscreen");
+            await flushPromises();
+            expect(lockLandscape).toHaveBeenLastCalledWith(false);
+            expect(screen(wrapper).props().fullscreenActive).toBe(false);
+
             minimiseMediaPlayer();
             await flushPromises();
             expect(turned).toBeUndefined();

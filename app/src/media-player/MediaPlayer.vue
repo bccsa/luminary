@@ -1133,17 +1133,21 @@ const audioLandscapeTool = computed(
 /** The phone was last reported on its side, and the X was pressed while it was: no turn counts until it is upright. */
 let phoneSideways = false;
 let leftWhileSideways = false;
-function holdAudioLandscape() {
+/** Held sideways by its button rather than by a turn: only its X lets go, whatever the phone does. */
+let heldByButton = false;
+function holdAudioLandscape(byButton: boolean) {
+    heldByButton ||= byButton;
     if (audioLandscapeLocked.value) return;
     audioLandscapeLocked.value = true;
     platformChrome?.lockLandscape?.(true);
 }
 function toggleAudioLandscape() {
-    if (!audioLandscapeLocked.value) return holdAudioLandscape();
+    if (!audioLandscapeLocked.value) return holdAudioLandscape(true);
     leftWhileSideways = phoneSideways;
     releaseAudioLandscape();
 }
 function releaseAudioLandscape() {
+    heldByButton = false;
     if (!audioLandscapeLocked.value) return;
     audioLandscapeLocked.value = false;
     platformChrome?.lockLandscape?.(false);
@@ -1166,11 +1170,11 @@ watch(
         stopTurns = platformChrome?.onPhoneTurned?.((sideways) => {
             phoneSideways = sideways;
             if (sideways) {
-                if (!leftWhileSideways) holdAudioLandscape();
+                if (!leftWhileSideways) holdAudioLandscape(false);
                 return;
             }
             leftWhileSideways = false;
-            releaseAudioLandscape();
+            if (!heldByButton) releaseAudioLandscape();
         });
     },
     { immediate: true },
