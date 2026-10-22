@@ -1,9 +1,10 @@
 <script lang="ts" setup>
 import { computed, nextTick, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useI18n } from "vue-i18n";
 import BasePage from "@/components/BasePage.vue";
+import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { markPageReady } from "@/util/renderState";
+import ActivityFilterChips from "./ActivityFilterChips.vue";
 import ActivityAll from "./ActivityAll.vue";
 import ActivityViewed from "./ActivityViewed.vue";
 import ActivityLiked from "./ActivityLiked.vue";
@@ -19,9 +20,9 @@ const panels = {
     highlighted: ActivityHighlighted,
 };
 
-const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const mobileChrome = useMobileChromeAutoHide();
 
 const activeFilter = computed<ActivityFilter>(() => {
     const filter = route.query.filter;
@@ -33,6 +34,15 @@ const activeFilter = computed<ActivityFilter>(() => {
 const selectFilter = (filter: ActivityFilter) =>
     router.replace({ query: { ...route.query, filter } });
 
+// The strip is pinned at the scrollport edge and pushed down by the top bar's height while the
+// bar shows. A transform on the bar's own timeline keeps the two in lockstep; animating `top`
+// would lag behind the bar mid-scroll.
+const mobileFilterStyle = computed(() => ({
+    transform: mobileChrome.hidden.value
+        ? "translateY(max(0px, calc(env(safe-area-inset-top) - 0.75rem)))"
+        : "translateY(var(--top-bar-h, 74px))",
+}));
+
 onMounted(async () => {
     await nextTick();
     markPageReady();
@@ -40,37 +50,33 @@ onMounted(async () => {
 </script>
 
 <template>
-    <BasePage showBackButton>
-        <div class="px-2">
-            <!-- Pinned so the filters stay in reach however far the list is scrolled. The
-                 mobile top bar overlays the scroller and never retracts here, so the strip
-                 tucks under it; on xl there is no such bar and top-0 is the scrollport edge.
-                 The negative margins let its backing bleed over the page's own padding. -->
-            <div
-                class="sticky top-[var(--top-bar-h,74px)] z-10 -mx-2 mb-6 flex flex-wrap gap-2 bg-white px-2 py-3 dark:bg-slate-900 xl:top-0"
-                role="tablist"
-                :aria-label="t('activity.title')"
-            >
-                <button
-                    v-for="filter in filters"
-                    :key="filter"
-                    type="button"
-                    role="tab"
-                    :aria-selected="filter === activeFilter"
-                    :data-test="`activity-filter-${filter}`"
-                    class="rounded-full px-3 py-1 text-sm transition-colors"
-                    :class="
-                        filter === activeFilter
-                            ? 'bg-zinc-700 text-white dark:bg-slate-100 dark:text-slate-900'
-                            : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
-                    "
-                    @click="selectFilter(filter)"
-                >
-                    {{ t(`activity.filter.${filter}`) }}
-                </button>
-            </div>
+    <BasePage
+        showBackButton
+        desktopTopBar
+    >
+        <template #topBarLeading>
+            <ActivityFilterChips
+                :filters="filters"
+                :active="activeFilter"
+                @select="selectFilter($event as ActivityFilter)"
+            />
+        </template>
 
-            <div role="tabpanel">
+        <div class="px-2">
+            <div
+                class="sticky top-0 z-10 -mx-2 -mt-[var(--top-bar-h,74px)] mb-[calc(var(--top-bar-h,74px)+1.5rem)] bg-white px-2 py-3 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform before:absolute before:inset-x-0 before:bottom-full before:h-2 before:bg-inherit dark:bg-slate-900 xl:hidden"
+                :style="mobileFilterStyle"
+            >
+                <ActivityFilterChips
+                    :filters="filters"
+                    :active="activeFilter"
+                    @select="selectFilter($event as ActivityFilter)"
+                />
+            </div>
+            <div
+                role="tabpanel"
+                class="isolate min-h-[calc(100dvh+18rem)] xl:min-h-0"
+            >
                 <component :is="panels[activeFilter]" />
             </div>
         </div>
