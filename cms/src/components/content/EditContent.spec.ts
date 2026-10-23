@@ -334,7 +334,7 @@ describe("EditContent.vue", () => {
         // document with no group is refused for lack of publish access first.
         await db.docs.bulkPut([
             { ...mockData.mockPostDto, memberOf: [] },
-            { ...mockData.mockEnglishContentDto, status: PublishStatus.Draft },
+            { ...mockData.mockEnglishContentDto, status: PublishStatus.Draft } as ContentDto,
         ]);
         const notificationStore = useNotificationStore();
         const wrapper = mount(EditContent, {
