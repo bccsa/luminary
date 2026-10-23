@@ -447,7 +447,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                                 placeholder="Exact value to match"
                                 class="mt-2 w-full"
                                 :disabled="props.disabled"
-                                @update:model-value="cond.value = $event"
+                                @update:model-value="cond.value = $event as string"
                             />
                         </template>
 
@@ -468,7 +468,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                                 class="mt-2 w-full"
                                 :disabled="props.disabled"
                                 @update:model-value="
-                                    cond.values = $event
+                                    cond.values = ($event as string)
                                         .split(',')
                                         .map((s: string) => s.trim())
                                         .filter(Boolean)

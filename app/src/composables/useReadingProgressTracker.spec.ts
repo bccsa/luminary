@@ -229,7 +229,7 @@ function mockElementHeight(heightOrHeights: number | number[]) {
 let rafTime = 0;
 let perfTime = 0;
 let rafId = 0;
-let performanceNowSpy: MockInstance<[], number> | undefined;
+let performanceNowSpy: MockInstance<() => number> | undefined;
 const pendingRafCallbacks = new Map<number, FrameRequestCallback>();
 
 function advancePerfTime(ms: number) {

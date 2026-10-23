@@ -75,7 +75,7 @@ const problem = computed(() => {
         <LSelect
             v-if="bucketSelection.mediaBuckets.value.length > 1"
             :modelValue="effectiveMediaBucketId"
-            @update:modelValue="handleBucketChange"
+            @update:modelValue="(v) => handleBucketChange(v as string)"
             :options="bucketOptions"
             :disabled="disabled"
             label="Storage bucket"

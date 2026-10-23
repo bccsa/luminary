@@ -10,6 +10,7 @@
         "sourceMap": true,
         "outDir": "./dist",
         "baseUrl": "./",
+        "paths": { "sharp": ["node_modules/sharp/dist/index.d.cts"] },
         "ignoreDeprecations": "5.0",
         "incremental": true,
         "skipLibCheck": true,

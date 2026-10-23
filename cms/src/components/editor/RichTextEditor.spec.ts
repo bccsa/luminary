@@ -75,7 +75,11 @@ describe("RichTextEditor", () => {
 
         const transaction = editor?.state.tr;
         if (editor && transaction) {
-            editor.options.onUpdate?.({ editor, transaction: transaction as Transaction });
+            editor.options.onUpdate?.({
+                editor,
+                transaction: transaction as Transaction,
+                appendedTransactions: [],
+            });
         }
 
         await waitForExpect(() => {
@@ -97,7 +101,7 @@ describe("RichTextEditor", () => {
         const editor = wrapper.vm.editor!;
 
         // Type real content (emitting an update) — the model receives the HTML.
-        editor.commands.setContent("<p>Hello</p>", true);
+        editor.commands.setContent("<p>Hello</p>", { emitUpdate: true });
         await nextTick();
         expect(wrapper.vm.text).toBe("<p>Hello</p>");
 

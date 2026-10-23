@@ -71,7 +71,6 @@ vi.mock("vue-router", async (importOriginal) => {
     };
 });
 
-// @ts-expect-error
 window.scrollTo = vi.fn();
 
 describe("EditContent.vue", () => {

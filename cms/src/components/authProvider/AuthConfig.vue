@@ -54,7 +54,7 @@ function normalizeDomainString(value: string | undefined): string {
                     placeholder="auth.example.com"
                     :disabled="disabled"
                     :required="!isEditing"
-                    @update:model-value="provider.domain = $event"
+                    @update:model-value="provider.domain = $event as string"
                     @blur="provider.domain = normalizeDomainString(provider.domain ?? '')"
                 />
             </div>
@@ -72,7 +72,7 @@ function normalizeDomainString(value: string | undefined): string {
                     placeholder="Your auth client ID"
                     :disabled="disabled"
                     :required="!isEditing"
-                    @update:model-value="provider.clientId = $event"
+                    @update:model-value="provider.clientId = $event as string"
                 />
             </div>
 
@@ -89,7 +89,7 @@ function normalizeDomainString(value: string | undefined): string {
                     placeholder="https://your-api.example.com"
                     :disabled="disabled"
                     :required="!isEditing"
-                    @update:model-value="provider.audience = $event"
+                    @update:model-value="provider.audience = $event as string"
                 />
                 <p class="mt-0.5 text-[11px] dark:text-zinc-100">
                     The API identifier/audience configured in your auth provider

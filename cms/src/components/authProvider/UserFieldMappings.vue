@@ -52,7 +52,7 @@ function setMapping(key: "externalUserId" | "email" | "name", value: string) {
                     type="text"
                     placeholder="sub"
                     :disabled="disabled || !provider"
-                    @update:model-value="(v) => setMapping('externalUserId', v)"
+                    @update:model-value="(v) => setMapping('externalUserId', v as string)"
                 />
             </div>
             <div>
@@ -66,7 +66,7 @@ function setMapping(key: "externalUserId" | "email" | "name", value: string) {
                     type="text"
                     placeholder="email"
                     :disabled="disabled || !provider"
-                    @update:model-value="(v) => setMapping('email', v)"
+                    @update:model-value="(v) => setMapping('email', v as string)"
                 />
             </div>
             <div>
@@ -80,7 +80,7 @@ function setMapping(key: "externalUserId" | "email" | "name", value: string) {
                     type="text"
                     placeholder="name"
                     :disabled="disabled || !provider"
-                    @update:model-value="(v) => setMapping('name', v)"
+                    @update:model-value="(v) => setMapping('name', v as string)"
                 />
             </div>
         </div>

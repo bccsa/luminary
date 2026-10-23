@@ -503,7 +503,7 @@ function handleDelete() {
                                     (value) =>
                                         emit('update:localCredentials', {
                                             ...localCredentials,
-                                            endpoint: value,
+                                            endpoint: value as string,
                                         })
                                 "
                                 type="url"
@@ -553,7 +553,7 @@ function handleDelete() {
                                     (value) =>
                                         emit('update:localCredentials', {
                                             ...localCredentials,
-                                            bucketName: value,
+                                            bucketName: value as string,
                                         })
                                 "
                                 type="text"
@@ -586,7 +586,7 @@ function handleDelete() {
                                     (value) =>
                                         emit('update:localCredentials', {
                                             ...localCredentials,
-                                            accessKey: value,
+                                            accessKey: value as string,
                                         })
                                 "
                                 type="text"
@@ -616,7 +616,7 @@ function handleDelete() {
                                     (value) =>
                                         emit('update:localCredentials', {
                                             ...localCredentials,
-                                            secretKey: value,
+                                            secretKey: value as string,
                                         })
                                 "
                                 type="text"

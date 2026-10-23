@@ -12,7 +12,7 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 describe("WebScreenWakeService", () => {
     let visibility: DocumentVisibilityState;
     let sentinels: FakeSentinel[];
-    let request: Mock<[], Promise<FakeSentinel>>;
+    let request: Mock<() => Promise<FakeSentinel>>;
 
     function setVisibility(state: DocumentVisibilityState) {
         visibility = state;
