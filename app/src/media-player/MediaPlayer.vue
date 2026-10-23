@@ -846,7 +846,7 @@ function holdScrubAt(target: number) {
 function seekTo(event: Event) {
     const target = Number((event.target as HTMLInputElement).value);
     handle.value?.seek(target);
-    // A video that was playing plays on from where the finger lifts, with the frames left up for another go.
+    // The video waits only while the finger is down: a tap on the bar is a seek, and playback goes on from there.
     resumeFromScrub();
     fingerDown.value = false;
     // Only a press outside unpins: a second report of the same release (the browser's cancel, then its change) must not.
