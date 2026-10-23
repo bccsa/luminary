@@ -966,10 +966,10 @@ const miniStageWanted = computed(
     () => !expanded.value && !!item.value && !!state.value && !audioMode.value,
 );
 /**
- * The picture's height at the bar's left end when minimised on a video, in CSS pixels: on a phone the bar's less
- * its progress line along the top; on a computer the card's whole height, its corners the card's.
+ * The picture's height at the bar's left end when minimised on a video, in CSS pixels: the bar's less its
+ * progress line, which runs along the bar's top on a phone and its foot on a computer.
  */
-const MINI_PICTURE_HEIGHT = computed(() => (isDesktop.value ? 64 : 61));
+const MINI_PICTURE_HEIGHT = computed(() => 61);
 /** The widest the picture gets, so a wide video still leaves the title its room. */
 const MINI_PICTURE_MAX_WIDTH = 114;
 /** The picture's width at the bar's left end: the video's shape at the bar's height, or the square cover. */
@@ -1652,7 +1652,6 @@ function onKeydown(event: KeyboardEvent) {
                             @nextupselect="swapToNext"
                             @upnextselect="swapToNext"
                             :inline="miniStage ? 'front' : true"
-                            :inline-badge="miniStage"
                             :caption-band="captionBand && !miniStage ? 64 : 0"
                             :fullscreen-on-play="isNativeApp()"
                             :windowed-controls="webFill"
@@ -2499,7 +2498,7 @@ function onKeydown(event: KeyboardEvent) {
             v-if="!expanded"
             v-show="!keyboardOpen"
             ref="bar"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex h-16 w-full items-center gap-0.5 pr-1 text-white transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
+            class="group fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex h-16 w-full items-center gap-0.5 pr-1 text-white transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
             :class="[
                 barTint ? '' : 'bg-zinc-900',
                 mobileChrome.hidden.value
@@ -2509,14 +2508,13 @@ function onKeydown(event: KeyboardEvent) {
             :style="{
                 ...(barTint ? { backgroundColor: barTint } : {}),
                 // On a computer the progress line starts where the picture ends, which fills the card's height.
-                '--mini-picture-w': `${miniPictureWidth}px`,
             }"
             data-test="mediaPlayerBar"
         >
             <!-- Along the bar's top on a phone; on a computer along its foot, under the picture too. -->
             <div
                 v-if="!live"
-                class="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] bg-white/25 lg:bottom-0 lg:left-[var(--mini-picture-w)] lg:top-auto"
+                class="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] bg-white/25 transition-[left] duration-150 lg:bottom-0 lg:left-0 lg:top-auto lg:group-focus-within:left-7 lg:group-hover:left-7"
                 aria-hidden="true"
             >
                 <div
@@ -2525,6 +2523,16 @@ function onKeydown(event: KeyboardEvent) {
                     data-test="mediaPlayerBarProgress"
                 />
             </div>
+            <!-- The way up has a box of its own at the bar's left end, so nothing sits over the picture. -->
+            <button
+                type="button"
+                class="flex h-full w-7 flex-none items-center justify-center bg-black/30 transition-[width] duration-150 active:bg-black/45 lg:-mr-0.5 lg:w-0 lg:overflow-hidden lg:focus-visible:w-7 lg:group-focus-within:mr-0 lg:group-focus-within:w-7 lg:group-hover:mr-0 lg:group-hover:w-7 [@media(hover:hover)]:hover:bg-black/45"
+                :aria-label="t('media_player.expand')"
+                data-test="mediaPlayerBarExpandBadge"
+                @click="expandMediaPlayer"
+            >
+                <ChevronUpIcon class="h-5 w-5" />
+            </button>
             <!-- The picture fills the bar's left end, edge to edge; on a video the platform's picture is drawn there. -->
             <button
                 type="button"
@@ -2536,7 +2544,7 @@ function onKeydown(event: KeyboardEvent) {
                 <div
                     v-if="miniStageWanted"
                     ref="miniSpacer"
-                    class="h-[calc(100%-3px)] flex-none self-end lg:h-full"
+                    class="h-[calc(100%-3px)] flex-none self-end lg:self-start"
                     :style="{
                         width: `${miniPictureWidth}px`,
                     }"
@@ -2546,35 +2554,16 @@ function onKeydown(event: KeyboardEvent) {
                     v-else-if="barCover"
                     :src="barCover"
                     alt=""
-                    class="h-[61px] w-[61px] flex-none self-end object-cover lg:h-16 lg:w-16"
+                    class="h-[61px] w-[61px] flex-none self-end object-cover lg:self-start"
                     draggable="false"
                     @error="barCoverFailed = true"
                 />
                 <span
                     v-else
-                    class="flex h-[61px] w-[61px] flex-none self-end items-center justify-center bg-white/10 text-white/70 lg:h-16 lg:w-16"
+                    class="flex h-[61px] w-[61px] flex-none self-end items-center justify-center bg-white/10 text-white/70 lg:self-start"
                     aria-hidden="true"
                 >
                     <MusicalNoteIcon class="h-6 w-6" />
-                </span>
-                <span
-                    v-if="!miniStageWanted"
-                    class="absolute left-1.5 top-[13px] flex h-6 w-6 items-center justify-center rounded-full bg-black/55 lg:top-2.5"
-                    aria-hidden="true"
-                    data-test="mediaPlayerBarExpandBadge"
-                >
-                    <svg
-                        class="h-3.5 w-3.5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="3"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        aria-hidden="true"
-                    >
-                        <path d="m4.5 15.75 7.5-7.5 7.5 7.5" />
-                    </svg>
                 </span>
             </button>
             <button
@@ -2638,29 +2627,5 @@ function onKeydown(event: KeyboardEvent) {
                 <XMarkIcon class="h-7 w-7 text-white/85" />
             </button>
         </div>
-        <!-- On a video the platform's picture is drawn in front of the bar, so its way up rides above it. -->
-        <button
-            v-if="!expanded && miniStage && miniRect"
-            v-show="!keyboardOpen"
-            type="button"
-            class="fixed z-[61] flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white"
-            :style="{ left: `${miniRect.x + 6}px`, top: `${miniRect.y + 10}px` }"
-            :aria-label="t('media_player.expand')"
-            data-test="mediaPlayerBarExpandBadge"
-            @click="expandMediaPlayer"
-        >
-            <svg
-                        class="h-3.5 w-3.5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="3"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        aria-hidden="true"
-                    >
-                        <path d="m4.5 15.75 7.5-7.5 7.5 7.5" />
-                    </svg>
-        </button>
     </template>
 </template>
