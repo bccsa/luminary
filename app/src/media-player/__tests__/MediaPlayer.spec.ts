@@ -665,6 +665,34 @@ describe("MediaPlayer", () => {
             currentRoute.value = { name: "home", params: {} };
         });
 
+        it("is a rounded card while reading a post on a phone with the menu away, and the bar on the menu otherwise", async () => {
+            screenWide = false;
+            currentRoute.value = { name: "content", params: { slug: "the-slug" } };
+            const { hidden } = useMobileChromeAutoHide();
+            try {
+                openMediaPlayer(mockEnglishContentDto, "en");
+                minimiseMediaPlayer();
+                const reading = await mountPlayer();
+                const bar = () => find(reading, "mediaPlayerBar").classes();
+                hidden.value = false;
+                await flushPromises();
+                expect(bar()).toContain("inset-x-0");
+                expect(bar()).not.toContain("rounded-[14px]");
+
+                hidden.value = true;
+                await flushPromises();
+                expect(bar()).toEqual(expect.arrayContaining(["rounded-[14px]", "inset-x-2"]));
+                reading.unmount();
+
+                currentRoute.value = { name: "home", params: {} };
+                const browsing = await mountPlayer();
+                expect(find(browsing, "mediaPlayerBar").classes()).not.toContain("rounded-[14px]");
+            } finally {
+                hidden.value = false;
+                currentRoute.value = { name: "home", params: {} };
+            }
+        });
+
         it("keeps the bar to the picture, the title, play and close", async () => {
             screenWide = false;
             const wrapper = await withText();
@@ -1210,7 +1238,7 @@ describe("MediaPlayer", () => {
             expect(bar.attributes("style") ?? "").not.toContain("background-color");
         });
 
-        it("takes the post image's colour, darkened, from its ThumbHash", async () => {
+        it("wears the post image's ThumbHash under a scrim, over its colour darkened", async () => {
             const rgba = new Uint8Array(8 * 8 * 4);
             for (let i = 0; i < 64; i++) rgba.set([240, 220, 200, 255], i * 4);
             const thumbHash = btoa(String.fromCharCode(...rgbaToThumbHash(8, 8, rgba)));
@@ -1236,6 +1264,9 @@ describe("MediaPlayer", () => {
             // A light picture still gives a bar white text reads on.
             expect(Math.max(r, g, b)).toBeLessThan(140);
             expect(r).toBeGreaterThan(b);
+            // Over that colour, the ThumbHash itself, under a scrim.
+            expect(bar.attributes("style")).toContain("data:image/png");
+            expect(bar.attributes("style")).toContain("linear-gradient");
         });
 
         it("marks the way up on the picture", async () => {

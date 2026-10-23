@@ -1003,9 +1003,21 @@ const miniStageWanted = computed(
     () => !expanded.value && !!item.value && !!state.value && !audioMode.value,
 );
 /**
- * The picture's height at the bar's left end when minimised on a video, in CSS pixels: the bar's less its
- * progress line, which runs along the bar's top on a phone and its foot on a computer.
+ * While reading a post on a phone, once the menu has stepped aside, the bar is a card floating over the page's foot, as
+ * the computer's is in its corner: rounded, clear of the edges, its progress line along its foot. It sits low: on an
+ * iPhone just above the home indicator rather than its whole band, high enough that its corners clear the screen's
+ * rounded ones; elsewhere 6px above the screen's edge or the system bar. With the menu showing it is the bar on the
+ * menu.
  */
+const floatingCard = computed(
+    () =>
+        !isDesktop.value &&
+        router.currentRoute.value?.name === "content" &&
+        mobileChrome.hidden.value,
+);
+/** The progress line runs under the whole bar, at its foot on a card (a computer's, or a phone's while reading). */
+const lineAtFoot = computed(() => isDesktop.value || floatingCard.value);
+/** The picture's height: the bar's less the progress line, which it leaves clear above or below it. */
 const MINI_PICTURE_HEIGHT = computed(() => 61);
 /** The widest the picture gets, so a wide video still leaves the title its room. */
 const MINI_PICTURE_MAX_WIDTH = 114;
@@ -1022,6 +1034,24 @@ const miniPictureWidth = computed(() =>
 );
 /** The bar's fill: the post image's colour, or the plain dark bar when it has none. */
 const barTint = computed(() => thumbHashTint(content.value));
+/**
+ * The bar wears the post image's ThumbHash, stretched along it so its colours run from end to end, under a scrim
+ * that keeps the white text readable; its average colour shows until the picture is drawn.
+ */
+const barFill = computed(() => {
+    const tint = barTint.value;
+    if (!tint) return {};
+    const hash = thumbHashWash(content.value);
+    return {
+        backgroundColor: tint,
+        ...(hash
+            ? {
+                  backgroundImage: `linear-gradient(rgb(8 10 14 / 0.55), rgb(8 10 14 / 0.55)), url("${hash}")`,
+                  backgroundSize: "100% 100%",
+              }
+            : {}),
+    };
+});
 /** The player busy, shown alike in the bar and the full player: the spinner standing in for play. */
 const playerBusy = computed(() => starting.value || swapping.value || stalled.value);
 const barCoverFailed = ref(false);
@@ -2596,25 +2626,25 @@ function onKeydown(event: KeyboardEvent) {
             v-if="!expanded"
             v-show="!keyboardOpen"
             ref="bar"
-            class="group fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex h-16 w-full items-center gap-0.5 pr-1 text-white transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
+            class="group fixed z-40 flex h-16 items-center gap-0.5 pr-1 text-white transition-[transform,left,right,bottom,border-radius,box-shadow] duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
             :class="[
-                'inset-x-0 bottom-[var(--mobile-menu-h,0px)] w-full after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit',
+                floatingCard
+                    ? 'inset-x-2 bottom-[calc(var(--mobile-menu-h,0px)+var(--card-gap)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))] overflow-hidden rounded-[14px] shadow-xl shadow-black/30 [--card-gap:max(6px,env(safe-area-inset-bottom)_-_16px,var(--native-inset-bottom,0px)_+_6px)]'
+                    : 'inset-x-0 bottom-[var(--mobile-menu-h,0px)] after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:[background:inherit]',
                 barTint ? '' : 'bg-zinc-900',
                 mobileChrome.hidden.value
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'
                     : 'translate-y-0',
             ]"
-            :style="{
-                ...(barTint ? { backgroundColor: barTint } : {}),
-                // On a computer the progress line starts where the picture ends, which fills the card's height.
-            }"
+            :style="barFill"
             data-test="mediaPlayerBar"
         >
             <!-- Along the bar's top on a phone; along the whole foot of a card (a computer's, or a phone's while
                  reading), under the picture too. -->
             <div
                 v-if="!live"
-                class="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] bg-white/25 transition-[left] duration-150 lg:bottom-0 lg:left-0 lg:top-auto lg:group-focus-within:left-7 lg:group-hover:left-7"
+                class="pointer-events-none absolute inset-x-0 z-10 h-[3px] bg-white/25 transition-[left] duration-150 lg:bottom-0 lg:left-0 lg:top-auto lg:group-focus-within:left-7 lg:group-hover:left-7"
+                :class="floatingCard ? 'bottom-0' : 'top-0'"
                 aria-hidden="true"
             >
                 <div
@@ -2626,9 +2656,10 @@ function onKeydown(event: KeyboardEvent) {
             <!-- The way up has a box of its own at the bar's left end, so nothing sits over the picture. -->
             <button
                 type="button"
-                class="flex h-full w-7 flex-none items-center justify-center bg-black/30 transition-[width] duration-150 active:bg-black/45 lg:-mr-0.5 lg:w-0 lg:overflow-hidden lg:focus-visible:w-7 lg:group-focus-within:mr-0 lg:group-focus-within:w-7 lg:group-hover:mr-0 lg:group-hover:w-7 [@media(hover:hover)]:hover:bg-black/45"
+                class="-mr-0.5 flex h-[calc(100%-3px)] w-7 flex-none items-center justify-center self-start bg-black/30 [transition:width_150ms,transform_700ms_cubic-bezier(0.32,0.72,0,1)] active:bg-black/45 lg:w-0 lg:overflow-hidden lg:focus-visible:w-7 lg:group-focus-within:mr-0 lg:group-focus-within:w-7 lg:group-hover:mr-0 lg:group-hover:w-7 [@media(hover:hover)]:hover:bg-black/45"
                 :aria-label="t('media_player.expand')"
                 data-test="mediaPlayerBarExpandBadge"
+                :class="lineAtFoot ? '' : 'translate-y-[3px]'"
                 @click="expandMediaPlayer"
             >
                 <ChevronUpIcon class="h-5 w-5" />
@@ -2644,7 +2675,8 @@ function onKeydown(event: KeyboardEvent) {
                 <div
                     v-if="miniStageWanted"
                     ref="miniSpacer"
-                    class="h-[calc(100%-3px)] flex-none self-end lg:self-start"
+                    class="h-[calc(100%-3px)] flex-none self-start transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                    :class="lineAtFoot ? '' : 'translate-y-[3px]'"
                     :style="{
                         width: `${miniPictureWidth}px`,
                     }"
@@ -2654,13 +2686,15 @@ function onKeydown(event: KeyboardEvent) {
                     v-else-if="barCover"
                     :src="barCover"
                     alt=""
-                    class="h-[61px] w-[61px] flex-none self-end object-cover lg:self-start"
+                    class="h-[61px] w-[61px] flex-none self-start object-cover transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                    :class="lineAtFoot ? '' : 'translate-y-[3px]'"
                     draggable="false"
                     @error="barCoverFailed = true"
                 />
                 <span
                     v-else
-                    class="flex h-[61px] w-[61px] flex-none items-center justify-center self-end bg-white/10 text-white/70 lg:self-start"
+                    class="flex h-[61px] w-[61px] flex-none items-center justify-center self-start bg-white/10 text-white/70 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                    :class="lineAtFoot ? '' : 'translate-y-[3px]'"
                     aria-hidden="true"
                 >
                     <MusicalNoteIcon class="h-6 w-6" />
