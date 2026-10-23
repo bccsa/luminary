@@ -70,7 +70,7 @@ onUnmounted(() => {
 <template>
     <div
         ref="rootRef"
-        class="flex flex-row justify-center gap-3 bg-zinc-100 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.625rem),calc(var(--native-inset-bottom,0px)+0.5rem))] pt-3 dark:bg-slate-800"
+        class="flex flex-row justify-around bg-zinc-100 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.625rem),calc(var(--native-inset-bottom,0px)+0.5rem))] pt-3 dark:bg-slate-800"
     >
         <!-- Older Android WebViews report a 0 bottom env() inset under 3-button navigation; the
              Android build publishes the opaque bar's height as --native-inset-bottom. -->
@@ -80,7 +80,7 @@ onUnmounted(() => {
             :key="item.name"
             :to="item.to"
             v-slot="{ isActive }"
-            class="flex cursor-pointer flex-col items-center rounded-md px-2 py-1"
+            class="flex flex-1 cursor-pointer flex-col items-center rounded-md px-1 py-1"
             @click="closeSearch"
         >
             <component
@@ -104,7 +104,7 @@ onUnmounted(() => {
 
         <!-- Search item - opens overlay (last item) -->
         <div
-            class="flex cursor-pointer flex-col items-center rounded-md px-2 py-1"
+            class="flex flex-1 cursor-pointer flex-col items-center rounded-md px-1 py-1"
             @click="handleSearchClick"
         >
             <component
