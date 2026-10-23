@@ -115,6 +115,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                         slots["under-title"]?.(),
                         slots.sheet?.({ close: () => {} }),
                         slots.cast?.(),
+                        slots.roster?.(),
                         h("div", { "data-test": "audioFullscreenStage" }, [slots.stage?.()]),
                     ]),
         }),
@@ -695,6 +696,39 @@ describe("MediaPlayer", () => {
             expect(props.exitLabel).toBe("media_player.minimise");
             expect(props.stageHole).toBe(false);
             expect(props.title).toBe(mockEnglishContentDto.title);
+        });
+
+        it("holds a playing video still while the bar is held, and plays on once it is let go, the frames still up", async () => {
+            engine.thumbnailsReady = true;
+            const wrapper = await playing();
+            const held = { time: 50, markerX: 120, width: 390, bottom: 200 };
+
+            screen(wrapper).vm.$emit("scrub", held);
+            await flushPromises();
+            expect(engine.handle.pause).toHaveBeenCalledTimes(1);
+            expect(engine.handle.play).not.toHaveBeenCalled();
+
+            screen(wrapper).vm.$emit("scrub", null);
+            await flushPromises();
+            expect(engine.handle.play).toHaveBeenCalledTimes(1);
+            expect(screen(wrapper).find("[data-test='mediaPlayerNowPlayingRoster']").exists()).toBe(true);
+        });
+
+        it("takes one press on Play to pause with the frames up: the press does not first resume the video", async () => {
+            engine.thumbnailsReady = true;
+            const wrapper = await playing();
+            screen(wrapper).vm.$emit("scrub", { time: 50, markerX: 120, width: 390, bottom: 200 });
+            await flushPromises();
+            screen(wrapper).vm.$emit("scrub", null);
+            await flushPromises();
+            engine.handle.play.mockClear();
+
+            document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+            screen(wrapper).vm.$emit("toggle-play");
+            await flushPromises();
+            expect(engine.handle.play).not.toHaveBeenCalled();
+            expect(engine.handle.pause).toHaveBeenCalledTimes(2);
+            expect(screen(wrapper).find("[data-test='mediaPlayerNowPlayingRoster']").exists()).toBe(false);
         });
 
         it("switches to the sound alone on the same engine, which never stops", async () => {

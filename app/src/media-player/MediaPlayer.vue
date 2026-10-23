@@ -581,6 +581,7 @@ function onNowPlayingScrub(position: ScrubPosition | null) {
     rosterOpened = false;
     nowPlayingPin.value = { width: last.width, bottom: last.bottom, markerX: last.markerX };
     anchorPin(last.time);
+    resumeFromScrub();
 }
 
 /** The finger is on the bar. (`scrubTime` outlives it until playback arrives, so it cannot say.) */
@@ -835,8 +836,8 @@ function holdScrubAt(target: number) {
 function seekTo(event: Event) {
     const target = Number((event.target as HTMLInputElement).value);
     handle.value?.seek(target);
-    // With frames up the video stays paused for slow scrubbing; a press outside resumes it.
-    if (!rosterOpened && !rosterPinned.value) resumeFromScrub();
+    // The video waits only while the finger is down: a tap on the bar is a seek, and playback goes on from there.
+    resumeFromScrub();
     fingerDown.value = false;
     // Only a press outside unpins: a second report of the same release (the browser's cancel, then its change) must not.
     if (rosterOpened) {
@@ -915,8 +916,7 @@ function onRosterUp(event: PointerEvent) {
     rosterDrag.value = null;
     // A phone's browser may cancel a drag it takes over: where the strip had got to is still where the viewer went.
     const lifted = event.type === "pointerup" || (event.type === "pointercancel" && !!drag?.moved);
-    const pinned = rosterPinned.value || nowPlayingPin.value !== null;
-    if (!drag || !roster || !lifted) return pinned ? undefined : resumeFromScrub();
+    if (!drag || !roster || !lifted) return resumeFromScrub();
     let target = drag.time;
     if (!drag.moved) {
         // A tap: the frame under the finger, read off the strip's own scale.
@@ -929,7 +929,7 @@ function onRosterUp(event: PointerEvent) {
     handle.value?.seek(target);
     anchorPin(target);
     holdScrubAt(target);
-    if (!pinned) resumeFromScrub();
+    resumeFromScrub();
 }
 
 const openMenu = ref<"speed" | "language" | "subtitles" | "sleep" | null>(null);
