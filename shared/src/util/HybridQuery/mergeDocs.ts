@@ -1,4 +1,4 @@
-import type { BaseDocumentDto } from "../../types";
+import type { HybridDoc } from "./hybridDoc";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
 
 /**
@@ -7,7 +7,7 @@ import type { MangoQuery } from "../MangoQuery/MangoTypes";
  * `b` is merged on top, so when timestamps tie `b` wins (treat `b` as the more
  * authoritative/fresher source, e.g. an API response layered over local docs).
  */
-export function mergeById<T extends BaseDocumentDto>(a: readonly T[], b: readonly T[]): T[] {
+export function mergeById<T extends HybridDoc>(a: readonly T[], b: readonly T[]): T[] {
     const byId = new Map<string, T>();
     for (const doc of a) byId.set(doc._id, doc);
     for (const doc of b) {
@@ -35,7 +35,7 @@ export function mergeById<T extends BaseDocumentDto>(a: readonly T[], b: readonl
  * comparator (rather than a trailing `reverse()`) so it flips only the primary
  * key, leaving the `_id` tie-break stable.
  */
-export function applySortLimit<T extends BaseDocumentDto>(
+export function applySortLimit<T extends HybridDoc>(
     docs: T[],
     sort?: MangoQuery["$sort"],
     limit?: number,
@@ -90,7 +90,7 @@ export function applySortLimit<T extends BaseDocumentDto>(
  * doc. Used to skip a `ShallowRef` reassignment when a recompute produced no
  * visible change, saving a Vue re-render.
  */
-export function sameWindow<T extends BaseDocumentDto>(
+export function sameWindow<T extends HybridDoc>(
     a: readonly T[],
     b: readonly T[] | undefined,
 ): boolean {
