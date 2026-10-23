@@ -56,6 +56,11 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                             : null,
                     ]),
         }),
+        ScrubPicture: defineComponent({
+            name: "ScrubPicture",
+            props: { cue: Object },
+            setup: () => () => h("div", { "data-test": "scrubPicture" }),
+        }),
         // The real one is player-core's, tested there: the last chapter that has started.
         chapterIndexAt: (chapters: { startTime: number }[], time: number) =>
             chapters.reduce(
