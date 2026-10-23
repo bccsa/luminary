@@ -63,6 +63,7 @@ export class EncoderConfigController {
         @Query("bucketId") bucketId: string,
         @Query("apiVersion") apiVersion: string,
         @Req() request: FastifyRequest,
+        @Query("parentId") parentId?: string,
     ): Promise<EncoderConfigResponseDto> {
         await validateApiVersion(apiVersion);
 
@@ -94,6 +95,36 @@ export class EncoderConfigController {
                 "Insufficient permissions to encode to this bucket",
                 HttpStatus.FORBIDDEN,
             );
+        }
+
+        // Asked for a post's or tag's existing video (an edit of its chapters or audio
+        // tracks), which writes into the bucket like an encode does: the bucket's own
+        // gate above still stands, and the document's Edit permission is checked on top,
+        // since the video is part of it. The bucket has to be that document's, or these
+        // credentials would reach media the editor's grant on it says nothing about.
+        if (parentId) {
+            const parent = (await this.dbService.getDoc(parentId)).docs?.[0];
+            if (!parent || (parent.type !== DocType.Post && parent.type !== DocType.Tag)) {
+                throw new HttpException(`Document not found: ${parentId}`, HttpStatus.NOT_FOUND);
+            }
+            const canEdit = PermissionSystem.verifyAccess(
+                parent.memberOf,
+                parent.type,
+                AclPermission.Edit,
+                userDetails.groups,
+            );
+            if (!canEdit) {
+                throw new HttpException(
+                    "Insufficient permissions to edit this document's media",
+                    HttpStatus.FORBIDDEN,
+                );
+            }
+            if (parent.mediaBucketId && parent.mediaBucketId !== bucketId) {
+                throw new HttpException(
+                    "This document's media is in another bucket",
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
         }
 
         if (!bucket.credential_id) {
