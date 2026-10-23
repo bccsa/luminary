@@ -292,6 +292,102 @@ describe("QueryService", () => {
         });
     });
 
+    describe("tag feeds", () => {
+        it.each([
+            { name: "language/access-filtered newest feed", sort: "desc", olderTail: false },
+            { name: "older-tail supplement", sort: "desc", olderTail: true },
+            { name: "oldest-first feed", sort: "asc", olderTail: false },
+        ] as const)(
+            "preserves the full eligible range for a $name",
+            async ({ sort, olderTail }) => {
+                const now = 1000;
+                jest.spyOn(Date, "now").mockReturnValue(now);
+                (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce({
+                    [DocType.Post]: ["public"],
+                    [DocType.Language]: ["language-group"],
+                });
+                (service as any).languages = [{ _id: "lang-eng", memberOf: ["language-group"] }];
+
+                const clauses = [
+                    { type: DocType.Content },
+                    { parentType: DocType.Post },
+                    { parentTags: { $elemMatch: { $in: ["topic-1", "topic-2"] } } },
+                    { language: "lang-eng" },
+                    { publishDate: { $lte: now } },
+                    ...(olderTail
+                        ? [{ $or: [{ publishDate: { $lte: 80 } }, { parentAlwaysOffline: true }] }]
+                        : []),
+                ];
+                const query = {
+                    selector: { $and: structuredClone(clauses) },
+                    sort: [{ publishDate: sort }],
+                    limit: 2,
+                    use_index: "content-publishDate-index",
+                } as MongoQueryDto;
+
+                await service.query(query, mockUser);
+
+                // Language, access and expiry filtering must happen before limiting results.
+                // In particular, a tag's newest global dates cannot bound an older-tail request.
+                expect(dbService.executeFindQuery).toHaveBeenCalledTimes(1);
+                expect(dbService.executeFindQuery).toHaveBeenCalledWith({
+                    selector: {
+                        $and: [
+                            ...clauses,
+                            {
+                                $or: [
+                                    { expiryDate: { $exists: false } },
+                                    { expiryDate: { $gt: now } },
+                                ],
+                            },
+                            { status: PublishStatus.Published },
+                            { language: { $in: ["lang-eng"] } },
+                            { memberOf: { $elemMatch: { $in: ["public"] } } },
+                        ],
+                    },
+                    sort: [{ publishDate: sort }],
+                    limit: 2,
+                    use_index: "content-publishDate-index",
+                    execution_stats: true,
+                });
+            },
+        );
+
+        it("does not consult a potentially stale tag view or fan out by tag", async () => {
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce({
+                [DocType.Post]: ["public"],
+                [DocType.Language]: ["language-group"],
+            });
+            (service as any).languages = [{ _id: "lang-eng", memberOf: ["language-group"] }];
+            // Regression trap for the removed view optimisation: an incomplete index
+            // with only a recent row must not exclude older, newly tagged documents.
+            const staleView = jest.fn().mockResolvedValue([{ id: "recent", publishDate: 100 }]);
+            Object.assign(dbService, { getContentIdsByTags: staleView });
+            const tags = Array.from({ length: 21 }, (_, i) => `topic-${i}`);
+            const query = {
+                selector: {
+                    $and: [
+                        { type: DocType.Content },
+                        { parentType: DocType.Post },
+                        { parentTags: { $elemMatch: { $in: tags } } },
+                    ],
+                },
+                sort: [{ publishDate: "desc" }],
+                limit: 50,
+            } as MongoQueryDto;
+
+            await service.query(query, mockUser);
+
+            expect(staleView).not.toHaveBeenCalled();
+            expect(dbService.executeFindQuery).toHaveBeenCalledTimes(1);
+            const sent = dbService.executeFindQuery.mock.calls[0][0];
+            expect(sent.selector.$and).toContainEqual({
+                parentTags: { $elemMatch: { $in: tags } },
+            });
+            expect(sent.selector.$and.some((clause: any) => clause.publishDate)).toBe(false);
+        });
+    });
+
     it("throws 403 when user has no accessible languages for Content type", async () => {
         const access = {
             [DocType.Post]: ["gp1"],

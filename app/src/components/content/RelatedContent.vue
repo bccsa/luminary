@@ -18,18 +18,25 @@ const props = defineProps<Props>();
 
 const { t } = useI18n();
 
-// Ids of posts tagged with any of the current article's topic tags. `parentTaggedDocs`
-// is optional and may contain null/undefined holes — drop them before they become
-// `{ parentId: { $in: [null] } }`, which crashes CouchDB's _find. `new Set` dedupes.
-const contentIds = computed(() => [
-    ...new Set(props.tags.flatMap((tag) => tag.parentTaggedDocs ?? []).filter((id) => id != null)),
-]);
+// Match content by tag directly. Resolving each tag to its `parentTaggedDocs` and then
+// asking for those parent ids turned one relationship into an id list of unbounded size;
+// `parentTags` is that same relationship, already mirrored onto every content doc. Sorted so
+// an order-only change in `props.tags` doesn't re-key the query and re-run it.
+const topicTagIdList = computed(() =>
+    [...new Set(props.tags.map((tag) => tag.parentId).filter((id) => id != null))].sort(),
+);
 
-const contentDocs = useContentQuery(() => [{ parentId: { $in: contentIds.value } }], {
-    includeScheduled: false,
-    sort: [{ publishDate: "desc" }],
-    limit: 50,
-});
+const contentDocs = useContentQuery(
+    () => [{ parentTags: { $elemMatch: { $in: topicTagIdList.value } } }],
+    {
+        includeScheduled: false,
+        sort: [{ publishDate: "desc" }],
+        limit: 50,
+        // publishDate must lead the index: it serves the sort while parentTags is applied as
+        // a residual filter. An index led by the tags array cannot serve the sort at all.
+        useIndex: "content-publishDate-index",
+    },
+);
 
 // One flat, newest-first list (dedup is inherent — a single query, not one row per tag),
 // with the current article removed. Exclude by `parentId` rather than `_id` so a different
