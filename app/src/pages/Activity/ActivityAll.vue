@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { type ContentDto, type HighlightRange, type UserActivityEntry } from "luminary-shared";
 import ActivityCard from "./ActivityCard.vue";
+import ActivitySection from "./ActivitySection.vue";
 import { groupByActivityDate } from "./activityGroups";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
@@ -56,18 +57,11 @@ const sections = computed(() => groupByActivityDate(entries.value, (e) => e.row.
 
 <template>
     <div data-test="activity-all">
-        <section
+        <ActivitySection
             v-for="section in sections"
             :key="section.group"
-            class="mb-6"
+            :group="section.group"
         >
-            <h2
-                class="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-slate-400"
-                :data-test="`activity-group-${section.group}`"
-            >
-                {{ t(`activity.group.${section.group}`) }}
-            </h2>
-
             <div class="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-3">
                 <ActivityCard
                     v-for="entry in section.items"
@@ -80,7 +74,7 @@ const sections = computed(() => groupByActivityDate(entries.value, (e) => e.row.
                     @open="entry.range && openHighlight(router, entry.content.slug, entry.range)"
                 />
             </div>
-        </section>
+        </ActivitySection>
 
         <div
             v-if="!entries.length"

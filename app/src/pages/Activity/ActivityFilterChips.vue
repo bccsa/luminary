@@ -27,7 +27,7 @@ const { t } = useI18n();
             class="rounded-full px-3 py-1 text-sm transition-colors"
             :class="
                 filter === active
-                    ? 'bg-zinc-700 text-white dark:bg-slate-100 dark:text-slate-900'
+                    ? 'bg-zinc-100 text-yellow-700 ring-1 ring-yellow-700/50 dark:bg-slate-700 dark:text-yellow-400 dark:ring-yellow-400/50'
                     : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
             "
             @click="$emit('select', filter)"

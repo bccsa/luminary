@@ -52,12 +52,12 @@ const panelProps = computed(() =>
     activeFilter.value === "highlighted" ? { colour: colour.value } : {},
 );
 
-// The strip is pinned at the scrollport edge and pushed down by the top bar's height while the
-// bar shows. A transform on the bar's own timeline keeps the two in lockstep; animating `top`
-// would lag behind the bar mid-scroll.
+// The strip is pinned at the scrollport edge. While the top bar shows it is pushed down below
+// it; on scroll down it slides off the top with the bars. A transform on the same timeline as
+// theirs keeps them in lockstep, where animating `top` would lag behind mid-scroll.
 const mobileFilterStyle = computed(() => ({
     transform: mobileChrome.hidden.value
-        ? "translateY(max(0px, calc(env(safe-area-inset-top) - 0.75rem)))"
+        ? "translateY(-100%)"
         : "translateY(var(--top-bar-h, 74px))",
 }));
 
@@ -81,12 +81,12 @@ onMounted(async () => {
         </template>
 
         <div class="px-2">
-            <!-- Mobile. The backing sits on the section chips and on the colour row separately, so
-                 when the colour row slides up behind the chips (with the top bar, on scroll down)
-                 the list shows through the room it leaves instead of a blank band. -->
+            <!-- Mobile. Steps off the top with the top and bottom bars on scroll down, and returns with
+                 them on scroll up. Inert meanwhile, so its off-screen chips can't take focus. -->
             <div
-                class="sticky top-0 z-10 -mx-2 -mt-[var(--top-bar-h,74px)] mb-[calc(var(--top-bar-h,74px)+1.5rem)] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform xl:hidden"
+                class="sticky top-0 z-10 -mx-2 -mt-[var(--top-bar-h,74px)] mb-[var(--top-bar-h,74px)] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform xl:hidden"
                 :style="mobileFilterStyle"
+                :inert="mobileChrome.hidden.value"
             >
                 <div
                     class="relative z-10 bg-white px-2 py-3 before:absolute before:inset-x-0 before:bottom-full before:h-2 before:bg-inherit dark:bg-slate-900"
@@ -99,13 +99,7 @@ onMounted(async () => {
                 </div>
                 <div
                     v-if="showColours"
-                    class="bg-white px-2 pb-3 transition-[transform,opacity] duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] dark:bg-slate-900"
-                    :class="
-                        mobileChrome.hidden.value
-                            ? 'pointer-events-none -translate-y-full opacity-0'
-                            : ''
-                    "
-                    :inert="mobileChrome.hidden.value"
+                    class="bg-white px-2 pb-3 pt-1 dark:bg-slate-900"
                 >
                     <ActivityColourChips
                         :colours="colours"
@@ -119,7 +113,7 @@ onMounted(async () => {
                  it. Like those chips, no backing: only the pills themselves. -->
             <div
                 v-if="showColours"
-                class="sticky top-11 z-10 -mx-2 mb-4 hidden px-2 pb-2 xl:block"
+                class="sticky top-11 z-10 -mx-2 mb-4 hidden px-2 pb-2 xl:block xl:pl-10"
             >
                 <ActivityColourChips
                     :colours="colours"

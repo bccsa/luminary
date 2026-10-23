@@ -75,7 +75,7 @@ const onClick = (event: MouseEvent) => {
             data-test="activity-liked-icon"
         >
             <HeartIcon
-                class="h-6 w-6 text-yellow-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]"
+                class="h-6 w-6 text-yellow-400 drop-shadow-[0_0_4px_rgba(255,255,255,0.6)]"
                 aria-hidden="true"
             />
             <span class="sr-only">{{ t("activity.marker.liked") }}</span>
