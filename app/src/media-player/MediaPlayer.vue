@@ -5,7 +5,16 @@
  * menu, showing the picture or the cover with the transport; minimised, a bar riding on the menu. `VideoPlayer` stays mounted in the picture area for as long as an item
  * plays, so minimising never restarts it.
  */
-import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch, watchEffect } from "vue";
+import {
+    computed,
+    inject,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    ref,
+    watch,
+    watchEffect,
+} from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import {
@@ -440,7 +449,10 @@ const screenCovered = ref(false);
 const webCaption = computed(() => {
     if (!webCaptionsBelow.value) return "";
     const time = currentTime.value;
-    return (handle.value?.subtitleCues ?? []).find((cue) => cue.start <= time && time < cue.end)?.text ?? "";
+    return (
+        (handle.value?.subtitleCues ?? []).find((cue) => cue.start <= time && time < cue.end)
+            ?.text ?? ""
+    );
 });
 const inlineHole = computed(() => expanded.value && inlineVideo.value && !audioMode.value);
 watchEffect(() => document.documentElement.classList.toggle("lmc-inline-video", inlineHole.value));
@@ -509,12 +521,7 @@ const rosterHeightFor = (width: number) =>
     Math.round((Math.min(340, Math.max(168, width / 6)) * 9) / 16);
 const rosterHeight = computed(() => rosterHeightFor(pictureWidth.value));
 /** The strip of frames for a moment, `step` seconds to a frame, with the marker `markerX` px from the left. */
-function buildRoster(
-    time: number,
-    markerX: number,
-    step: number,
-    width = pictureWidth.value,
-) {
+function buildRoster(time: number, markerX: number, step: number, width = pictureWidth.value) {
     const instance = controller.value;
     if (!instance || !(duration.value > 0) || !(width > 0)) return null;
     const sample = instance.thumbnailAt(0);
@@ -541,12 +548,22 @@ const nowPlayingRoster = computed(() => {
     if (audioMode.value || !state.value?.thumbnailsReady) return null;
     const scrub = nowPlayingScrub.value;
     if (scrub) {
-        const roster = buildRoster(scrub.time, scrub.markerX, rosterStep(duration.value), scrub.width);
+        const roster = buildRoster(
+            scrub.time,
+            scrub.markerX,
+            rosterStep(duration.value),
+            scrub.width,
+        );
         return roster && { ...roster, bottom: scrub.bottom };
     }
     const pin = nowPlayingPin.value;
     if (!pin) return null;
-    const roster = buildRoster(pinnedTime.value, pin.markerX, rosterFineStep(duration.value), pin.width);
+    const roster = buildRoster(
+        pinnedTime.value,
+        pin.markerX,
+        rosterFineStep(duration.value),
+        pin.width,
+    );
     return roster && { ...roster, bottom: pin.bottom };
 });
 function onNowPlayingScrub(position: ScrubPosition | null) {
@@ -634,7 +651,11 @@ const heldRoster = computed(() => {
     if (!(fingerDown.value || rosterPinned.value) || !state.value?.thumbnailsReady) return null;
     if (audioMode.value) return null;
     if (!fingerDown.value) {
-        return buildRoster(pinnedTime.value, pinnedMarkerX.value ?? pictureWidth.value / 2, rosterFineStep(duration.value));
+        return buildRoster(
+            pinnedTime.value,
+            pinnedMarkerX.value ?? pictureWidth.value / 2,
+            rosterFineStep(duration.value),
+        );
     }
     const time = shownTime.value;
     const barWidth = pictureWidth.value - 2 * SEEK_PADDING_PX - 2 * SEEK_THUMB_INSET_PX;
@@ -643,7 +664,9 @@ const heldRoster = computed(() => {
 });
 
 /** The pinned frames being dragged: the desktop strip over the picture, or the now-playing screen's. */
-const dragRoster = computed(() => (nowPlayingPin.value ? nowPlayingRoster.value : heldRoster.value));
+const dragRoster = computed(() =>
+    nowPlayingPin.value ? nowPlayingRoster.value : heldRoster.value,
+);
 
 /**
  * The time the frame over the picture is for: while the bar is held or the pinned frames are dragged, on
@@ -718,14 +741,14 @@ function onPressOutsideRoster(event: Event) {
 watch(
     () => rosterPinned.value || nowPlayingPin.value !== null,
     (pinned) => {
-    cancelAnimationFrame(playheadFrame);
-    if (pinned) {
-        document.addEventListener("pointerdown", onPressOutsideRoster, true);
-        trackPlayhead();
-    } else {
-        document.removeEventListener("pointerdown", onPressOutsideRoster, true);
-        releasePin();
-    }
+        cancelAnimationFrame(playheadFrame);
+        if (pinned) {
+            document.addEventListener("pointerdown", onPressOutsideRoster, true);
+            trackPlayhead();
+        } else {
+            document.removeEventListener("pointerdown", onPressOutsideRoster, true);
+            releasePin();
+        }
     },
 );
 onBeforeUnmount(() => {
@@ -830,7 +853,12 @@ function onRosterDown(event: PointerEvent) {
     if (!roster) return;
     (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
     pauseForScrub();
-    rosterDrag.value = { startX: event.clientX, lastX: event.clientX, time: pinnedTime.value, moved: false };
+    rosterDrag.value = {
+        startX: event.clientX,
+        lastX: event.clientX,
+        time: pinnedTime.value,
+        moved: false,
+    };
 }
 function onRosterMove(event: PointerEvent) {
     const drag = rosterDrag.value;
@@ -852,7 +880,8 @@ function onRosterMove(event: PointerEvent) {
 let pictureGesture: { x: number; y: number } | null = null;
 function onPictureDown(event: PointerEvent) {
     pictureGesture = null;
-    if (audioMode.value || !state.value?.thumbnailsReady || !(duration.value > 0) || live.value) return;
+    if (audioMode.value || !state.value?.thumbnailsReady || !(duration.value > 0) || live.value)
+        return;
     if ((event.target as Element | null)?.closest?.("button, a, input, select, textarea")) return;
     pictureGesture = { x: event.clientX, y: event.clientY };
 }
@@ -868,7 +897,12 @@ function onPictureMove(event: PointerEvent) {
     pauseForScrub();
     rosterOpened = true;
     rosterPinned.value = true;
-    rosterDrag.value = { startX: event.clientX, lastX: event.clientX, time: shownTime.value, moved: true };
+    rosterDrag.value = {
+        startX: event.clientX,
+        lastX: event.clientX,
+        time: shownTime.value,
+        moved: true,
+    };
 }
 function onPictureUp(event: PointerEvent) {
     pictureGesture = null;
@@ -887,7 +921,9 @@ function onRosterUp(event: PointerEvent) {
     if (!drag.moved) {
         // A tap: the frame under the finger, read off the strip's own scale.
         const box = rosterEl.value?.getBoundingClientRect();
-        target = roster.time + (event.clientX - (box?.left ?? 0) - roster.markerX) / (roster.tileWidth / roster.step);
+        target =
+            roster.time +
+            (event.clientX - (box?.left ?? 0) - roster.markerX) / (roster.tileWidth / roster.step);
         target = Math.min(Math.max(0, target), Math.max(0, duration.value - 0.001));
     }
     handle.value?.seek(target);
@@ -933,7 +969,8 @@ const onLandscapeChange = (event: MediaQueryListEvent) => (landscape.value = eve
 landscapeQuery.addEventListener("change", onLandscapeChange);
 onBeforeUnmount(() => landscapeQuery.removeEventListener("change", onLandscapeChange));
 const webFill = computed(
-    () => nowPlaying.value && !isNativeApp() && landscape.value && expanded.value && !audioMode.value,
+    () =>
+        nowPlaying.value && !isNativeApp() && landscape.value && expanded.value && !audioMode.value,
 );
 /**
  * The now-playing screen is what the full player shows on a phone, and on a computer too, as the card in the
@@ -976,7 +1013,10 @@ const MINI_PICTURE_MAX_WIDTH = 114;
 const miniPictureWidth = computed(() =>
     miniStageWanted.value
         ? Math.round(
-              Math.min(MINI_PICTURE_MAX_WIDTH, MINI_PICTURE_HEIGHT.value * (stageAspect.value ?? 16 / 9)),
+              Math.min(
+                  MINI_PICTURE_MAX_WIDTH,
+                  MINI_PICTURE_HEIGHT.value * (stageAspect.value ?? 16 / 9),
+              ),
           )
         : MINI_PICTURE_HEIGHT.value,
 );
@@ -1004,7 +1044,13 @@ function trackMiniSpacer() {
     if (el) {
         const r = el.getBoundingClientRect();
         const prev = miniRect.value;
-        if (!prev || prev.x !== r.left || prev.y !== r.top || prev.w !== r.width || prev.h !== r.height) {
+        if (
+            !prev ||
+            prev.x !== r.left ||
+            prev.y !== r.top ||
+            prev.w !== r.width ||
+            prev.h !== r.height
+        ) {
             miniRect.value = { x: r.left, y: r.top, w: r.width, h: r.height };
         }
     }
@@ -1076,6 +1122,12 @@ const screenArtwork = computed(() => {
     return fallback ? { src: fallback } : null;
 });
 const screenChapterIndex = computed(() => chapterIndexAt(chapters.value, currentTime.value));
+/** The preview frame at a time, for the chapters' pictures, once the thumbnails are in. */
+const chapterThumbnailAt = computed(() =>
+    state.value?.thumbnailsReady
+        ? (seconds: number) => controller.value?.thumbnailAt(seconds) ?? null
+        : undefined,
+);
 const screenChapterMask = computed(() =>
     chapterMask(chapterSegments(chapters.value, duration.value)),
 );
@@ -1205,11 +1257,21 @@ let automaticId: string | null | undefined;
 let tracksKey = "";
 let appliedFor: string | undefined;
 watch(
-    () => [item.value?.content._id, (state.value?.subtitleTracks ?? []).map((t) => t.id).join()] as const,
+    () =>
+        [
+            item.value?.content._id,
+            (state.value?.subtitleTracks ?? []).map((t) => t.id).join(),
+        ] as const,
     ([id, key]) => {
         if (id !== appliedFor) automaticId = undefined;
         const tracks = state.value?.subtitleTracks ?? [];
-        if (!key || id === appliedFor || !subtitlePreference.value.on || state.value?.activeSubtitleTrackId) return;
+        if (
+            !key ||
+            id === appliedFor ||
+            !subtitlePreference.value.on ||
+            state.value?.activeSubtitleTrackId
+        )
+            return;
         const wanted = subtitlePreference.value.lang;
         const pick =
             tracks.find((track) => track.lang === wanted) ??
@@ -1403,7 +1465,9 @@ useMediaPlayerShortcuts(
         skip: ({ seconds }) => skip(seconds),
         seekToFraction: ({ fraction }) => {
             if (!(duration.value > 0) || !Number.isFinite(duration.value)) return;
-            handle.value?.seek(Math.min(fraction * duration.value, Math.max(0, duration.value - 0.001)));
+            handle.value?.seek(
+                Math.min(fraction * duration.value, Math.max(0, duration.value - 0.001)),
+            );
         },
         volume: ({ direction }) => {
             const player = handle.value;
@@ -1422,14 +1486,17 @@ useMediaPlayerShortcuts(
         toggleSubtitles: () => {
             const tracks = state.value?.subtitleTracks ?? [];
             if (!tracks.length) return;
-            if (state.value?.activeSubtitleTrackId) return void controller.value?.setSubtitleTrack(null);
+            if (state.value?.activeSubtitleTrackId)
+                return void controller.value?.setSubtitleTrack(null);
             const again = tracks.find((track) => track.id === lastSubtitleId);
             controller.value?.setSubtitleTrack((again ?? tracks[0]).id);
         },
         rate: ({ direction }) => {
             const current = state.value?.playbackRate ?? 1;
             const next =
-                direction === 1 ? RATES.find((r) => r > current) : [...RATES].reverse().find((r) => r < current);
+                direction === 1
+                    ? RATES.find((r) => r > current)
+                    : [...RATES].reverse().find((r) => r < current);
             if (next !== undefined) controller.value?.setPlaybackRate(next);
         },
         next: () => {
@@ -1459,7 +1526,11 @@ function onKeydown(event: KeyboardEvent) {
             class="fixed inset-0 z-[60] flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
             :class="[
                 expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
-                miniStage ? 'lg:rounded-l-xl lg:shadow-none' : 'lg:w-96 lg:rounded-xl',
+                // The picture follows the card's left corners; at the foot it stops above the progress line, so its
+                // corner there is the card's less the line.
+                miniStage
+                    ? 'lg:rounded-bl-[9px] lg:rounded-tl-xl lg:shadow-none'
+                    : 'lg:w-96 lg:rounded-xl',
                 // The screen has no height of its own, so on a computer the card is as tall as a phone's screen.
                 screen && expanded ? 'lg:h-[min(46rem,calc(100dvh-2.5rem))]' : '',
                 miniStage ? 'lmc-mini-stage pointer-events-none overflow-hidden' : '',
@@ -1529,6 +1600,7 @@ function onKeydown(event: KeyboardEvent) {
                     :skip-back-seconds="SKIP_SECONDS"
                     :skip-forward-seconds="SKIP_SECONDS"
                     :chapter-mask="screenChapterMask"
+                    :thumbnail-at="chapterThumbnailAt"
                     :messages="screenMessages"
                     :subtitle-tracks="state?.subtitleTracks ?? []"
                     :active-subtitle-track-id="state?.activeSubtitleTrackId ?? null"
@@ -1562,7 +1634,10 @@ function onKeydown(event: KeyboardEvent) {
                     @stagechange="nudgeInlineVideo"
                     @scrub="onNowPlayingScrub"
                 >
-                    <template v-if="nowPlayingRoster" #roster>
+                    <template
+                        v-if="nowPlayingRoster"
+                        #roster
+                    >
                         <ScrubRoster
                             :tiles="nowPlayingRoster.tiles"
                             :tile-width="nowPlayingRoster.tileWidth"
@@ -1655,10 +1730,18 @@ function onKeydown(event: KeyboardEvent) {
                             :caption-band="captionBand && !miniStage ? 64 : 0"
                             :fullscreen-on-play="isNativeApp()"
                             :windowed-controls="webFill"
-                            :captions-hidden="(webCaptionsBelow && !webFill) || (isNativeApp() && screenCovered)"
+                            :captions-hidden="
+                                (webCaptionsBelow && !webFill) || (isNativeApp() && screenCovered)
+                            "
                         />
-                        <div v-if="scrubPictureCue" class="absolute inset-0 z-[1]">
-                            <ScrubPicture :cue="scrubPictureCue" data-test="mediaPlayerScrubPicture" />
+                        <div
+                            v-if="scrubPictureCue"
+                            class="absolute inset-0 z-[1]"
+                        >
+                            <ScrubPicture
+                                :cue="scrubPictureCue"
+                                data-test="mediaPlayerScrubPicture"
+                            />
                         </div>
                     </template>
                 </AudioFullscreen>
@@ -1709,7 +1792,7 @@ function onKeydown(event: KeyboardEvent) {
                     </div>
                     <button
                         type="button"
-                        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full [@media(hover:hover)]:hover:bg-black/10 dark:[@media(hover:hover)]:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/10"
+                        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:bg-black/10 dark:active:bg-white/10 [@media(hover:hover)]:hover:bg-black/10 dark:[@media(hover:hover)]:hover:bg-white/10"
                         :aria-label="t('media_player.minimise')"
                         data-test="mediaPlayerMinimise"
                         @click="minimiseMediaPlayer"
@@ -1757,7 +1840,7 @@ function onKeydown(event: KeyboardEvent) {
 
                     <button
                         type="button"
-                        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full [@media(hover:hover)]:hover:bg-black/10 dark:[@media(hover:hover)]:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/10"
+                        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:bg-black/10 dark:active:bg-white/10 [@media(hover:hover)]:hover:bg-black/10 dark:[@media(hover:hover)]:hover:bg-white/10"
                         :aria-label="t('media_player.close')"
                         data-test="mediaPlayerClose"
                         @click="closeMediaPlayer"
@@ -1986,7 +2069,9 @@ function onKeydown(event: KeyboardEvent) {
                                 type="button"
                                 class="relative flex h-10 items-center justify-center gap-1.5 rounded-full border border-zinc-500/35 text-sm font-semibold text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] dark:text-slate-300 min-[420px]:h-11 min-[420px]:after:inset-0 md:h-12"
                                 :class="[
-                                    sleepTimer ? 'px-2 text-yellow-700 dark:text-yellow-400' : 'w-10 min-[420px]:w-11 md:w-12',
+                                    sleepTimer
+                                        ? 'px-2 text-yellow-700 dark:text-yellow-400'
+                                        : 'w-10 min-[420px]:w-11 md:w-12',
                                     { 'bg-zinc-500/15': sleepTimer },
                                 ]"
                                 :aria-label="t('media_player.sleep_timer')"
@@ -2130,7 +2215,9 @@ function onKeydown(event: KeyboardEvent) {
                             class="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] dark:text-slate-300 min-[420px]:h-11 min-[420px]:w-11 min-[420px]:after:inset-0 md:h-12 md:w-12"
                             :aria-label="t('media_player.fullscreen')"
                             data-test="mediaPlayerFullscreen"
-                            @click="audioMode ? (audioFullscreen = true) : handle?.enterFullscreen()"
+                            @click="
+                                audioMode ? (audioFullscreen = true) : handle?.enterFullscreen()
+                            "
                         >
                             <V10Icon
                                 name="fullscreenEnter"
@@ -2262,7 +2349,13 @@ function onKeydown(event: KeyboardEvent) {
                                       ? t('media_player.pause')
                                       : t('media_player.play')
                             "
-                            :data-test="playerBusy ? (starting ? 'mediaPlayerStarting' : 'mediaPlayerStalled') : 'mediaPlayerPlayPause'"
+                            :data-test="
+                                playerBusy
+                                    ? starting
+                                        ? 'mediaPlayerStarting'
+                                        : 'mediaPlayerStalled'
+                                    : 'mediaPlayerPlayPause'
+                            "
                             :disabled="starting"
                             @click="togglePlay"
                         >
@@ -2452,6 +2545,7 @@ function onKeydown(event: KeyboardEvent) {
                 :skip-back-seconds="SKIP_SECONDS"
                 :skip-forward-seconds="SKIP_SECONDS"
                 :chapter-mask="screenChapterMask"
+                :thumbnail-at="chapterThumbnailAt"
                 :messages="screenMessages"
                 :subtitle-tracks="state.subtitleTracks"
                 :active-subtitle-track-id="state.activeSubtitleTrackId"
@@ -2478,7 +2572,11 @@ function onKeydown(event: KeyboardEvent) {
                         class="lmpl-afs-iconbtn"
                         :aria-label="t(isMac ? 'media_player.airplay' : 'media_player.cast')"
                         data-test="mediaPlayerAudioFullscreenCast"
-                        @click="handle?.airPlayAvailable ? handle.showAirPlayPicker?.() : handle?.showCastPicker?.()"
+                        @click="
+                            handle?.airPlayAvailable
+                                ? handle.showAirPlayPicker?.()
+                                : handle?.showCastPicker?.()
+                        "
                     >
                         <V10Icon
                             :name="isMac ? 'airplay' : 'cast'"
@@ -2500,6 +2598,7 @@ function onKeydown(event: KeyboardEvent) {
             ref="bar"
             class="group fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex h-16 w-full items-center gap-0.5 pr-1 text-white transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
             :class="[
+                'inset-x-0 bottom-[var(--mobile-menu-h,0px)] w-full after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit',
                 barTint ? '' : 'bg-zinc-900',
                 mobileChrome.hidden.value
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'
@@ -2511,7 +2610,8 @@ function onKeydown(event: KeyboardEvent) {
             }"
             data-test="mediaPlayerBar"
         >
-            <!-- Along the bar's top on a phone; on a computer along its foot, under the picture too. -->
+            <!-- Along the bar's top on a phone; along the whole foot of a card (a computer's, or a phone's while
+                 reading), under the picture too. -->
             <div
                 v-if="!live"
                 class="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] bg-white/25 transition-[left] duration-150 lg:bottom-0 lg:left-0 lg:top-auto lg:group-focus-within:left-7 lg:group-hover:left-7"
@@ -2560,7 +2660,7 @@ function onKeydown(event: KeyboardEvent) {
                 />
                 <span
                     v-else
-                    class="flex h-[61px] w-[61px] flex-none self-end items-center justify-center bg-white/10 text-white/70 lg:self-start"
+                    class="flex h-[61px] w-[61px] flex-none items-center justify-center self-end bg-white/10 text-white/70 lg:self-start"
                     aria-hidden="true"
                 >
                     <MusicalNoteIcon class="h-6 w-6" />

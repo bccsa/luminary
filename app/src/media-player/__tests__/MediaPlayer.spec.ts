@@ -104,17 +104,19 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 "fullscreen",
             ],
             // Its top line and its stage, as the real screen draws them, so a host's switch and engine live in it.
-            setup: (props, { slots }) => () =>
-                h("div", { "data-test": "audioFullscreenStub" }, [
-                    h("div", { class: "lmpl-afs-top", "data-test": "audioFullscreenTop" }, [
-                        slots["top-end"]?.(),
+            setup:
+                (props, { slots }) =>
+                () =>
+                    h("div", { "data-test": "audioFullscreenStub" }, [
+                        h("div", { class: "lmpl-afs-top", "data-test": "audioFullscreenTop" }, [
+                            slots["top-end"]?.(),
+                        ]),
+                        props.title,
+                        slots["under-title"]?.(),
+                        slots.sheet?.({ close: () => {} }),
+                        slots.cast?.(),
+                        h("div", { "data-test": "audioFullscreenStage" }, [slots.stage?.()]),
                     ]),
-                    props.title,
-                    slots["under-title"]?.(),
-                    slots.sheet?.({ close: () => {} }),
-                    slots.cast?.(),
-                    h("div", { "data-test": "audioFullscreenStage" }, [slots.stage?.()]),
-                ]),
         }),
         rosterStep: () => 4,
         rosterFineStep: () => 1,
@@ -144,7 +146,9 @@ vi.mock("@/composables/useContentQuery", async () => {
 });
 
 const routerPush = vi.hoisted(() => vi.fn());
-const currentRoute = vi.hoisted(() => ({ value: { name: "home", params: {} as Record<string, string> } }));
+const currentRoute = vi.hoisted(() => ({
+    value: { name: "home", params: {} as Record<string, string> },
+}));
 vi.mock("vue-router", () => ({
     useRouter: () => ({
         push: routerPush,
@@ -289,7 +293,11 @@ beforeEach(() => {
     screenWide = true;
     screenLandscape = false;
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-        matches: query.includes("1024px") ? screenWide : query.includes("landscape") ? screenLandscape : false,
+        matches: query.includes("1024px")
+            ? screenWide
+            : query.includes("landscape")
+              ? screenLandscape
+              : false,
         media: query,
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
@@ -499,7 +507,9 @@ describe("MediaPlayer", () => {
             const wrapper = await playing();
             const section = find(wrapper, "mediaPlayer");
             // The menu is z-50 and the page's top bar z-30; modals sit higher still, at z-[100].
-            expect(section.classes()).toEqual(expect.arrayContaining(["fixed", "inset-0", "z-[60]"]));
+            expect(section.classes()).toEqual(
+                expect.arrayContaining(["fixed", "inset-0", "z-[60]"]),
+            );
             expect(section.attributes("style") ?? "").not.toContain("--media-player-top");
         });
 
@@ -573,7 +583,6 @@ describe("MediaPlayer", () => {
             expect(wrapper.find("[data-test='mediaPlayerMute']").exists()).toBe(false);
             expect(wrapper.find("[data-test='mediaPlayerPictureInPicture']").exists()).toBe(false);
         });
-
     });
 
     describe("AirPlay", () => {
@@ -581,7 +590,6 @@ describe("MediaPlayer", () => {
             const wrapper = await playing();
             expect(wrapper.find("[data-test='mediaPlayerAirPlay']").exists()).toBe(false);
         });
-
     });
 
     describe("the tabs under the picture (chapters, up next)", () => {
@@ -619,7 +627,6 @@ describe("MediaPlayer", () => {
             const wrapper = await playing();
             expect(tabIds(wrapper)).toEqual([]);
         });
-
     });
 
     describe("the page of what plays", () => {
@@ -642,7 +649,10 @@ describe("MediaPlayer", () => {
             currentRoute.value = { name: "home", params: {} };
             const wrapper = await withText();
             await find(wrapper, "mediaPlayerReadArticle").trigger("click");
-            expect(routerPush).toHaveBeenCalledWith({ name: "content", params: { slug: "the-slug" } });
+            expect(routerPush).toHaveBeenCalledWith({
+                name: "content",
+                params: { slug: "the-slug" },
+            });
         });
 
         it("only minimises from the full player when its page is already open", async () => {
@@ -724,7 +734,12 @@ describe("MediaPlayer", () => {
                 title: "The next one",
                 video: "https://cdn.example.com/next.m3u8",
             };
-            const after = { ...next, _id: "next-2", parentId: "next-2-parent", title: "The one after" };
+            const after = {
+                ...next,
+                _id: "next-2",
+                parentId: "next-2-parent",
+                title: "The one after",
+            };
             upNextDocs.value = [next, after];
             const wrapper = await playing();
             screen(wrapper).vm.$emit("upnextselect", "next-1");
@@ -756,12 +771,16 @@ describe("MediaPlayer", () => {
             screenLandscape = true;
             const wrapper = await playing();
             expect(screen(wrapper).props().fill).toBe(true);
-            expect(wrapper.findComponent({ name: "VideoPlayer" }).props("windowedControls")).toBe(true);
+            expect(wrapper.findComponent({ name: "VideoPlayer" }).props("windowedControls")).toBe(
+                true,
+            );
 
             await find(wrapper, "mediaPlayerAudio").trigger("click");
             await flushPromises();
             expect(screen(wrapper).props().fill).toBe(false);
-            expect(wrapper.findComponent({ name: "VideoPlayer" }).props("windowedControls")).toBe(false);
+            expect(wrapper.findComponent({ name: "VideoPlayer" }).props("windowedControls")).toBe(
+                false,
+            );
         });
 
         it("keeps the now-playing screen upright, and in the packaged app, which turns to its own full screen", async () => {
@@ -782,7 +801,11 @@ describe("MediaPlayer", () => {
             const lockLandscape = vi.fn();
             openMediaPlayer(mockEnglishContentDto, "en");
             const wrapper = await mountPlayer({
-                [PlatformChromeKey]: { chromeFadeEnabled: false, setStatusBarHidden: vi.fn(), lockLandscape },
+                [PlatformChromeKey]: {
+                    chromeFadeEnabled: false,
+                    setStatusBarHidden: vi.fn(),
+                    lockLandscape,
+                },
             });
             expect(screen(wrapper).props().fullscreenTool).toBe(false);
 
@@ -881,7 +904,11 @@ describe("MediaPlayer", () => {
             const setPagesTurn = vi.fn();
             openMediaPlayer(mockEnglishContentDto, "en");
             const wrapper = await mountPlayer({
-                [PlatformChromeKey]: { chromeFadeEnabled: false, setStatusBarHidden: vi.fn(), setPagesTurn },
+                [PlatformChromeKey]: {
+                    chromeFadeEnabled: false,
+                    setStatusBarHidden: vi.fn(),
+                    setPagesTurn,
+                },
             });
             expect(setPagesTurn).toHaveBeenLastCalledWith(false);
 
@@ -905,7 +932,9 @@ describe("MediaPlayer", () => {
             vi.stubEnv("VITE_BUILD_TARGET", "native");
             try {
                 const wrapper = await playing();
-                expect(wrapper.findComponent({ name: "VideoPlayer" }).props("captionBand")).toBeGreaterThan(0);
+                expect(
+                    wrapper.findComponent({ name: "VideoPlayer" }).props("captionBand"),
+                ).toBeGreaterThan(0);
             } finally {
                 vi.unstubAllEnvs();
             }
@@ -943,12 +972,24 @@ describe("MediaPlayer", () => {
         it("is drawn down only from its top line", async () => {
             const wrapper = await playing();
             const sectionStyle = () => find(wrapper, "mediaPlayer").attributes("style") ?? "";
-            await find(wrapper, "audioFullscreenStub").trigger("pointerdown", { clientY: 100, pointerId: 1 });
-            await find(wrapper, "audioFullscreenStub").trigger("pointermove", { clientY: 200, pointerId: 1 });
+            await find(wrapper, "audioFullscreenStub").trigger("pointerdown", {
+                clientY: 100,
+                pointerId: 1,
+            });
+            await find(wrapper, "audioFullscreenStub").trigger("pointermove", {
+                clientY: 200,
+                pointerId: 1,
+            });
             expect(sectionStyle()).not.toContain("--tw-translate-y");
 
-            await find(wrapper, "audioFullscreenTop").trigger("pointerdown", { clientY: 100, pointerId: 1 });
-            await find(wrapper, "audioFullscreenTop").trigger("pointermove", { clientY: 160, pointerId: 1 });
+            await find(wrapper, "audioFullscreenTop").trigger("pointerdown", {
+                clientY: 100,
+                pointerId: 1,
+            });
+            await find(wrapper, "audioFullscreenTop").trigger("pointermove", {
+                clientY: 160,
+                pointerId: 1,
+            });
             expect(sectionStyle()).toContain("--tw-translate-y: 60px");
         });
 
@@ -973,7 +1014,9 @@ describe("MediaPlayer", () => {
         it("opens with the subtitles on when the viewer last left them on, as the lyrics with sound alone", async () => {
             subtitlePreference.value = { on: true, lang: "fr" };
             const wrapper = await playing();
-            engine.handle.subtitleCues = [{ start: 1, end: 3, text: "Help me, Your Word to obey!" }];
+            engine.handle.subtitleCues = [
+                { start: 1, end: 3, text: "Help me, Your Word to obey!" },
+            ];
             await find(wrapper, "mediaPlayerAudio").trigger("click");
             await flushPromises();
             expect(engine.controller.setSubtitleTrack).toHaveBeenLastCalledWith("sub-fr");
@@ -1009,8 +1052,17 @@ describe("MediaPlayer", () => {
     });
 
     describe("keyboard shortcuts", () => {
-        const press = (key: string, init: KeyboardEventInit = {}, target: EventTarget = document.body) => {
-            const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+        const press = (
+            key: string,
+            init: KeyboardEventInit = {},
+            target: EventTarget = document.body,
+        ) => {
+            const event = new KeyboardEvent("keydown", {
+                key,
+                bubbles: true,
+                cancelable: true,
+                ...init,
+            });
             target.dispatchEvent(event);
             return event;
         };

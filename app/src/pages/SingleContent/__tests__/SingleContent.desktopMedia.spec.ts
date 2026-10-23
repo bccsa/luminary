@@ -90,7 +90,7 @@ describe("SingleContent with video on a desktop", () => {
         wrapper = mount(SingleContent, { props: { slug: videoContent.slug } });
 
         await waitForExpect(() => {
-            expect(wrapper!.find("[data-test='mediaWatch']").exists()).toBe(true);
+            expect(wrapper!.find("[data-test='mediaPlay']").exists()).toBe(true);
             expect(wrapper!.html()).toContain("test-image.webp");
         });
         expect(wrapper!.findComponent({ name: "VideoPlayer" }).exists()).toBe(false);
