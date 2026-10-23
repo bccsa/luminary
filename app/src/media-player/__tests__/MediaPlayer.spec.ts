@@ -726,12 +726,25 @@ describe("MediaPlayer", () => {
             expect(props.title).toBe(mockEnglishContentDto.title);
         });
 
-        it("holds a playing video still while the bar is held, and plays on once it is let go, the frames still up", async () => {
+        it("keeps a playing video going on a tap of the bar, which only seeks", async () => {
             engine.thumbnailsReady = true;
             const wrapper = await playing();
-            const held = { time: 50, markerX: 120, width: 390, bottom: 200 };
 
-            screen(wrapper).vm.$emit("scrub", held);
+            screen(wrapper).vm.$emit("scrub", { time: 50, markerX: 120, width: 390, bottom: 200 });
+            screen(wrapper).vm.$emit("scrub", { time: 51, markerX: 122, width: 390, bottom: 200 });
+            screen(wrapper).vm.$emit("scrub", null);
+            await flushPromises();
+
+            expect(engine.handle.pause).not.toHaveBeenCalled();
+            expect(engine.handle.play).not.toHaveBeenCalled();
+        });
+
+        it("holds a playing video still while the bar is dragged, and plays on once it is let go, the frames still up", async () => {
+            engine.thumbnailsReady = true;
+            const wrapper = await playing();
+
+            screen(wrapper).vm.$emit("scrub", { time: 50, markerX: 120, width: 390, bottom: 200 });
+            screen(wrapper).vm.$emit("scrub", { time: 60, markerX: 160, width: 390, bottom: 200 });
             await flushPromises();
             expect(engine.handle.pause).toHaveBeenCalledTimes(1);
             expect(engine.handle.play).not.toHaveBeenCalled();
@@ -739,13 +752,16 @@ describe("MediaPlayer", () => {
             screen(wrapper).vm.$emit("scrub", null);
             await flushPromises();
             expect(engine.handle.play).toHaveBeenCalledTimes(1);
-            expect(screen(wrapper).find("[data-test='mediaPlayerNowPlayingRoster']").exists()).toBe(true);
+            expect(screen(wrapper).find("[data-test='mediaPlayerNowPlayingRoster']").exists()).toBe(
+                true,
+            );
         });
 
         it("takes one press on Play to pause with the frames up: the press does not first resume the video", async () => {
             engine.thumbnailsReady = true;
             const wrapper = await playing();
             screen(wrapper).vm.$emit("scrub", { time: 50, markerX: 120, width: 390, bottom: 200 });
+            screen(wrapper).vm.$emit("scrub", { time: 60, markerX: 160, width: 390, bottom: 200 });
             await flushPromises();
             screen(wrapper).vm.$emit("scrub", null);
             await flushPromises();
@@ -756,7 +772,9 @@ describe("MediaPlayer", () => {
             await flushPromises();
             expect(engine.handle.play).not.toHaveBeenCalled();
             expect(engine.handle.pause).toHaveBeenCalledTimes(2);
-            expect(screen(wrapper).find("[data-test='mediaPlayerNowPlayingRoster']").exists()).toBe(false);
+            expect(screen(wrapper).find("[data-test='mediaPlayerNowPlayingRoster']").exists()).toBe(
+                false,
+            );
         });
 
         it("switches to the sound alone on the same engine, which never stops", async () => {
