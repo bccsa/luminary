@@ -566,12 +566,15 @@ const nowPlayingRoster = computed(() => {
     );
     return roster && { ...roster, bottom: pin.bottom };
 });
+let nowPlayingStartX = 0;
 function onNowPlayingScrub(position: ScrubPosition | null) {
     if (position) {
+        const first = nowPlayingScrub.value === null;
         nowPlayingScrub.value = position;
+        if (first) nowPlayingStartX = position.markerX;
         if (nowPlayingRoster.value) {
             rosterOpened = true;
-            pauseForScrub();
+            if (Math.abs(position.markerX - nowPlayingStartX) > TAP_SLOP_PX) pauseForScrub();
         }
         return;
     }
@@ -581,6 +584,7 @@ function onNowPlayingScrub(position: ScrubPosition | null) {
     rosterOpened = false;
     nowPlayingPin.value = { width: last.width, bottom: last.bottom, markerX: last.markerX };
     anchorPin(last.time);
+    resumeFromScrub();
 }
 
 /** The finger is on the bar. (`scrubTime` outlives it until playback arrives, so it cannot say.) */
@@ -716,13 +720,20 @@ function resumeFromScrub() {
     resumeAfterScrub = false;
     void handle.value?.play();
 }
-/** Looking for a moment in the frames is not watching: the video waits, and plays on from where it is let go. */
+/** Where the press on the bar began; a tap that stays put seeks without stopping the video. */
+let pressX: number | null = null;
+function onSeekDown(event: PointerEvent) {
+    pressX = event.clientX;
+}
+/** Looking for a moment in the frames is not watching: the video waits once the finger drags, and plays on when it is let go. */
+function onSeekMove(event: PointerEvent) {
+    if (pressX === null || !rosterOpened) return;
+    if (Math.abs(event.clientX - pressX) > TAP_SLOP_PX) pauseForScrub();
+}
 watch(
     () => fingerDown.value && heldRoster.value !== null,
     (holding) => {
-        if (!holding) return;
-        rosterOpened = true;
-        pauseForScrub();
+        if (holding) rosterOpened = true;
     },
 );
 
@@ -835,8 +846,8 @@ function holdScrubAt(target: number) {
 function seekTo(event: Event) {
     const target = Number((event.target as HTMLInputElement).value);
     handle.value?.seek(target);
-    // With frames up the video stays paused for slow scrubbing; a press outside resumes it.
-    if (!rosterOpened && !rosterPinned.value) resumeFromScrub();
+    // A video that was playing plays on from where the finger lifts, with the frames left up for another go.
+    resumeFromScrub();
     fingerDown.value = false;
     // Only a press outside unpins: a second report of the same release (the browser's cancel, then its change) must not.
     if (rosterOpened) {
@@ -915,8 +926,7 @@ function onRosterUp(event: PointerEvent) {
     rosterDrag.value = null;
     // A phone's browser may cancel a drag it takes over: where the strip had got to is still where the viewer went.
     const lifted = event.type === "pointerup" || (event.type === "pointercancel" && !!drag?.moved);
-    const pinned = rosterPinned.value || nowPlayingPin.value !== null;
-    if (!drag || !roster || !lifted) return pinned ? undefined : resumeFromScrub();
+    if (!drag || !roster || !lifted) return resumeFromScrub();
     let target = drag.time;
     if (!drag.moved) {
         // A tap: the frame under the finger, read off the strip's own scale.
@@ -929,7 +939,7 @@ function onRosterUp(event: PointerEvent) {
     handle.value?.seek(target);
     anchorPin(target);
     holdScrubAt(target);
-    if (!pinned) resumeFromScrub();
+    resumeFromScrub();
 }
 
 const openMenu = ref<"speed" | "language" | "subtitles" | "sleep" | null>(null);
@@ -2326,6 +2336,8 @@ function onKeydown(event: KeyboardEvent) {
                                             : '[&::-moz-range-thumb]:opacity-0 [&::-webkit-slider-thumb]:opacity-0'
                                     "
                                     data-test="mediaPlayerSeek"
+                                    @pointerdown="onSeekDown"
+                                    @pointermove="onSeekMove"
                                     @input="scrub"
                                     @change="seekTo"
                                     @pointercancel="cancelScrub"
