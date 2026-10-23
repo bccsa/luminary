@@ -151,4 +151,18 @@ describe("configuration", () => {
         expect(config.sidecar.rateLimit.read.enabled).toBe(false);
         expect(config.sidecar.rateLimit.probe.freeStrikes).toBe(3);
     });
+
+    it("honours BYPASS_TEMPLATE_VALIDATION outside production", () => {
+        process.env.BYPASS_TEMPLATE_VALIDATION = "true";
+        process.env.NODE_ENV = "development";
+
+        expect(configuration().validation.bypassTemplateValidation).toBe(true);
+    });
+
+    it("ignores BYPASS_TEMPLATE_VALIDATION in production", () => {
+        process.env.BYPASS_TEMPLATE_VALIDATION = "true";
+        process.env.NODE_ENV = "production";
+
+        expect(configuration().validation.bypassTemplateValidation).toBe(false);
+    });
 });
