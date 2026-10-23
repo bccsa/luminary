@@ -2483,7 +2483,7 @@ function onKeydown(event: KeyboardEvent) {
                 <!-- The grabber closes the sheet; the tabs under it say where the viewer is and switch. -->
                 <button
                     type="button"
-                    class="flex h-7 w-full flex-none items-center justify-center"
+                    class="flex h-4 w-full flex-none items-center justify-center"
                     :aria-label="t('media_player.minimise')"
                     data-test="mediaPlayerSheetClose"
                     @click="closeSheet"
