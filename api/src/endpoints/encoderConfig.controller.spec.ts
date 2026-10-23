@@ -119,4 +119,59 @@ describe("EncoderConfigController", () => {
         expect(res.body.s3.bucket).toBe("media");
         expect(res.body.publicBaseUrl).toBe("https://cdn.example.com/media");
     });
+
+    describe("for an edit of a post's existing video", () => {
+        const post = (overrides: object = {}) => ({
+            _id: "post-1",
+            type: "post",
+            memberOf: ["group-authors"],
+            mediaBucketId: "bucket-1",
+            ...overrides,
+        });
+        const docs = (parent?: object) =>
+            mockGetDoc.mockImplementation(async (id: string) =>
+                id === "bucket-1" ? bucket() : { docs: parent ? [parent] : [] },
+            );
+        const getFor = (parentId: string) =>
+            request(app.getHttpServer()).get(
+                `/storage/encoderconfig?bucketId=bucket-1&apiVersion=0.0.0&parentId=${parentId}`,
+            );
+        const grant = (edit: boolean) =>
+            jest
+                .spyOn(permissionsService.PermissionSystem, "verifyAccess")
+                .mockImplementation((_memberOf, docType, permission) =>
+                    docType === "storage" ? true : permission === "edit" && edit,
+                );
+
+        it("hands out the bucket's settings to someone who may edit the post", async () => {
+            docs(post());
+            grant(true);
+            const res = await getFor("post-1").expect(200);
+            expect(res.body.s3.bucket).toBe("media");
+        });
+
+        it("refuses someone who may publish to the bucket but not edit the post", async () => {
+            docs(post());
+            grant(false);
+            await getFor("post-1").expect(403);
+        });
+
+        it("refuses when the post's media is in another bucket", async () => {
+            docs(post({ mediaBucketId: "bucket-2" }));
+            grant(true);
+            await getFor("post-1").expect(400);
+        });
+
+        it("answers 404 for a document that is not a post or tag", async () => {
+            docs({ _id: "x", type: "language", memberOf: [] });
+            grant(true);
+            await getFor("x").expect(404);
+        });
+
+        it("still needs the bucket's own permission", async () => {
+            docs(post());
+            jest.spyOn(permissionsService.PermissionSystem, "verifyAccess").mockReturnValue(false);
+            await getFor("post-1").expect(403);
+        });
+    });
 });
