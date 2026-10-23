@@ -4,6 +4,8 @@ import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { type ContentDto, type HighlightColor, type HighlightRange } from "luminary-shared";
 import HighlightCard from "./HighlightCard.vue";
+import ActivitySection from "./ActivitySection.vue";
+import { groupByActivityDate } from "./activityGroups";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
 import { openHighlight } from "@/util/openHighlight";
@@ -26,7 +28,7 @@ const content = useContentQuery(() => [{ _id: { $in: contentIds.value } }], {
     keepPreviousResult: true,
 });
 
-type Entry = { content: ContentDto; range: HighlightRange };
+type Entry = { content: ContentDto; range: HighlightRange; updatedTimeUtc: number };
 
 /** One entry per saved passage, so each can be filtered by colour and opened on its own. */
 const entries = computed<Entry[]>(() =>
@@ -34,24 +36,36 @@ const entries = computed<Entry[]>(() =>
         .flatMap((row) => {
             const translation = content.value.find((c) => c._id === row.contentId);
             return translation
-                ? (row.payload?.ranges ?? []).map((range) => ({ content: translation, range }))
+                ? (row.payload?.ranges ?? []).map((range) => ({
+                      content: translation,
+                      range,
+                      updatedTimeUtc: row.updatedTimeUtc,
+                  }))
                 : [];
         })
         .filter((entry) => !props.colour || entry.range.color === props.colour),
 );
+
+const sections = computed(() => groupByActivityDate(entries.value, (e) => e.updatedTimeUtc));
 </script>
 
 <template>
     <div data-test="activity-highlighted">
-        <div class="flex flex-col gap-3">
-            <HighlightCard
-                v-for="entry in entries"
-                :key="`${entry.content._id}-${entry.range.start}`"
-                :content="entry.content"
-                :range="entry.range"
-                @open="openHighlight(router, entry.content.slug, entry.range)"
-            />
-        </div>
+        <ActivitySection
+            v-for="section in sections"
+            :key="section.group"
+            :group="section.group"
+        >
+            <div class="flex flex-col gap-3">
+                <HighlightCard
+                    v-for="entry in section.items"
+                    :key="`${entry.content._id}-${entry.range.start}`"
+                    :content="entry.content"
+                    :range="entry.range"
+                    @open="openHighlight(router, entry.content.slug, entry.range)"
+                />
+            </div>
+        </ActivitySection>
         <div
             v-if="!entries.length"
             class="text-zinc-500 dark:text-slate-200"

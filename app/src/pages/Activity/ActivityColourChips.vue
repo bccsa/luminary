@@ -12,9 +12,10 @@ defineEmits<{ select: [colour: HighlightColor | undefined] }>();
 
 const { t } = useI18n();
 
-const chipClass = (active: boolean) =>
-    active
-        ? "bg-zinc-700 text-white dark:bg-slate-100 dark:text-slate-900"
+// The ring is thicker than the section chips': the colour chips carry no text to tell them apart.
+const chipClass = (selected: boolean) =>
+    selected
+        ? "bg-zinc-100 text-yellow-700 ring-2 ring-yellow-700/50 dark:bg-slate-700 dark:text-yellow-400 dark:ring-yellow-400/50"
         : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600";
 </script>
 
@@ -29,12 +30,16 @@ const chipClass = (active: boolean) =>
         >
             {{ t("activity.highlights.all_colours") }}
         </button>
+        <!-- The colour is the whole label, so the name lives on the accessible side only. -->
         <button
             v-for="c in colours"
             :key="c"
             type="button"
-            class="flex items-center gap-2 rounded-full px-3 py-1 text-sm transition-colors"
+            class="flex h-7 w-7 items-center justify-center rounded-full transition-colors"
             :class="chipClass(active === c)"
+            :aria-label="t(`singlecontent.highlightColor.${c}`)"
+            :aria-pressed="active === c"
+            :title="t(`singlecontent.highlightColor.${c}`)"
             :data-test="`highlight-colour-${c}`"
             @click="$emit('select', c)"
         >
@@ -42,7 +47,6 @@ const chipClass = (active: boolean) =>
                 class="h-3 w-3 rounded-full"
                 :style="{ backgroundColor: HIGHLIGHT_COLORS[c] }"
             />
-            {{ t(`singlecontent.highlightColor.${c}`) }}
         </button>
     </div>
 </template>
