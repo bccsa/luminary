@@ -1,6 +1,8 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsPage from "./SettingsPage.vue";
+import LDialog from "@/components/common/LDialog.vue";
+import { recordUserActivity } from "@/userActivity/store";
 import { mount, flushPromises } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
@@ -17,6 +19,7 @@ vi.mock("@/globalConfig", async () => {
     });
     return {
         getDeviceInfo: () => ({ platform: "Test OS", userAgent: "Test Browser" }),
+        isTestEnviroment: true,
         isDataSaverEnabled: vi.fn(() => false),
         userDataSaverEnabled,
         localCacheVersion,
@@ -200,5 +203,18 @@ describe("SettingsPage data saver", () => {
         await wrapper.vm.$nextTick();
 
         expect(wrapper.find("[data-test='dataSaverNote']").exists()).toBe(false);
+    });
+
+    it("clears the activity only after the confirmation is accepted", async () => {
+        await recordUserActivity({ type: "liked", parentId: "post-1" });
+        const wrapper = mount(SettingsPage);
+
+        await wrapper.find("[data-test=clearUserActivity]").trigger("click");
+        expect(await db.userActivity.count()).toBe(1);
+
+        await wrapper.findComponent(LDialog).props("primaryAction")();
+
+        await flushPromises();
+        expect(await db.userActivity.count()).toBe(0);
     });
 });

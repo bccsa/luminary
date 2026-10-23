@@ -223,6 +223,12 @@ onUnmounted(() => {
                                 </a>
                             </RouterLink>
                             <div
+                                v-if="$slots.topBarLeading"
+                                class="pointer-events-auto relative z-10 ml-2 min-w-0"
+                            >
+                                <slot name="topBarLeading" />
+                            </div>
+                            <div
                                 class="pointer-events-auto relative z-10 ml-auto flex items-center gap-2 pr-2"
                                 :class="[
                                     quickControlBacking,
@@ -258,6 +264,12 @@ onUnmounted(() => {
                     <div
                         v-if="desktopTopBar && reserveTopBarCenter"
                         class="h-11"
+                    />
+
+                    <!-- Leading controls fill the pinned row edge to edge, so the page starts below it. -->
+                    <div
+                        v-if="desktopTopBar && $slots.topBarLeading"
+                        class="hidden h-11 xl:block"
                     />
 
                     <!-- Desktop notification: normal flow below the pinned chrome; pushes article down when present.
