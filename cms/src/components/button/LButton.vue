@@ -272,7 +272,7 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
             class="order-2"
             :class="
                 twMerge(
-                    $slots.default ? iconVariants[variant] : '',
+                    !disabled && $slots.default ? iconVariants[variant] : '',
                     iconRight && $slots.default ? '-mr-0.5' : '',
                     !iconRight && $slots.default ? '-ml-0.5' : '',
                     smallIcon && isMobileScreen ? 'h-4 w-4' : '',
