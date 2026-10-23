@@ -24,24 +24,26 @@ function fetchBucketsOnce(): Promise<StorageDto[]> {
 }
 
 /**
- * Resolve a storage bucket from the fully-synced `storage` docs for building image URLs. On the browser the hybrid query's `cache: true` seed makes the bucket available on first render; the SSG prerender fetches once for the whole build via `queryRemote` so the client builds real CDN URLs on first paint with no flash.
+ * Every storage bucket, for building image URLs. On the browser the hybrid query's `cache: true` seed makes the buckets available on first render; the SSG prerender fetches once for the whole build via `queryRemote` so the client builds real CDN URLs on first paint with no flash.
  */
-export function useBucketInfo(bucketId: Ref<Uuid | undefined>) {
-    let allBuckets: Ref<StorageDto[]>;
-
+export function useStorageBuckets(): Ref<StorageDto[]> {
     if (isPrerender()) {
         const out = shallowRef<StorageDto[]>([]);
         onServerPrefetch(async () => {
             out.value = await fetchBucketsOnce();
         });
-        allBuckets = out;
-    } else {
-        allBuckets = useHybridQuery<StorageDto>(() => STORAGE_QUERY, {
-            live: true,
-            cache: true,
-            cacheId: STORAGE_CACHE_ID,
-        });
+        return out;
     }
+    return useHybridQuery<StorageDto>(() => STORAGE_QUERY, {
+        live: true,
+        cache: true,
+        cacheId: STORAGE_CACHE_ID,
+    });
+}
+
+/** Resolve one storage bucket (see {@link useStorageBuckets}). */
+export function useBucketInfo(bucketId: Ref<Uuid | undefined>) {
+    const allBuckets = useStorageBuckets();
 
     const bucket = computed(() =>
         bucketId.value ? allBuckets.value.find((b) => b._id === bucketId.value) || null : null,

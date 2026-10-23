@@ -1,0 +1,310 @@
+<script setup lang="ts">
+/**
+ * A video hosted by YouTube, shown in the picture's place. Nothing is loaded from Google until the viewer
+ * chooses: a poster and a notice stand there first, and Play (or an earlier "Always allow") adds the
+ * frame. Data Saver never plays by itself: the notice shows whatever was allowed before.
+ *
+ * The frame is `youtube-embed.html` on the web app's own address: the packaged app's pages have no address
+ * YouTube accepts (error 153), and a page that has one can also run YouTube's player with its controls off
+ * and report to this one. So the app's own controls work on the video, as on one of ours: this exposes the
+ * same handle the player package's component does. Where that page is not available (a native build with no
+ * web address set) the frame is YouTube's embed with its own controls, and there is no handle.
+ */
+import { computed, inject, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { useI18n } from "vue-i18n";
+import { type ContentDto } from "luminary-shared";
+import { SignalSlashIcon } from "@heroicons/vue/24/outline";
+import LImage from "../images/LImage.vue";
+import { isDataSaverEnabled, userDataSaverEnabled, youtubeAlwaysAllow } from "@/globalConfig";
+import { isNativeApp } from "@/util/inAppBrowser";
+import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
+import { publicUrl } from "@/seo/publicSite";
+import { youTubeEmbedUrl, youTubeIdOf } from "@/util/youtube";
+import { createYouTubePlayer, isYouTubeReport, type YouTubeCommand } from "@/util/youtubePlayer";
+
+const props = defineProps<{ content: ContentDto; url: string }>();
+const emit = defineEmits<{
+    timeupdate: [currentTime: number, duration: number];
+    loadedmetadata: [];
+    ended: [];
+}>();
+const { t } = useI18n();
+
+const id = computed(() => youTubeIdOf(props.url));
+const dataSaver = computed(() => userDataSaverEnabled.value || isDataSaverEnabled());
+
+/** Pressed Play on this video, in this view. */
+const chosen = ref(false);
+/** The box on the notice: remembered once Play is pressed. */
+const remember = ref(false);
+
+/** YouTube plays only online: offline, its place says so rather than showing a frame that cannot load. */
+const online = ref(typeof navigator === "undefined" ? true : navigator.onLine);
+const onOnline = () => (online.value = true);
+const onOffline = () => (online.value = false);
+onMounted(() => {
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+});
+onBeforeUnmount(() => {
+    window.removeEventListener("online", onOnline);
+    window.removeEventListener("offline", onOffline);
+});
+
+const loaded = computed(
+    () => !!id.value && (chosen.value || (youtubeAlwaysAllow.value && !dataSaver.value)),
+);
+
+/**
+ * The hosted page: on the web origin in the packaged app, on this origin in a browser. Absent where a
+ * native build has no web origin to point at.
+ */
+const hostedPage = computed(() => {
+    if (!id.value) return undefined;
+    const path = `/youtube-embed.html?v=${id.value}&api=1`;
+    const address = isNativeApp() ? publicUrl(path) : path;
+    return address ? new URL(address, window.location.href) : undefined;
+});
+
+const frameSrc = computed(() => {
+    if (!id.value) return undefined;
+    return hostedPage.value?.toString() ?? youTubeEmbedUrl(id.value);
+});
+
+/** The frame can be driven only when it is the hosted page. */
+const driven = computed(() => !!hostedPage.value);
+
+const frame = shallowRef<HTMLIFrameElement | null>(null);
+
+const youtube = createYouTubePlayer({
+    send: (command: YouTubeCommand) => {
+        const origin = hostedPage.value?.origin;
+        if (origin) frame.value?.contentWindow?.postMessage(command, origin);
+    },
+    onTimeUpdate: (currentTime, duration) => emit("timeupdate", currentTime, duration),
+    onLoadedMetadata: () => emit("loadedmetadata"),
+    onEnded: () => emit("ended"),
+});
+
+function onMessage(event: MessageEvent) {
+    // Only the hosted page in our own frame.
+    if (!driven.value || event.source !== frame.value?.contentWindow) return;
+    if (event.origin !== hostedPage.value?.origin || !isYouTubeReport(event.data)) return;
+    // The controls the page draws over a full-screen video have an exit.
+    if (event.data.type === "exit") {
+        if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+        return;
+    }
+    youtube.receive(event.data);
+}
+
+/**
+ * A web view's full screen keeps the screen upright and cannot lock the orientation itself, so where the platform
+ * can turn the screen it is asked to while the frame is full-screen.
+ */
+const platformChrome = inject(PlatformChromeKey, null);
+let landscapeHeld = false;
+function holdLandscape(held: boolean) {
+    if (held === landscapeHeld || !platformChrome?.lockLandscape) return;
+    landscapeHeld = held;
+    platformChrome.lockLandscape(held);
+}
+
+/** The frame went full-screen or left it, however: our button, the system's gesture, or the page's exit. */
+function onFullscreenChange() {
+    if (!driven.value) return;
+    const doc = document as Document & { webkitFullscreenElement?: Element | null };
+    const on = !!frame.value && (doc.fullscreenElement ?? doc.webkitFullscreenElement) === frame.value;
+    holdLandscape(on);
+    youtube.setFullscreen(on, notchSize());
+    if (!on) settleLayout();
+}
+
+/**
+ * The packaged app's web view can come back from a frame's full-screen with the page shifted down by the
+ * status bar and cut off at the bottom. Scrolling to the top and making the page measure itself again puts it
+ * right on the next frame, and once more when iOS has finished its own changes.
+ */
+let settleFrame = 0;
+let settleTimer: ReturnType<typeof setTimeout> | undefined;
+function settleLayout() {
+    const nudge = () => {
+        window.scrollTo(0, 0);
+        window.dispatchEvent(new Event("resize"));
+        // Reading a layout value makes the browser lay the page out again now, not at its leisure.
+        void document.documentElement.offsetHeight;
+    };
+    cancelSettle();
+    settleFrame = requestAnimationFrame(nudge);
+    settleTimer = setTimeout(nudge, 350);
+}
+/** Not after the video is gone: the page would be scrolled for nothing. */
+function cancelSettle() {
+    cancelAnimationFrame(settleFrame);
+    clearTimeout(settleTimer);
+}
+
+/**
+ * How far the notch and the rounded corners keep things in from the edge, which a frame cannot read for
+ * itself: its own safe area reads as zero. The largest of the four sides, since a phone on its side has
+ * the notch at the left or right, and upright at the top. The page puts its controls clear of it.
+ */
+function notchSize(): number {
+    const probe = document.createElement("div");
+    probe.style.cssText =
+        "position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)";
+    document.body.appendChild(probe);
+    const style = getComputedStyle(probe);
+    const sides = [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft];
+    probe.remove();
+    return Math.max(0, ...sides.map((side) => parseFloat(side) || 0));
+}
+
+onMounted(() => {
+    window.addEventListener("message", onMessage);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    // Safari's web views report a frame's full screen under the prefixed name.
+    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
+});
+onBeforeUnmount(() => {
+    window.removeEventListener("message", onMessage);
+    document.removeEventListener("fullscreenchange", onFullscreenChange);
+    document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
+    holdLandscape(false);
+    cancelSettle();
+});
+
+/** A tap on the picture plays or pauses it, which is what YouTube's own play symbol over it is for. */
+function togglePlay() {
+    if (youtube.state.playing) youtube.pause();
+    else youtube.play();
+}
+
+function play() {
+    if (remember.value) youtubeAlwaysAllow.value = true;
+    chosen.value = true;
+}
+
+// What the media player reaches, as it does on the player package's component. Nothing, until there is a
+// frame to drive.
+const state = computed(() => (loaded.value && driven.value ? youtube.state : undefined));
+const controller = computed(() =>
+    loaded.value && driven.value
+        ? {
+              setPlaybackRate: youtube.setPlaybackRate,
+              setAngle: async () => {},
+              setAudioTrack: () => {},
+              setSubtitleTrack: () => {},
+              thumbnailAt: () => null,
+          }
+        : null,
+);
+
+defineExpose({
+    state,
+    controller,
+    muted: computed(() => youtube.flags.muted),
+    canMute: true,
+    canPictureInPicture: false,
+    airPlayAvailable: false,
+    airPlayActive: false,
+    setMuted: youtube.setMuted,
+    play: async () => youtube.play(),
+    pause: () => youtube.pause(),
+    seek: (seconds: number) => youtube.seek(seconds),
+    enterFullscreen: async () => {
+        await frame.value?.requestFullscreen?.();
+    },
+    exitFullscreen: async () => {
+        if (document.fullscreenElement) await document.exitFullscreen();
+    },
+});
+</script>
+
+<template>
+    <div
+        class="relative aspect-video w-full overflow-hidden bg-black md:rounded-lg"
+        data-test="youtubeEmbed"
+    >
+        <div
+            v-if="!online"
+            class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-800 p-6 text-center text-white"
+            role="status"
+            data-test="youtubeOffline"
+        >
+            <SignalSlashIcon
+                class="h-8 w-8"
+                aria-hidden="true"
+            />
+            <p class="text-sm font-bold sm:text-base">
+                {{ t("youtube.offline_title", "You're offline") }}
+            </p>
+            <p class="max-w-prose text-xs leading-snug text-white/80 sm:text-sm">
+                {{
+                    t(
+                        "youtube.offline_body",
+                        "This video plays from YouTube, so it needs the internet. It will be ready as soon as you're back online.",
+                    )
+                }}
+            </p>
+        </div>
+        <iframe
+            v-else-if="loaded && frameSrc"
+            ref="frame"
+            :src="frameSrc"
+            :title="content.title"
+            class="absolute inset-0 h-full w-full border-0"
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowfullscreen
+            referrerpolicy="strict-origin-when-cross-origin"
+            data-test="youtubeFrame"
+        />
+        <!-- The video is driven from the page's own controls: a touch on the picture is not YouTube's to take
+             (it would open YouTube, or its own full-screen). A tap plays or pauses it, as its play symbol
+             promises. Left off where the frame is YouTube's embed, whose controls are the only ones there. -->
+        <div
+            v-if="online && loaded && driven"
+            class="absolute inset-0"
+            data-test="youtubeShield"
+            @click="togglePlay"
+        />
+        <template v-else-if="online">
+            <LImage
+                :image="content.parentImageData"
+                aspectRatio="video"
+                size="post"
+                :content-parent-id="content.parentId"
+                :parent-image-bucket-id="content.parentImageBucketId"
+                class="absolute inset-0 h-full w-full object-cover opacity-50"
+            />
+            <div
+                class="absolute inset-0 flex flex-col justify-center gap-2 p-4 text-white sm:p-6"
+                data-test="youtubeNotice"
+            >
+                <p class="text-sm font-bold sm:text-base">{{ t("youtube.notice_title") }}</p>
+                <p class="max-w-prose text-xs leading-snug text-white/90 sm:text-sm">
+                    {{ t("youtube.notice_body") }}
+                </p>
+                <div class="mt-1 flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        class="h-10 rounded-full bg-white px-5 text-sm font-semibold text-zinc-900"
+                        data-test="youtubePlay"
+                        @click="play"
+                    >
+                        {{ t("youtube.play") }}
+                    </button>
+                    <label class="flex items-center gap-2 text-xs text-white/90 sm:text-sm">
+                        <input
+                            v-model="remember"
+                            type="checkbox"
+                            class="h-4 w-4 accent-yellow-400"
+                            data-test="youtubeRemember"
+                        />
+                        {{ t("youtube.always_allow") }}
+                    </label>
+                </div>
+            </div>
+        </template>
+    </div>
+</template>

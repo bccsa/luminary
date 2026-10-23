@@ -1,10 +1,18 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import { computed } from "vue";
+import { computed, defineComponent, h, nextTick } from "vue";
 import waitForExpect from "wait-for-expect";
 import VideoPlayer from "./VideoPlayer.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
+import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
+import { shareImageUrl } from "@/composables/useSocialShare";
+import { userDataSaverEnabled, youtubeAlwaysAllow } from "@/globalConfig";
+import { fallbackArtworkDataUrl } from "@/util/fallbackArtwork";
+import {
+    connectionSpeed,
+    hasMeasuredConnectionSpeed,
+} from "@/composables/useNetworkSpeedEstimator";
 
 /**
  * What is left to test here is Luminary's half of playback: which URL is played,
@@ -12,7 +20,7 @@ import { mockEnglishContentDto } from "@/tests/mockdata";
  *
  * The player itself — control bar, auto-hide, keep-alive, rotation, audio-track
  * selection, audio-only mode, the YouTube branch — belongs to
- * `player-web-legacy` and is tested there. Reaching through this component to
+ * `player-web` and is tested there. Reaching through this component to
  * assert on it would be testing someone else's library through a keyhole.
  */
 const seekMock = vi.hoisted(() => vi.fn());
@@ -24,16 +32,40 @@ const fetchHlsKeyMock = vi.hoisted(() => vi.fn());
 
 // Built inside the factory: vi.mock is hoisted above the imports, so a stub
 // defined at module scope is not there yet when the factory runs.
-vi.mock("@luminary-media-converter/player-web-legacy", async () => {
+vi.mock("@/util/fallbackArtwork", () => ({
+    fallbackArtworkDataUrl: vi.fn(() => Promise.resolve(undefined)),
+}));
+
+vi.mock("@luminary-media-converter/player-web", async () => {
     const { defineComponent, h } = await import("vue");
     return {
+        AUDIO_ONLY_ANGLE_ID: "__audio__",
+        isYouTubeUrl: (url: string | undefined) => {
+            try {
+                return !!url && /(^|\.)youtube\.com$/.test(new URL(url).hostname);
+            } catch {
+                return false;
+            }
+        },
         LuminaryPlayer: defineComponent({
             name: "LuminaryPlayer",
             props: {
                 source: { type: Object, required: true },
                 preferredLanguage: { type: String, default: undefined },
+                controls: { type: Object, default: undefined },
+                messages: { type: Object, default: undefined },
+                controllerOptions: { type: Object, default: undefined },
+                upNext: { type: Array, default: undefined },
+                nextUp: { type: Array, default: undefined },
             },
-            emits: ["loadedmetadata", "timeupdate", "ended"],
+            emits: [
+                "loadedmetadata",
+                "timeupdate",
+                "ended",
+                "upnextselect",
+                "nextupselect",
+                "nextupdismiss",
+            ],
             setup(_props, { expose }) {
                 expose({
                     seek: seekMock,
@@ -41,6 +73,7 @@ vi.mock("@luminary-media-converter/player-web-legacy", async () => {
                     pause: pauseMock,
                     enterFullscreen: enterFullscreenMock,
                     exitFullscreen: exitFullscreenMock,
+                    inlineActive: true,
                 });
                 // A real `<video>`, so the Matomo scan has something to title.
                 return () => h("div", { class: "luminary-player-stub" }, [h("video")]);
@@ -88,9 +121,12 @@ function content(overrides: Record<string, unknown> = {}) {
     } as any;
 }
 
-async function mountPlayer(overrides: Record<string, unknown> = {}) {
+async function mountPlayer(
+    overrides: Record<string, unknown> = {},
+    props: Record<string, unknown> = {},
+) {
     const wrapper = mount(VideoPlayer, {
-        props: { content: content(overrides), language: "en" },
+        props: { content: content(overrides), language: "en", ...props },
         global: { stubs: { LImage: true } },
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -157,6 +193,30 @@ describe("VideoPlayer", () => {
         expect(stub(wrapper).props("source").masterUrl).toBe(ABSOLUTE);
     });
 
+    it("offers the chapters file beside the master, in English, the one language there is", async () => {
+        const wrapper = await mountPlayer();
+
+        expect(stub(wrapper).props("source").sidecars.chapters).toEqual([
+            { lang: "en", url: "https://bucket.example.com/media/abc/chapters/en.vtt" },
+        ]);
+    });
+
+    it("offers the scrub frames file beside the master", async () => {
+        const wrapper = await mountPlayer();
+
+        expect(stub(wrapper).props("source").sidecars.thumbnails).toEqual({
+            url: "https://bucket.example.com/media/abc/thumbnails/thumbnails.vtt",
+        });
+    });
+
+    it("offers English to a viewer in another language too: their chapters are the English ones", async () => {
+        const wrapper = await mountPlayer({}, { language: "fr" });
+
+        expect(stub(wrapper).props("source").sidecars.chapters).toEqual([
+            { lang: "en", url: "https://bucket.example.com/media/abc/chapters/en.vtt" },
+        ]);
+    });
+
     it("renders no player when the document carries no video", async () => {
         const wrapper = await mountPlayer({ parentMedia: undefined });
 
@@ -167,6 +227,134 @@ describe("VideoPlayer", () => {
         const wrapper = await mountPlayer();
 
         expect(stub(wrapper).props("preferredLanguage")).toBe("en");
+    });
+
+    it("hands the player its own strings through the app's translations, not the player's English", async () => {
+        const wrapper = await mountPlayer();
+
+        const messages = stub(wrapper).props("messages");
+        expect(messages.comingSoon).toContain("video_player.coming_soon");
+        expect(messages.retry).toContain("video_player.retry");
+        expect(messages.skipBack).toContain("media_player.skip_back");
+    });
+
+    describe("in the media player", () => {
+        it("bares the frame: the media player draws the transport and the audio / video switch", async () => {
+            const wrapper = await mountPlayer();
+
+            // The subtitles menu is on, and shows only for a stream that has subtitles.
+            expect(stub(wrapper).props("controls")).toEqual({
+                subtitlesMenu: true,
+                audioVideoToggle: false,
+                windowedControls: false,
+            });
+        });
+
+        describe("what the connection says", () => {
+            afterEach(() => {
+                userDataSaverEnabled.value = false;
+                hasMeasuredConnectionSpeed.value = false;
+            });
+
+            it("caps the picture at 360p under Data Saver, and not otherwise", async () => {
+                expect(stub(await mountPlayer()).props("source").maxHeight).toBeUndefined();
+
+                userDataSaverEnabled.value = true;
+                expect(stub(await mountPlayer()).props("source").maxHeight).toBe(360);
+            });
+
+            it("turns background chunk warming off under Data Saver, and leaves it on otherwise", async () => {
+                expect(stub(await mountPlayer()).props("controllerOptions")).toMatchObject({
+                    prefetch: { enabled: true },
+                });
+
+                userDataSaverEnabled.value = true;
+                expect(stub(await mountPlayer()).props("controllerOptions")).toMatchObject({
+                    prefetch: { enabled: false },
+                });
+            });
+
+            it("starts the player's ABR from the measured speed in bits per second", async () => {
+                connectionSpeed.value = 2.5;
+                hasMeasuredConnectionSpeed.value = true;
+
+                expect(stub(await mountPlayer()).props("source").bandwidthEstimate).toBe(2_500_000);
+            });
+
+            it("offers no estimate until a real reading exists, rather than the optimistic default", async () => {
+                connectionSpeed.value = 10;
+                hasMeasuredConnectionSpeed.value = false;
+
+                expect(stub(await mountPlayer()).props("source").bandwidthEstimate).toBeUndefined();
+            });
+
+            it("does not reload the stream when a later probe changes the speed", async () => {
+                connectionSpeed.value = 2.5;
+                hasMeasuredConnectionSpeed.value = true;
+                const wrapper = await mountPlayer();
+
+                connectionSpeed.value = 8;
+                await nextTick();
+
+                expect(stub(wrapper).props("source").bandwidthEstimate).toBe(2_500_000);
+            });
+        });
+
+        it("starts on the sound alone when asked, so no video is fetched", async () => {
+            const wrapper = await mountPlayer({}, { startAudio: true });
+
+            expect(stub(wrapper).props("source").startAngleId).toBe("__audio__");
+        });
+
+        it("starts on the video otherwise", async () => {
+            const wrapper = await mountPlayer();
+
+            expect(stub(wrapper).props("source").startAngleId).toBeUndefined();
+        });
+
+        it("reads the start for the content it plays, so a later change does not reload it", async () => {
+            const wrapper = await mountPlayer({}, { startAudio: true });
+            await wrapper.setProps({ startAudio: false });
+
+            expect(stub(wrapper).props("source").startAngleId).toBe("__audio__");
+        });
+
+        it("plays once loaded, and goes full-screen for a video when the player shows it only there", async () => {
+            const wrapper = await mountPlayer({}, { autoplay: true, fullscreenOnPlay: true });
+            stub(wrapper).vm.$emit("loadedmetadata");
+
+            expect(playMock).toHaveBeenCalled();
+            expect(enterFullscreenMock).toHaveBeenCalled();
+        });
+
+        it("does not take a video hosted by YouTube full-screen when it starts, as it would for a native player", async () => {
+            const fullscreen = vi.fn(() => Promise.resolve());
+            HTMLIFrameElement.prototype.requestFullscreen = fullscreen;
+            youtubeAlwaysAllow.value = true;
+            const wrapper = await mountPlayer(
+                { video: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", parentMedia: undefined },
+                { autoplay: true, fullscreenOnPlay: true },
+            );
+            const embed = wrapper.findComponent({ name: "YouTubeEmbed" });
+            expect(embed.find("iframe").exists()).toBe(true);
+
+            embed.vm.$emit("loadedmetadata");
+            await new Promise((resolve) => setTimeout(resolve, 0));
+
+            expect(fullscreen).not.toHaveBeenCalled();
+            youtubeAlwaysAllow.value = false;
+        });
+
+        it("stays out of full-screen when it starts on the sound", async () => {
+            const wrapper = await mountPlayer(
+                {},
+                { autoplay: true, fullscreenOnPlay: true, startAudio: true },
+            );
+            stub(wrapper).vm.$emit("loadedmetadata");
+
+            expect(playMock).toHaveBeenCalled();
+            expect(enterFullscreenMock).not.toHaveBeenCalled();
+        });
     });
 
     describe("the decryption key", () => {
@@ -237,6 +425,7 @@ describe("VideoPlayer", () => {
     describe("resume position", () => {
         it("saves the position once past the resume threshold", async () => {
             const wrapper = await mountPlayer();
+            stub(wrapper).vm.$emit("loadedmetadata");
 
             stub(wrapper).vm.$emit("timeupdate", 90, 600);
 
@@ -248,6 +437,14 @@ describe("VideoPlayer", () => {
                 90,
                 600,
             );
+        });
+
+        it("does not save the previous video's position before this one has loaded", async () => {
+            const wrapper = await mountPlayer();
+
+            stub(wrapper).vm.$emit("timeupdate", 1031, 5509);
+
+            expect(setMediaProgressMock).not.toHaveBeenCalled();
         });
 
         it("does not save a position too early to be worth resuming", async () => {
@@ -275,6 +472,20 @@ describe("VideoPlayer", () => {
             expect(seekMock).toHaveBeenCalledWith(270);
         });
 
+        it("starts and restores the position on the first load only, not on a switch of mode", async () => {
+            getMediaProgressMock.mockReturnValue(300);
+            const wrapper = await mountPlayer({}, { autoplay: true });
+            stub(wrapper).vm.$emit("loadedmetadata");
+            expect(playMock).toHaveBeenCalledTimes(1);
+            expect(seekMock).toHaveBeenCalledTimes(1);
+
+            // Audio to video, or back: the player loads again, and a paused video stays paused.
+            stub(wrapper).vm.$emit("loadedmetadata");
+            stub(wrapper).vm.$emit("loadedmetadata");
+            expect(playMock).toHaveBeenCalledTimes(1);
+            expect(seekMock).toHaveBeenCalledTimes(1);
+        });
+
         it("does not seek for a position not worth resuming", async () => {
             getMediaProgressMock.mockReturnValue(30);
             const wrapper = await mountPlayer();
@@ -282,6 +493,165 @@ describe("VideoPlayer", () => {
             stub(wrapper).vm.$emit("loadedmetadata");
 
             expect(seekMock).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("the build target's player", () => {
+        /** A player that takes lock-screen metadata, as the packaged app's does. */
+        const NativeStub = defineComponent({
+            name: "NativeStub",
+            props: {
+                source: { type: Object, required: true },
+                preferredLanguage: { type: String, default: undefined },
+                controls: { type: Object, default: undefined },
+                nowPlaying: { type: Object, default: undefined },
+                upNext: { type: Array, default: undefined },
+            },
+            emits: ["loadedmetadata", "timeupdate", "ended"],
+            setup(_props, { expose }) {
+                expose({
+                    seek: seekMock,
+                    play: playMock,
+                    pause: pauseMock,
+                    enterFullscreen: enterFullscreenMock,
+                    exitFullscreen: exitFullscreenMock,
+                });
+                return () => h("div", { class: "native-stub" }, [h("video")]);
+            },
+        });
+
+        async function mountWithService(acceptsNowPlaying: boolean) {
+            const wrapper = mount(VideoPlayer, {
+                props: { content: content(), language: "en" },
+                global: {
+                    stubs: { LImage: true },
+                    provide: {
+                        [VideoPlayerKey as symbol]: { component: NativeStub, acceptsNowPlaying },
+                    },
+                },
+            });
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            return wrapper;
+        }
+
+        describe("the chapters and up next panel", () => {
+            const items = [{ id: "n1", title: "Day 2", section: "Next in series" }];
+
+            it("is handed to the browser's player, which draws it itself", async () => {
+                const wrapper = await mountPlayer({}, { upNext: items });
+                expect(stub(wrapper).props("upNext")).toEqual(items);
+            });
+
+            it("passes on a pick from the panel", async () => {
+                const wrapper = await mountPlayer({}, { upNext: items });
+                stub(wrapper).vm.$emit("upnextselect", "n1");
+                expect(wrapper.emitted("upnextselect")).toEqual([["n1"]]);
+            });
+
+            it("is not handed to a player that has no panel, where it would show as a stray attribute", async () => {
+                const wrapper = mount(VideoPlayer, {
+                    props: { content: content(), language: "en", upNext: items },
+                    global: {
+                        stubs: { LImage: true },
+                        provide: {
+                            [VideoPlayerKey as symbol]: {
+                                component: NativeStub,
+                                acceptsNowPlaying: false,
+                            },
+                        },
+                    },
+                });
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                expect(wrapper.find(".native-stub").attributes("upnext")).toBeUndefined();
+                expect(wrapper.findComponent(NativeStub).props("upNext" as never)).toBeUndefined();
+            });
+
+            it("is handed to a player that says it has one", async () => {
+                const wrapper = mount(VideoPlayer, {
+                    props: { content: content(), language: "en", upNext: items },
+                    global: {
+                        stubs: { LImage: true },
+                        provide: {
+                            [VideoPlayerKey as symbol]: {
+                                component: NativeStub,
+                                acceptsNowPlaying: false,
+                                acceptsBrowse: true,
+                            },
+                        },
+                    },
+                });
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                expect(wrapper.findComponent(NativeStub).props("upNext" as never)).toEqual(items);
+            });
+        });
+
+        it("renders the provided player in place of the browser's", async () => {
+            const wrapper = await mountWithService(true);
+
+            expect(wrapper.findComponent(NativeStub).exists()).toBe(true);
+            expect(wrapper.findComponent({ name: "LuminaryPlayer" }).exists()).toBe(false);
+            expect(wrapper.findComponent(NativeStub).props("source")).toEqual({
+                masterUrl: ABSOLUTE,
+                keyHex: undefined,
+                sidecars: {
+                    chapters: [
+                        { lang: "en", url: "https://bucket.example.com/media/abc/chapters/en.vtt" },
+                    ],
+                    thumbnails: {
+                        url: "https://bucket.example.com/media/abc/thumbnails/thumbnails.vtt",
+                    },
+                },
+            });
+        });
+
+        it("drives the provided player the same way: resume and finish", async () => {
+            getMediaProgressMock.mockReturnValue(300);
+            const wrapper = await mountWithService(true);
+            const player = wrapper.findComponent(NativeStub);
+
+            player.vm.$emit("loadedmetadata");
+            player.vm.$emit("ended");
+
+            expect(seekMock).toHaveBeenCalledWith(270);
+            expect(exitFullscreenMock).toHaveBeenCalled();
+        });
+
+        it("hands a player that takes it the title and the post's image for the lock screen", async () => {
+            const wrapper = await mountWithService(true);
+
+            expect(wrapper.findComponent(NativeStub).props("nowPlaying")).toEqual({
+                title: mockEnglishContentDto.title,
+                subtitle: mockEnglishContentDto.author,
+                artworkUrl: shareImageUrl(content(), "https://bucket.example.com"),
+            });
+        });
+
+        it("adds the page's stand-in picture for a post whose own image does not load", async () => {
+            vi.mocked(fallbackArtworkDataUrl).mockResolvedValueOnce("data:image/jpeg;base64,AAAA");
+
+            const wrapper = await mountWithService(true);
+
+            expect(wrapper.findComponent(NativeStub).props("nowPlaying")).toEqual({
+                title: mockEnglishContentDto.title,
+                subtitle: mockEnglishContentDto.author,
+                artworkUrl: shareImageUrl(content(), "https://bucket.example.com"),
+                fallbackArtworkUrl: "data:image/jpeg;base64,AAAA",
+            });
+        });
+
+        it("gives the browser's player what its full-screen audio screen names, not lock-screen metadata", async () => {
+            const wrapper = await mountPlayer();
+
+            // What it is given names the screen; the lock screen's `artworkUrl` is the native player's.
+            const given = stub(wrapper).vm.$attrs.nowPlaying;
+            expect(given).toMatchObject({ title: mockEnglishContentDto.title });
+            expect(given).not.toHaveProperty("artworkUrl");
+        });
+
+        it("tells the browser's player the app's theme, for the full-screen audio screen", async () => {
+            const wrapper = await mountPlayer();
+
+            expect(["light", "dark"]).toContain(stub(wrapper).vm.$attrs.appearance);
         });
     });
 
@@ -303,6 +673,7 @@ describe("VideoPlayer", () => {
         it("detects the end from the position when `ended` never arrives", async () => {
             // The normal case on YouTube, whose tech is known to drop the event.
             const wrapper = await mountPlayer();
+            stub(wrapper).vm.$emit("loadedmetadata");
 
             stub(wrapper).vm.$emit("timeupdate", 599.5, 600);
 
@@ -329,6 +700,223 @@ describe("VideoPlayer", () => {
             stub(wrapper).vm.$emit("ended");
 
             expect(recordAffinityMock).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    describe("the next video", () => {
+        const NEXT = [{ id: "n1", title: "Day 2" }];
+        const OTHER_RELATIVE = "/media/other/master.m3u8";
+        const other = () =>
+            content({
+                _id: "content-other",
+                parentId: "post-other",
+                parentMedia: { hlsUrl: OTHER_RELATIVE },
+            });
+
+        it("is handed to the browser's player", async () => {
+            const wrapper = await mountPlayer({}, { nextUp: NEXT });
+            expect(stub(wrapper).props("nextUp")).toEqual(NEXT);
+        });
+
+        it("is not handed to a player that does not take it", async () => {
+            const NativeStub = defineComponent({
+                name: "NativeStub",
+                props: {
+                    source: { type: Object, default: undefined },
+                    nextUp: { type: Array, default: undefined },
+                },
+                setup: () => () => h("div", { class: "native-stub" }),
+            });
+            const wrapper = mount(VideoPlayer, {
+                props: { content: content(), language: "en", nextUp: NEXT },
+                global: {
+                    stubs: { LImage: true },
+                    provide: {
+                        [VideoPlayerKey as symbol]: {
+                            component: NativeStub,
+                            acceptsNowPlaying: false,
+                            acceptsBrowse: true,
+                        },
+                    },
+                },
+            });
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(wrapper.findComponent(NativeStub).props("nextUp" as never)).toBeUndefined();
+        });
+
+        it("names its card in the app's translations", async () => {
+            const wrapper = await mountPlayer({}, { nextUp: NEXT });
+            const messages = stub(wrapper).props("messages") as Record<string, string>;
+            expect(messages).toMatchObject({
+                nextUp: "media_player.up_next",
+                dismiss: "video_player.dismiss_next_up",
+            });
+        });
+
+        it("passes on the pick, after booking the video it leaves as finished and pausing it", async () => {
+            const wrapper = await mountPlayer({}, { nextUp: NEXT });
+            stub(wrapper).vm.$emit("nextupselect", "n1");
+
+            expect(wrapper.emitted("nextupselect")).toEqual([["n1"]]);
+            expect(removeMediaProgressMock).toHaveBeenCalledWith(
+                RELATIVE,
+                mockEnglishContentDto._id,
+            );
+            expect(markSeenMock).toHaveBeenCalledWith(mockEnglishContentDto._id);
+            expect(pauseMock).toHaveBeenCalled();
+        });
+
+        it("stays in full-screen when the video ends into the next, and counts the end once", async () => {
+            const wrapper = await mountPlayer({}, { nextUp: NEXT });
+            stub(wrapper).vm.$emit("nextupselect", "n1");
+            stub(wrapper).vm.$emit("ended");
+
+            expect(exitFullscreenMock).not.toHaveBeenCalled();
+            expect(recordAffinityMock).toHaveBeenCalledTimes(1);
+        });
+
+        it("stays in full-screen at the near-end fallback too, when a next video is offered", async () => {
+            const wrapper = await mountPlayer({}, { nextUp: NEXT });
+            stub(wrapper).vm.$emit("timeupdate", 599.5, 600);
+            expect(exitFullscreenMock).not.toHaveBeenCalled();
+        });
+
+        it("leaves full-screen at the end when there is no next video", async () => {
+            const wrapper = await mountPlayer();
+            stub(wrapper).vm.$emit("ended");
+            expect(exitFullscreenMock).toHaveBeenCalled();
+        });
+
+        it("leaves full-screen at the end once the card is dismissed", async () => {
+            const wrapper = await mountPlayer({}, { nextUp: NEXT });
+            stub(wrapper).vm.$emit("nextupdismiss");
+            stub(wrapper).vm.$emit("ended");
+            expect(exitFullscreenMock).toHaveBeenCalled();
+        });
+
+        describe("when the content changes", () => {
+            it("does not draw the video behind the page while the previous one is still the one loaded", async () => {
+                const wrapper = await mountPlayer({}, { inline: true });
+                expect((wrapper.vm as any).inlineActive).toBe(true);
+                let release!: () => void;
+                fetchHlsKeyMock.mockReturnValue(
+                    new Promise<string>((r) => (release = () => r("ab"))),
+                );
+
+                await wrapper.setProps({
+                    content: content({
+                        _id: "content-other",
+                        parentId: "post-other",
+                        parentMedia: { hlsUrl: OTHER_RELATIVE, hlsKey_id: "k" },
+                    }),
+                });
+                expect((wrapper.vm as any).inlineActive).toBe(false);
+
+                release();
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                expect((wrapper.vm as any).inlineActive).toBe(true);
+            });
+
+            it("keeps the same player mounted, and holds the old source until the new key is in", async () => {
+                const wrapper = await mountPlayer();
+                const first = stub(wrapper).vm;
+                let release!: () => void;
+                fetchHlsKeyMock.mockReturnValue(
+                    new Promise<string>((r) => (release = () => r("ab"))),
+                );
+
+                await wrapper.setProps({
+                    content: content({
+                        _id: "content-other",
+                        parentId: "post-other",
+                        parentMedia: { hlsUrl: OTHER_RELATIVE, hlsKey_id: "k" },
+                    }),
+                });
+                expect(stub(wrapper).vm).toBe(first);
+                expect(stub(wrapper).props("source")).toMatchObject({ masterUrl: ABSOLUTE });
+
+                release();
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                expect(stub(wrapper).vm).toBe(first);
+                expect(stub(wrapper).props("source")).toMatchObject({
+                    masterUrl: "https://bucket.example.com/media/other/master.m3u8",
+                    keyHex: "ab",
+                });
+            });
+
+            it("drops the player when the new content has no video", async () => {
+                const wrapper = await mountPlayer();
+                await wrapper.setProps({ content: content({ parentMedia: undefined }) });
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                expect(stub(wrapper).exists()).toBe(false);
+            });
+
+            it("plays the new video on its own when asked, restoring only its own saved position", async () => {
+                const wrapper = await mountPlayer({}, { autoplay: true });
+                stub(wrapper).vm.$emit("loadedmetadata");
+                playMock.mockClear();
+                seekMock.mockClear();
+                getMediaProgressMock.mockReturnValue(0);
+
+                await wrapper.setProps({ content: other() });
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                stub(wrapper).vm.$emit("loadedmetadata");
+
+                expect(getMediaProgressMock).toHaveBeenLastCalledWith(
+                    OTHER_RELATIVE,
+                    "content-other",
+                );
+                expect(seekMock).not.toHaveBeenCalled();
+                expect(playMock).toHaveBeenCalledTimes(1);
+            });
+
+            it("does not play the new video on its own unless asked", async () => {
+                const wrapper = await mountPlayer();
+                stub(wrapper).vm.$emit("loadedmetadata");
+                playMock.mockClear();
+                await wrapper.setProps({ content: other() });
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                stub(wrapper).vm.$emit("loadedmetadata");
+                expect(playMock).not.toHaveBeenCalled();
+            });
+
+            it("does not book the old video's playback to the new one while it loads", async () => {
+                const wrapper = await mountPlayer();
+                let release!: () => void;
+                fetchHlsKeyMock.mockReturnValue(
+                    new Promise<string>((r) => (release = () => r("ab"))),
+                );
+                await wrapper.setProps({
+                    content: content({
+                        _id: "content-other",
+                        parentId: "post-other",
+                        parentMedia: { hlsUrl: OTHER_RELATIVE, hlsKey_id: "k" },
+                    }),
+                });
+
+                stub(wrapper).vm.$emit("timeupdate", 3540, 3600);
+                stub(wrapper).vm.$emit("ended");
+                expect(setMediaProgressMock).not.toHaveBeenCalled();
+                expect(recordAffinityMock).not.toHaveBeenCalled();
+
+                release();
+                await new Promise((resolve) => setTimeout(resolve, 0));
+            });
+
+            it("offers the next video's card afresh and scores the new video's own end", async () => {
+                const wrapper = await mountPlayer({}, { nextUp: NEXT });
+                stub(wrapper).vm.$emit("nextupdismiss");
+                await wrapper.setProps({ content: other() });
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                stub(wrapper).vm.$emit("loadedmetadata");
+                stub(wrapper).vm.$emit("ended");
+
+                expect(exitFullscreenMock).not.toHaveBeenCalled();
+                expect(removeMediaProgressMock).toHaveBeenCalledWith(
+                    OTHER_RELATIVE,
+                    "content-other",
+                );
+            });
         });
     });
 });

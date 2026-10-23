@@ -41,6 +41,12 @@ export default {
                     title.includes("lch and lab color values") ||
                     title.includes("box-decoration") ||
                     title.includes("selection") ||
+                    // The media player: its skin (Video.js 10) lays out controls with display: contents and
+                    // clips with clip-path, its styles fade edges with masks (with -webkit- fallbacks), and
+                    // the drawn-down player clips the page behind it.
+                    title.includes("display: contents") ||
+                    title.includes("clip-path") ||
+                    title.includes("css masks") ||
                     !isCLI
                 ) {
                     return;

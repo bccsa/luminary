@@ -92,8 +92,15 @@ const HERO_ASPECT_RATIO = 1.78;
 // the reader bytes without reaching them any sharper.
 const SHARE_IMAGE_TARGET_WIDTH = 1080;
 
-/** URL of the image variant to attach to a share, or undefined when the post has no image. */
-export function shareImageUrl(content: ContentDto, bucketBaseUrl?: string): string | undefined {
+/**
+ * URL of the image variant to attach to a share, or undefined when the post has no image.
+ * `targetWidth` picks the file nearest that width, for a smaller use of the same 16:9 picture.
+ */
+export function shareImageUrl(
+    content: ContentDto,
+    bucketBaseUrl?: string,
+    targetWidth: number = SHARE_IMAGE_TARGET_WIDTH,
+): string | undefined {
     const collections = content.parentImageData?.fileCollections ?? [];
     if (!bucketBaseUrl || !collections.length) return undefined;
 
@@ -108,8 +115,7 @@ export function shareImageUrl(content: ContentDto, bucketBaseUrl?: string): stri
     if (!files.length) return undefined;
 
     const file = files.reduce((closest, candidate) =>
-        Math.abs(candidate.width - SHARE_IMAGE_TARGET_WIDTH) <
-        Math.abs(closest.width - SHARE_IMAGE_TARGET_WIDTH)
+        Math.abs(candidate.width - targetWidth) < Math.abs(closest.width - targetWidth)
             ? candidate
             : closest,
     );
