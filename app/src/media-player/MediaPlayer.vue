@@ -1005,8 +1005,9 @@ const miniStageWanted = computed(
 /**
  * While reading a post on a phone, once the menu has stepped aside, the bar is a card floating over the page's foot, as
  * the computer's is in its corner: rounded, clear of the edges, its progress line along its foot. It sits low: on an
- * iPhone just above the home indicator rather than its whole band, elsewhere 6px above the screen's edge or the
- * system bar. With the menu showing it is the bar on the menu.
+ * iPhone just above the home indicator rather than its whole band, high enough that its corners clear the screen's
+ * rounded ones; elsewhere 6px above the screen's edge or the system bar. With the menu showing it is the bar on the
+ * menu.
  */
 const floatingCard = computed(
     () =>
@@ -2628,7 +2629,7 @@ function onKeydown(event: KeyboardEvent) {
             class="group fixed z-40 flex h-16 items-center gap-0.5 pr-1 text-white transition-[transform,left,right,bottom,border-radius,box-shadow] duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
             :class="[
                 floatingCard
-                    ? 'inset-x-2 bottom-[calc(var(--mobile-menu-h,0px)+var(--card-gap)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))] overflow-hidden rounded-[14px] shadow-xl shadow-black/30 [--card-gap:max(6px,env(safe-area-inset-bottom)_-_22px,var(--native-inset-bottom,0px)_+_6px)]'
+                    ? 'inset-x-2 bottom-[calc(var(--mobile-menu-h,0px)+var(--card-gap)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))] overflow-hidden rounded-[14px] shadow-xl shadow-black/30 [--card-gap:max(6px,env(safe-area-inset-bottom)_-_16px,var(--native-inset-bottom,0px)_+_6px)]'
                     : 'inset-x-0 bottom-[var(--mobile-menu-h,0px)] after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:[background:inherit]',
                 barTint ? '' : 'bg-zinc-900',
                 mobileChrome.hidden.value
