@@ -1,4 +1,4 @@
-import { Controller, Post, Req, UseGuards, UsePipes } from "@nestjs/common";
+import { Controller, Post, Req, UnauthorizedException, UseGuards, UsePipes } from "@nestjs/common";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
@@ -15,6 +15,11 @@ export class ChangeRequestController {
     @UseGuards(AuthGuard)
     @UsePipes()
     async handleChangeRequest(@Req() request: FastifyRequest) {
+        // Reject before parsing: multipart handling buffers every uploaded file in memory, which an anonymous caller must not be able to trigger
+        if (request.user?.anonymous) {
+            throw new UnauthorizedException("Authentication required");
+        }
+
         // Check if the request is multipart
         const isMultipartRequest =
             typeof request.isMultipart === "function" ? request.isMultipart() : false;

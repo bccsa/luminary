@@ -24,6 +24,19 @@ describe("ChangeRequest service", () => {
         };
     });
 
+    it("rejects anonymous identities even when their groups grant write access", async () => {
+        const anonymous: JwtUserDetails = {
+            groups: ["group-super-admins"],
+            accessMap: PermissionSystem.getAccessMap(["group-super-admins"]),
+            anonymous: true,
+        };
+
+        const res = await changeRequestService.changeRequest(changeRequest_post(), anonymous);
+
+        expect(res.ack).toBe(AckStatus.Rejected);
+        expect(res.docs).toBeUndefined();
+    });
+
     it("can query the api endpoint", async () => {
         const res = await changeRequestService.changeRequest(changeRequest_post(), mockUserDetails);
 
