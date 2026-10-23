@@ -1238,7 +1238,7 @@ describe("MediaPlayer", () => {
             expect(bar.attributes("style") ?? "").not.toContain("background-color");
         });
 
-        it("takes the post image's colour, darkened, from its ThumbHash", async () => {
+        it("wears the post image's ThumbHash under a scrim, over its colour darkened", async () => {
             const rgba = new Uint8Array(8 * 8 * 4);
             for (let i = 0; i < 64; i++) rgba.set([240, 220, 200, 255], i * 4);
             const thumbHash = btoa(String.fromCharCode(...rgbaToThumbHash(8, 8, rgba)));
@@ -1264,6 +1264,9 @@ describe("MediaPlayer", () => {
             // A light picture still gives a bar white text reads on.
             expect(Math.max(r, g, b)).toBeLessThan(140);
             expect(r).toBeGreaterThan(b);
+            // Over that colour, the ThumbHash itself, under a scrim.
+            expect(bar.attributes("style")).toContain("data:image/png");
+            expect(bar.attributes("style")).toContain("linear-gradient");
         });
 
         it("marks the way up on the picture", async () => {

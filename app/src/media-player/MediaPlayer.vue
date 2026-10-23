@@ -1032,6 +1032,24 @@ const miniPictureWidth = computed(() =>
 );
 /** The bar's fill: the post image's colour, or the plain dark bar when it has none. */
 const barTint = computed(() => thumbHashTint(content.value));
+/**
+ * The bar wears the post image's ThumbHash, stretched along it so its colours run from end to end, under a scrim
+ * that keeps the white text readable; its average colour shows until the picture is drawn.
+ */
+const barFill = computed(() => {
+    const tint = barTint.value;
+    if (!tint) return {};
+    const hash = thumbHashWash(content.value);
+    return {
+        backgroundColor: tint,
+        ...(hash
+            ? {
+                  backgroundImage: `linear-gradient(rgb(8 10 14 / 0.55), rgb(8 10 14 / 0.55)), url("${hash}")`,
+                  backgroundSize: "100% 100%",
+              }
+            : {}),
+    };
+});
 /** The player busy, shown alike in the bar and the full player: the spinner standing in for play. */
 const playerBusy = computed(() => starting.value || swapping.value || stalled.value);
 const barCoverFailed = ref(false);
@@ -2606,17 +2624,17 @@ function onKeydown(event: KeyboardEvent) {
             v-if="!expanded"
             v-show="!keyboardOpen"
             ref="bar"
-            class="group fixed z-40 flex h-16 items-center gap-0.5 pr-1 text-white transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
+            class="group fixed z-40 flex h-16 items-center gap-0.5 pr-1 text-white transition-[transform,left,right,bottom,border-radius,box-shadow] duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
             :class="[
                 floatingCard
                     ? 'inset-x-2 bottom-[calc(var(--mobile-menu-h,0px)+8px)] overflow-hidden rounded-[14px] shadow-xl shadow-black/30'
-                    : 'inset-x-0 bottom-[var(--mobile-menu-h,0px)] w-full after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:bg-inherit',
+                    : 'inset-x-0 bottom-[var(--mobile-menu-h,0px)] after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:[background:inherit]',
                 barTint ? '' : 'bg-zinc-900',
                 mobileChrome.hidden.value
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'
                     : 'translate-y-0',
             ]"
-            :style="barTint ? { backgroundColor: barTint } : {}"
+            :style="barFill"
             data-test="mediaPlayerBar"
         >
             <!-- Along the bar's top on a phone; along the whole foot of a card (a computer's, or a phone's while
@@ -2636,9 +2654,10 @@ function onKeydown(event: KeyboardEvent) {
             <!-- The way up has a box of its own at the bar's left end, so nothing sits over the picture. -->
             <button
                 type="button"
-                class="flex h-full w-7 flex-none items-center justify-center bg-black/30 transition-[width] duration-150 active:bg-black/45 lg:-mr-0.5 lg:w-0 lg:overflow-hidden lg:focus-visible:w-7 lg:group-focus-within:mr-0 lg:group-focus-within:w-7 lg:group-hover:mr-0 lg:group-hover:w-7 [@media(hover:hover)]:hover:bg-black/45"
+                class="-mr-0.5 flex h-[calc(100%-3px)] w-7 flex-none items-center justify-center self-start bg-black/30 [transition:width_150ms,transform_700ms_cubic-bezier(0.32,0.72,0,1)] active:bg-black/45 lg:w-0 lg:overflow-hidden lg:focus-visible:w-7 lg:group-focus-within:mr-0 lg:group-focus-within:w-7 lg:group-hover:mr-0 lg:group-hover:w-7 [@media(hover:hover)]:hover:bg-black/45"
                 :aria-label="t('media_player.expand')"
                 data-test="mediaPlayerBarExpandBadge"
+                :class="lineAtFoot ? '' : 'translate-y-[3px]'"
                 @click="expandMediaPlayer"
             >
                 <ChevronUpIcon class="h-5 w-5" />
@@ -2654,8 +2673,8 @@ function onKeydown(event: KeyboardEvent) {
                 <div
                     v-if="miniStageWanted"
                     ref="miniSpacer"
-                    class="h-[calc(100%-3px)] flex-none"
-                    :class="lineAtFoot ? 'self-start' : 'self-end'"
+                    class="h-[calc(100%-3px)] flex-none self-start transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                    :class="lineAtFoot ? '' : 'translate-y-[3px]'"
                     :style="{
                         width: `${miniPictureWidth}px`,
                     }"
@@ -2665,15 +2684,15 @@ function onKeydown(event: KeyboardEvent) {
                     v-else-if="barCover"
                     :src="barCover"
                     alt=""
-                    class="h-[61px] w-[61px] flex-none object-cover"
-                    :class="lineAtFoot ? 'self-start' : 'self-end'"
+                    class="h-[61px] w-[61px] flex-none self-start object-cover transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                    :class="lineAtFoot ? '' : 'translate-y-[3px]'"
                     draggable="false"
                     @error="barCoverFailed = true"
                 />
                 <span
                     v-else
-                    class="flex h-[61px] w-[61px] flex-none items-center justify-center bg-white/10 text-white/70"
-                    :class="lineAtFoot ? 'self-start' : 'self-end'"
+                    class="flex h-[61px] w-[61px] flex-none items-center justify-center self-start bg-white/10 text-white/70 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                    :class="lineAtFoot ? '' : 'translate-y-[3px]'"
                     aria-hidden="true"
                 >
                     <MusicalNoteIcon class="h-6 w-6" />
