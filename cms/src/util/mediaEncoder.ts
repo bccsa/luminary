@@ -93,6 +93,8 @@ export type CreateEncoderSessionRequest = {
     byteRangeMaxFileSizeMB?: number;
     audioByteRangeMaxFileSizeMB?: number;
     existingMedia?: { hlsUrl: string; hlsKey?: string };
+    /** `edit` opens `existingMedia` to change its chapters and audio tracks; it never encodes. */
+    mode?: "encode" | "edit";
 };
 
 export type CreateEncoderSessionResponse = {

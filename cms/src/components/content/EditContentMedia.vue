@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { type ContentParentDto, type MediaDto, toAbsoluteMediaUrl } from "luminary-shared";
-import { FilmIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
+import { FilmIcon, PencilSquareIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
+import LButton from "../button/LButton.vue";
 import LCard from "../common/LCard.vue";
 import LDialog from "../common/LDialog.vue";
 import EncodeMediaButton from "../media/EncodeMediaButton.vue";
@@ -57,6 +58,7 @@ const {
     refreshAvailability,
     watchForEncoder,
     start,
+    edit,
     resume,
     stop,
 } = useMediaEncoder();
@@ -127,6 +129,32 @@ const startEncode = () => {
     });
 };
 
+/** The video this document already has, absolute, as the encoder reaches it. */
+const existingVideoUrl = computed(() => {
+    const bucket = bucketSelection.getBucketById(effectiveBucketId.value ?? null);
+    return toAbsoluteMediaUrl(parent.value?.media?.hlsUrl, bucket?.publicUrl);
+});
+
+/** Why the existing video cannot be opened for editing, or empty when it can. */
+const editDisabledReason = computed(() => {
+    if (props.disabled) return "You do not have permission to edit this document.";
+    if (availability.value != "available") return "Luminary Media Convert is not running.";
+    if (busy.value) return "Opening Luminary Media Convert…";
+    return "";
+});
+
+/** Opens the existing video in the encoder, to change its chapters and audio tracks. */
+const editVideo = () => {
+    const bucketId = effectiveBucketId.value;
+    if (!parent.value?._id || !bucketId || !existingVideoUrl.value) return;
+    void edit({
+        documentId: parent.value._id,
+        title: props.title || "Untitled",
+        mediaBucketId: bucketId,
+        hlsUrl: existingVideoUrl.value,
+    });
+};
+
 /**
  * An encode outlives this page, so arriving at a document asks whether one is
  * already running for it rather than assuming the encoder is idle.
@@ -159,6 +187,18 @@ watch(
 <template>
     <LCard v-if="parent" bare title="Media" :icon="FilmIcon" data-test="media-section">
         <template #actions>
+            <LButton
+                v-if="existingVideoUrl && effectiveBucketId"
+                :icon="PencilSquareIcon"
+                variant="secondary"
+                size="base"
+                :disabled="Boolean(editDisabledReason)"
+                :title="editDisabledReason || 'Edit the chapters and audio tracks of this video'"
+                data-test="edit-media-button"
+                @click.stop="editVideo"
+            >
+                <span class="text-sm">Edit video</span>
+            </LButton>
             <EncodeMediaButton
                 :availability="availability"
                 :busy="busy"
