@@ -1,17 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import {
-    type ContentParentDto,
-    type MediaDto,
-    isBucketRelative,
-    toAbsoluteMediaUrl,
-} from "luminary-shared";
-import {
-    FilmIcon,
-    PencilSquareIcon,
-    QuestionMarkCircleIcon,
-    TrashIcon,
-} from "@heroicons/vue/24/outline";
+import { type ContentParentDto, type MediaDto, toAbsoluteMediaUrl } from "luminary-shared";
+import { FilmIcon, PencilSquareIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
 import LCard from "../common/LCard.vue";
 import LDialog from "../common/LDialog.vue";
@@ -169,54 +159,6 @@ const editVideo = () => {
     });
 };
 
-const showDeleteVideoModal = ref(false);
-
-/** Files of ours to delete: a video hosted elsewhere (YouTube) only leaves the document. */
-const videoInOurStorage = computed(() => {
-    const url = parent.value?.media?.hlsUrl;
-    if (!url) return false;
-    if (isBucketRelative(url)) return true;
-    const bucketRoot = toAbsoluteMediaUrl(
-        "/",
-        bucketSelection.getBucketById(effectiveBucketId.value ?? null)?.publicUrl,
-    );
-    return !!bucketRoot && url.startsWith(bucketRoot);
-});
-
-/** What the dialog says: files deleted for ours, only the link removed for a video hosted elsewhere. */
-const deleteWording = computed(() => {
-    if (videoInOurStorage.value) {
-        return {
-            title: "Delete the video?",
-            description:
-                "This removes the video from this document and deletes its files from storage, unless another document still uses them. This cannot be undone.",
-            button: "Delete video",
-        };
-    }
-    const where = isYouTubeUrl(parent.value?.media?.hlsUrl ?? "")
-        ? "on YouTube"
-        : "where it is hosted";
-    return {
-        title: "Remove the video?",
-        description: `This removes the video from this document. The video itself stays ${where}: nothing is deleted.`,
-        button: "Remove video",
-    };
-});
-
-/** Asked here, where the editor pressed Delete, rather than later on Save. */
-const deleteVideo = () => {
-    showDeleteVideoModal.value = true;
-};
-
-const confirmDeleteVideo = async () => {
-    showDeleteVideoModal.value = false;
-    const write = () => {
-        if (parent.value) delete parent.value.media;
-    };
-    if (props.saveDeletedMedia) await props.saveDeletedMedia(write);
-    else write();
-};
-
 /**
  * An encode outlives this page, so arriving at a document asks whether one is
  * already running for it rather than assuming the encoder is idle.
@@ -249,6 +191,26 @@ watch(
 <template>
     <LCard v-if="parent" bare title="Media" :icon="FilmIcon" data-test="media-section">
         <template #actions>
+            <LButton
+                v-if="existingVideoUrl && effectiveBucketId"
+                :icon="PencilSquareIcon"
+                variant="secondary"
+                size="base"
+                :disabled="Boolean(editDisabledReason)"
+                :title="editDisabledReason || 'Edit the chapters and audio tracks of this video'"
+                data-test="edit-media-button"
+                @click.stop="editVideo"
+            >
+                <span class="text-sm">Edit video</span>
+            </LButton>
+            <EncodeMediaButton
+                :availability="availability"
+                :busy="busy"
+                :documentId="parent._id"
+                :hasBucket="Boolean(effectiveBucketId)"
+                :disabled="disabled"
+                @encode="encode"
+            />
             <button
                 class="flex cursor-pointer items-center gap-1 rounded-md"
                 type="button"
