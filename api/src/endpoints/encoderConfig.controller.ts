@@ -7,7 +7,10 @@ import {
     Req,
     HttpException,
     HttpStatus,
+    Inject,
 } from "@nestjs/common";
+import { WINSTON_MODULE_PROVIDER } from "nest-winston";
+import { Logger } from "winston";
 import { AuthGuard } from "../auth/auth.guard";
 import { DbService } from "../db/db.service";
 import { validateApiVersion } from "../validation/apiVersion";
@@ -53,7 +56,11 @@ export type EncoderConfigResponseDto = {
  */
 @Controller("storage")
 export class EncoderConfigController {
-    constructor(private readonly dbService: DbService) {}
+    constructor(
+        private readonly dbService: DbService,
+        @Inject(WINSTON_MODULE_PROVIDER)
+        private readonly logger: Logger,
+    ) {}
 
     @Get("encoderconfig")
     @UseGuards(AuthGuard)
@@ -102,28 +109,34 @@ export class EncoderConfigController {
         // gate above still stands, and the document's Edit permission is checked on top,
         // since the video is part of it. The bucket has to be that document's, or these
         // credentials would reach media the editor's grant on it says nothing about.
+        //
+        // Every refusal answers the same "not found", so the answer says nothing about
+        // whether the document exists, what it is, or where its media is kept; the
+        // reason goes to the debug log.
         if (parentId) {
             const parent = (await this.dbService.getDoc(parentId)).docs?.[0];
-            if (!parent || (parent.type !== DocType.Post && parent.type !== DocType.Tag)) {
-                throw new HttpException(`Document not found: ${parentId}`, HttpStatus.NOT_FOUND);
-            }
-            const canEdit = PermissionSystem.verifyAccess(
-                parent.memberOf,
-                parent.type,
-                AclPermission.Edit,
-                userDetails.groups,
-            );
-            if (!canEdit) {
-                throw new HttpException(
-                    "Insufficient permissions to edit this document's media",
-                    HttpStatus.FORBIDDEN,
-                );
-            }
-            if (parent.mediaBucketId && parent.mediaBucketId !== bucketId) {
-                throw new HttpException(
-                    "This document's media is in another bucket",
-                    HttpStatus.BAD_REQUEST,
-                );
+            const refusal = !parent
+                ? "no such document"
+                : parent.type !== DocType.Post && parent.type !== DocType.Tag
+                  ? `not a post or tag (${parent.type})`
+                  : !PermissionSystem.verifyAccess(
+                          parent.memberOf,
+                          parent.type,
+                          AclPermission.Edit,
+                          userDetails.groups,
+                      )
+                    ? "no Edit permission on the document"
+                    : parent.mediaBucketId && parent.mediaBucketId !== bucketId
+                      ? `the document's media is in bucket ${parent.mediaBucketId}`
+                      : undefined;
+            if (refusal) {
+                this.logger.debug("Encoder config refused for a document's media", {
+                    parentId,
+                    bucketId,
+                    userId: userDetails.userId,
+                    reason: refusal,
+                });
+                throw new HttpException("Document not found", HttpStatus.NOT_FOUND);
             }
         }
 
