@@ -762,6 +762,32 @@ describe("MediaPlayer", () => {
             );
         });
 
+        it("puts the frames away after five seconds of playback nobody touches", async () => {
+            engine.thumbnailsReady = true;
+            const wrapper = await playing();
+            screen(wrapper).vm.$emit("scrub", { time: 50, markerX: 120, width: 390, bottom: 200 });
+            screen(wrapper).vm.$emit("scrub", { time: 60, markerX: 160, width: 390, bottom: 200 });
+            await flushPromises();
+            vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+            try {
+                screen(wrapper).vm.$emit("scrub", null);
+                await flushPromises();
+                const roster = () =>
+                    screen(wrapper).find("[data-test='mediaPlayerNowPlayingRoster']").exists();
+                expect(roster()).toBe(true);
+
+                vi.advanceTimersByTime(4900);
+                await flushPromises();
+                expect(roster()).toBe(true);
+
+                vi.advanceTimersByTime(200);
+                await flushPromises();
+                expect(roster()).toBe(false);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
         it("takes one press on Play to pause with the frames up: the press does not first resume the video", async () => {
             engine.thumbnailsReady = true;
             const wrapper = await playing();
@@ -1282,6 +1308,30 @@ describe("MediaPlayer", () => {
                 "translate-y-[calc(var(--mobile-menu-h",
             );
             hidden.value = false;
+        });
+
+        it("stops following the picture's slot once it holds still, and follows it again when it moves", async () => {
+            const frames: FrameRequestCallback[] = [];
+            const raf = vi
+                .spyOn(window, "requestAnimationFrame")
+                .mockImplementation((cb) => frames.push(cb));
+            try {
+                await playing();
+                minimiseMediaPlayer();
+                await flushPromises();
+                const runFrames = (n: number) => {
+                    for (let i = 0; i < n && frames.length; i++) frames.shift()!(0);
+                };
+                runFrames(50);
+                expect(frames).toHaveLength(0);
+
+                window.dispatchEvent(new Event("transitionrun"));
+                expect(frames.length).toBeGreaterThan(0);
+                runFrames(50);
+                expect(frames).toHaveLength(0);
+            } finally {
+                raf.mockRestore();
+            }
         });
 
         it("is the plain dark bar, with nothing blurred, when the post has no ThumbHash", async () => {

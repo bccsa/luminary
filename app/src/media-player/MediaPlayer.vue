@@ -615,13 +615,27 @@ onBeforeUnmount(() => clearTimeout(pinAnchorTimer));
 const pinnedPlayhead = ref(0);
 let playheadBase = { time: 0, at: 0 };
 let playheadFrame = 0;
-watch(currentTime, (time) => (playheadBase = { time, at: performance.now() }), { immediate: true });
+watch(
+    currentTime,
+    (time) => {
+        playheadBase = { time, at: performance.now() };
+        // Paused, nothing reads it every frame: a seek still moves the strip.
+        if (!playheadFrame)
+            pinnedPlayhead.value = Math.min(time, Math.max(0, duration.value - 0.001));
+    },
+    { immediate: true },
+);
+/** Every frame redraws the page, so it runs only while playback moves the strip. */
 function trackPlayhead() {
     const { time, at } = playheadBase;
     const rate = state.value?.playbackRate ?? 1;
     const ahead = playing.value ? ((performance.now() - at) / 1000) * rate : 0;
     pinnedPlayhead.value = Math.min(time + ahead, Math.max(0, duration.value - 0.001));
-    playheadFrame = requestAnimationFrame(trackPlayhead);
+    playheadFrame = playing.value ? requestAnimationFrame(trackPlayhead) : 0;
+}
+function stopTrackingPlayhead() {
+    cancelAnimationFrame(playheadFrame);
+    playheadFrame = 0;
 }
 const pinnedTime = computed(() => rosterDrag.value?.time ?? pinnedAt.value ?? pinnedPlayhead.value);
 // Playback reaching the seek hands the strip back to it.
@@ -744,24 +758,49 @@ function onPressOutsideRoster(event: Event) {
     const target = event.target as Node | null;
     if (target && (seekArea.value?.contains(target) || rosterEl.value?.contains(target))) return;
     if ((target as Element | null)?.closest?.(".lmpl-afs-bar, .lmpl-afs-scrubzone")) return;
+    unpinRoster();
+    resumeFromScrub();
+}
+function unpinRoster() {
     rosterPinned.value = false;
     nowPlayingPin.value = null;
     rosterDrag.value = null;
-    resumeFromScrub();
 }
+const framesPinned = computed(() => rosterPinned.value || nowPlayingPin.value !== null);
+watch(framesPinned, (pinned) => {
+    stopTrackingPlayhead();
+    if (pinned) {
+        document.addEventListener("pointerdown", onPressOutsideRoster, true);
+        trackPlayhead();
+    } else {
+        document.removeEventListener("pointerdown", onPressOutsideRoster, true);
+        releasePin();
+    }
+});
+watch(playing, (isPlaying) => {
+    if (isPlaying && framesPinned.value && !playheadFrame) trackPlayhead();
+});
+
+/** Pinned frames nobody touches while the video plays on are put away: moving them redraws the page every frame. */
+const PIN_IDLE_MS = 5000;
+let pinIdleTimer: ReturnType<typeof setTimeout> | undefined;
 watch(
-    () => rosterPinned.value || nowPlayingPin.value !== null,
-    (pinned) => {
-        cancelAnimationFrame(playheadFrame);
-        if (pinned) {
-            document.addEventListener("pointerdown", onPressOutsideRoster, true);
-            trackPlayhead();
-        } else {
-            document.removeEventListener("pointerdown", onPressOutsideRoster, true);
-            releasePin();
+    () =>
+        [
+            framesPinned.value,
+            playing.value,
+            rosterDrag.value,
+            fingerDown.value,
+            nowPlayingScrub.value,
+        ] as const,
+    ([pinned, isPlaying, drag, finger, nowPlayingHeld]) => {
+        clearTimeout(pinIdleTimer);
+        if (pinned && isPlaying && !drag && !finger && !nowPlayingHeld) {
+            pinIdleTimer = setTimeout(unpinRoster, PIN_IDLE_MS);
         }
     },
 );
+onBeforeUnmount(() => clearTimeout(pinIdleTimer));
 onBeforeUnmount(() => {
     document.removeEventListener("pointerdown", onPressOutsideRoster, true);
     cancelAnimationFrame(playheadFrame);
@@ -1078,8 +1117,12 @@ watch(
 const miniSpacer = ref<HTMLElement | null>(null);
 const miniRect = ref<{ x: number; y: number; w: number; h: number } | null>(null);
 const miniStage = computed(() => miniStageWanted.value && miniRect.value !== null);
+/** Frames the slot must hold still before it stops being followed: a frame read on every page costs a core. */
+const MINI_SETTLE_FRAMES = 10;
 let miniFrame = 0;
+let miniStillFrames = 0;
 function trackMiniSpacer() {
+    miniFrame = 0;
     const el = miniSpacer.value;
     if (el) {
         const r = el.getBoundingClientRect();
@@ -1092,20 +1135,44 @@ function trackMiniSpacer() {
             prev.h !== r.height
         ) {
             miniRect.value = { x: r.left, y: r.top, w: r.width, h: r.height };
-        }
+            miniStillFrames = 0;
+        } else miniStillFrames++;
     }
-    miniFrame = requestAnimationFrame(trackMiniSpacer);
+    if (miniStillFrames < MINI_SETTLE_FRAMES) miniFrame = requestAnimationFrame(trackMiniSpacer);
 }
+/** The slot moves only with a transition, a resize or a change of its own size: each starts the following again. */
+function followMiniSpacer() {
+    if (!miniStageWanted.value) return;
+    miniStillFrames = 0;
+    if (!miniFrame) miniFrame = requestAnimationFrame(trackMiniSpacer);
+}
+const miniMoves = ["transitionrun", "transitionend", "animationstart", "resize"] as const;
+for (const type of miniMoves) window.addEventListener(type, followMiniSpacer, true);
+window.visualViewport?.addEventListener("resize", followMiniSpacer);
+const miniResize =
+    typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(followMiniSpacer);
+watch(miniSpacer, (el, before) => {
+    if (before) miniResize?.unobserve(before);
+    if (el) miniResize?.observe(el);
+});
 watch(
     miniStageWanted,
     (wanted) => {
         cancelAnimationFrame(miniFrame);
+        miniFrame = 0;
+        miniStillFrames = 0;
         if (wanted) trackMiniSpacer();
         else miniRect.value = null;
     },
     { immediate: true },
 );
-onBeforeUnmount(() => cancelAnimationFrame(miniFrame));
+watch([floatingCard, lineAtFoot, miniPictureWidth], followMiniSpacer);
+onBeforeUnmount(() => {
+    cancelAnimationFrame(miniFrame);
+    for (const type of miniMoves) window.removeEventListener(type, followMiniSpacer, true);
+    window.visualViewport?.removeEventListener("resize", followMiniSpacer);
+    miniResize?.disconnect();
+});
 // The slot can move without resizing (the window turning upright), which sends no frame of its own: the
 // platform's video would be left where the slot was.
 watch(miniRect, () => nudgeInlineVideo());
