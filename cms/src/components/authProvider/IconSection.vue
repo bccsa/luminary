@@ -122,7 +122,7 @@ watch(
                     max="1"
                     step="0.01"
                     :value="localOpacity"
-                    class="h-2 w-full flex-1 cursor-pointer appearance-none rounded-lg bg-zinc-200 accent-zinc-700"
+                    class="h-2 w-full flex-1 cursor-pointer appearance-none rounded-lg accent-yellow-400 dark:bg-slate-600"
                     :disabled="disabled"
                     @input="localOpacity = ($event.target as HTMLInputElement).valueAsNumber"
                     @change="
