@@ -573,7 +573,7 @@ watch(isLgScreen, (isLg) => {
                 <div
                     class="scrollbar-hide lg:h-full lg:min-h-0 lg:overflow-y-auto lg:px-2 lg:pb-2 lg:pt-2"
                 >
-                    <div class="flex flex-col gap-[3px] pb-0 lg:gap-2 lg:pb-4">
+                    <div class="flex flex-col gap-[8px] pb-0 lg:gap-2 lg:pb-4">
                         <EditContentParent
                             v-if="editableParent"
                             :docType="props.docType"
