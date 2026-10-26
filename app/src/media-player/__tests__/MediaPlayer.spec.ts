@@ -89,6 +89,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 stage: String,
                 fill: Boolean,
                 stageHole: Boolean,
+                captionBand: Boolean,
                 wash: String,
                 exitLabel: String,
                 subtitleTracks: Array,
@@ -1115,6 +1116,17 @@ describe("MediaPlayer", () => {
             } finally {
                 vi.unstubAllEnvs();
             }
+        });
+
+        it("leaves the band in a browser too, so the subtitles under the picture stay off the title", async () => {
+            const wrapper = await playing();
+            expect(screen(wrapper).props().captionBand).toBe(true);
+            // The browser's player draws nothing there itself.
+            expect(wrapper.findComponent({ name: "VideoPlayer" }).props("captionBand")).toBe(0);
+
+            engine.state.subtitleTracks = [];
+            await flushPromises();
+            expect(screen(wrapper).props().captionBand).toBe(false);
         });
 
         it("leaves its stage clear for a picture the platform draws behind the page", async () => {
