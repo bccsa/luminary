@@ -17,6 +17,7 @@ const encoder = {
     refreshAvailability: vi.fn().mockResolvedValue(true),
     watchForEncoder: vi.fn(),
     start: vi.fn(),
+    edit: vi.fn(),
     resume: vi.fn().mockResolvedValue(false),
     stop: vi.fn(),
 };
@@ -173,6 +174,20 @@ describe("EditContentMedia", () => {
         expect(wrapper.props("parent")!.media?.hlsKey).toBe("abc");
     });
 
+    it("hands the write to the editor to save when it can", async () => {
+        const saveEncodedMedia = vi.fn(async (write: () => void) => write());
+        const wrapper = mountSection({ saveEncodedMedia });
+        await settle();
+        await wrapper.find('[data-test="encode-media-button"]').trigger("click");
+
+        const { onMediaReady } = encoder.start.mock.calls[0][0];
+        onMediaReady({ hlsUrl: "https://cdn/master.m3u8" }, mockData.mockPostDto._id);
+        await settle();
+
+        expect(saveEncodedMedia).toHaveBeenCalledTimes(1);
+        expect(wrapper.props("parent")!.media?.hlsUrl).toBe("https://cdn/master.m3u8");
+    });
+
     it("refuses a result for a document the editor has since left", async () => {
         // The encoder's trust prompt can hold start() open for as long as the user
         // likes; by the time it answers, this section may be showing another post.
@@ -272,5 +287,45 @@ describe("EditContentMedia status", () => {
 
         expect(wrapper.find('[data-test="encoder-unavailable"]').exists()).toBe(true);
         expect(wrapper.find('[data-test="encode-media-button"]').exists()).toBe(true);
+    });
+});
+
+describe("EditContentMedia editing the existing video", () => {
+    // A resume elsewhere in this file hands the section a URL; here no encode is running.
+    beforeEach(() => encoder.resume.mockReset().mockResolvedValue(false));
+
+    const withVideo = () =>
+        ({ ...parent(), media: { hlsUrl: "/posts/p1/s1/master.m3u8" } }) as PostDto;
+
+    it("offers no edit for a document without a video", async () => {
+        const wrapper = mountSection({ parent: { ...parent(), media: undefined } });
+        await settle();
+        expect(wrapper.find("[data-test='edit-media-button']").exists()).toBe(false);
+    });
+
+    it("opens the video it has, at its absolute address", async () => {
+        const wrapper = mountSection({ parent: withVideo() });
+        await settle();
+        await wrapper.find("[data-test='edit-media-button']").trigger("click");
+
+        expect(encoder.edit).toHaveBeenCalledWith({
+            documentId: withVideo()._id,
+            title: "Episode 12",
+            mediaBucketId: "bucket-1",
+            hlsUrl: "https://cdn.example.com/media/posts/p1/s1/master.m3u8",
+        });
+    });
+
+    it("cannot be used without permission to edit the document, or without the encoder", async () => {
+        const denied = mountSection({ parent: withVideo(), disabled: true });
+        await settle();
+        expect(denied.find("[data-test='edit-media-button']").attributes("disabled")).toBeDefined();
+
+        encoder.availability.value = "unavailable";
+        const offline = mountSection({ parent: withVideo() });
+        await settle();
+        expect(
+            offline.find("[data-test='edit-media-button']").attributes("disabled"),
+        ).toBeDefined();
     });
 });

@@ -1,7 +1,7 @@
 import { MediaDto } from "../../dto/MediaDto";
 import { DbService } from "../../db/db.service";
 import { S3Service } from "../../s3/s3.service";
-import { loadBucket, resolveCollectionPrefix } from "./deleteMediaCollection";
+import { listCollection, loadBucket, resolveCollectionPrefix } from "./deleteMediaCollection";
 import { isBucketRelative, isInOurStorage, withoutTrailingSlashes } from "./mediaUrl";
 
 export type MediaMigrationResult = {
@@ -92,7 +92,7 @@ export async function migrateMediaCollection(
         const source = await S3Service.create(oldBucketId, db);
         const destination = await S3Service.create(newBucketId, db);
 
-        const keys = await source.listObjectsUnder(`${prefix}/`);
+        const { keyPrefix, keys } = await listCollection(source, prefix);
         if (keys.length === 0) {
             warnings.push(
                 `Media files were not moved: nothing was found under ${prefix}/ in ` +
@@ -123,9 +123,19 @@ export async function migrateMediaCollection(
         }
 
         // Only now is the new location real. A relative URL already names a path inside
-        // whichever bucket the document points at; only the legacy absolute form moves.
+        // whichever bucket the document points at; only the legacy absolute form moves,
+        // unless the path carried the old bucket's name.
+        const newPath = destinationPath(
+            prefix,
+            keyPrefix,
+            oldBucket.publicUrl,
+            newBucket.publicUrl,
+            destination.getBucketName(),
+        );
         if (!isBucketRelative(media.hlsUrl)) {
-            media.hlsUrl = `${withoutTrailingSlashes(newBucket.publicUrl)}/${prefix}/${playlist}`;
+            media.hlsUrl = `${withoutTrailingSlashes(newBucket.publicUrl)}/${newPath}/${playlist}`;
+        } else if (newPath !== prefix) {
+            media.hlsUrl = `/${newPath}/${playlist}`;
         }
 
         // Handed to the caller instead of run here: its failure is not the migration's
@@ -133,7 +143,7 @@ export async function migrateMediaCollection(
         const removeSource = async (): Promise<string[]> => {
             try {
                 console.log(
-                    `Moved ${keys.length} media object(s) under ${prefix}/ from ` +
+                    `Moved ${keys.length} media object(s) under ${keyPrefix}/ from ` +
                         `${oldBucket.name ?? oldBucketId} to ${newBucket.name ?? newBucketId}; ` +
                         "removing the originals",
                 );
@@ -163,4 +173,25 @@ export async function migrateMediaCollection(
         );
         return { failed: true, warnings };
     }
+}
+
+/**
+ * The collection's path under the destination's public URL. A path that carried the
+ * source bucket's name (a server-root public URL) carries the destination's name when
+ * both buckets are published from the same root; otherwise the key is the path, as the
+ * encoder assumes.
+ */
+function destinationPath(
+    prefix: string,
+    keyPrefix: string,
+    oldPublicUrl: string | undefined,
+    newPublicUrl: string | undefined,
+    newBucketName: string,
+): string {
+    if (keyPrefix === prefix) return prefix;
+    const sameRoot =
+        !!oldPublicUrl &&
+        !!newPublicUrl &&
+        withoutTrailingSlashes(oldPublicUrl) === withoutTrailingSlashes(newPublicUrl);
+    return sameRoot ? `${newBucketName}/${keyPrefix}` : keyPrefix;
 }

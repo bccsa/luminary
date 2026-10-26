@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { type ContentParentDto, type MediaDto, toAbsoluteMediaUrl } from "luminary-shared";
-import { FilmIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
+import { FilmIcon, PencilSquareIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
+import LButton from "../button/LButton.vue";
 import LCard from "../common/LCard.vue";
 import LDialog from "../common/LDialog.vue";
 import EncodeMediaButton from "../media/EncodeMediaButton.vue";
@@ -27,10 +28,16 @@ type Props = {
     /** The video fields need a translation selected, as they always have. */
     showVideo?: boolean;
     /**
-     * Set while the document has never been saved; resolves to whether it saved. An
-     * encode outlives an editor who leaves without saving, leaving media nothing points to.
+     * Set while the document is unsaved or has unsaved changes; resolves to whether it
+     * saved. An encode outlives an editor who leaves without saving, leaving media nothing
+     * points to, and starting clean lets the encode's URL be saved on its own.
      */
     saveBeforeEncode?: () => Promise<boolean | undefined>;
+    /**
+     * Writes the encode's URL onto the document and saves it, so the app shows the
+     * video as coming soon while the encode runs instead of waiting for a manual save.
+     */
+    saveEncodedMedia?: (write: () => void) => Promise<void>;
 };
 const props = defineProps<Props>();
 
@@ -51,6 +58,7 @@ const {
     refreshAvailability,
     watchForEncoder,
     start,
+    edit,
     resume,
     stop,
 } = useMediaEncoder();
@@ -61,9 +69,8 @@ const effectiveBucketId = computed(() =>
 
 /**
  * The encoder publishes its URL when encoding *starts*, so this lands well before
- * the output exists. Written straight onto the document: the editor's normal save
- * persists it, and the app's coming-soon state covers the gap until the first
- * segments are in the bucket.
+ * the output exists. Saved straight away where the editor allows it, so the app's
+ * coming-soon state covers the gap until the output is in the bucket.
  */
 const handleEncodedMedia = (media: Pick<MediaDto, "hlsUrl" | "hlsKey">, documentId: string) => {
     // The editor may have moved to another document while the encoder was slow to
@@ -78,11 +85,16 @@ const handleEncodedMedia = (media: Pick<MediaDto, "hlsUrl" | "hlsKey">, document
     const bucket = bucketSelection.getBucketById(effectiveBucketId.value ?? null);
     if (toAbsoluteMediaUrl(parent.value.media?.hlsUrl, bucket?.publicUrl) === media.hlsUrl) return;
 
-    parent.value.media = {
-        ...parent.value.media,
-        hlsUrl: media.hlsUrl,
-        hlsKey: media.hlsKey,
+    const write = () => {
+        if (!parent.value) return;
+        parent.value.media = {
+            ...parent.value.media,
+            hlsUrl: media.hlsUrl,
+            hlsKey: media.hlsKey,
+        };
     };
+    if (props.saveEncodedMedia) void props.saveEncodedMedia(write);
+    else write();
 };
 
 /** Records the bucket the encode was sent to, when it was auto-selected rather than picked. */
@@ -114,6 +126,32 @@ const startEncode = () => {
         title: props.title || "Untitled",
         mediaBucketId: bucketId,
         onMediaReady: handleEncodedMedia,
+    });
+};
+
+/** The video this document already has, absolute, as the encoder reaches it. */
+const existingVideoUrl = computed(() => {
+    const bucket = bucketSelection.getBucketById(effectiveBucketId.value ?? null);
+    return toAbsoluteMediaUrl(parent.value?.media?.hlsUrl, bucket?.publicUrl);
+});
+
+/** Why the existing video cannot be opened for editing, or empty when it can. */
+const editDisabledReason = computed(() => {
+    if (props.disabled) return "You do not have permission to edit this document.";
+    if (availability.value != "available") return "Luminary Media Convert is not running.";
+    if (busy.value) return "Opening Luminary Media Convert…";
+    return "";
+});
+
+/** Opens the existing video in the encoder, to change its chapters and audio tracks. */
+const editVideo = () => {
+    const bucketId = effectiveBucketId.value;
+    if (!parent.value?._id || !bucketId || !existingVideoUrl.value) return;
+    void edit({
+        documentId: parent.value._id,
+        title: props.title || "Untitled",
+        mediaBucketId: bucketId,
+        hlsUrl: existingVideoUrl.value,
     });
 };
 
@@ -149,6 +187,18 @@ watch(
 <template>
     <LCard v-if="parent" bare title="Media" :icon="FilmIcon" data-test="media-section">
         <template #actions>
+            <LButton
+                v-if="existingVideoUrl && effectiveBucketId"
+                :icon="PencilSquareIcon"
+                variant="secondary"
+                size="base"
+                :disabled="Boolean(editDisabledReason)"
+                :title="editDisabledReason || 'Edit the chapters and audio tracks of this video'"
+                data-test="edit-media-button"
+                @click.stop="editVideo"
+            >
+                <span class="text-sm">Edit video</span>
+            </LButton>
             <EncodeMediaButton
                 :availability="availability"
                 :busy="busy"
