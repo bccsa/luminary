@@ -596,6 +596,12 @@ const nowPlayingRoster = computed(() => {
 });
 let nowPlayingStartX = 0;
 function onNowPlayingScrub(position: ScrubPosition | null) {
+    // Held by the player, which a tap opened: it pauses, closes and resumes on its own, so the frames
+    // just follow it, with no pin and no playback of ours.
+    if (position?.held || (!position && nowPlayingScrub.value?.held)) {
+        nowPlayingScrub.value = position;
+        return;
+    }
     if (position) {
         const first = nowPlayingScrub.value === null;
         nowPlayingScrub.value = position;
