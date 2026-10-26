@@ -50,6 +50,8 @@ type ClientRoomReq = {
  */
 type ClientConfig = {
     maxUploadFileSize: number;
+    /** Most languages a non-CMS query may reference; clients size their language caps from it. */
+    maxQueryLanguages: number;
     accessMap?: AccessMap;
 };
 
@@ -280,6 +282,7 @@ export class Socketio implements OnGatewayInit {
         // Send client configuration data and access map
         const clientConfig = {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
+            maxQueryLanguages: this.config.query.maxLanguages,
             accessMap: socket.data.userDetails.accessMap,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);
