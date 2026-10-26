@@ -374,7 +374,7 @@ const saveBucket = async () => {
             description="Get started by creating your first S3 bucket configuration."
         />
 
-        <div v-else class="flex flex-col gap-[3px] overflow-y-auto scrollbar-hide">
+        <div v-else class="flex flex-col gap-[8px] overflow-y-auto scrollbar-hide">
             <!-- Add bottom margin to last card so it doesn't overlap with basepage footer -->
             <BucketDisplayCard
                 v-for="(bucket, i) in bucketsWithStatus"
