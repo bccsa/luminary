@@ -796,6 +796,38 @@ describe("MediaPlayer", () => {
             );
         });
 
+        it("shows the frames a tap opened and leaves playback and closing to the player", async () => {
+            engine.thumbnailsReady = true;
+            const wrapper = await playing();
+            const roster = () => screen(wrapper).find("[data-test='mediaPlayerNowPlayingRoster']");
+
+            screen(wrapper).vm.$emit("scrub", {
+                time: 50,
+                markerX: 120,
+                width: 390,
+                bottom: 200,
+                held: true,
+            });
+            screen(wrapper).vm.$emit("scrub", {
+                time: 60,
+                markerX: 160,
+                width: 390,
+                bottom: 200,
+                held: true,
+            });
+            await flushPromises();
+            expect(roster().exists()).toBe(true);
+
+            // Pinned, so the frames can be dragged.
+            expect(roster().find("[data-test='mediaPlayerRosterClose']").exists()).toBe(true);
+
+            screen(wrapper).vm.$emit("scrub", null);
+            await flushPromises();
+            expect(roster().exists()).toBe(false);
+            expect(engine.handle.pause).not.toHaveBeenCalled();
+            expect(engine.handle.play).not.toHaveBeenCalled();
+        });
+
         it("puts the frames away after five seconds of playback nobody touches", async () => {
             engine.thumbnailsReady = true;
             const wrapper = await playing();
