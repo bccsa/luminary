@@ -818,6 +818,9 @@ describe("MediaPlayer", () => {
             await flushPromises();
             expect(roster().exists()).toBe(true);
 
+            // Pinned, so the frames can be dragged.
+            expect(roster().find("[data-test='mediaPlayerRosterClose']").exists()).toBe(true);
+
             screen(wrapper).vm.$emit("scrub", null);
             await flushPromises();
             expect(roster().exists()).toBe(false);

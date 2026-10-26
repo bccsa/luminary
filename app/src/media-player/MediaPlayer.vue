@@ -595,11 +595,25 @@ const nowPlayingRoster = computed(() => {
     return roster && { ...roster, bottom: pin.bottom };
 });
 let nowPlayingStartX = 0;
+/** The frames up are the player's, which a tap on its bar opened and which it closes. */
+let heldByPlayer = false;
 function onNowPlayingScrub(position: ScrubPosition | null) {
-    // Held by the player, which a tap opened: it pauses, closes and resumes on its own, so the frames
-    // just follow it, with no pin and no playback of ours.
-    if (position?.held || (!position && nowPlayingScrub.value?.held)) {
-        nowPlayingScrub.value = position;
+    // Held by the player, which a tap opened: it pauses, closes and resumes on its own. The frames are
+    // pinned where it says, so they can be dragged as after a drag on the bar, and go when it closes them.
+    if (position?.held) {
+        heldByPlayer = true;
+        nowPlayingScrub.value = null;
+        nowPlayingPin.value = {
+            width: position.width,
+            bottom: position.bottom,
+            markerX: position.markerX,
+        };
+        anchorPin(position.time);
+        return;
+    }
+    if (!position && heldByPlayer) {
+        heldByPlayer = false;
+        unpinRoster();
         return;
     }
     if (position) {
