@@ -223,7 +223,7 @@ defineExpose({
 
 <template>
     <div
-        class="relative aspect-video w-full overflow-hidden bg-black md:rounded-lg"
+        class="relative aspect-video w-full overflow-hidden bg-black"
         data-test="youtubeEmbed"
     >
         <div
