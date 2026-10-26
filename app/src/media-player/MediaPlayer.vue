@@ -472,6 +472,13 @@ const webCaptionsBelow = computed(
         !audioMode.value &&
         !!state.value?.activeSubtitleTrackId,
 );
+/**
+ * The band under the picture, wherever the subtitles go there: a browser's words need it as much as the app's, or
+ * they fall on the title. Kept while they are off, so turning them on does not move the screen.
+ */
+const screenCaptionBand = computed(
+    () => !subtitlesOnVideo.value && (state.value?.subtitleTracks.length ?? 0) > 0,
+);
 /** A menu or the chapters panel is over the now-playing screen: the platform's own subtitles must not draw across it. */
 const screenCovered = ref(false);
 const webCaption = computed(() => {
@@ -1723,7 +1730,7 @@ function onKeydown(event: KeyboardEvent) {
                     :fill="webFill"
                     :stage-hole="inlineHole"
                     :stage-aspect="miniStage ? undefined : stageAspect"
-                    :caption-band="captionBand && !miniStage"
+                    :caption-band="screenCaptionBand && !miniStage"
                     :caption="webCaption"
                     @covered="screenCovered = $event"
                     :exit-label="t('media_player.minimise')"
