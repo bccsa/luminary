@@ -119,6 +119,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                         props.title,
                         slots["under-title"]?.(),
                         slots.sheet?.({ close: () => {} }),
+                        slots["audio-tool"]?.(),
                         slots.cast?.(),
                         slots.roster?.(),
                         h("div", { "data-test": "audioFullscreenStage" }, [slots.stage?.()]),
@@ -293,17 +294,21 @@ async function playing() {
  */
 let screenWide = true;
 let screenLandscape = false;
+let pointerFine = false;
 const setupMatchMedia = window.matchMedia;
 beforeEach(() => {
     subtitlePreference.value = { on: false };
     screenWide = true;
     screenLandscape = false;
+    pointerFine = false;
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
         matches: query.includes("1024px")
             ? screenWide
             : query.includes("landscape")
               ? screenLandscape
-              : false,
+              : query.includes("pointer: fine")
+                ? pointerFine
+                : false,
         media: query,
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
@@ -589,6 +594,35 @@ describe("MediaPlayer", () => {
             expect(wrapper.find("[data-test='mediaPlayerMute']").exists()).toBe(false);
             expect(wrapper.find("[data-test='mediaPlayerPictureInPicture']").exists()).toBe(false);
         });
+
+        it("with a mouse, offers the volume on a card over a mute button in the now-playing tools", () =>
+            narrow(async () => {
+                pointerFine = true;
+                const wrapper = await playing();
+                const mute = wrapper.find("[data-test='mediaPlayerVolumeMute']");
+                expect(mute.exists()).toBe(true);
+                expect(wrapper.find("[data-test='mediaPlayerVolume']").exists()).toBe(false);
+
+                await mute.element.parentElement!.dispatchEvent(new Event("mouseenter"));
+                await flushPromises();
+                expect(wrapper.find("[data-test='mediaPlayerVolume']").exists()).toBe(true);
+
+                await wrapper.find("[data-test='mediaPlayerVolumeUp']").trigger("click");
+                expect(engine.handle.setVolume).toHaveBeenLastCalledWith(0.6);
+                await wrapper.find("[data-test='mediaPlayerVolumeDown']").trigger("click");
+                expect(engine.handle.setVolume).toHaveBeenLastCalledWith(0.4);
+                await wrapper.find("[data-test='mediaPlayerVolumeSlider']").setValue("0.25");
+                expect(engine.handle.setVolume).toHaveBeenLastCalledWith(0.25);
+
+                await mute.trigger("click");
+                expect(engine.handle.setMuted).toHaveBeenLastCalledWith(true);
+            }));
+
+        it("leaves the volume to a touch screen's own buttons", () =>
+            narrow(async () => {
+                const wrapper = await playing();
+                expect(wrapper.find("[data-test='mediaPlayerVolumeMute']").exists()).toBe(false);
+            }));
     });
 
     describe("AirPlay", () => {

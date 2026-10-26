@@ -59,6 +59,7 @@ import { useScreenWakeHold } from "@/composables/screenWakeHolds";
 import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
 import MediaPlayerMenu from "./MediaPlayerMenu.vue";
+import MediaPlayerVolume from "./MediaPlayerVolume.vue";
 import V10Button from "./V10Button.vue";
 import { videoSourceFor } from "@/util/videoSource";
 import { isYouTubeLink } from "@/util/youtube";
@@ -417,7 +418,34 @@ const starting = computed(() => {
  * whatever native has left, often black, and nothing says why. A spinner over it does.
  */
 const stalled = computed(() => !starting.value && state.value?.stalled === true);
-const muted = computed(() => handle.value?.muted === true);
+/** The handle reads mute and volume off the player without telling anyone: a change made here re-reads them. */
+const volumeRead = ref(0);
+const muted = computed(() => (volumeRead.value, handle.value?.muted === true));
+const volume = computed(() => (volumeRead.value, handle.value?.volume ?? 1));
+/**
+ * With a mouse, the page sets the volume itself, on a card over the mute button; a touch screen has the
+ * device's own buttons, and a phone's player keeps its own volume (no `setVolume`).
+ */
+const finePointerQuery = window.matchMedia("(pointer: fine)");
+const finePointer = ref(finePointerQuery.matches);
+const onPointerChange = (event: MediaQueryListEvent) => (finePointer.value = event.matches);
+finePointerQuery.addEventListener("change", onPointerChange);
+onBeforeUnmount(() => finePointerQuery.removeEventListener("change", onPointerChange));
+const volumeCardWanted = computed(() => finePointer.value && !!handle.value?.setVolume);
+function setMuted(next: boolean) {
+    handle.value?.setMuted?.(next);
+    volumeRead.value++;
+}
+function setVolume(next: number) {
+    const player = handle.value;
+    if (!player?.setVolume) return;
+    // Raising the volume of a muted player unmutes it, as the player's own plus button does.
+    if (next > volume.value && muted.value) player.setMuted?.(false);
+    player.setVolume(Math.min(1, Math.max(0, Math.round(next * 100) / 100)));
+    volumeRead.value++;
+}
+const VOLUME_STEP = 0.1;
+const stepVolume = (direction: 1 | -1) => setVolume(volume.value + direction * VOLUME_STEP);
 
 /**
  * The platform draws the video behind the page, in the picture area, which is left transparent;
@@ -1550,7 +1578,6 @@ watch(playerDragging, (dragging) => {
 });
 onBeforeUnmount(endGap);
 
-const VOLUME_STEP = 0.1;
 const { isSearchOpen } = useSearchOverlay();
 let lastSubtitleId: string | null = null;
 watch(
@@ -1576,15 +1603,8 @@ useMediaPlayerShortcuts(
                 Math.min(fraction * duration.value, Math.max(0, duration.value - 0.001)),
             );
         },
-        volume: ({ direction }) => {
-            const player = handle.value;
-            if (!player?.setVolume) return;
-            // Raising the volume of a muted player unmutes it, as the player's own plus button does.
-            if (direction === 1 && muted.value) player.setMuted?.(false);
-            const next = Math.round(((player.volume ?? 1) + direction * VOLUME_STEP) * 10) / 10;
-            player.setVolume(Math.min(1, Math.max(0, next)));
-        },
-        toggleMute: () => handle.value?.setMuted?.(!muted.value),
+        volume: ({ direction }) => stepVolume(direction),
+        toggleMute: () => setMuted(!muted.value),
         toggleFullscreen: () => {
             if (audioMode.value) audioFullscreen.value = !audioFullscreen.value;
             else if (isBrowserFullscreen()) void handle.value?.exitFullscreen();
@@ -1773,6 +1793,16 @@ function onKeydown(event: KeyboardEvent) {
                             <BookOpenIcon aria-hidden="true" />
                             {{ t("media_player.read") }}
                         </button>
+                    </template>
+                    <template #audio-tool>
+                        <MediaPlayerVolume
+                            v-if="volumeCardWanted"
+                            :muted="muted"
+                            :volume="volume"
+                            @mute="setMuted"
+                            @volume="setVolume"
+                            @step="stepVolume"
+                        />
                     </template>
                     <template #top-end>
                         <button
@@ -2310,7 +2340,7 @@ function onKeydown(event: KeyboardEvent) {
                             :aria-label="muted ? t('media_player.unmute') : t('media_player.mute')"
                             :aria-pressed="muted"
                             data-test="mediaPlayerMute"
-                            @click="handle?.setMuted?.(!muted)"
+                            @click="setMuted(!muted)"
                         >
                             <V10Icon
                                 :name="muted ? 'volumeOff' : 'volumeHigh'"
@@ -2674,6 +2704,16 @@ function onKeydown(event: KeyboardEvent) {
                 @sleep="(option) => controller?.setSleepTimer(option)"
                 @subtitle-track="(id) => controller?.setSubtitleTrack(id)"
             >
+                <template #audio-tool>
+                    <MediaPlayerVolume
+                        v-if="volumeCardWanted"
+                        :muted="muted"
+                        :volume="volume"
+                        @mute="setMuted"
+                        @volume="setVolume"
+                        @step="stepVolume"
+                    />
+                </template>
                 <template #cast>
                     <button
                         v-if="handle?.airPlayAvailable || handle?.castAvailable"
