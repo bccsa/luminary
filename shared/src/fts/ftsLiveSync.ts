@@ -162,7 +162,16 @@ export function attachFtsLiveSync<T>(
     onScopeDispose(() => scope.stop());
 
     scope.run(() => {
-        const resultIds = computed(() => results.value.map(getId).filter(Boolean));
+        // Patching a row replaces it, but not its id: the same ids keep the same array, or every
+        // patch would re-run the Dexie query and its answer patch the rows again, endlessly.
+        const resultIds = computed<string[]>((previous) => {
+            const ids = results.value.map(getId).filter(Boolean);
+            const same =
+                previous &&
+                previous.length === ids.length &&
+                ids.every((id, i) => id === previous[i]);
+            return same ? previous : ids;
+        });
 
         const liveDocs = useDexieLiveQuery(
             async () => {
