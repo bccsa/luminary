@@ -61,4 +61,4 @@ since Omi started logging them (23 October), as tickets in this repo. All are in
 
 | Done | Ticket | What                                                                                                                                              |
 | ---- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [ ]  | #2274  | Thumbnails only cover the start of the video (new report: a 37-minute video with frames only near the start). Tracked in the encoder's `TODO.md`. |
+| [x]  | #2274  | Thumbnails only cover the start of the video (new report: a 37-minute video with frames only near the start). **Fixed in luminary-media-convert#313.** |
