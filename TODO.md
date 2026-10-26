@@ -48,7 +48,7 @@ since Omi started logging them (23 October), as tickets in this repo. All are in
 
 | Done | Ticket | What                                                                                                                         | Fix in        |
 | ---- | ------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| [ ]  | #2321  | White flash when coming back to the app: Android's web view defaults to white. Set a background colour in the native config. | native config |
+| [x]  | #2321  | White flash when coming back to the app: Android's web view defaults to white. Set a background colour in the native config. **Fixed in luminary-deployment#121: the splash follows the app's theme.** | native config |
 | [ ]  | #2324  | Dates follow the post's language rather than the user's (to be discussed).                                                   | app           |
 
 ## CMS
