@@ -25,7 +25,7 @@ since Omi started logging them (23 October), as tickets in this repo. All are in
 | [x]  | #2322        | Grey boxes instead of fallback pictures in Up next. **Fixed in luminary-media-convert#325: the browse panel, on every platform.**                                                                                                                     | player       | no           |
 | [x]  | #2331        | The Android lock screen shows "Unknown" as the artist: use the post's author, or hide it. **Fixed in luminary-media-convert#327: an empty artist.** | app / player | –            |
 | [x]  | #2344        | Subtitles under the picture fall on the content title on mobile web (Johan, 26 Oct). **Fixed in luminary-media-convert#326 and #2348: a band under the picture, as in the apps.** | app / player | no           |
-| [ ]  | #2320        | Play/pause looks different in portrait (light disc) and fullscreen (dark disc). Ivan prefers the fullscreen one: confirm before restyling.                                                                                                  | app          | yes          |
+| [x]  | #2320        | Play/pause looks different in portrait (light disc) and fullscreen (dark disc). Ivan prefers the fullscreen one: confirm before restyling. **Fixed in luminary-media-convert#328: the full-screen icons.** | app          | yes          |
 
 ## Media player: improvements
 
