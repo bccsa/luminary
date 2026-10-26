@@ -1,4 +1,12 @@
-import { computed, ref, watch, type ComputedRef, type Ref, type WritableComputedRef } from "vue";
+import {
+    computed,
+    ref,
+    toRaw,
+    watch,
+    type ComputedRef,
+    type Ref,
+    type WritableComputedRef,
+} from "vue";
 import {
     db,
     DocType,
@@ -61,6 +69,8 @@ export type UseEditContentSource = {
     isLoading: Ref<boolean>;
     /** Persist the parent + edited content children and re-baseline the dirty state. */
     save: () => Promise<void>;
+    /** Whether anything other than `fields` is unsaved, on the parent or any translation. */
+    hasEditsBesides: (fields: (keyof ContentParentDto)[]) => boolean;
     /** Delete the parent document (does not mark content children for deletion). */
     deleteParent: (deleteMediaFiles?: boolean) => Promise<boolean>;
     /** Revert the parent and all content children to their last-saved state. */
@@ -72,6 +82,16 @@ export type UseEditContentSource = {
      */
     installClones: (clonedParent: ContentParentDto, clonedContent: ContentDto[]) => void;
 };
+
+// Optional booleans: UI writes `false`, DB often omits the field — treat as equal for dirty checks.
+function normaliseParent(item: ContentParentDto): ContentParentDto {
+    const copy = { ...item };
+    if (copy.showComingSoon === false) delete copy.showComingSoon;
+    if (copy.useVerticalTileLayout === false) delete copy.useVerticalTileLayout;
+    if (copy.alwaysOffline === false) delete copy.alwaysOffline;
+    if (copy.authorType === "person") delete copy.authorType; // "person" = default — DB often omits the field
+    return copy;
+}
 
 /**
  * Owns the data layer of the content editor: local-first reactive loading (parent and
@@ -145,15 +165,7 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     const parentEditable = toEditable<ContentParentDto>(parentSource, {
         persistOffline: true,
         backPatchFields: ["imageData", "media"],
-        // Optional booleans: UI writes `false`, DB often omits the field — treat as equal for dirty checks.
-        filterFn: (item) => {
-            const copy = { ...item };
-            if (copy.showComingSoon === false) delete copy.showComingSoon;
-            if (copy.useVerticalTileLayout === false) delete copy.useVerticalTileLayout;
-            if (copy.alwaysOffline === false) delete copy.alwaysOffline;
-            if (copy.authorType === "person") delete copy.authorType; // "person" = default — DB often omits the field
-            return copy;
-        },
+        filterFn: normaliseParent,
     });
     const { remove: removeParent } = parentEditable;
     const contentEditable = toEditable<ContentDto>(contentSource, {
@@ -328,6 +340,20 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         return editableContent.value.some((c) => contentEditable.isModified.value(c._id));
     });
 
+    const hasEditsBesides = (fields: (keyof ContentParentDto)[]) => {
+        const parent = editableParent.value;
+        const saved = existingParent.value;
+        if (!parent || !saved) return true;
+        const comparable = (doc: ContentParentDto) => ({
+            ..._.omit(normaliseParent(toRaw(doc)), fields),
+            _rev: "",
+            updatedTimeUtc: 0,
+            updatedBy: "",
+        });
+        if (!_.isEqual(comparable(parent), comparable(saved))) return true;
+        return editableContent.value.some((c) => contentEditable.isEdited.value(c._id));
+    };
+
     const save = async () => {
         const parent = editableParent.value;
         if (!parent) return;
@@ -396,6 +422,7 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         isIncomingChange,
         isLoading,
         save,
+        hasEditsBesides,
         deleteParent,
         revert,
         installClones,

@@ -38,7 +38,7 @@ const toggled = computed({
 
                 // Dark mode
                 'focus:ring-slate-400 focus:ring-offset-slate-950': dark,
-                'bg-slate-600': dark && disabled && toggled,
+                'bg-white': dark && disabled && toggled,
                 'bg-slate-800': dark && disabled && !toggled,
                 'bg-slate-700': dark && !disabled && toggled,
                 'bg-slate-500/40': dark && !disabled && !toggled,
@@ -48,7 +48,7 @@ const toggled = computed({
                 'bg-zinc-400': !dark && disabled && toggled,
                 'bg-zinc-100': !dark && disabled && !toggled,
                 'bg-zinc-500': !dark && !disabled && toggled,
-                'bg-zinc-200': !dark && !disabled && !toggled,
+                'bg-slate-600': !dark && !disabled && !toggled,
             },
         ]"
     >

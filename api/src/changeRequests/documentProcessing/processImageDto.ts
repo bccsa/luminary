@@ -84,104 +84,82 @@ const imageSizes = [180, 360, 640, 1280, 2560];
 const defaultImageQuality = configuration().imageProcessing.imageQuality || 80; // Default image quality for webp conversion
 
 /**
- * Migrates all image files from one bucket to another
- * Supports migration between different S3 systems (e.g., MinIO to AWS S3, or different MinIO instances)
- * Each bucket uses its own credentials and endpoint, enabling cross-system transfers
- * Only deletes from old bucket if migration is successful
- *
- * @param image - The image DTO containing file collections to migrate
- * @param oldBucketId - The ID of the source bucket
- * @param newBucketId - The ID of the destination bucket
- * @param db - Database service to retrieve bucket configurations
- * @returns Object with migration failure status and warnings
+ * Copies every image file to the new bucket, verifying each copy's size. The old
+ * files are handed back as `removeSource` for the caller to delete once the document
+ * points at the new bucket; on failure nothing is deleted, so the old bucket stays whole.
  */
 async function migrateImagesBetweenBuckets(
     image: ImageDto,
     oldBucketId: string,
     newBucketId: string,
     db: DbService,
-): Promise<{ failed: boolean; warnings: string[] }> {
+): Promise<{ failed: boolean; warnings: string[]; removeSource?: () => Promise<string[]> }> {
     const warnings: string[] = [];
 
+    const filenames = image.fileCollections
+        .flatMap((collection) => collection.imageFiles)
+        .map((file) => file.filename);
+
+    if (filenames.length === 0) {
+        warnings.push("No image files to migrate.");
+        return { failed: false, warnings };
+    }
+
+    let oldBucketName = oldBucketId;
+    let newBucketName = newBucketId;
+
     try {
-        // Create S3Service instances for each bucket
         const oldS3Service = await S3Service.create(oldBucketId, db);
         const newS3Service = await S3Service.create(newBucketId, db);
+        oldBucketName = oldS3Service.getBucketName();
+        newBucketName = newS3Service.getBucketName();
 
-        // Get all image files to migrate
-        const allFiles = image.fileCollections.flatMap((collection) => collection.imageFiles);
+        for (const filename of filenames) {
+            const stat = await oldS3Service.statObject(filename);
+            const stream = await oldS3Service.getObject(filename);
+            const contentType = stat.metaData?.["content-type"] || "image/webp";
 
-        if (allFiles.length === 0) {
-            warnings.push("No image files to migrate.");
-            return { failed: false, warnings };
-        }
+            await newS3Service.putStream(filename, stream, stat.size, contentType);
 
-        const oldBucketName = oldS3Service.getBucketName();
-        const newBucketName = newS3Service.getBucketName();
-
-        let successfulMigrations = 0;
-        let failedMigrations = 0;
-
-        // Migrate each file
-        for (const file of allFiles) {
-            try {
-                // Download from old bucket
-                const fileStream = await oldS3Service.getObject(file.filename);
-                const chunks: Uint8Array[] = [];
-
-                // Collect all chunks
-                await new Promise<void>((resolve, reject) => {
-                    fileStream.on("data", (chunk: Uint8Array) => chunks.push(chunk));
-                    fileStream.on("end", () => resolve());
-                    fileStream.on("error", (err) => reject(err));
-                });
-
-                const fileBuffer = Buffer.concat(chunks);
-
-                // Get metadata from old bucket (need to use getClient for statObject)
-                const stat = await oldS3Service
-                    .getClient()
-                    .statObject(oldBucketName, file.filename);
-                const metadata = stat.metaData || { "Content-Type": "image/webp" };
-
-                // Upload to new bucket
-                await newS3Service.uploadFile(
-                    file.filename,
-                    fileBuffer,
-                    metadata["Content-Type"] || "image/webp",
-                );
-
-                // Delete from old bucket only after successful upload
-                await oldS3Service.getClient().removeObject(oldBucketName, file.filename);
-
-                successfulMigrations++;
-            } catch (error) {
-                failedMigrations++;
-                warnings.push(
-                    `Failed to migrate ${file.filename} from bucket ${oldBucketName} to ${newBucketName}: ${error.message}`,
+            const copied = await newS3Service.statObject(filename);
+            if (copied.size !== stat.size) {
+                throw new Error(
+                    `${filename} copied as ${copied.size} bytes but the source is ${stat.size}`,
                 );
             }
         }
 
-        if (successfulMigrations > 0) {
-            warnings.push(
-                `Successfully migrated ${successfulMigrations} image file(s) from bucket ${oldBucketName} to ${newBucketName}`,
-            );
-        }
+        const removeSource = async (): Promise<string[]> => {
+            try {
+                await oldS3Service.removeObjects(filenames);
+                return [];
+            } catch (error) {
+                return [
+                    `Image files were copied to ${newBucketName} but the originals could not be ` +
+                        `removed from ${oldBucketName}: ${error.message}. Please remove them on the storage provider.`,
+                ];
+            }
+        };
 
-        if (failedMigrations > 0) {
-            warnings.push(
-                `Failed to migrate ${failedMigrations} image file(s). These files remain in the old bucket.`,
-            );
-        }
-
-        // Migration is considered failed if ANY files failed to migrate
-        return { failed: failedMigrations > 0, warnings };
+        warnings.push(
+            `Successfully migrated ${filenames.length} image file(s) from bucket ${oldBucketName} to ${newBucketName}`,
+        );
+        return { failed: false, warnings, removeSource };
     } catch (error) {
-        warnings.push(`Image migration failed: ${error.message}`);
+        // Copies already made are left: a retry overwrites them.
+        warnings.push(
+            `Image migration failed: ${error.message}. The files were left in ${oldBucketName}.`,
+        );
         return { failed: true, warnings };
     }
 }
+
+export type ImageProcessingResult = {
+    migrationFailed: boolean;
+    warnings: string[];
+    /** Deletes the old bucket's files after a move. Run only once the document is written. */
+    removeSource?: () => Promise<string[]>;
+};
 
 /**
  * Processes an embedded image upload by resizing the image and uploading to S3
@@ -195,9 +173,10 @@ export async function processImage(
     db: DbService,
     parentBucketId?: string,
     prevParentBucketId?: string,
-): Promise<{ migrationFailed: boolean; warnings: string[] }> {
+): Promise<ImageProcessingResult> {
     const warnings: string[] = [];
     let migrationFailed = false;
+    let removeSource: (() => Promise<string[]>) | undefined;
     let duplicatedNow = false;
 
     try {
@@ -248,6 +227,7 @@ export async function processImage(
             );
             warnings.push(...migrationResult.warnings);
             migrationFailed = migrationResult.failed;
+            removeSource = migrationResult.removeSource;
         }
 
         // Skipped when the duplicate copy just authored the collections (a retry after a
@@ -327,7 +307,7 @@ export async function processImage(
         warnings.push(`Image processing failed: ${error.message}`);
     }
 
-    return { migrationFailed, warnings };
+    return { migrationFailed, warnings, removeSource };
 }
 
 async function duplicateImageFilesWithoutReencoding(

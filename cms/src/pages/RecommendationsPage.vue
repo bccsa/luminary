@@ -71,7 +71,7 @@ const filteredEntries = computed(() => {
             :class="canEdit ? 'lg:h-full lg:min-h-0 lg:grid-cols-2' : ''"
         >
             <div
-                class="flex flex-col gap-[3px]"
+                class="flex flex-col gap-[8px]"
                 :class="canEdit ? 'lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1' : ''"
             >
                 <p v-if="hasAnyContent" class="mb-2 px-2 py-1 text-sm text-zinc-500">
