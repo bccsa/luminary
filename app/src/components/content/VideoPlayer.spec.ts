@@ -439,6 +439,40 @@ describe("VideoPlayer", () => {
             );
         });
 
+        it("saves at most every ten seconds of playback, not on every timeupdate", async () => {
+            const wrapper = await mountPlayer();
+            stub(wrapper).vm.$emit("loadedmetadata");
+
+            for (let tick = 0; tick < 60; tick++) {
+                stub(wrapper).vm.$emit("timeupdate", 60 + tick * 0.25, 600);
+            }
+
+            // 60 s, then 70 s: fifteen seconds of ticks.
+            expect(setMediaProgressMock).toHaveBeenCalledTimes(2);
+            expect(setMediaProgressMock).toHaveBeenLastCalledWith(
+                RELATIVE,
+                mockEnglishContentDto._id,
+                70,
+                600,
+            );
+        });
+
+        it("saves the latest position when the player goes away", async () => {
+            const wrapper = await mountPlayer();
+            stub(wrapper).vm.$emit("loadedmetadata");
+            stub(wrapper).vm.$emit("timeupdate", 90, 600);
+            stub(wrapper).vm.$emit("timeupdate", 93.5, 600);
+
+            wrapper.unmount();
+
+            expect(setMediaProgressMock).toHaveBeenLastCalledWith(
+                RELATIVE,
+                mockEnglishContentDto._id,
+                93.5,
+                600,
+            );
+        });
+
         it("does not save the previous video's position before this one has loaded", async () => {
             const wrapper = await mountPlayer();
 

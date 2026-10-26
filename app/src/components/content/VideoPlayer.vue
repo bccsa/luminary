@@ -8,7 +8,16 @@
  * to play, where the decryption key comes from, resume position, and the
  * engagement signals a finished video sends.
  */
-import { computed, inject, nextTick, ref, shallowRef, watch } from "vue";
+import {
+    computed,
+    inject,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    ref,
+    shallowRef,
+    watch,
+} from "vue";
 import {
     AUDIO_ONLY_ANGLE_ID,
     isYouTubeUrl,
@@ -381,6 +390,27 @@ function applyCompletion() {
 
 /** Below this, a position is not worth resuming and is not recorded. */
 const MIN_RESUME_SECONDS = 60;
+
+/** Each save rewrites localStorage and re-renders every progress tile, so `timeupdate`'s rate is too often. */
+const PROGRESS_SAVE_INTERVAL_SECONDS = 10;
+type ProgressPoint = { mediaId: string; contentId: string; time: number; duration: number };
+/** The latest position, saved on the interval and once more when playback stops or the page goes. */
+let pendingProgress: ProgressPoint | undefined;
+let savedProgress: ProgressPoint | undefined;
+
+function saveProgress(point: ProgressPoint) {
+    setMediaProgress(point.mediaId, point.contentId, point.time, point.duration);
+    savedProgress = point;
+}
+
+function flushProgress() {
+    if (pendingProgress && pendingProgress !== savedProgress) saveProgress(pendingProgress);
+}
+
+function forgetProgress() {
+    pendingProgress = undefined;
+    savedProgress = undefined;
+}
 const playerWrapper = ref<HTMLElement | null>(null);
 
 /**
@@ -437,6 +467,7 @@ function onLoadedMetadata() {
     leaving = false;
     completed = false;
     watchTracker.reset();
+    forgetProgress();
     const id = mediaId.value;
     if (!id) return;
     if (startHandled) return;
@@ -482,8 +513,31 @@ function onTimeUpdate(currentTime: number, duration: number) {
         return;
     }
 
-    setMediaProgress(id, props.content._id, currentTime, duration);
+    pendingProgress = { mediaId: id, contentId: props.content._id, time: currentTime, duration };
+    if (
+        !savedProgress ||
+        savedProgress.mediaId !== id ||
+        Math.abs(currentTime - savedProgress.time) >= PROGRESS_SAVE_INTERVAL_SECONDS
+    ) {
+        saveProgress(pendingProgress);
+    }
 }
+
+watch(
+    () => player.value?.state?.playing,
+    (playing) => {
+        if (playing === false) flushProgress();
+    },
+);
+
+function flushWhenHidden() {
+    if (document.visibilityState === "hidden") flushProgress();
+}
+onMounted(() => document.addEventListener("visibilitychange", flushWhenHidden));
+onBeforeUnmount(() => {
+    document.removeEventListener("visibilitychange", flushWhenHidden);
+    flushProgress();
+});
 
 /** The viewer closed the next-video card, so the end of this video leaves full-screen as usual. */
 const nextUpDismissed = ref(false);
@@ -498,6 +552,7 @@ function finishPlaythrough(): boolean {
     if (!id || completed) return false;
     completed = true;
 
+    forgetProgress();
     removeMediaProgress(id, props.content._id);
 
     // Nothing to score if the watched fraction already claimed it.
