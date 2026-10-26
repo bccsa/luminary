@@ -50,7 +50,7 @@ const handleClick = () => {
 <template>
     <div
         data-test="display-card"
-        class="w-full divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 transition-all duration-200 dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:shadow-lg dark:hover:divide-slate-800/80 sm:rounded-md sm:border"
+        class="w-full divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 transition-all duration-200 dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:shadow-lg dark:hover:divide-slate-600 sm:rounded-md sm:border"
         :class="[
             {
                 'cursor-pointer hover:bg-zinc-50 dark:hover:bg-slate-800/50 dark:hover:shadow-none':
