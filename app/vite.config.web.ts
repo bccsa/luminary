@@ -13,6 +13,18 @@ const isVideoJsElement = (tag: string): boolean =>
     tag === "video-skin" ||
     tag === "hlsjs-video" ||
     tag.startsWith("media-");
+const VIDEOJS_PACKAGES = [
+    "@videojs/html",
+    "@videojs/hlsjs-video",
+    "@videojs/core",
+    "@videojs/element",
+    "@videojs/media",
+    "@videojs/native-hls-video",
+    "@videojs/spf",
+    "@videojs/store",
+    "@videojs/utils",
+    "hls.js",
+];
 import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 import { deferEntryUntilPainted } from "./vite-plugins/deferEntryUntilPainted";
 import { youtubeEmbedPage } from "./vite-plugins/youtubeEmbedPage";
@@ -631,7 +643,9 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         },
         // shared/src imports these; a second copy of vue or dexie breaks reactivity, and on
         // this target it surfaces as a hydration mismatch rather than an outright error.
-        dedupe: ["vue", "dexie", "@vueuse/core"],
+        // The player UI here and its engine in luminary-media-convert must share one Video.js: two copies
+        // register the same custom elements twice and the engine drives an element from the other copy.
+        dedupe: ["vue", "dexie", "@vueuse/core", ...VIDEOJS_PACKAGES],
     },
     define: {
         // Make hydration mismatches visible even in the production build so "no warnings" is a real signal.
