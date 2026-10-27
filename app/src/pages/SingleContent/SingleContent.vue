@@ -50,7 +50,6 @@ import {
     queryParams,
     cmsUrl,
 } from "@/globalConfig";
-import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import RelatedContent from "@/components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
@@ -551,14 +550,6 @@ const toggleLike = async () => {
         await recordUserActivity({ type: "liked", parentId });
         // Liking is explicit, unambiguous intent — weight it above a plain open.
         recordAffinity(content.value?.parentTags, affinityConfig.value.eventWeight.bookmark);
-        useNotificationStore().addNotification({
-            id: "like-added",
-            title: t("like.notification.title"),
-            description: t("like.notification.description"),
-            state: "success",
-            type: "toast",
-            timeout: 5000,
-        });
     }
 };
 
