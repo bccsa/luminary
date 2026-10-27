@@ -126,7 +126,9 @@ describe("EditContentMedia", () => {
             const wrapper = mountSection({ saveBeforeEncode });
             await settle();
             await wrapper.find('[data-test="encode-media-button"]').trigger("click");
-            return wrapper.findComponent(LDialog);
+            return wrapper
+                .findAllComponents(LDialog)
+                .find((dialog) => dialog.props("title") === "Save before encoding")!;
         };
 
         it("asks the editor to save before encoding", async () => {
@@ -237,11 +239,54 @@ describe("EditContentMedia — deleting the video", () => {
         ).toBe(true);
     });
 
-    it("takes the video off the document, leaving the save to delete its files", async () => {
-        const wrapper = mountSection({ parent: withVideo() });
+    const deleteDialog = (wrapper: ReturnType<typeof mountSection>) =>
+        wrapper
+            .findAllComponents(LDialog)
+            .find((dialog) => dialog.props("title") === "Delete the video?")!;
+
+    it("asks first, showing the video that will go, and changes nothing yet", async () => {
+        const saveDeletedMedia = vi.fn();
+        const wrapper = mountSection({ parent: withVideo(), saveDeletedMedia });
         await wrapper.find('[data-test="delete-media-button"]').trigger("click");
-        const updated = wrapper.emitted("update:parent")?.at(-1)?.[0] as PostDto | undefined;
-        expect((updated ?? (wrapper.props("parent") as PostDto)).media).toBeUndefined();
+
+        expect(deleteDialog(wrapper).props("open")).toBe(true);
+        expect(saveDeletedMedia).not.toHaveBeenCalled();
+        expect((wrapper.props("parent") as PostDto).media?.hlsUrl).toBe("/abc/master.m3u8");
+    });
+
+    it("hands the removal to the editor to save once confirmed", async () => {
+        const saveDeletedMedia = vi.fn(async (write: () => void) => write());
+        const wrapper = mountSection({ parent: withVideo(), saveDeletedMedia });
+        await wrapper.find('[data-test="delete-media-button"]').trigger("click");
+        await deleteDialog(wrapper).props("primaryAction")();
+
+        expect(saveDeletedMedia).toHaveBeenCalledOnce();
+        expect((wrapper.props("parent") as PostDto).media).toBeUndefined();
+    });
+
+    it("says files go only for a video in our storage", async () => {
+        const stored = mountSection({ parent: withVideo() });
+        await stored.find('[data-test="delete-media-button"]').trigger("click");
+        expect(deleteDialog(stored).props("description")).toContain("deletes its files");
+
+        const youtube = mountSection({
+            parent: {
+                ...withVideo(),
+                media: { hlsUrl: "https://www.youtube.com/watch?v=abc" },
+            } as PostDto,
+        });
+        await youtube.find('[data-test="delete-media-button"]').trigger("click");
+        expect(deleteDialog(youtube).props("description")).toContain("no files are deleted");
+    });
+
+    it("leaves the video when cancelled", async () => {
+        const saveDeletedMedia = vi.fn();
+        const wrapper = mountSection({ parent: withVideo(), saveDeletedMedia });
+        await wrapper.find('[data-test="delete-media-button"]').trigger("click");
+        await deleteDialog(wrapper).props("secondaryAction")();
+
+        expect(saveDeletedMedia).not.toHaveBeenCalled();
+        expect((wrapper.props("parent") as PostDto).media?.hlsUrl).toBe("/abc/master.m3u8");
     });
 
     it("cannot be pressed without permission to edit", () => {

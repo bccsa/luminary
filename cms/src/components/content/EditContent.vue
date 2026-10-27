@@ -214,7 +214,8 @@ const isValid = ref(true);
 // Guards against a rapid second save re-entering while the first is still queuing changes.
 const isSaving = ref(false);
 
-const saveChanges = async () => {
+/** `mediaConfirmed`: the editor has already agreed to the video's files going, where they deleted it. */
+const saveChanges = async (options?: { mediaConfirmed?: boolean }) => {
     if (isSaving.value) return;
     if (!isValid.value) {
         notify("error", "Changes not saved", "There are validation errors that prevent saving");
@@ -252,7 +253,7 @@ const saveChanges = async () => {
         return;
     }
 
-    if (replacesStoredMedia.value) {
+    if (replacesStoredMedia.value && options?.mediaConfirmed !== true) {
         showReplaceMediaModal.value = true;
         return;
     }
@@ -288,6 +289,20 @@ const saveEncodedMedia = async (write: () => void) => {
         return;
     }
     await saveChanges();
+};
+
+// The delete saves at once, so other unsaved edits must be the editor's to save first.
+const saveDeletedMedia = async (write: () => void) => {
+    if (source.hasEditsBesides(["media"])) {
+        notify(
+            "info",
+            "Save your other changes first",
+            `Save or revert your other changes to this ${props.tagOrPostType}, then delete the video.`,
+        );
+        return;
+    }
+    write();
+    await saveChanges({ mediaConfirmed: true });
 };
 
 const revertChanges = () => {
@@ -616,6 +631,7 @@ watch(isLgScreen, (isLg) => {
                                                 existingParent && !isDirty ? undefined : saveChanges
                                             "
                                             :saveEncodedMedia="saveEncodedMedia"
+                                            :saveDeletedMedia="saveDeletedMedia"
                                             v-model:parent="editableParent"
                                         />
                                     </div>

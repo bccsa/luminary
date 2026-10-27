@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import { type ContentParentDto, type MediaDto, toAbsoluteMediaUrl } from "luminary-shared";
+import {
+    type ContentParentDto,
+    type MediaDto,
+    isBucketRelative,
+    toAbsoluteMediaUrl,
+} from "luminary-shared";
 import {
     FilmIcon,
     PencilSquareIcon,
@@ -43,6 +48,11 @@ type Props = {
      * video as coming soon while the encode runs instead of waiting for a manual save.
      */
     saveEncodedMedia?: (write: () => void) => Promise<void>;
+    /**
+     * Takes the video off the document and saves it, once the editor has confirmed here; without
+     * it the video only leaves the form, for the editor to save.
+     */
+    saveDeletedMedia?: (write: () => void) => Promise<void>;
 };
 const props = defineProps<Props>();
 
@@ -160,12 +170,32 @@ const editVideo = () => {
     });
 };
 
-/**
- * Takes the video off the document. Nothing leaves storage until the editor saves, and the save
- * asks first, as it does for a replaced video; until then Revert brings it back.
- */
+const showDeleteVideoModal = ref(false);
+
+/** Files of ours to delete: a video hosted elsewhere (YouTube) only leaves the document. */
+const videoInOurStorage = computed(() => {
+    const url = parent.value?.media?.hlsUrl;
+    if (!url) return false;
+    if (isBucketRelative(url)) return true;
+    const bucketRoot = toAbsoluteMediaUrl(
+        "/",
+        bucketSelection.getBucketById(effectiveBucketId.value ?? null)?.publicUrl,
+    );
+    return !!bucketRoot && url.startsWith(bucketRoot);
+});
+
+/** Asked here, where the editor pressed Delete, rather than later on Save. */
 const deleteVideo = () => {
-    if (parent.value) delete parent.value.media;
+    showDeleteVideoModal.value = true;
+};
+
+const confirmDeleteVideo = async () => {
+    showDeleteVideoModal.value = false;
+    const write = () => {
+        if (parent.value) delete parent.value.media;
+    };
+    if (props.saveDeletedMedia) await props.saveDeletedMedia(write);
+    else write();
 };
 
 /**
@@ -283,6 +313,25 @@ watch(
         </div>
     </LCard>
 
+    <LDialog
+        v-model:open="showDeleteVideoModal"
+        title="Delete the video?"
+        :description="
+            videoInOurStorage
+                ? 'This removes the video from this document and deletes its files from storage, unless another document still uses them. This cannot be undone.'
+                : 'This removes the video from this document. It is hosted elsewhere, so no files are deleted.'
+        "
+        :primaryAction="confirmDeleteVideo"
+        :secondaryAction="() => (showDeleteVideoModal = false)"
+        primaryButtonText="Delete video"
+        secondaryButtonText="Cancel"
+        context="danger"
+        :showClosingButton="false"
+    >
+        <p class="mt-3 break-all font-mono text-xs text-zinc-500" data-test="delete-media-url">
+            {{ parent?.media?.hlsUrl }}
+        </p>
+    </LDialog>
     <LDialog
         v-model:open="showSaveFirstModal"
         title="Save before encoding"
