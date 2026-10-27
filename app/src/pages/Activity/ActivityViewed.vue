@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { type ContentDto, type UserActivityEntry } from "luminary-shared";
+import { type ContentDto, type UserActivityDto } from "luminary-shared";
 import ActivityCard from "./ActivityCard.vue";
 import ActivitySection from "./ActivitySection.vue";
 import { groupByActivityDate } from "./activityGroups";
@@ -18,7 +18,7 @@ const content = useContentQuery(() => [{ parentId: { $in: parentIds.value } }], 
     keepPreviousResult: true,
 });
 
-type Entry = { row: UserActivityEntry; content: ContentDto };
+type Entry = { row: UserActivityDto; content: ContentDto };
 
 /** Newest first, as the table returns them; an activity whose content is unavailable is left out. */
 const entries = computed<Entry[]>(() =>

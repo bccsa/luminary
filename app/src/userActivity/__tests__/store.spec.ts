@@ -6,14 +6,13 @@ import {
     MAX_VIEWED,
     TOMBSTONE_TTL_MS,
     clearUserActivity,
-    getUserActivity,
-    hasUserActivity,
     pruneUserActivityTombstones,
     recordUserActivity,
     removeHighlightRange,
     removeUserActivity,
     userActivityId,
 } from "../store";
+import { getUserActivity, hasUserActivity } from "./activityQueries";
 
 describe("userActivity", () => {
     beforeEach(async () => {
@@ -40,7 +39,7 @@ describe("userActivity", () => {
             await recordUserActivity({ type: "liked", parentId: "post-1" });
 
             const row = await db.userActivity.get("liked:post-1");
-            expect(row).toMatchObject({ type: "liked", parentId: "post-1" });
+            expect(row).toMatchObject({ activity: "liked", parentId: "post-1" });
             expect(row!.contentId).toBeUndefined();
             expect(row!.updatedTimeUtc).toBeGreaterThan(0);
         });
@@ -53,7 +52,7 @@ describe("userActivity", () => {
 
             const row = await db.userActivity.get("highlighted:content-1");
             expect(row).toMatchObject({
-                type: "highlighted",
+                activity: "highlighted",
                 contentId: "content-1",
                 parentId: "post-1",
             });

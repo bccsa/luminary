@@ -8,27 +8,25 @@
 
 import {
     db,
+    DocType,
     type BaseDocumentDto,
     type HighlightRange,
-    type UserActivityEntry,
+    type UserActivityDto,
     type Uuid,
 } from "luminary-shared";
 import { userPreferencesAsRef } from "@/globalConfig";
 import { getHighlightRanges, getLegacyHighlightHtml } from "@/recommendation/highlightStore";
 import { rangesFromLegacyHtml } from "@/util/highlightRanges";
-import { userActivityId, userActivityVersion } from "./store";
+import { userActivityId } from "./store";
 
 /** Write the rows the database does not already hold, and report how many were added. */
-async function addMissing(rows: UserActivityEntry[]): Promise<number> {
+async function addMissing(rows: UserActivityDto[]): Promise<number> {
     if (!rows.length) return 0;
 
     const existing = await db.userActivity.bulkGet(rows.map((row) => row._id));
     const missing = rows.filter((_, i) => existing[i] === undefined);
 
-    if (missing.length) {
-        await db.userActivity.bulkPut(missing);
-        userActivityVersion.value++;
-    }
+    if (missing.length) await db.userActivity.bulkPut(missing);
     return missing.length;
 }
 
@@ -43,7 +41,8 @@ export async function migrateLikesToUserActivity(): Promise<number> {
     const added = await addMissing(
         likes.map((like) => ({
             _id: userActivityId({ type: "liked", parentId: like.id }),
-            type: "liked",
+            type: DocType.UserActivity,
+            activity: "liked",
             parentId: like.id,
             updatedTimeUtc: like.ts,
         })),
@@ -86,7 +85,8 @@ export async function migrateHighlightsToUserActivity(): Promise<number> {
         .filter((row): row is { entry: (typeof entries)[number]; parentId: Uuid } => !!row.parentId)
         .map(({ entry, parentId }) => ({
             _id: userActivityId({ type: "highlighted", contentId: entry.contentId, parentId }),
-            type: "highlighted" as const,
+            type: DocType.UserActivity as const,
+            activity: "highlighted" as const,
             contentId: entry.contentId,
             parentId,
             // Entries predating timestamps sort last rather than claiming to be new.
