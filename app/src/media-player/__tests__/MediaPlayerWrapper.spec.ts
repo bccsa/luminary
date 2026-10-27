@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { computed, defineComponent, h, nextTick } from "vue";
 import waitForExpect from "wait-for-expect";
-import VideoPlayer from "./VideoPlayer.vue";
+import MediaPlayerWrapper from "../MediaPlayerWrapper.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import { shareImageUrl } from "@/composables/useSocialShare";
@@ -125,7 +125,7 @@ async function mountPlayer(
     overrides: Record<string, unknown> = {},
     props: Record<string, unknown> = {},
 ) {
-    const wrapper = mount(VideoPlayer, {
+    const wrapper = mount(MediaPlayerWrapper, {
         props: { content: content(overrides), language: "en", ...props },
         global: { stubs: { LImage: true } },
     });
@@ -141,7 +141,7 @@ beforeEach(() => {
     fetchHlsKeyMock.mockResolvedValue(undefined);
 });
 
-describe("VideoPlayer", () => {
+describe("MediaPlayerWrapper", () => {
     describe("media analytics", () => {
         it("hands the video to Matomo once the player has rendered", async () => {
             const paq: unknown[][] = [];
@@ -335,7 +335,7 @@ describe("VideoPlayer", () => {
                 { video: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", parentMedia: undefined },
                 { autoplay: true, fullscreenOnPlay: true },
             );
-            const embed = wrapper.findComponent({ name: "YouTubeEmbed" });
+            const embed = wrapper.findComponent({ name: "YouTubeWrapper" });
             expect(embed.find("iframe").exists()).toBe(true);
 
             embed.vm.$emit("loadedmetadata");
@@ -555,7 +555,7 @@ describe("VideoPlayer", () => {
         });
 
         async function mountWithService(acceptsNowPlaying: boolean) {
-            const wrapper = mount(VideoPlayer, {
+            const wrapper = mount(MediaPlayerWrapper, {
                 props: { content: content(), language: "en" },
                 global: {
                     stubs: { LImage: true },
@@ -583,7 +583,7 @@ describe("VideoPlayer", () => {
             });
 
             it("is not handed to a player that has no panel, where it would show as a stray attribute", async () => {
-                const wrapper = mount(VideoPlayer, {
+                const wrapper = mount(MediaPlayerWrapper, {
                     props: { content: content(), language: "en", upNext: items },
                     global: {
                         stubs: { LImage: true },
@@ -601,7 +601,7 @@ describe("VideoPlayer", () => {
             });
 
             it("is handed to a player that says it has one", async () => {
-                const wrapper = mount(VideoPlayer, {
+                const wrapper = mount(MediaPlayerWrapper, {
                     props: { content: content(), language: "en", upNext: items },
                     global: {
                         stubs: { LImage: true },
@@ -761,7 +761,7 @@ describe("VideoPlayer", () => {
                 },
                 setup: () => () => h("div", { class: "native-stub" }),
             });
-            const wrapper = mount(VideoPlayer, {
+            const wrapper = mount(MediaPlayerWrapper, {
                 props: { content: content(), language: "en", nextUp: NEXT },
                 global: {
                     stubs: { LImage: true },

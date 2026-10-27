@@ -4,11 +4,11 @@
 // @videojs/html. Regenerate it from there rather than editing it. `language` is the exception: it is
 // SettingIcons.kt's, the Heroicons glyph the app uses for choosing a language.
 
-export type V10Layer = { path: string; alpha: number; strokeWidth: number };
+export type IconLayer = { path: string; alpha: number; strokeWidth: number };
 
-export const V10_GRID = 18;
+export const ICON_GRID = 18;
 
-export const V10_ICONS = {
+export const PLAYER_ICONS = {
     play: [
         {
             path: "m14.051 10.723-7.985 4.964a1.98 1.98 0 0 1-2.758-.638A2.06 2.06 0 0 1 3 13.964V4.036C3 2.91 3.895 2 5 2c.377 0 .747.109 1.066.313l7.985 4.964a2.057 2.057 0 0 1 .627 2.808c-.16.257-.373.475-.627.637",
@@ -205,6 +205,6 @@ export const V10_ICONS = {
         },
     ],
     check: [{ path: "M4 10.455 6.5 13 14 5", alpha: 1.0, strokeWidth: 2.0 }],
-} satisfies Record<string, V10Layer[]>;
+} satisfies Record<string, IconLayer[]>;
 
-export type V10IconName = keyof typeof V10_ICONS;
+export type PlayerIconName = keyof typeof PLAYER_ICONS;

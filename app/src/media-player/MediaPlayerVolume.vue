@@ -6,7 +6,7 @@
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { MinusIcon, PlusIcon } from "@heroicons/vue/20/solid";
-import V10Icon from "./V10Icon.vue";
+import PlayerIcon from "./PlayerIcon.vue";
 
 const props = defineProps<{ muted: boolean; volume: number }>();
 const emit = defineEmits<{
@@ -41,7 +41,7 @@ const level = () => (props.muted ? 0 : props.volume);
             data-test="mediaPlayerVolumeMute"
             @click="emit('mute', !muted)"
         >
-            <V10Icon
+            <PlayerIcon
                 :name="muted ? 'volumeOff' : 'volumeHigh'"
                 class="h-6 w-6"
             />

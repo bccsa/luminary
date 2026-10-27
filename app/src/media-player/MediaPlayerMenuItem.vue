@@ -4,7 +4,7 @@
  * The one in force is marked three ways, so it reads at a glance and not by weight alone: a tinted row, a
  * check, and bold.
  */
-import V10Icon from "./V10Icon.vue";
+import PlayerIcon from "./PlayerIcon.vue";
 
 defineProps<{ label: string; selected: boolean }>();
 defineEmits<{ pick: [] }>();
@@ -24,7 +24,7 @@ defineEmits<{ pick: [] }>();
             @click="$emit('pick')"
         >
             <span class="truncate">{{ label }}</span>
-            <V10Icon
+            <PlayerIcon
                 v-if="selected"
                 name="check"
                 class="h-[18px] w-[18px] flex-shrink-0"

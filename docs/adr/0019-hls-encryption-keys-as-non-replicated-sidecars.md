@@ -123,7 +123,7 @@ permission check and the absence of a bulk read path do.*
   only way an offline-first app plays encrypted downloads offline, and it partly undoes the
   no-bulk-extraction property.
 - **~~No end-to-end verification yet.~~** Resolved after this ADR was accepted. The consumer landed
-  (`VideoPlayer.vue` renders `LuminaryPlayer`, which decrypts LMCENC playlists and takes the key
+  (`MediaPlayerWrapper.vue` renders `LuminaryPlayer`, which decrypts LMCENC playlists and takes the key
   from this endpoint), and encryption is requested again in `useMediaEncoder.ts`. Verified against a
   real encoder session: an LMCENC-encrypted collection in S3, the key held only in a sidecar, the
   document carrying just `hlsKey_id` — `GET /sidecar` unmasked to exactly the key the encoder

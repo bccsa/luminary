@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
-import V10Button from "../V10Button.vue";
-import { timeEnds } from "../v10Time";
+import PlayerButton from "../PlayerButton.vue";
+import { timeEnds } from "../playerTime";
 
 describe("timeEnds", () => {
     it("reads what has played and what is left, adding up to the length", () => {
@@ -22,13 +22,13 @@ describe("timeEnds", () => {
     });
 });
 
-describe("V10Button", () => {
+describe("PlayerButton", () => {
     it("is labelled, and round when asked", async () => {
-        const plain = mount(V10Button, { props: { label: "Mute" }, slots: { default: "x" } });
+        const plain = mount(PlayerButton, { props: { label: "Mute" }, slots: { default: "x" } });
         expect(plain.attributes("aria-label")).toBe("Mute");
         expect(plain.classes()).not.toContain("rounded-full");
 
-        const round = mount(V10Button, { props: { label: "Play", round: true } });
+        const round = mount(PlayerButton, { props: { label: "Play", round: true } });
         expect(round.classes()).toContain("rounded-full");
         await round.trigger("click");
         expect(round.emitted("click")).toHaveLength(1);

@@ -4,7 +4,7 @@ import { nextTick } from "vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { userDataSaverEnabled, youtubeAlwaysAllow } from "@/globalConfig";
 import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
-import YouTubeEmbed from "./YouTubeEmbed.vue";
+import YouTubeWrapper from "../YouTubeWrapper.vue";
 
 const URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
@@ -31,7 +31,7 @@ const lockLandscape = vi.fn();
 let lockableScreen = false;
 
 function mountEmbed(attach = false) {
-    return mount(YouTubeEmbed, {
+    return mount(YouTubeWrapper, {
         props: { content: mockEnglishContentDto, url: URL },
         global: {
             stubs: { LImage: true },
@@ -63,7 +63,7 @@ beforeEach(() => {
     userDataSaverEnabled.value = false;
 });
 
-describe("YouTubeEmbed", () => {
+describe("YouTubeWrapper", () => {
     it("loads nothing from YouTube until the viewer chooses", () => {
         const wrapper = mountEmbed();
 

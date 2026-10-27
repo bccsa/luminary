@@ -19,7 +19,7 @@ import {
 
 const AUDIO = "__audio__";
 
-/** The engine `VideoPlayer` hands the media player: a controller, its state, and the handle. */
+/** The engine `MediaPlayerWrapper` hands the media player: a controller, its state, and the handle. */
 const engine = vi.hoisted(() => ({
     state: null as any,
     controller: null as any,
@@ -165,11 +165,11 @@ vi.mock("vue-router", () => ({
     }),
 }));
 
-vi.mock("@/components/content/VideoPlayer.vue", async () => {
+vi.mock("@/media-player/MediaPlayerWrapper.vue", async () => {
     const { defineComponent, h, reactive } = await import("vue");
     return {
         default: defineComponent({
-            name: "VideoPlayer",
+            name: "MediaPlayerWrapper",
             props: {
                 content: Object,
                 language: String,
@@ -949,14 +949,14 @@ describe("MediaPlayer", () => {
             screenLandscape = true;
             const wrapper = await playing();
             expect(screen(wrapper).props().fill).toBe(true);
-            expect(wrapper.findComponent({ name: "VideoPlayer" }).props("windowedControls")).toBe(
+            expect(wrapper.findComponent({ name: "MediaPlayerWrapper" }).props("windowedControls")).toBe(
                 true,
             );
 
             await find(wrapper, "mediaPlayerAudio").trigger("click");
             await flushPromises();
             expect(screen(wrapper).props().fill).toBe(false);
-            expect(wrapper.findComponent({ name: "VideoPlayer" }).props("windowedControls")).toBe(
+            expect(wrapper.findComponent({ name: "MediaPlayerWrapper" }).props("windowedControls")).toBe(
                 false,
             );
         });
@@ -1111,7 +1111,7 @@ describe("MediaPlayer", () => {
             try {
                 const wrapper = await playing();
                 expect(
-                    wrapper.findComponent({ name: "VideoPlayer" }).props("captionBand"),
+                    wrapper.findComponent({ name: "MediaPlayerWrapper" }).props("captionBand"),
                 ).toBeGreaterThan(0);
             } finally {
                 vi.unstubAllEnvs();
@@ -1122,7 +1122,7 @@ describe("MediaPlayer", () => {
             const wrapper = await playing();
             expect(screen(wrapper).props().captionBand).toBe(true);
             // The browser's player draws nothing there itself.
-            expect(wrapper.findComponent({ name: "VideoPlayer" }).props("captionBand")).toBe(0);
+            expect(wrapper.findComponent({ name: "MediaPlayerWrapper" }).props("captionBand")).toBe(0);
 
             engine.state.subtitleTracks = [];
             await flushPromises();

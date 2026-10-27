@@ -93,7 +93,7 @@ describe("SingleContent with video on a desktop", () => {
             expect(wrapper!.find("[data-test='mediaPlay']").exists()).toBe(true);
             expect(wrapper!.html()).toContain("test-image.webp");
         });
-        expect(wrapper!.findComponent({ name: "VideoPlayer" }).exists()).toBe(false);
+        expect(wrapper!.findComponent({ name: "MediaPlayerWrapper" }).exists()).toBe(false);
         expect(wrapper!.find("aside").exists()).toBe(false);
     });
 });

@@ -6,15 +6,15 @@
  * arrowhead and the seconds.
  */
 import { computed } from "vue";
-import { V10_GRID, V10_ICONS, type V10IconName } from "./v10Icons";
+import { ICON_GRID, PLAYER_ICONS, type PlayerIconName } from "./playerIcons";
 
 const props = defineProps<{
-    name?: V10IconName;
+    name?: PlayerIconName;
     /** Draws the skip glyph for this many seconds, in `direction`. */
     skip?: { seconds: number; direction: "back" | "forward" };
 }>();
 
-const layers = computed(() => (props.name && !props.skip ? V10_ICONS[props.name] : []));
+const layers = computed(() => (props.name && !props.skip ? PLAYER_ICONS[props.name] : []));
 
 /** `skipIcon` in `controlsHtml.ts`, on its 24-unit grid. */
 const skipPaths = computed(() => {
@@ -40,7 +40,7 @@ const skipPaths = computed(() => {
         aria-hidden="true"
         focusable="false"
         class="drop-shadow"
-        data-test="v10Skip"
+        data-test="playerSkip"
     >
         <path :d="skipPaths.arc" />
         <path :d="skipPaths.head" />
@@ -58,12 +58,12 @@ const skipPaths = computed(() => {
     </svg>
     <svg
         v-else
-        :viewBox="`0 0 ${V10_GRID} ${V10_GRID}`"
+        :viewBox="`0 0 ${ICON_GRID} ${ICON_GRID}`"
         fill="currentColor"
         aria-hidden="true"
         focusable="false"
         class="drop-shadow"
-        data-test="v10Icon"
+        data-test="playerIcon"
     >
         <template
             v-for="(layer, i) in layers"

@@ -19,7 +19,7 @@ defineEmits<{ click: [event: MouseEvent] }>();
                 : 'rounded-md'
         "
         :aria-label="label"
-        data-test="v10Button"
+        data-test="playerButton"
         @click="$emit('click', $event)"
     >
         <slot />

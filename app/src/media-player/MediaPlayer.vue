@@ -2,7 +2,7 @@
 /**
  * The app-wide media player: one player for audio and video, mounted once, that keeps playing
  * while the viewer browses. Full, it fills the space between the page's top bar and the mobile
- * menu, showing the picture or the cover with the transport; minimised, a bar riding on the menu. `VideoPlayer` stays mounted in the picture area for as long as an item
+ * menu, showing the picture or the cover with the transport; minimised, a bar riding on the menu. `MediaPlayerWrapper` stays mounted in the picture area for as long as an item
  * plays, so minimising never restarts it.
  */
 import {
@@ -44,7 +44,7 @@ import {
 } from "@luminary-media-converter/player-web";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
-import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";
 import LImage from "@/components/images/LImage.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { isMac } from "@/globalConfig";
@@ -60,11 +60,11 @@ import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token"
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
 import MediaPlayerMenu from "./MediaPlayerMenu.vue";
 import MediaPlayerVolume from "./MediaPlayerVolume.vue";
-import V10Button from "./V10Button.vue";
+import PlayerButton from "./PlayerButton.vue";
 import { videoSourceFor } from "@/util/videoSource";
 import { isYouTubeLink } from "@/util/youtube";
-import V10Icon from "./V10Icon.vue";
-import { timeEnds } from "./v10Time";
+import PlayerIcon from "./PlayerIcon.vue";
+import { timeEnds } from "./playerTime";
 import MediaPlayerMenuItem from "./MediaPlayerMenuItem.vue";
 import MediaPlayerUpNext from "./MediaPlayerUpNext.vue";
 import { useUpNext } from "./useUpNext";
@@ -103,7 +103,7 @@ function letsGo(moved: number, speed: number, height: number): boolean {
     );
 }
 
-const engine = ref<InstanceType<typeof VideoPlayer> | null>(null);
+const engine = ref<InstanceType<typeof MediaPlayerWrapper> | null>(null);
 const handle = computed(() => engine.value?.player ?? null);
 const controller = computed(() => handle.value?.controller ?? null);
 const state = computed(() => handle.value?.state ?? null);
@@ -1844,7 +1844,7 @@ function onKeydown(event: KeyboardEvent) {
                                     : handle?.showCastPicker?.()
                             "
                         >
-                            <V10Icon
+                            <PlayerIcon
                                 :name="isMac ? 'airplay' : 'cast'"
                                 class="h-[22px] w-[22px]"
                             />
@@ -1880,7 +1880,7 @@ function onKeydown(event: KeyboardEvent) {
                         </div>
                     </template>
                     <template #stage>
-                        <VideoPlayer
+                        <MediaPlayerWrapper
                             ref="engine"
                             :content="content"
                             :language="item.language"
@@ -2032,7 +2032,7 @@ function onKeydown(event: KeyboardEvent) {
                     v-show="!audioMode"
                     class="absolute inset-0"
                 >
-                    <VideoPlayer
+                    <MediaPlayerWrapper
                         ref="engine"
                         :content="content"
                         :language="item.language"
@@ -2166,7 +2166,7 @@ function onKeydown(event: KeyboardEvent) {
                                 :aria-expanded="openMenu === 'language'"
                                 @click="toggleMenu('language')"
                             >
-                                <V10Icon
+                                <PlayerIcon
                                     name="language"
                                     class="h-5 w-5 md:h-6 md:w-6"
                                 />
@@ -2202,7 +2202,7 @@ function onKeydown(event: KeyboardEvent) {
                                 @click="toggleMenu('speed')"
                             >
                                 <span class="flex items-center gap-1.5">
-                                    <V10Icon
+                                    <PlayerIcon
                                         name="speed"
                                         class="h-5 w-5 md:h-6 md:w-6"
                                     />
@@ -2302,7 +2302,7 @@ function onKeydown(event: KeyboardEvent) {
                                     data-test="mediaPlayerSubtitles"
                                     @click="toggleMenu('subtitles')"
                                 >
-                                    <V10Icon
+                                    <PlayerIcon
                                         :name="
                                             state.activeSubtitleTrackId ? 'captionsOn' : 'captions'
                                         "
@@ -2336,7 +2336,7 @@ function onKeydown(event: KeyboardEvent) {
                                 data-test="mediaPlayerPictureInPicture"
                                 @click="handle?.startPictureInPicture?.()"
                             >
-                                <V10Icon
+                                <PlayerIcon
                                     name="pip"
                                     class="h-5 w-5 md:h-6 md:w-6"
                                 />
@@ -2355,7 +2355,7 @@ function onKeydown(event: KeyboardEvent) {
                             data-test="mediaPlayerAirPlay"
                             @click="handle?.showAirPlayPicker?.()"
                         >
-                            <V10Icon
+                            <PlayerIcon
                                 :name="isMac ? 'airplay' : 'cast'"
                                 class="h-5 w-5 md:h-6 md:w-6"
                             />
@@ -2369,7 +2369,7 @@ function onKeydown(event: KeyboardEvent) {
                             data-test="mediaPlayerMute"
                             @click="setMuted(!muted)"
                         >
-                            <V10Icon
+                            <PlayerIcon
                                 :name="muted ? 'volumeOff' : 'volumeHigh'"
                                 class="h-5 w-5 md:h-6 md:w-6"
                             />
@@ -2383,7 +2383,7 @@ function onKeydown(event: KeyboardEvent) {
                                 audioMode ? (audioFullscreen = true) : handle?.enterFullscreen()
                             "
                         >
-                            <V10Icon
+                            <PlayerIcon
                                 name="fullscreenEnter"
                                 class="h-5 w-5 md:h-6 md:w-6"
                             />
@@ -2492,7 +2492,7 @@ function onKeydown(event: KeyboardEvent) {
                     </div>
 
                     <div class="flex flex-none items-center justify-center gap-8">
-                        <V10Button
+                        <PlayerButton
                             round
                             class="h-14 w-14 [@media(max-height:840px)]:h-12 [@media(max-height:840px)]:w-12"
                             :class="{ invisible: !timeKnown || live }"
@@ -2500,12 +2500,12 @@ function onKeydown(event: KeyboardEvent) {
                             data-test="mediaPlayerSkipBack"
                             @click="skip(-SKIP_SECONDS)"
                         >
-                            <V10Icon
+                            <PlayerIcon
                                 :skip="{ seconds: SKIP_SECONDS, direction: 'back' }"
                                 class="h-8 w-8"
                             />
-                        </V10Button>
-                        <V10Button
+                        </PlayerButton>
+                        <PlayerButton
                             round
                             class="h-20 w-20 disabled:opacity-100 [@media(max-height:840px)]:h-16 [@media(max-height:840px)]:w-16"
                             :label="
@@ -2538,18 +2538,18 @@ function onKeydown(event: KeyboardEvent) {
                             >
                                 <path d="M12 3a9 9 0 1 1-9 9" />
                             </svg>
-                            <V10Icon
+                            <PlayerIcon
                                 v-else-if="playing"
                                 name="pause"
                                 class="h-[38px] w-[38px]"
                             />
-                            <V10Icon
+                            <PlayerIcon
                                 v-else
                                 name="play"
                                 class="h-[38px] w-[38px] translate-x-[8%]"
                             />
-                        </V10Button>
-                        <V10Button
+                        </PlayerButton>
+                        <PlayerButton
                             round
                             class="h-14 w-14 [@media(max-height:840px)]:h-12 [@media(max-height:840px)]:w-12"
                             :class="{ invisible: !timeKnown || live }"
@@ -2557,11 +2557,11 @@ function onKeydown(event: KeyboardEvent) {
                             data-test="mediaPlayerSkipForward"
                             @click="skip(SKIP_SECONDS)"
                         >
-                            <V10Icon
+                            <PlayerIcon
                                 :skip="{ seconds: SKIP_SECONDS, direction: 'forward' }"
                                 class="h-8 w-8"
                             />
-                        </V10Button>
+                        </PlayerButton>
                     </div>
                 </template>
                 <div
@@ -2755,7 +2755,7 @@ function onKeydown(event: KeyboardEvent) {
                                 : handle?.showCastPicker?.()
                         "
                     >
-                        <V10Icon
+                        <PlayerIcon
                             :name="isMac ? 'airplay' : 'cast'"
                             class="h-[22px] w-[22px]"
                         />
@@ -2887,12 +2887,12 @@ function onKeydown(event: KeyboardEvent) {
                 data-test="mediaPlayerBarPlayPause"
                 @click="togglePlay"
             >
-                <V10Icon
+                <PlayerIcon
                     v-if="playing"
                     name="pause"
                     class="h-7 w-7"
                 />
-                <V10Icon
+                <PlayerIcon
                     v-else
                     name="play"
                     class="h-7 w-7 translate-x-[8%]"

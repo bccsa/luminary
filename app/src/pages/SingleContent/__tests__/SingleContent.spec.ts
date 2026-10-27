@@ -45,7 +45,7 @@ import {
 } from "@/contentProgress";
 import { computeEstimatedReadingMinutes } from "@/util/readingTime";
 import { ref, computed } from "vue";
-import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import RelatedContent from "@/components/content/RelatedContent.vue";
 import ReadMore from "@/components/content/ReadMore.vue";
@@ -224,7 +224,7 @@ describe("SingleContent", () => {
             },
         });
 
-        const videoPlayer = wrapper!.findComponent(VideoPlayer);
+        const videoPlayer = wrapper!.findComponent(MediaPlayerWrapper);
 
         await waitForExpect(() => {
             expect(videoPlayer).toBeDefined();

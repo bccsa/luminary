@@ -14,7 +14,7 @@ import { computed, inject, onBeforeUnmount, onMounted, ref, shallowRef } from "v
 import { useI18n } from "vue-i18n";
 import { type ContentDto } from "luminary-shared";
 import { SignalSlashIcon } from "@heroicons/vue/24/outline";
-import LImage from "../images/LImage.vue";
+import LImage from "@/components/images/LImage.vue";
 import { isDataSaverEnabled, userDataSaverEnabled, youtubeAlwaysAllow } from "@/globalConfig";
 import { isNativeApp } from "@/util/inAppBrowser";
 import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";

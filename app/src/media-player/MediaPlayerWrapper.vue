@@ -26,9 +26,9 @@ import {
     type PlayerUpNextItem,
 } from "@luminary-media-converter/player-web";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
-import LImage from "../images/LImage.vue";
+import LImage from "@/components/images/LImage.vue";
 import { usePlayerMessages } from "@/media-player/usePlayerMessages";
-import YouTubeEmbed from "./YouTubeEmbed.vue";
+import YouTubeWrapper from "./YouTubeWrapper.vue";
 import { isYouTubeLink } from "@/util/youtube";
 import {
     appLanguagesPreferredAsRef,
@@ -214,7 +214,7 @@ const controls = computed(() =>
 
 /**
  * A video hosted by YouTube. The player package has no YouTube mode, so the app shows YouTube's own embed,
- * behind a notice: see `YouTubeEmbed`.
+ * behind a notice: see `YouTubeWrapper`.
  */
 const youtubeUrl = computed(() =>
     isYouTubeLink(videoSource.value) ? videoSource.value : undefined,
@@ -604,7 +604,7 @@ function onEnded() {
             ref="playerWrapper"
             class="video-player absolute bottom-0 left-0 right-0 top-0"
         >
-            <YouTubeEmbed
+            <YouTubeWrapper
                 v-if="youtubeUrl"
                 ref="player"
                 :content="content"
