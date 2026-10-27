@@ -35,7 +35,7 @@ since Omi started logging them (23 October), as tickets in this repo. All are in
 | [ ]  | #2335  | Save playback progress while the app is in the background, for the app to pick up when it wakes.                        | app / player |
 | [ ]  | #2332  | A Data Saver override in the quality menu, defaulting to the setting, with a hint that the default comes from Settings. | app          |
 | [ ]  | #2327  | Video angles, as the encoder's extended HLS defines them.                                                               | app / player |
-| [ ]  | #2325  | Check thumbnails cover the whole video in the new player (see #2274).                                                   | app          |
+| [x]  | #2325  | Check thumbnails cover the whole video in the new player (see #2274). **Checked: the player shows all a file has; short files predate luminary-media-convert#313 (in 0.0.5). Re-encode old videos.** | app          |
 
 ## YouTube
 
