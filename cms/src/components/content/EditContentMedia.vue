@@ -200,14 +200,6 @@ watch(
 <template>
     <LCard v-if="parent" bare title="Media" :icon="FilmIcon" data-test="media-section">
         <template #actions>
-            <EncodeMediaButton
-                :availability="availability"
-                :busy="busy"
-                :documentId="parent._id"
-                :hasBucket="Boolean(effectiveBucketId)"
-                :disabled="disabled"
-                @encode="encode"
-            />
             <button
                 class="flex cursor-pointer items-center gap-1 rounded-md"
                 type="button"
@@ -219,6 +211,45 @@ watch(
         </template>
 
         <div class="flex flex-col gap-3">
+            <!-- One even row under the title: the header has room for the title alone. -->
+            <div class="flex gap-2 [&>*]:flex-1 [&>*]:justify-center" data-test="media-toolbar">
+                <EncodeMediaButton
+                    :availability="availability"
+                    :busy="busy"
+                    :documentId="parent._id"
+                    :hasBucket="Boolean(effectiveBucketId)"
+                    :disabled="disabled"
+                    @encode="encode"
+                />
+                <LButton
+                    v-if="existingVideoUrl && effectiveBucketId"
+                    :icon="PencilSquareIcon"
+                    variant="secondary"
+                    size="sm"
+                    :disabled="Boolean(editDisabledReason)"
+                    :title="
+                        editDisabledReason || 'Edit the chapters and audio tracks of this video'
+                    "
+                    data-test="edit-media-button"
+                    @click.stop="editVideo"
+                >
+                    <span class="text-xs">Edit</span>
+                </LButton>
+                <LButton
+                    v-if="existingVideoUrl"
+                    :icon="TrashIcon"
+                    variant="secondary"
+                    context="danger"
+                    size="sm"
+                    :disabled="disabled"
+                    title="Remove this video from the document"
+                    data-test="delete-media-button"
+                    @click.stop="deleteVideo"
+                >
+                    <span class="text-xs">Delete</span>
+                </LButton>
+            </div>
+
             <p v-if="showHelp" class="text-xs dark:text-zinc-200">
                 Video and audio are produced by Luminary Media Convert. Use Encode to open it, pick
                 a file, and the encoded playlist is saved back to this document. You need the app on
@@ -248,38 +279,7 @@ watch(
                 :error="error"
             />
 
-            <!-- Next to the video they act on. -->
-            <EditContentVideo v-if="showVideo" bare :disabled="disabled" v-model:parent="parent">
-                <template #actions>
-                    <LButton
-                        v-if="existingVideoUrl && effectiveBucketId"
-                        :icon="PencilSquareIcon"
-                        variant="secondary"
-                        size="sm"
-                        :disabled="Boolean(editDisabledReason)"
-                        :title="
-                            editDisabledReason || 'Edit the chapters and audio tracks of this video'
-                        "
-                        data-test="edit-media-button"
-                        @click.stop="editVideo"
-                    >
-                        <span class="text-xs">Edit</span>
-                    </LButton>
-                    <LButton
-                        v-if="existingVideoUrl"
-                        :icon="TrashIcon"
-                        variant="secondary"
-                        context="danger"
-                        size="sm"
-                        :disabled="disabled"
-                        title="Remove this video from the document"
-                        data-test="delete-media-button"
-                        @click.stop="deleteVideo"
-                    >
-                        <span class="text-xs">Delete</span>
-                    </LButton>
-                </template>
-            </EditContentVideo>
+            <EditContentVideo v-if="showVideo" bare :disabled="disabled" v-model:parent="parent" />
         </div>
     </LCard>
 
