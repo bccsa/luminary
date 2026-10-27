@@ -32,6 +32,8 @@ export type UpNextTag = { id: Uuid; title: string; series: boolean };
  */
 export type UpNext = {
     series: ContentDto[];
+    /** The series' category, in the viewer's language as the query found it; none when there is no series. */
+    seriesTitle?: string;
     next: ContentDto[];
     related: ContentDto[];
     tags: UpNextTag[];
@@ -206,6 +208,13 @@ export function useUpNext(
             }))
             .sort((a, b) => Number(b.series) - Number(a.series));
 
-        return { series, next, related, tags: tagList };
+        // The chosen category, else the first of the content's own: what the series is.
+        const seriesId =
+            chosen && seriesTagIds.has(chosen) ? chosen : order.find((id) => seriesTagIds.has(id));
+        const seriesTitle = series.length
+            ? categories.value.find((tag) => tag.parentId === seriesId)?.title
+            : undefined;
+
+        return { series, ...(seriesTitle ? { seriesTitle } : {}), next, related, tags: tagList };
     });
 }

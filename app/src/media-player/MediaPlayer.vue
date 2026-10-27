@@ -2661,6 +2661,7 @@ function onKeydown(event: KeyboardEvent) {
                 <MediaPlayerUpNext
                     v-if="sheetTab === 'upnext'"
                     :series="upNext.series"
+                    :series-title="upNext.seriesTitle"
                     :related="upNext.related"
                     :current-id="content?.parentId"
                     :tags="upNext.tags"

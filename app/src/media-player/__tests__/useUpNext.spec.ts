@@ -90,6 +90,19 @@ describe("useUpNext", () => {
         expect(useUpNext(ref(playing)).value.series).toEqual([]);
     });
 
+    it("names the series by its category, as the query found it in the viewer's language", () => {
+        const playing = playingFriday();
+        categoryDocs.value = [tag("conf", "Conférence de Couples")];
+        expect(useUpNext(ref(playing)).value.seriesTitle).toBe("Conférence de Couples");
+    });
+
+    it("names no series when there is none", () => {
+        const playing = doc("alone", 100, ["conf"]);
+        categoryDocs.value = [tag("conf", "Conference")];
+        upNextDocs.value = [playing];
+        expect(useUpNext(ref(playing)).value.seriesTitle).toBeUndefined();
+    });
+
     it("names the tags with the series first", () => {
         const playing = playingFriday(["topic", "conf"]);
         const { tags } = useUpNext(ref(playing)).value;
