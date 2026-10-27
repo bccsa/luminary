@@ -44,10 +44,18 @@ const parent = () => ({ ...mockData.mockPostDto }) as PostDto;
 
 const mountSection = (props = {}) =>
     mount(EditContentMedia, {
-        props: { disabled: false, title: "Episode 12", parent: parent(), ...props },
+        props: {
+            disabled: false,
+            title: "Episode 12",
+            parent: parent(),
+            showVideo: true,
+            ...props,
+        },
         global: {
             stubs: {
-                EditContentVideo: { template: "<div data-test='video-stub' />" },
+                EditContentVideo: {
+                    template: "<div data-test='video-stub'><slot name='actions' /></div>",
+                },
                 MediaBucketSelect: { template: "<div data-test='bucket-stub' />" },
             },
         },
@@ -90,7 +98,9 @@ describe("EditContentMedia", () => {
     });
 
     it("shows the video fields only once a translation is selected", async () => {
-        expect(mountSection().find('[data-test="video-stub"]').exists()).toBe(false);
+        expect(mountSection({ showVideo: false }).find('[data-test="video-stub"]').exists()).toBe(
+            false,
+        );
         expect(mountSection({ showVideo: true }).find('[data-test="video-stub"]').exists()).toBe(
             true,
         );

@@ -200,30 +200,6 @@ watch(
 <template>
     <LCard v-if="parent" bare title="Media" :icon="FilmIcon" data-test="media-section">
         <template #actions>
-            <LButton
-                v-if="existingVideoUrl && effectiveBucketId"
-                :icon="PencilSquareIcon"
-                variant="secondary"
-                size="base"
-                :disabled="Boolean(editDisabledReason)"
-                :title="editDisabledReason || 'Edit the chapters and audio tracks of this video'"
-                aria-label="Edit video"
-                data-test="edit-media-button"
-                @click.stop="editVideo"
-            />
-            <!-- Icons alone, named by their tooltips: the header has no room for three labels. -->
-            <LButton
-                v-if="existingVideoUrl"
-                :icon="TrashIcon"
-                variant="secondary"
-                context="danger"
-                size="base"
-                :disabled="disabled"
-                title="Delete video"
-                aria-label="Delete video"
-                data-test="delete-media-button"
-                @click.stop="deleteVideo"
-            />
             <EncodeMediaButton
                 :availability="availability"
                 :busy="busy"
@@ -272,7 +248,38 @@ watch(
                 :error="error"
             />
 
-            <EditContentVideo v-if="showVideo" bare :disabled="disabled" v-model:parent="parent" />
+            <!-- Next to the video they act on. -->
+            <EditContentVideo v-if="showVideo" bare :disabled="disabled" v-model:parent="parent">
+                <template #actions>
+                    <LButton
+                        v-if="existingVideoUrl && effectiveBucketId"
+                        :icon="PencilSquareIcon"
+                        variant="secondary"
+                        size="sm"
+                        :disabled="Boolean(editDisabledReason)"
+                        :title="
+                            editDisabledReason || 'Edit the chapters and audio tracks of this video'
+                        "
+                        data-test="edit-media-button"
+                        @click.stop="editVideo"
+                    >
+                        <span class="text-xs">Edit</span>
+                    </LButton>
+                    <LButton
+                        v-if="existingVideoUrl"
+                        :icon="TrashIcon"
+                        variant="secondary"
+                        context="danger"
+                        size="sm"
+                        :disabled="disabled"
+                        title="Remove this video from the document"
+                        data-test="delete-media-button"
+                        @click.stop="deleteVideo"
+                    >
+                        <span class="text-xs">Delete</span>
+                    </LButton>
+                </template>
+            </EditContentVideo>
         </div>
     </LCard>
 

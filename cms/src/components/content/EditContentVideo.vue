@@ -128,6 +128,7 @@ watch(
         data-test="videoContent"
         :class="bare ? '' : 'bg-white'"
     >
+        <template #actions><slot name="actions" /></template>
         <LInput
             name="video"
             v-model="hlsUrl"

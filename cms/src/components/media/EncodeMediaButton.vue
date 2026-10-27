@@ -44,11 +44,12 @@ const disabledReason = computed(() => {
 <template>
     <LButton
         :icon="FilmIcon"
-        size="base"
+        size="sm"
         :disabled="Boolean(disabledReason)"
         :title="disabledReason || 'Encode video with Luminary Media Convert'"
-        aria-label="Encode video"
         @click.stop="emit('encode')"
         data-test="encode-media-button"
-    />
+    >
+        <span class="text-xs">Encode</span>
+    </LButton>
 </template>
