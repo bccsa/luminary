@@ -507,16 +507,6 @@ describe("SingleContent", () => {
                     parentId: mockEnglishContentDto.parentId,
                 }),
             ).toBe(true);
-            expect(notificationStore.addNotification).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    id: "like-added",
-                    title: "Added to your likes",
-                    description: "This content has been added to your likes.",
-                    state: "success",
-                    type: "toast",
-                    timeout: 5000,
-                }),
-            );
         });
 
         await likeButton.trigger("click");
@@ -530,7 +520,7 @@ describe("SingleContent", () => {
             ).toBe(false);
         });
 
-        expect(notificationStore.addNotification).toHaveBeenCalledTimes(1);
+        expect(notificationStore.addNotification).not.toHaveBeenCalled();
     });
 
     it("does not record a view for merely opening the content", async () => {

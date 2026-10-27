@@ -74,7 +74,7 @@ export const routes: RouteRecordRaw[] = [
         component: ActivityPage,
         name: "activity",
         meta: {
-            title: "title.activity",
+            title: "activity.title",
         },
     },
     // Note that this route should always come after all defined routes,
