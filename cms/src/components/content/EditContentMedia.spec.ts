@@ -287,7 +287,7 @@ describe("EditContentMedia — deleting the video", () => {
         const saveDeletedMedia = vi.fn();
         const wrapper = mountSection({ parent: withVideo(), saveDeletedMedia });
         await wrapper.find('[data-test="delete-media-button"]').trigger("click");
-        await deleteDialog(wrapper).props("secondaryAction")();
+        await deleteDialog(wrapper).props("secondaryAction")!();
 
         expect(saveDeletedMedia).not.toHaveBeenCalled();
         expect((wrapper.props("parent") as PostDto).media?.hlsUrl).toBe("/abc/master.m3u8");
