@@ -1073,12 +1073,16 @@ describe("EditContent.vue", () => {
                     },
                 });
 
-                // The whole form, as a person sees it before pressing anything: the button comes earlier.
+                // The whole form, as a person sees it before pressing anything.
                 await waitForExpect(() => {
                     expect(wrapper.find('[data-test="video-url-input"]').exists()).toBe(true);
+                    expect(wrapper.find('[data-test="delete-media-button"]').exists()).toBe(true);
                 }, 10000);
-                expect(wrapper.find('[data-test="delete-media-button"]').exists()).toBe(true);
                 await wrapper.find('[data-test="delete-media-button"]').trigger("click");
+                // A person sees an unsaved change: Revert, and a Save that can be pressed.
+                await waitForExpect(() => {
+                    expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(true);
+                }, 10000);
                 await wrapper.find('[data-test="save-button"]').trigger("click");
 
                 await waitForExpect(() => {
