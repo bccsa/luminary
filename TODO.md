@@ -56,8 +56,8 @@ since Omi started logging them (23 October), as tickets in this repo. All are in
 
 | Done | Ticket | What                                                           | Fix in |
 | ---- | ------ | -------------------------------------------------------------- | ------ |
-| [ ]  | #2330  | A dedicated button to delete a video.                          | cms    |
-| [ ]  | #2329  | Check that deleting the video works when its link has changed. | cms    |
+| [x]  | #2330  | A dedicated button to delete a video. **Done in #2355: Delete asks, then saves; storage failures warn.** | cms    |
+| [x]  | #2329  | Check that deleting the video works when its link has changed. **Checked: works, proven against real MinIO (#2355).** | cms    |
 
 ## Encoder (logged here)
 
