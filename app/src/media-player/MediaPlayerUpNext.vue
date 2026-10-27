@@ -16,6 +16,8 @@ import type { UpNextTag } from "./useUpNext";
 const props = defineProps<{
     /** The whole series, the playing one in it: it is marked where it stands, and does nothing when tapped. */
     series: ContentDto[];
+    /** The series' category, its heading; "In series" without one. */
+    seriesTitle?: string;
     related: ContentDto[];
     /** The playing content's parent id. */
     currentId?: Uuid;
@@ -28,7 +30,7 @@ const { t } = useI18n();
 
 const sections = computed(() =>
     [
-        { id: "series", label: t("media_player.in_series"), items: props.series },
+        { id: "series", label: props.seriesTitle || t("media_player.in_series"), items: props.series },
         { id: "related", label: t("media_player.related"), items: props.related },
     ].filter((section) => section.items.length),
 );

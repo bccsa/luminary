@@ -75,6 +75,24 @@ describe("useNextUp", () => {
         expect(nextUp.value.map((i) => i.id)).toEqual(["c", "r", "a"]);
     });
 
+    it("heads the series with its category's name, when it has one", () => {
+        const series = [doc("a"), doc("b")];
+        const { browseUpNext } = useNextUp(
+            computed<UpNext>(() => ({
+                series,
+                seriesTitle: "Conférence de Couples",
+                next: [],
+                related: [],
+                tags: [],
+            })),
+            () => "a-parent",
+        );
+        expect(browseUpNext.value.map((i) => i.section)).toEqual([
+            "Conférence de Couples",
+            "Conférence de Couples",
+        ]);
+    });
+
     it("offers the earlier parts of a series when its last part plays", () => {
         const series = [doc("a"), doc("b"), doc("c")];
         const { nextContents } = useNextUp(
