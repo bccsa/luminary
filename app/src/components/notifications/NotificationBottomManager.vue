@@ -28,7 +28,7 @@ const firstBanner = computed(() => {
                 <div
                     v-if="firstBanner"
                     :key="firstBanner.id"
-                    class="bottom-banner-grid pb-[var(--mobile-menu-h,0px)] lg:pb-0"
+                    class="bottom-banner-grid pb-[calc(var(--mobile-menu-h,0px)+var(--media-bar-h,0px))] lg:pb-0"
                 >
                     <div class="bottom-banner-grid-content">
                         <NotificationBottom :notification="firstBanner" />

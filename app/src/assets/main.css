@@ -15,3 +15,55 @@ body {
     overflow-x: hidden;
     overscroll-behavior-y: none;
 }
+
+/* The native player draws the video behind the web view, in a hole the media player leaves: the
+   page paints nothing there, and what is under it (the page behind the full player) is hidden. */
+html.lmc-inline-video,
+html.lmc-inline-video body,
+html.lmc-inline-video #app {
+    /* The page sets these through utility classes, which win without it. */
+    background: transparent !important;
+}
+html.lmc-inline-video main {
+    visibility: hidden;
+}
+/* The page's own bars too (its top bar, the menu at the foot): the picture's place can reach under them. */
+html.lmc-inline-video:not(.lmc-player-dragging) .lmc-page {
+    visibility: hidden;
+}
+/* Drawing the full player down uncovers a strip above it. The page behind shows through that strip only
+   (clipped to it, on a ground of its own), not the black of the video drawn behind the web view. */
+html.lmc-inline-video.lmc-player-dragging main {
+    visibility: visible;
+    clip-path: inset(var(--lmc-gap-top, 0px) 0 var(--lmc-gap-bottom, 100%) 0);
+    background-color: rgb(255 255 255);
+}
+html.dark.lmc-inline-video.lmc-player-dragging main {
+    background-color: rgb(15 23 42);
+}
+
+/* The now-playing screen as a thumbnail: only its picture is left. */
+.lmc-mini-stage .lmpl-afs-top,
+.lmc-mini-stage .lmpl-afs-info,
+.lmc-mini-stage .lmpl-afs-bg,
+.lmc-mini-stage .lmpl-afs-scrubzone,
+.lmc-mini-stage .lmpl-afs-cueline,
+/* No room for the message and its Retry: opening the player shows them. */
+.lmc-mini-stage .lmpl-error {
+    display: none !important;
+}
+.lmc-mini-stage .lmpl-afs-main {
+    padding: 0;
+    gap: 0;
+}
+.lmc-mini-stage .lmpl-afs-video .lmpl-afs-art {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    aspect-ratio: auto;
+    /* Edge to edge in the bar: the wide screen's rounding and lift are for the picture on a screen of its own. */
+    border-radius: 0;
+}
+.lmc-mini-stage .lmpl-afs-stage {
+    box-shadow: none;
+}
