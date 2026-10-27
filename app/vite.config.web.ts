@@ -5,6 +5,14 @@ import { defineConfig, loadEnv, type Plugin, type UserConfig } from "vite";
 import type { ViteSSGOptions } from "vite-ssg";
 import type { RouteRecordRaw } from "vue-router";
 import vue from "@vitejs/plugin-vue";
+
+// The app compiles its player source, whose Video.js 10 tags are custom elements. Inlined rather than
+// imported from player-web, whose entry loads Video.js and Vue components into the config.
+const isVideoJsElement = (tag: string): boolean =>
+    tag === "video-player" ||
+    tag === "video-skin" ||
+    tag === "hlsjs-video" ||
+    tag.startsWith("media-");
 import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 import { deferEntryUntilPainted } from "./vite-plugins/deferEntryUntilPainted";
 import { youtubeEmbedPage } from "./vite-plugins/youtubeEmbedPage";
@@ -610,7 +618,7 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         ssgBuildLock(),
         buildTargetVirtuals(),
         youtubeEmbedPage(),
-        vue(),
+        vue({ template: { compilerOptions: { isCustomElement: isVideoJsElement } } }),
         rewriteWebEntry(),
         deferEntryUntilPainted(),
     ],

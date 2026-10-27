@@ -21,10 +21,9 @@ import {
 import {
     AUDIO_ONLY_ANGLE_ID,
     isYouTubeUrl,
-    LuminaryPlayer,
     type PlayerSource,
-    type PlayerUpNextItem,
 } from "@luminary-media-converter/player-web";
+import { LuminaryPlayer, type PlayerUpNextItem } from "@/media-player/player";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "@/components/images/LImage.vue";
 import { usePlayerMessages } from "@/media-player/usePlayerMessages";
@@ -152,7 +151,14 @@ const playerExtras = computed(() => ({
         ? { nowPlaying: nowPlaying.value }
         : { nowPlaying: webNowPlaying.value, appearance: isDarkTheme.value ? "dark" : "light" }),
     // Withheld until this content's own video is loaded, or the previous video's last frame shows under it.
-    ...(props.inline && videoPlayer.acceptsInline && playingThisContent() ? { inline: props.inline, captionBand: props.captionBand, inlineBadge: props.inlineBadge === true, inlineRadius: props.inlineRadius ?? 0 } : {}),
+    ...(props.inline && videoPlayer.acceptsInline && playingThisContent()
+        ? {
+              inline: props.inline,
+              captionBand: props.captionBand,
+              inlineBadge: props.inlineBadge === true,
+              inlineRadius: props.inlineRadius ?? 0,
+          }
+        : {}),
     // The media player's picture takes the video's own shape, so cover only trims a sliver of rounding at its edges.
     ...(props.inline && !videoPlayer.acceptsInline ? { windowedFit: "cover" as const } : {}),
     ...(props.captionsHidden ? { captionsHidden: true } : {}),

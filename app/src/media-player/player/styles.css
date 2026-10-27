@@ -1,0 +1,2566 @@
+/*
+ * What this package draws itself: the frame, the artwork layer, the host slot, the status panels and the
+ * player controls. The default skin's stylesheet (imported ahead of this one) still draws the buttons, icons,
+ * menus and sliders; everything below places and restyles them.
+ *
+ * Dark mode follows the app's convention: a `.dark` class on an ancestor, not `prefers-color-scheme`,
+ * because the host owns that decision.
+ */
+
+.lmpl-root {
+    /* Only the surfaces this package draws itself are themable; the video.js
+       chrome below is the app's, deliberately hard-coded to match it. */
+    --lmpl-text: #ffffff;
+    --lmpl-surface: rgba(9, 9, 11, 0.72);
+    --lmpl-surface-strong: rgba(9, 9, 11, 0.88);
+    --lmpl-border: rgba(255, 255, 255, 0.16);
+    --lmpl-radius-sm: 6px;
+    --lmpl-transition: 180ms ease;
+    /* The skin rounds the video frame by this (28px by default); the frame is square. */
+    --media-border-radius: 0;
+
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: transparent;
+    color: var(--lmpl-text);
+    box-sizing: border-box;
+}
+
+.lmpl-artwork {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+/* Audio-only with no artwork is black, not whatever is behind the player. */
+.lmpl-artwork-audio {
+    background-color: #000;
+}
+
+.lmpl-artwork-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Beneath the controls like the rest of the layer, so the centre play button
+   covers it rather than the other way round. */
+.lmpl-audio-glyph {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4rem;
+    height: 4rem;
+    transform: translate(-50%, -50%);
+    color: rgba(255, 255, 255, 0.85);
+    filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.55));
+}
+
+/* The keep-alive element is machinery, never a control. */
+.lmpl-keep-alive {
+    display: none;
+}
+
+/* The v10 player fills the frame; `isolation` keeps the artwork's z-index -1 inside it. */
+.lmpl-root .lmpl-video-player {
+    position: absolute;
+    inset: 0;
+    display: block;
+    isolation: isolate;
+}
+/* --- Host overlay slot --------------------------------------------------- */
+
+.lmpl-slot {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.lmpl-slot > * {
+    pointer-events: auto;
+}
+
+/* --- Status / error panels ----------------------------------------------- */
+
+.lmpl-panel {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.875rem;
+    padding: 1.5rem;
+    text-align: center;
+    background: var(--lmpl-surface);
+    box-sizing: border-box;
+    z-index: 3;
+}
+
+.lmpl-panel-text {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.4;
+    color: var(--lmpl-text);
+}
+
+.lmpl-btn {
+    appearance: none;
+    border: 1px solid var(--lmpl-border);
+    border-radius: var(--lmpl-radius-sm);
+    background: transparent;
+    color: var(--lmpl-text);
+    font: inherit;
+    padding: 0.45rem 0.9rem;
+    cursor: pointer;
+    transition: background var(--lmpl-transition);
+}
+
+.lmpl-btn:hover,
+.lmpl-btn:focus-visible {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* --- Theme: no blur ------------------------------------------------------- */
+
+/*
+ * The default skin frosts every surface it floats over the picture and blurs menus as they open and
+ * close. Both are driven by custom properties, so switching them off is a matter of naming them. Menus
+ * lose the blur's help in staying legible over the picture, so their surface is made solid instead.
+ */
+.lmpl-root .media-skin {
+    --media-backdrop-filter-surface: none;
+    --media-backdrop-filter-indicator: none;
+    --media-backdrop-filter-dialog: none;
+    --media-hidden-blur: 0px;
+    --media-hidden-popup-blur: 0px;
+    --media-popover: rgb(24 24 27 / 0.97);
+    --media-popover-foreground: #fff;
+    /* How far a menu floats from the button that opened it; the skin's 12px reads as detached. */
+    --media-popover-side-offset: 4px;
+}
+
+/* --- Frame ---------------------------------------------------------------- */
+
+/*
+ * Everything under here is drawn in multiples of `--lmpl-s`, which steps up with the width of the player
+ * rather than with whether it is fullscreen or what device it is on: the same controls that suit a phone
+ * look like a stamp on a 2000px desktop screen. It is set on the controls and the scrub preview — the
+ * elements the size container's query can reach — and read by everything inside them, menus included, since
+ * a menu in the top layer still inherits from where it sits in the tree.
+ */
+.lmpl-root .lmpl-controls-content,
+.lmpl-root .lmpl-scrub-preview,
+.lmpl-root .lmpl-tooltip,
+.lmpl-root .lmpl-nextup,
+.lmpl-root .lmpl-browse {
+    --lmpl-s: 1;
+    --media-spacing: calc(4px * var(--lmpl-s));
+}
+
+.lmpl-root .lmpl-controls-content,
+.lmpl-root .lmpl-nextup {
+    --lmpl-edge: clamp(20px, 5%, 64px);
+}
+
+@container media-root (min-width: 900px) {
+    .lmpl-root .lmpl-controls-content,
+    .lmpl-root .lmpl-scrub-preview,
+    .lmpl-root .lmpl-tooltip,
+    .lmpl-root .lmpl-browse {
+        --lmpl-s: 1.25;
+    }
+}
+
+@container media-root (min-width: 1400px) {
+    .lmpl-root .lmpl-controls-content,
+    .lmpl-root .lmpl-scrub-preview,
+    .lmpl-root .lmpl-tooltip,
+    .lmpl-root .lmpl-browse {
+        --lmpl-s: 1.6;
+    }
+}
+
+/*
+ * A wide player has room to keep the controls well in from its edges, and the viewer a long way from them.
+ * Set on the controls, not on `.lmpl-root`: a container query can only restyle what is inside the container,
+ * and the root is its parent, so a rule on the root would never apply and a 2000px screen would keep the
+ * margin of a phone.
+ */
+@container media-root (min-width: 900px) {
+    .lmpl-root .lmpl-controls-content,
+    .lmpl-root .lmpl-nextup {
+        --lmpl-edge: clamp(32px, 5%, 110px);
+    }
+}
+
+@container media-root (min-width: 1400px) {
+    .lmpl-root .lmpl-controls-content,
+    .lmpl-root .lmpl-nextup {
+        --lmpl-edge: clamp(56px, 6%, 200px);
+    }
+}
+
+.lmpl-root .lmpl-container {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    /* Not `inherit`: the <video-player> element between this and the root is not rounded. */
+    border-radius: var(--media-border-radius);
+    background: transparent;
+}
+
+.lmpl-root .lmpl-media {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* A bare windowed frame carries nothing a pointer or a key can reach. `display: none` rather than a
+   fade, because a faded control still takes focus. */
+.lmpl-root.lmpl-windowed-bare:not(.lmpl-is-fullscreen) .lmpl-controls {
+    display: none !important;
+}
+
+/* --- Controls ------------------------------------------------------------- */
+
+.lmpl-controls {
+    display: contents;
+}
+
+.lmpl-root .lmpl-controls-content {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: block;
+    color: #fff;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+    transition: opacity 0.25s ease;
+    /* The picture below answers clicks; only the controls themselves take them. */
+    pointer-events: none;
+}
+
+.lmpl-root .lmpl-controls-content:not([data-visible]) {
+    opacity: 0;
+}
+
+.lmpl-root .lmpl-controls-content:not([data-visible]) * {
+    pointer-events: none !important;
+}
+
+/* The top line, fullscreen only: what plays at the left and leaving at the right, over a fade from the top edge. */
+.lmpl-topline {
+    position: absolute;
+    inset: 0 0 auto;
+    display: none;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: calc(16px * var(--lmpl-s));
+    padding: calc(12px * var(--lmpl-s)) var(--lmpl-edge) calc(36px * var(--lmpl-s));
+    background: linear-gradient(to bottom, rgb(0 0 0 / 0.5), rgb(0 0 0 / 0.2) 50%, transparent);
+    pointer-events: none;
+}
+
+.lmpl-root.lmpl-is-fullscreen .lmpl-topline {
+    display: flex;
+}
+
+.lmpl-heading {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.lmpl-heading-title {
+    overflow: hidden;
+    font-size: calc(17px * var(--lmpl-s));
+    font-weight: 600;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lmpl-heading-sub {
+    overflow: hidden;
+    font-size: calc(12px * var(--lmpl-s));
+    color: rgb(255 255 255 / 0.7);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lmpl-topline .lmpl-topline-exit {
+    flex: none;
+    margin-inline-end: calc(-8px * var(--lmpl-s));
+    pointer-events: auto;
+}
+
+/* Leaving fullscreen is at the top then, not twice. */
+.lmpl-root.lmpl-is-fullscreen.lmpl-has-heading .lmpl-remote .media-fullscreen-button {
+    display: none;
+}
+
+.lmpl-cluster,
+.lmpl-bottom {
+    pointer-events: auto;
+}
+
+/* Every round button: the same size, the same hover. */
+.lmpl-root .lmpl-icon-btn {
+    --media-icon-size: calc(22px * var(--lmpl-s));
+    display: grid;
+    place-items: center;
+    width: calc(40px * var(--lmpl-s));
+    height: calc(40px * var(--lmpl-s));
+    padding: 0;
+    border: 0;
+    border-radius: 9999px;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    transition:
+        background-color 0.15s ease,
+        transform 0.15s ease;
+}
+
+.lmpl-root .lmpl-icon-btn:hover {
+    background: rgb(255 255 255 / 0.16);
+}
+
+.lmpl-root .lmpl-icon-btn:active {
+    transform: scale(0.94);
+}
+
+.lmpl-root .lmpl-icon-btn:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+/* --- Centre: skip back, play, skip forward -------------------------------- */
+
+.lmpl-cluster-centre {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(32px * var(--lmpl-s));
+    pointer-events: none;
+}
+
+.lmpl-cluster-centre > * {
+    pointer-events: auto;
+}
+
+.lmpl-root .lmpl-play,
+.lmpl-root .lmpl-seek {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 9999px;
+    background: rgb(24 24 27 / 0.58);
+    color: #fff;
+    cursor: pointer;
+    box-shadow:
+        0 0 0 1px rgb(255 255 255 / 0.18),
+        0 10px 30px rgb(0 0 0 / 0.4);
+    transition:
+        background-color 0.15s ease,
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.lmpl-root .lmpl-play {
+    --media-icon-size: calc(38px * var(--lmpl-s));
+    width: calc(80px * var(--lmpl-s));
+    height: calc(80px * var(--lmpl-s));
+}
+
+.lmpl-root .lmpl-seek {
+    width: calc(56px * var(--lmpl-s));
+    height: calc(56px * var(--lmpl-s));
+}
+
+.lmpl-root .lmpl-play:hover,
+.lmpl-root .lmpl-seek:hover {
+    background: rgb(24 24 27 / 0.78);
+    transform: scale(1.06);
+}
+
+.lmpl-root .lmpl-play:active,
+.lmpl-root .lmpl-seek:active {
+    transform: scale(0.95);
+}
+
+.lmpl-root .lmpl-play:focus-visible,
+.lmpl-root .lmpl-seek:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 3px;
+}
+
+.lmpl-skip-icon {
+    display: block;
+    width: calc(32px * var(--lmpl-s));
+    height: calc(32px * var(--lmpl-s));
+    overflow: visible;
+}
+
+/* --- Bottom: timeline, then buttons --------------------------------------- */
+
+.lmpl-bottom {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: calc(12px * var(--lmpl-s));
+    padding-bottom: max(calc(14px * var(--lmpl-s)), calc(env(safe-area-inset-bottom) * 0.5));
+    /* In from both edges, past the device's own and alike on both, so a cutout on one side leaves the controls centred: see `--lmpl-edge`. */
+    padding-left: max(var(--lmpl-edge), env(safe-area-inset-left), env(safe-area-inset-right));
+    padding-right: max(var(--lmpl-edge), env(safe-area-inset-left), env(safe-area-inset-right));
+    isolation: isolate;
+}
+
+/* The controls are white, so a bright picture needs something dark under them: a fade that rises
+   from the bottom edge to above the timeline, drawn behind the controls and out of the pointer's way. */
+.lmpl-bottom::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: calc(-72px * var(--lmpl-s));
+    background: linear-gradient(to top, rgb(0 0 0 / 0.75), rgb(0 0 0 / 0.4) 55%, transparent);
+    pointer-events: none;
+}
+
+.lmpl-root .lmpl-icon-btn {
+    filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.6));
+}
+
+.lmpl-timeline-row {
+    display: flex;
+    align-items: center;
+    gap: calc(12px * var(--lmpl-s));
+}
+
+/* One even run of buttons: volume, the settings, then (past the spacer) the remote group. */
+.lmpl-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.lmpl-actions-row {
+    /* The buttons' own padding keeps their glyphs on the same line as the timeline's ends. */
+    margin-inline: calc(-8px * var(--lmpl-s));
+}
+
+.lmpl-spacer {
+    flex: 1;
+}
+
+.lmpl-root .lmpl-time {
+    min-width: 3.2ch;
+    font-size: calc(13px * var(--lmpl-s));
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+}
+
+/*
+ * Thick and round, and no thumb — the fill is the playhead. The slider itself is taller than the
+ * track so there is something generous to hit; the track grows a little under the pointer.
+ */
+/* Cut into chapters: the mask opens a gap at each chapter start (see ui/chapterBar.ts). */
+.lmpl-root .lmpl-track {
+    -webkit-mask-image: var(--lmpl-chapter-mask, none);
+    mask-image: var(--lmpl-chapter-mask, none);
+}
+
+.lmpl-root .lmpl-time-slider {
+    flex: 1;
+    height: calc(30px * var(--lmpl-s));
+}
+
+.lmpl-root .lmpl-track {
+    height: calc(12px * var(--lmpl-s));
+    overflow: hidden;
+    border-radius: 9999px;
+    color: rgb(255 255 255 / 0.26);
+    transition: height 0.15s ease;
+}
+
+.lmpl-root .lmpl-time-slider:hover .lmpl-track,
+.lmpl-root .lmpl-time-slider:focus-visible .lmpl-track,
+.lmpl-root .lmpl-time-slider[data-dragging] .lmpl-track {
+    height: calc(16px * var(--lmpl-s));
+}
+
+.lmpl-root .lmpl-buffer {
+    color: rgb(255 255 255 / 0.4);
+}
+
+.lmpl-root .lmpl-fill {
+    --media-primary: #fff;
+}
+
+.lmpl-root .lmpl-track,
+.lmpl-root .lmpl-buffer,
+.lmpl-root .lmpl-fill,
+.lmpl-root .lmpl-buffer::before,
+.lmpl-root .lmpl-fill::before,
+.lmpl-root .lmpl-track::before {
+    border-radius: 9999px;
+}
+
+.lmpl-root .lmpl-preview {
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: rgb(24 24 27 / 0.95);
+    box-shadow: 0 0 0 1px rgb(255 255 255 / 0.12);
+    font-size: calc(12px * var(--lmpl-s));
+    font-weight: 600;
+    color: #fff;
+}
+
+/* --- Under the timeline: volume, settings, remote ------------------------- */
+
+.lmpl-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+/* Casting and picture-in-picture hide themselves with `hidden` when there is nothing to offer; the
+   flex above would otherwise override it. */
+.lmpl-group [hidden] {
+    display: none !important;
+}
+
+/*
+ * A setting is offered only when there is a choice to make: a language button over a single audio track,
+ * or a quality button over one rendition, is a control that does nothing. Video.js 10 hides a menu's
+ * trigger itself in that case; these classes say the same from the player's own state, so the layout
+ * does not depend on it.
+ */
+/* Read from any ancestor carrying the class, not the first `.lmpl-root`: a host may wrap the player in a root of its own. */
+.lmpl-opt-quality:not(.lmpl-has-quality-choice *),
+.lmpl-opt-audio:not(.lmpl-has-audio-choice *),
+.lmpl-opt-captions:not(.lmpl-has-subtitles *) {
+    display: none !important;
+}
+
+/* Chapters and up next are browsed in fullscreen, and only when there is something to browse. */
+.lmpl-opt-browse:not(.lmpl-has-browse *),
+.lmpl-opt-browse:not(.lmpl-is-fullscreen *) {
+    display: none !important;
+}
+
+.lmpl-browse-icon {
+    display: block;
+    width: var(--media-icon-size);
+    height: var(--media-icon-size);
+}
+
+/* The volume card: plus, a thick vertical slider, minus. No thumb — the fill is the level. */
+.lmpl-root .lmpl-volume-card {
+    padding: 0;
+}
+
+.lmpl-volume-card-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(4px * var(--lmpl-s));
+    padding: calc(6px * var(--lmpl-s)) calc(4px * var(--lmpl-s));
+}
+
+.lmpl-root .lmpl-vstep {
+    width: calc(36px * var(--lmpl-s));
+    height: calc(36px * var(--lmpl-s));
+}
+
+.lmpl-root .lmpl-volume-slider {
+    width: calc(36px * var(--lmpl-s));
+    height: calc(132px * var(--lmpl-s));
+    flex: none;
+}
+
+.lmpl-root .lmpl-vtrack {
+    width: calc(14px * var(--lmpl-s));
+    height: 100%;
+    overflow: hidden;
+    border-radius: 9999px;
+    color: rgb(255 255 255 / 0.26);
+}
+
+.lmpl-root .lmpl-vfill {
+    --media-primary: #fff;
+}
+
+/* The skin pins a horizontal fill's pseudo-element to `left: 0` and leaves a vertical one's to its static
+   position, which lands half a track-width to the right: a fill that covers only half the bar. */
+.lmpl-root .lmpl-vfill::before {
+    left: 0;
+    right: 0;
+}
+
+.lmpl-root .lmpl-vtrack,
+.lmpl-root .lmpl-vtrack::before,
+.lmpl-root .lmpl-vfill,
+.lmpl-root .lmpl-vfill::before {
+    border-radius: 9999px;
+}
+
+/* The cards' own text, which the skin sizes by its own rem and so would stay small on a large player. */
+.lmpl-root .lmpl-card,
+.lmpl-root .lmpl-volume-card {
+    font-size: calc(14px * var(--lmpl-s));
+}
+
+/* A setting's card: tight to its button, with a title instead of the cogwheel's back arrow. */
+.lmpl-root .lmpl-card .media-menu-content:not([data-submenu]) {
+    top: 4px;
+    inset-inline: 4px;
+}
+
+.lmpl-card-title {
+    display: block;
+    padding: calc(6px * var(--lmpl-s)) calc(10px * var(--lmpl-s)) calc(4px * var(--lmpl-s));
+    font-size: calc(11px * var(--lmpl-s));
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgb(255 255 255 / 0.6);
+}
+
+/* Volume needs a pointer to be worth its space; a touch screen has the device's own. */
+@media (pointer: coarse) {
+    .lmpl-volume {
+        display: none !important;
+    }
+}
+
+/* --- Scrub preview --------------------------------------------------------- */
+
+/*
+ * The frame under the pointer while it is over or dragging the timeline: a crop of a sprite sheet and
+ * its timecode, a card like the menus. Positioned by the component, along the bar and kept inside the
+ * frame; never a target, since it follows a pointer that is dragging something else.
+ */
+.lmpl-scrub-preview {
+    position: absolute;
+    z-index: 40;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.lmpl-thumb {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(6px * var(--lmpl-s));
+}
+
+.lmpl-thumb-box {
+    overflow: hidden;
+    border-radius: 10px;
+    background-color: #000;
+    box-shadow:
+        0 0 0 1px rgb(255 255 255 / 0.28),
+        0 10px 28px rgb(0 0 0 / 0.55);
+}
+
+.lmpl-thumb-frame {
+    flex: none;
+}
+
+.lmpl-thumb-time {
+    padding: 3px 8px;
+    border-radius: 9999px;
+    background: rgb(24 24 27 / 0.95);
+    box-shadow: 0 0 0 1px rgb(255 255 255 / 0.12);
+    font-size: calc(12px * var(--lmpl-s));
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+    color: #fff;
+}
+
+/* The chapter named beside the timecode; a long title is cut, never wrapped. */
+.lmpl-thumb-chapter {
+    max-width: calc(220px * var(--lmpl-s));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: calc(12px * var(--lmpl-s));
+    font-weight: 500;
+    color: rgb(255 255 255 / 0.85);
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.7);
+}
+
+/* Above the timeline: where the playhead is among the chapters. Gone while a preview or the roster takes that place. */
+.lmpl-chapter-now {
+    margin-bottom: calc(2px * var(--lmpl-s));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: calc(13px * var(--lmpl-s));
+    font-weight: 600;
+    color: #fff;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.7);
+    transition: opacity 0.12s ease;
+}
+
+.lmpl-root.lmpl-previewing .lmpl-chapter-now,
+.lmpl-root.lmpl-scrubbing .lmpl-chapter-now {
+    opacity: 0;
+}
+
+/* With frames to show, the preview carries its own timecode; the timeline's plain readout would stack on it. */
+.lmpl-root.lmpl-has-thumbs .lmpl-preview {
+    display: none;
+}
+
+/* --- Scrub roster ---------------------------------------------------------- */
+
+/*
+ * Holding the timeline opens a strip of frames under it, and the timeline slides up to make room: the
+ * viewer sees the stretch of the video around the playhead, not one frame. The strip rises from the bottom
+ * edge over the buttons, and the track thickens while it is held so it is easy to hold on to.
+ */
+.lmpl-roster {
+    position: absolute;
+    z-index: 35;
+    left: 0;
+    right: 0;
+    overflow: hidden;
+    background: #0b0b0d;
+    /* A hairline of light along its top edge, where the timeline rests on it. */
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14);
+    pointer-events: none;
+    animation: lmpl-roster-in 0.2s ease-out both;
+}
+
+@keyframes lmpl-roster-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+}
+
+.lmpl-roster-tile {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    background: #151518;
+    /* A frame apart from its neighbour, without a gutter that would make the strip look like a grid. */
+    box-shadow: inset -1px 0 0 rgb(0 0 0 / 0.55);
+}
+
+/* The crop at its own size, scaled to the tile, drawn as a chapter's picture is. */
+.lmpl-roster-frame {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/*
+ * The frames around the marker are the ones that matter, so those further out fall away into the dark:
+ * the strip reads as a lens on the playhead rather than a flat run of thumbnails.
+ */
+.lmpl-roster-vignette {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(
+            to right,
+            rgb(8 8 10 / 0.78),
+            rgb(8 8 10 / 0.35) calc(var(--lmpl-marker) - 22%),
+            transparent calc(var(--lmpl-marker) - 8%),
+            transparent calc(var(--lmpl-marker) + 8%),
+            rgb(8 8 10 / 0.35) calc(var(--lmpl-marker) + 22%),
+            rgb(8 8 10 / 0.78)
+        ),
+        linear-gradient(
+            to bottom,
+            rgb(0 0 0 / 0.28),
+            transparent 35%,
+            transparent 70%,
+            rgb(0 0 0 / 0.4)
+        );
+}
+
+.lmpl-roster-marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    margin-left: -1.5px;
+    border-radius: 9999px;
+    background: #fff;
+    box-shadow:
+        0 0 0 1px rgb(0 0 0 / 0.4),
+        0 0 14px rgb(255 255 255 / 0.55);
+}
+
+.lmpl-scrub-label {
+    z-index: 40;
+}
+
+/* On the roster the chapter is part of the one pill, after the timecode. */
+.lmpl-scrub-label .lmpl-thumb-time {
+    display: inline-flex;
+    align-items: baseline;
+    gap: calc(8px * var(--lmpl-s));
+    max-width: min(80vw, calc(420px * var(--lmpl-s)));
+}
+
+.lmpl-scrub-label .lmpl-thumb-chapter {
+    min-width: 0;
+    text-shadow: none;
+}
+
+.lmpl-scrub-label .lmpl-thumb-time {
+    padding: calc(4px * var(--lmpl-s)) calc(11px * var(--lmpl-s));
+    background: rgb(20 20 24 / 0.62);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    backdrop-filter: blur(14px) saturate(1.4);
+    box-shadow:
+        0 0 0 1px rgb(255 255 255 / 0.16),
+        0 6px 18px rgb(0 0 0 / 0.4);
+    font-size: calc(14px * var(--lmpl-s));
+    letter-spacing: 0.02em;
+}
+
+.lmpl-root .lmpl-timeline-row {
+    transition: transform 0.18s ease;
+}
+
+.lmpl-root.lmpl-scrubbing .lmpl-timeline-row {
+    transform: translateY(calc(var(--lmpl-track-inset) * var(--lmpl-s) - var(--lmpl-roster-h)));
+}
+
+.lmpl-root .lmpl-time-slider {
+    touch-action: none;
+}
+
+.lmpl-root.lmpl-scrubbing .lmpl-time-slider .lmpl-track {
+    height: calc(16px * var(--lmpl-s));
+}
+
+/* Opened for scrubbing without frames: the bar thickens and carries a handle on the playhead, or under the finger. */
+.lmpl-root.lmpl-scrub-bar .lmpl-time-slider {
+    position: relative;
+}
+
+.lmpl-root.lmpl-scrub-bar .lmpl-time-slider .lmpl-track {
+    height: calc(20px * var(--lmpl-s));
+}
+
+.lmpl-root.lmpl-scrub-bar .lmpl-time-slider::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: calc(var(--lmpl-scrub-at, 0) * 100%);
+    width: calc(28px * var(--lmpl-s));
+    height: calc(28px * var(--lmpl-s));
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 6px rgb(0 0 0 / 0.35);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* The strip is the only thing the viewer is looking at: the skip and play buttons would show through behind it. */
+.lmpl-root.lmpl-scrubbing .lmpl-cluster {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+}
+
+/* The roster carries the label; the timeline's own end times would only crowd it. */
+.lmpl-root.lmpl-scrubbing .lmpl-time {
+    opacity: 0;
+}
+
+/*
+ * The scrubbed frame over the picture while the timeline is held. Upscaled from a sprite, so it is soft on
+ * purpose: scanlines and a slight tint make that read as tape rather than as a low-resolution fault.
+ * Under the controls and roster, over the video.
+ */
+.lmpl-scrub-picture {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #000;
+    pointer-events: none;
+}
+
+.lmpl-scrub-picture-frame {
+    flex: none;
+    image-rendering: auto;
+    filter: saturate(1.15) contrast(1.05);
+}
+
+.lmpl-scrub-picture::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.14) 0 1px, transparent 1px 3px);
+}
+
+/*
+ * A pinned roster stays open after the press ends, so the viewer can stop and look. It takes the pointer:
+ * dragging it scrolls through the video, a tap on a frame goes there.
+ */
+.lmpl-roster.lmpl-roster-interactive {
+    pointer-events: auto;
+    touch-action: none;
+    cursor: grab;
+    animation: none;
+}
+
+.lmpl-roster.lmpl-roster-interactive:active {
+    cursor: grabbing;
+}
+
+/* --- Control names ----------------------------------------------------------- */
+
+/* The name of the control the pointer rests on: a dark pill above it. Placed by the player (see ui/controlTooltip.ts). */
+.lmpl-tooltip {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    border: 0;
+    overflow: visible;
+    padding: calc(6px * var(--lmpl-s)) calc(12px * var(--lmpl-s));
+    border-radius: calc(10px * var(--lmpl-s));
+    background: rgb(34 32 30 / 0.94);
+    box-shadow:
+        inset 0 0 0 1px rgb(255 255 255 / 0.14),
+        0 4px 14px rgb(0 0 0 / 0.35);
+    font-size: calc(14px * var(--lmpl-s));
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+    color: #fff;
+    pointer-events: none;
+    animation: lmpl-tooltip-in 0.12s ease-out both;
+}
+
+@keyframes lmpl-tooltip-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+}
+
+/* --- Chapters and up next -------------------------------------------------- */
+
+/* Transparent: it only catches the tap that closes the panel. */
+.lmpl-root .lmpl-browse-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+}
+
+.lmpl-root .lmpl-browse {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 41;
+    display: flex;
+    flex-direction: column;
+    /* Near half the screen, growing with the scale its type and thumbnails take, so a title has room beside its picture. */
+    width: 46%;
+    min-width: min(100%, calc(23rem * var(--lmpl-s)));
+    max-width: calc(36rem * var(--lmpl-s));
+    /* Clear of notches and system gesture areas, as the controls are. */
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    background: rgb(12 12 14 / 0.88);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    font-size: calc(14px * var(--lmpl-s));
+    box-shadow: -8px 0 24px rgb(0 0 0 / 0.4);
+}
+
+.lmpl-browse-head {
+    display: flex;
+    align-items: center;
+    gap: calc(8px * var(--lmpl-s));
+    padding: calc(8px * var(--lmpl-s)) calc(8px * var(--lmpl-s)) 0 calc(14px * var(--lmpl-s));
+    border-bottom: 1px solid rgb(255 255 255 / 0.12);
+}
+
+.lmpl-browse-tabs {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    gap: calc(4px * var(--lmpl-s));
+}
+
+.lmpl-root .lmpl-browse-tab {
+    padding: calc(10px * var(--lmpl-s)) calc(12px * var(--lmpl-s));
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: rgb(255 255 255 / 0.65);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.lmpl-root .lmpl-browse-tab[aria-selected="true"] {
+    border-bottom-color: #fff;
+    color: #fff;
+}
+
+.lmpl-root .lmpl-browse-tab:focus-visible,
+.lmpl-root .lmpl-browse-row:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: -2px;
+}
+
+.lmpl-root .lmpl-browse-close {
+    flex: none;
+    margin-bottom: calc(4px * var(--lmpl-s));
+}
+
+.lmpl-browse-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.lmpl-browse-list {
+    margin: 0;
+    padding: calc(6px * var(--lmpl-s)) 0 calc(16px * var(--lmpl-s));
+    list-style: none;
+}
+
+.lmpl-browse-heading {
+    padding: calc(12px * var(--lmpl-s)) calc(14px * var(--lmpl-s)) calc(4px * var(--lmpl-s));
+    font-size: calc(11px * var(--lmpl-s));
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgb(255 255 255 / 0.6);
+}
+
+.lmpl-root .lmpl-browse-row {
+    display: flex;
+    align-items: center;
+    gap: calc(12px * var(--lmpl-s));
+    width: 100%;
+    padding: calc(10px * var(--lmpl-s)) calc(14px * var(--lmpl-s));
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+}
+
+.lmpl-root .lmpl-browse-row:hover {
+    background: rgb(255 255 255 / 0.1);
+}
+
+.lmpl-chapter[aria-current="true"],
+.lmpl-upnext[aria-current="true"] {
+    background: rgb(255 255 255 / 0.14);
+    font-weight: 700;
+}
+
+.lmpl-chapter-time {
+    font-variant-numeric: tabular-nums;
+}
+
+/* A chapter wears the same tile as an up next row, with an icon where the picture is. */
+.lmpl-chapter-tile {
+    position: relative;
+    display: grid;
+    place-items: center;
+    color: rgb(255 255 255 / 0.8);
+}
+
+/* The frame at its own size, scaled to the tile's width (120 at the panel's scale). */
+.lmpl-chapter-frame {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-repeat: no-repeat;
+    transform: scale(calc(120 * var(--lmpl-s, 1) / var(--lmpl-cue-w, 120)));
+    transform-origin: top left;
+}
+
+.lmpl-upnext-thumb {
+    flex: none;
+    width: calc(120px * var(--lmpl-s));
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: calc(6px * var(--lmpl-s));
+    background: rgb(255 255 255 / 0.1);
+}
+
+.lmpl-upnext-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.lmpl-upnext-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.lmpl-upnext-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-weight: 600;
+}
+
+.lmpl-upnext-subtitle {
+    font-size: calc(12px * var(--lmpl-s));
+    color: rgb(255 255 255 / 0.65);
+}
+
+/* --- Up next strip ----------------------------------------------------------- */
+
+/* Above the controls (30) and under the browse panel (40); the panel hides the strip anyway. */
+.lmpl-root .lmpl-nextup {
+    position: absolute;
+    z-index: 35;
+    /* The control bar's own inset, so the strip's edges meet the timeline's. */
+    left: max(var(--lmpl-edge), env(safe-area-inset-left));
+    right: max(var(--lmpl-edge), env(safe-area-inset-right));
+    /* Held to the right, and narrowed by the player when the strip would otherwise cover the play and skip buttons. */
+    max-width: var(--lmpl-nextup-max, none);
+    margin-left: auto;
+    /* `--lmpl-nextup-bottom` is the height of the controls while they show: the strip rides above them. */
+    --lmpl-nextup-rest: max(calc(16px * var(--lmpl-s)), env(safe-area-inset-bottom));
+    bottom: var(--lmpl-nextup-bottom, var(--lmpl-nextup-rest));
+    box-sizing: border-box;
+    color: #fff;
+    font-size: calc(14px * var(--lmpl-s));
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+    transition: bottom 0.25s ease;
+    animation: lmpl-nextup-in 0.25s ease;
+}
+
+@keyframes lmpl-nextup-in {
+    from {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lmpl-tooltip {
+        animation: none;
+    }
+    .lmpl-root .lmpl-nextup {
+        transition: none;
+        animation: none;
+    }
+}
+
+.lmpl-nextup-head {
+    display: flex;
+    align-items: center;
+    /* Over the cards, which sit at the end; the close button stays last. */
+    justify-content: flex-end;
+    gap: calc(12px * var(--lmpl-s));
+    padding-bottom: calc(4px * var(--lmpl-s));
+}
+
+.lmpl-nextup-label {
+    font-size: calc(18px * var(--lmpl-s));
+    font-weight: 700;
+    text-transform: none;
+}
+
+.lmpl-nextup-strip {
+    display: flex;
+    gap: calc(12px * var(--lmpl-s));
+    margin: 0;
+    /* Room for a focus ring, taken back by the margin so the cards themselves meet the strip's edges. */
+    padding: calc(4px * var(--lmpl-s));
+    margin-inline: calc(-4px * var(--lmpl-s));
+    list-style: none;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+}
+
+.lmpl-nextup-item {
+    flex: none;
+    /* Wide enough to read, never more than a third of the screen. */
+    width: min(calc(17.5rem * var(--lmpl-s)), 34vw);
+    scroll-snap-align: start;
+}
+
+/* The auto margin right-aligns the cards only while they all fit; justify-content would break scrolling. */
+.lmpl-nextup-item:first-child {
+    margin-inline-start: auto;
+}
+
+/* A short landscape phone: the strip and the control bar must both fit. */
+@media (max-height: 500px) {
+    .lmpl-nextup-item {
+        width: min(calc(12rem * var(--lmpl-s)), 34vw);
+    }
+}
+
+.lmpl-root .lmpl-nextup-card {
+    display: flex;
+    flex-direction: column;
+    gap: calc(4px * var(--lmpl-s));
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    text-shadow: inherit;
+    cursor: pointer;
+}
+
+.lmpl-nextup-thumb {
+    display: block;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: calc(6px * var(--lmpl-s));
+    background: rgb(255 255 255 / 0.15);
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.4);
+}
+
+.lmpl-nextup-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.lmpl-root .lmpl-nextup-card:hover .lmpl-nextup-thumb {
+    outline: 2px solid rgb(255 255 255 / 0.7);
+}
+
+.lmpl-root .lmpl-nextup-card:focus-visible {
+    outline: none;
+}
+
+.lmpl-root .lmpl-nextup-card:focus-visible .lmpl-nextup-thumb {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+}
+
+.lmpl-nextup-section {
+    font-size: calc(11px * var(--lmpl-s));
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgb(255 255 255 / 0.75);
+}
+
+.lmpl-nextup-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: calc(16px * var(--lmpl-s));
+    line-height: 1.25;
+    font-weight: 600;
+}
+
+.lmpl-root .lmpl-nextup-close:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+.lmpl-root .lmpl-nextup-close {
+    flex: none;
+    --media-icon-size: calc(24px * var(--lmpl-s));
+    width: calc(40px * var(--lmpl-s));
+    height: calc(40px * var(--lmpl-s));
+}
+
+/* --- Fullscreen audio screen ---------------------------------------------------- */
+
+/* Sound alone has no picture to put controls over: the screen has its own, and the video controls give way. */
+.lmpl-root.lmpl-audio-fs .lmpl-controls {
+    display: none;
+}
+
+.lmpl-afs {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: #fff;
+    background: #0e1013;
+    container: lmpl-afs / size;
+}
+
+.lmpl-afs-bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* The picture's colour over the whole screen, darkened so white text reads on any cover; darker still in `dark`. */
+.lmpl-afs-wash {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.5);
+    filter: blur(60px) saturate(1.5);
+    opacity: 0.85;
+}
+
+.lmpl-afs-bg::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgb(8 10 14 / 0.6), rgb(8 10 14 / 0.86));
+}
+
+.lmpl-afs-light .lmpl-afs-bg::after {
+    background: linear-gradient(to bottom, rgb(0 0 0 / 0.18), rgb(0 0 0 / 0.55));
+}
+
+.lmpl-afs-top {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 0
+        max(16px, env(safe-area-inset-left));
+    flex: none;
+}
+
+.lmpl-afs-eyebrow {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: calc(12px * var(--lmpl-s));
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.9;
+}
+
+.lmpl-afs-iconbtn {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 9999px;
+    background: transparent;
+    color: rgb(255 255 255 / 0.88);
+    cursor: pointer;
+}
+
+.lmpl-afs-iconbtn[aria-expanded="true"],
+.lmpl-afs-iconbtn:active {
+    background: rgb(255 255 255 / 0.14);
+}
+
+/* A touch leaves :hover on the last thing tapped, so the highlight is for a pointer that can hover. */
+@media (hover: hover) {
+    .lmpl-afs-iconbtn:hover {
+        background: rgb(255 255 255 / 0.14);
+    }
+}
+
+.lmpl-afs button {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.lmpl-afs-iconbtn:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: -2px;
+}
+
+.lmpl-afs-spacer {
+    pointer-events: none;
+}
+
+/* On, as a dot under the glyph: a filled disc reads as a button left pressed. */
+.lmpl-afs-on {
+    color: #fff;
+}
+.lmpl-afs-on::after {
+    content: "";
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    margin-left: -2.5px;
+    border-radius: 50%;
+    background: #fff;
+}
+
+.lmpl-afs-badge {
+    position: absolute;
+    right: -2px;
+    bottom: 2px;
+    max-width: 90px;
+    padding: 0 5px;
+    border-radius: 6px;
+    background: #fff;
+    color: #111;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 14px;
+    white-space: nowrap;
+}
+
+.lmpl-afs-main {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+    padding: 8px max(24px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom))
+        max(24px, env(safe-area-inset-left));
+}
+
+.lmpl-afs-art {
+    position: relative;
+    flex: none;
+    align-self: center;
+    width: min(78cqw, 42cqh);
+    aspect-ratio: 1;
+}
+
+.lmpl-afs-cover {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 16px;
+    object-fit: cover;
+    box-shadow:
+        0 22px 50px -14px rgb(0 0 0 / 0.65),
+        0 0 40px 2px rgb(255 255 255 / 0.14);
+}
+
+.lmpl-afs-cover-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #475569, #1e293b);
+    color: rgb(255 255 255 / 0.7);
+}
+
+/* Dark: a glow behind the picture, a blurred copy of it that fades out a little past its edges. */
+/* The cover and, under it, the line being said: one group, so the line stays with the picture. */
+.lmpl-afs-artwrap {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+    align-self: center;
+    gap: 16px;
+}
+
+/* A video has no line under its picture: the group steps aside so the picture sizes against the screen as before. */
+.lmpl-afs-video .lmpl-afs-artwrap {
+    display: contents;
+}
+
+/* The lyrics take the cover's room, and the group with them. */
+.lmpl-afs-artwrap.lmpl-afs-artwrap-lyrics {
+    align-self: stretch;
+}
+
+/* As wide as the cover, whatever the words: the text wraps inside it and never widens the group. */
+.lmpl-afs-cueline {
+    display: grid;
+    grid-template-columns: 32px 1fr 32px;
+    align-items: center;
+    width: 0;
+    min-width: 100%;
+}
+
+.lmpl-afs-cuegap {
+    width: 32px;
+}
+
+.lmpl-afs-cue {
+    margin: 0;
+    text-align: center;
+    font-size: calc(15px * var(--lmpl-s));
+    font-weight: 600;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.lmpl-afs-cue {
+    cursor: pointer;
+}
+
+/* A soft disc, so it reads as something to press rather than as part of the words. */
+.lmpl-afs-cuebtn {
+    width: 32px;
+    height: 32px;
+    justify-self: end;
+    background: rgb(255 255 255 / 0.12);
+}
+
+.lmpl-afs-info {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+}
+
+.lmpl-afs-title {
+    margin: 0;
+    font-size: calc(19px * var(--lmpl-s));
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+/* Where the playhead is among the chapters, under what plays; shown where the screen is wide. */
+.lmpl-afs-chip {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    max-width: 100%;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.1);
+    font-size: calc(12px * var(--lmpl-s));
+    white-space: nowrap;
+}
+
+.lmpl-afs-chip i {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #5cc6c2;
+}
+
+.lmpl-afs-subtitle {
+    margin: 2px 0 0;
+    font-size: calc(13px * var(--lmpl-s));
+    opacity: 0.75;
+}
+
+.lmpl-afs-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: auto;
+}
+
+/* The bar takes the full width and the times stand under its ends, so the bar is as long as the screen allows. */
+.lmpl-afs-timeline {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    row-gap: 0;
+}
+
+.lmpl-afs-timeline > .lmpl-afs-bar {
+    grid-column: 1 / -1;
+    grid-row: 1;
+}
+
+.lmpl-afs-timeline > .lmpl-time {
+    grid-row: 2;
+    grid-column: 1;
+    justify-self: start;
+}
+
+.lmpl-afs-timeline > .lmpl-time-end,
+.lmpl-afs-timeline > .lmpl-afs-live {
+    grid-column: 2;
+    justify-self: end;
+}
+
+.lmpl-afs .lmpl-time {
+    min-width: 3.2ch;
+    font-size: calc(13px * var(--lmpl-s));
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: rgb(255 255 255 / 0.8);
+}
+
+.lmpl-afs .lmpl-time-end {
+    text-align: end;
+}
+
+.lmpl-afs-bottomrow {
+    display: flex;
+    flex-direction: column;
+    row-gap: 22px;
+}
+
+.lmpl-afs-transport {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+}
+
+/* The seek bar: thick and round, with no thumb, as the controls' own; cut at the chapters by the mask when wide. */
+/* A finger's height to press, past the bar's own: the layout keeps the bar's. */
+.lmpl-afs-bar::before {
+    content: "";
+    position: absolute;
+    inset: calc(-7px * var(--lmpl-s)) 0;
+}
+
+.lmpl-afs-bar {
+    position: relative;
+    flex: 1;
+    height: calc(30px * var(--lmpl-s));
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    touch-action: none;
+    outline: none;
+}
+
+.lmpl-afs-bar-track {
+    position: relative;
+    width: 100%;
+    height: calc(8px * var(--lmpl-s));
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgb(255 255 255 / 0.28);
+    -webkit-mask-image: var(--lmpl-chapter-mask, none);
+    mask-image: var(--lmpl-chapter-mask, none);
+    transition: height 120ms ease;
+}
+
+.lmpl-afs-bar:hover .lmpl-afs-bar-track,
+.lmpl-afs-bar:focus-visible .lmpl-afs-bar-track,
+.lmpl-afs-bar-dragging .lmpl-afs-bar-track {
+    height: calc(12px * var(--lmpl-s));
+}
+
+.lmpl-afs-bar-buffer,
+.lmpl-afs-bar-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: inherit;
+}
+
+.lmpl-afs-bar-buffer {
+    background: rgb(255 255 255 / 0.25);
+}
+
+.lmpl-afs-bar-fill {
+    background: #fff;
+}
+
+/* Only there to tell a press on the host's strip from one elsewhere: it takes no box of its own. */
+.lmpl-afs-roster-slot {
+    display: contents;
+}
+
+/* Opened for scrubbing by a tap: thicker, with a handle where the fill ends, which the track's own clip would cut. */
+.lmpl-afs-bar-open .lmpl-afs-bar-track {
+    height: calc(16px * var(--lmpl-s));
+}
+
+.lmpl-afs-bar-open::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: var(--lmpl-afs-at, 0%);
+    width: calc(26px * var(--lmpl-s));
+    height: calc(26px * var(--lmpl-s));
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 6px rgb(0 0 0 / 0.35);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* The play button is white on this screen. */
+.lmpl-afs-playbtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: calc(64px * var(--lmpl-s));
+    height: calc(64px * var(--lmpl-s));
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 0.86);
+    color: #111;
+    cursor: pointer;
+}
+
+.lmpl-afs-skip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: calc(48px * var(--lmpl-s));
+    height: calc(48px * var(--lmpl-s));
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: rgb(255 255 255 / 0.82);
+    cursor: pointer;
+}
+
+.lmpl-afs-skip svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* The play and pause glyph is a share of its disc, so it grows with it. */
+.lmpl-afs-playbtn svg,
+.lmpl-afs-playbtn .media-button-icon {
+    display: block;
+    width: 62%;
+    height: 62%;
+}
+.lmpl-afs-playbtn .media-button-icon svg {
+    width: 100%;
+    height: 100%;
+}
+/* The triangle's weight sits left of its box: moved right so it looks centred in its disc, as the player's is. */
+.lmpl-afs-playbtn .media-button-icon[name="play"] {
+    translate: 8% 0;
+}
+
+.lmpl-afs-tools {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+/* A tool with a menu shrinks like the bare buttons beside it, so a crowded row stays evenly spaced. */
+.lmpl-afs-tool {
+    position: relative;
+    display: flex;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+/* The row under the transport is thumb-sized: a larger target, and a larger glyph in it. Sized by its width (no
+   basis of its own), so a bare button and one in a tool wrapper grow and shrink alike. */
+.lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn {
+    flex: 0 1 auto;
+    width: calc(52px * var(--lmpl-s));
+    height: calc(52px * var(--lmpl-s));
+    color: rgb(255 255 255 / 0.82);
+}
+
+.lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn svg,
+.lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn .media-button-icon {
+    width: calc(28px * var(--lmpl-s));
+    height: calc(28px * var(--lmpl-s));
+}
+
+.lmpl-afs-menu {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    min-width: 150px;
+    padding: 6px;
+    border-radius: 12px;
+    background: rgb(24 24 27 / 0.97);
+    box-shadow:
+        inset 0 0 0 1px rgb(255 255 255 / 0.14),
+        0 8px 24px rgb(0 0 0 / 0.45);
+    transform: translateX(-50%);
+}
+
+.lmpl-afs-tool:first-child .lmpl-afs-menu {
+    left: 0;
+    transform: none;
+}
+
+/* Longer than the room above its button: it scrolls inside (see `placeMenu`). */
+.lmpl-afs-menu {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.lmpl-afs-menuitem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: #fff;
+    font: inherit;
+    font-size: 14px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.lmpl-afs-menuitem:active,
+.lmpl-afs-menuitem:focus-visible {
+    background: rgb(255 255 255 / 0.12);
+    outline: none;
+}
+
+@media (hover: hover) {
+    .lmpl-afs-menuitem:hover {
+        background: rgb(255 255 255 / 0.12);
+    }
+}
+
+.lmpl-afs-menuitem[aria-checked="true"]::after {
+    content: "✓";
+    font-weight: 700;
+}
+
+/* --- The now-playing screen as a host's view for video and lyrics -------------------------------------------- */
+
+/* The right of the top line, for what the host puts there (a switch between sound and picture, casting). */
+.lmpl-afs-topend {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+}
+
+/* The X that leaves the host's full screen ends the top line, with a finger's width between it and what stands beside it. */
+.lmpl-afs-fullscreen-open .lmpl-afs-topend {
+    gap: 12px;
+}
+
+/* Its strokes cross only the middle of their box, so the box is drawn larger to stand as tall as the glyph beside it. */
+.lmpl-afs-close .media-button-icon,
+.lmpl-afs-close svg {
+    display: block;
+    width: 28px;
+    height: 28px;
+}
+
+/*
+ * On a phone on its side the X sits as a video's full screen has its own: 12 below the safe area and its glyph on the
+ * line of the timeline's right end, with the video's sizes there (scaled by 1.2). What stands beside it takes the same.
+ */
+@container lmpl-afs (min-aspect-ratio: 6/5) and (max-height: 440px) {
+    .lmpl-afs.lmpl-afs-fullscreen-open .lmpl-afs-top {
+        padding-top: calc(env(safe-area-inset-top, 0px) + 14.4px);
+        padding-right: calc(env(safe-area-inset-right, 0px) + clamp(20px, 3cqw, 32px) - 9.6px);
+    }
+
+    .lmpl-afs-fullscreen-open .lmpl-afs-topend > .lmpl-afs-iconbtn {
+        width: 48px;
+        height: 48px;
+    }
+
+    .lmpl-afs-fullscreen-open .lmpl-afs-topend > .lmpl-afs-iconbtn > * {
+        width: 26.4px;
+        height: 26.4px;
+    }
+
+    .lmpl-afs-fullscreen-open .lmpl-afs-topend > .lmpl-afs-close > .media-button-icon,
+    .lmpl-afs-fullscreen-open .lmpl-afs-topend > .lmpl-afs-close svg {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+/* A ThumbHash is a few pixels: stretched over the screen it is already soft, so it needs no blur, which is what an
+   old phone pays for most. */
+.lmpl-afs-wash.lmpl-afs-wash-hash {
+    filter: saturate(1.6);
+    transform: scale(1.1);
+    opacity: 1;
+}
+/* A ThumbHash is already soft and dark enough at its edges: a lighter scrim lets its colour show, still dark enough
+   at the foot, where the controls are, for white text. */
+.lmpl-afs-bg-hash::after {
+    background: linear-gradient(to bottom, rgb(8 10 14 / 0.28), rgb(8 10 14 / 0.66));
+}
+
+/* Video: the host's picture in the cover's place, from edge to edge of the screen. */
+/* The full width is given, not stretched into the padding by negative margins: a 16:9 box takes its height from
+   its width before margins, which would leave it short of 16:9 and cut off the foot of the picture. */
+.lmpl-afs-video .lmpl-afs-art {
+    align-self: center;
+    width: calc(100cqw - 2 * var(--lmpl-stage-gutter, 0px));
+    aspect-ratio: var(--lmpl-stage-ar, 16 / 9);
+    max-height: 46cqh;
+    /* Visible, so the words under the picture can hang from its foot; the stage clips the picture. */
+    overflow: visible;
+    background: #000;
+}
+/* The picture sits at the top of its place and the host's subtitles under it, in a band the size of two lines. */
+.lmpl-afs-captions .lmpl-afs-art {
+    aspect-ratio: auto;
+    height: calc(
+        (100cqw - 2 * var(--lmpl-stage-gutter, 0px)) / var(--lmpl-stage-ar, 16 / 9) + 64px
+    );
+}
+.lmpl-afs-captions .lmpl-afs-art {
+    background: transparent;
+}
+/* The black is the picture's, not the band's: the subtitles rest on the screen's own colour. */
+/* The words under the picture, centred, two lines at most. They hang from the picture's foot, so the picture keeps its place. */
+.lmpl-afs-caption {
+    position: absolute;
+    inset: 100% 0 auto;
+    margin: 8px 0 0;
+    padding: 0 16px;
+    max-height: calc(2.6em);
+    overflow: hidden;
+    font-size: calc(15px * var(--lmpl-s));
+    font-weight: 500;
+    line-height: 1.3;
+    text-align: center;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+    white-space: pre-line;
+}
+/* With a band left for them, the words sit in it, clear of the title below. */
+.lmpl-afs-captions .lmpl-afs-caption {
+    top: calc(100% - 64px);
+}
+
+.lmpl-afs-captions .lmpl-afs-stage {
+    bottom: 64px;
+}
+.lmpl-afs-stage,
+.lmpl-afs-stage > * {
+    position: absolute;
+    inset: 0;
+}
+
+.lmpl-afs-stage {
+    overflow: hidden;
+    border-radius: inherit;
+    /* Lifted off the screen's colour: a soft shadow above and below the picture alone (not the room for the subtitles
+       under it), so it does not look glued on. */
+    box-shadow:
+        0 16px 34px -14px rgb(0 0 0 / 0.5),
+        0 -12px 28px -14px rgb(0 0 0 / 0.35);
+}
+
+/* The host's player fills the picture's place, whatever shape that is, rather than keeping its own 16:9 and leaving a
+   bare strip under a 4:3 or square video. */
+.lmpl-afs-stage .lmpl-root {
+    height: 100%;
+    aspect-ratio: auto;
+}
+
+/* A picture the platform draws behind the page shows only where nothing of the screen covers it: the screen's
+   colour is cut out across the stage's band, and the stage itself is clear. */
+.lmpl-afs.lmpl-afs-hole {
+    background: transparent;
+}
+.lmpl-afs-hole .lmpl-afs-bg {
+    background: #0e1013;
+    clip-path: inset(0 0 calc(100% - var(--lmpl-hole-top)) 0);
+}
+.lmpl-afs-hole .lmpl-afs-bg-low {
+    clip-path: inset(var(--lmpl-hole-bottom) 0 0 0);
+}
+/* The scrim is the sound's, as on the web: both parts of the wash span the whole screen, so its gradient meets itself
+   across the picture. */
+.lmpl-afs-hole .lmpl-afs-art {
+    background: transparent;
+}
+
+/* The picture's foot, a band that takes a drag as the seek bar does; . */
+.lmpl-afs-scrubzone {
+    position: absolute;
+    z-index: 1;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 56px;
+    touch-action: none;
+}
+
+/* Lyrics in the cover's place: the line being sung bright and large, the rest dim, fading out at both ends. */
+.lmpl-afs-art.lmpl-afs-art-lyrics {
+    align-self: stretch;
+    width: auto;
+    aspect-ratio: auto;
+    height: min(78cqw, 42cqh);
+}
+.lmpl-afs-lyrics {
+    /* The lines' offsets are read from here, to put the one being sung in the middle. */
+    position: relative;
+    box-sizing: border-box;
+    height: 100%;
+    margin: 0;
+    padding: 30% 0;
+    /* Up and down only: the words never move sideways under a finger, and the scroll stays in the list. */
+    overflow-x: hidden;
+    overflow-y: auto;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    list-style: none;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
+    mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
+}
+/*
+ * While the player gets ready or waits for data: a turning ring in the play button's place, out of the way of taps.
+ * It stays when the controls hide, so the picture always says it is loading.
+ */
+.lmpl-root .lmpl-busy {
+    position: absolute;
+    inset: 0;
+    z-index: 31;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 3px rgb(0 0 0 / 0.6));
+}
+.lmpl-root .lmpl-busy svg {
+    width: calc(56px * var(--lmpl-s));
+    height: calc(56px * var(--lmpl-s));
+}
+.lmpl-root.lmpl-is-busy .lmpl-play {
+    visibility: hidden;
+}
+
+/* Until a finite video's length is known there is nothing to skip through or scrub, and no speed worth offering. */
+.lmpl-root.lmpl-awaiting-duration .lmpl-seek,
+.lmpl-root.lmpl-awaiting-duration .lmpl-opt-speed,
+.lmpl-root.lmpl-awaiting-duration .lmpl-timeline-row,
+.lmpl-root.lmpl-awaiting-duration .lmpl-chapter-now {
+    display: none;
+}
+
+/* The play button while the player gets ready: a ring, three quarters round, turning. */
+.lmpl-afs-spinner {
+    animation: lmpl-afs-turn 0.9s linear infinite;
+}
+@keyframes lmpl-afs-turn {
+    to {
+        transform: rotate(360deg);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .lmpl-afs-spinner {
+        animation-duration: 2.4s;
+    }
+}
+
+.lmpl-afs-lyrics::-webkit-scrollbar {
+    display: none;
+}
+.lmpl-afs-lyric {
+    display: block;
+    /* Room for the line being sung, which grows by a little from its left edge. */
+    width: 94%;
+    padding: 6px 0;
+    border: 0;
+    color: inherit;
+    background: none;
+    font: inherit;
+    font-size: calc(19px * var(--lmpl-s));
+    font-weight: 700;
+    line-height: 1.3;
+    text-align: left;
+    white-space: pre-line;
+    /* A long word or a link breaks rather than widening the list. */
+    overflow-wrap: anywhere;
+    opacity: 0.36;
+    cursor: pointer;
+    transition:
+        opacity 0.15s,
+        transform 0.15s;
+    transform-origin: left center;
+}
+.lmpl-afs-lyric.lmpl-afs-lyric-now {
+    opacity: 1;
+    transform: scale(1.06);
+}
+.lmpl-afs-lyric:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 4px;
+    border-radius: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+    .lmpl-afs-lyric {
+        transition: none;
+    }
+}
+
+/*
+ * Narrow and tall: what plays and its controls keep one place, low on the screen, and the picture is centred in the
+ * room above them. A cover and a video are not the same height, so rows spread around the picture would move
+ * whenever sound and picture are switched.
+ */
+@container lmpl-afs (max-aspect-ratio: 6/5) {
+    .lmpl-afs-main {
+        justify-content: space-evenly;
+    }
+
+    .lmpl-afs-main > .lmpl-afs-artwrap,
+    .lmpl-afs-video .lmpl-afs-main > .lmpl-afs-artwrap > .lmpl-afs-art {
+        margin-block: auto;
+    }
+
+    .lmpl-afs-info {
+        flex: none;
+        margin-bottom: 6cqh;
+    }
+
+    /* A tall video (4:3, with the band for its subtitles) can want more room than is left above the rows: it gives way,
+       and the picture sits within it, rather than pushing the rows down. */
+    .lmpl-afs-video .lmpl-afs-art {
+        flex: 0 1 auto;
+        min-height: 0;
+    }
+}
+
+/* Wide: the picture on the left, the chapters, the timeline and the controls on the right. */
+@container lmpl-afs (min-aspect-ratio: 6/5) {
+    .lmpl-afs-main {
+        flex-direction: row;
+        align-items: center;
+        gap: 28px;
+    }
+
+    .lmpl-afs-art {
+        width: min(34cqw, 62cqh);
+    }
+
+    .lmpl-afs-video .lmpl-afs-art {
+        align-self: center;
+        width: min(52cqw, 62cqh * 16 / 9);
+        max-height: 62cqh;
+        margin-inline: 0;
+        border-radius: 14px;
+    }
+
+    /* The words take the cover's place, and its height, so they have the room the cover had and more. */
+    .lmpl-afs-art.lmpl-afs-art-lyrics {
+        align-self: stretch;
+        width: min(46cqw, 520px);
+        height: auto;
+    }
+
+    .lmpl-afs-artwrap-lyrics .lmpl-afs-art.lmpl-afs-art-lyrics {
+        flex: 1 1 0;
+        min-height: 0;
+    }
+
+    .lmpl-afs-info {
+        align-self: stretch;
+        justify-content: center;
+        min-width: 0;
+    }
+
+    /* The title and the controls sit together, level with the picture, not at the two ends of the column. */
+    .lmpl-afs-controls {
+        margin-top: 12px;
+    }
+
+    .lmpl-afs-titles {
+        display: block;
+    }
+
+    .lmpl-afs-chip {
+        display: inline-flex;
+    }
+
+    /* The sound's screen on its side has no collapse button and no bar of its own: the parts are centred on the whole screen. */
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-top {
+        position: absolute;
+        inset: 0 0 auto;
+        z-index: 1;
+        pointer-events: none;
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-top > .lmpl-afs-iconbtn:first-child {
+        visibility: hidden;
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-topend {
+        pointer-events: auto;
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-main {
+        padding-block: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-bottom));
+    }
+
+    /* The sound's screen on its side has no switch to the picture at the top: turning the phone upright brings it back. */
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-topend [role="group"] {
+        display: none;
+    }
+
+    /* The transport stands on the title's left edge, as the column's other lines do; the tools sit opposite it. */
+    .lmpl-afs-transport {
+        flex: none;
+        justify-content: flex-start;
+    }
+
+    .lmpl-afs-tools {
+        flex: 0 1 auto;
+        min-width: 0;
+        gap: 6px;
+        justify-content: flex-end;
+        margin-inline-end: calc(-8px * var(--lmpl-s));
+    }
+
+    /* The tools are smaller and quieter here, under the transport that leads. */
+    .lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn {
+        width: calc(44px * var(--lmpl-s));
+        height: calc(44px * var(--lmpl-s));
+        opacity: 0.85;
+    }
+
+    .lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn svg,
+    .lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn .media-button-icon {
+        width: calc(26px * var(--lmpl-s));
+        height: calc(26px * var(--lmpl-s));
+    }
+
+    /* The transport and the tools share one line, the tools shrinking before they run off the side. */
+    .lmpl-afs-bottomrow {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        column-gap: 12px;
+    }
+
+    /* Room at the screen's edge for the bar's end: a thumb on the edge also opens the system gestures. */
+    .lmpl-afs-main {
+        padding-inline: max(40px, env(safe-area-inset-left)) max(48px, env(safe-area-inset-right));
+    }
+}
+
+/* A phone on its side is short: the controls take less, so what is beside the cover (the lyrics) keeps its room. */
+@container lmpl-afs (min-aspect-ratio: 6/5) and (max-height: 440px) {
+    .lmpl-afs-info {
+        gap: 4px;
+    }
+
+    .lmpl-afs-controls {
+        gap: 4px;
+    }
+
+    .lmpl-afs-bottomrow {
+        row-gap: 2px;
+    }
+
+    .lmpl-afs-playbtn {
+        width: calc(52px * var(--lmpl-s));
+        height: calc(52px * var(--lmpl-s));
+    }
+
+    .lmpl-afs-skip {
+        width: calc(40px * var(--lmpl-s));
+        height: calc(40px * var(--lmpl-s));
+    }
+
+    .lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn {
+        width: calc(42px * var(--lmpl-s));
+        height: calc(42px * var(--lmpl-s));
+    }
+
+    .lmpl-afs-transport {
+        gap: 18px;
+    }
+}
+
+/* A large window on its side: the phone's own layout across the screen, the column beside the cover taking the rest of
+   the width. The lyrics keep the cover's width, so the column stays put when they open. */
+@container lmpl-afs (min-aspect-ratio: 6/5) and (min-width: 900px) {
+    .lmpl-afs-main {
+        box-sizing: border-box;
+        align-self: center;
+        width: 100%;
+        max-width: 1800px;
+        gap: clamp(32px, 3.5cqw, 72px);
+        padding-inline: clamp(32px, 5.5cqw, 120px);
+    }
+
+    .lmpl-afs-art,
+    .lmpl-afs-art.lmpl-afs-art-lyrics {
+        align-self: center;
+        flex: none;
+        width: min(36cqw, 62cqh, 720px);
+    }
+
+    .lmpl-afs-art.lmpl-afs-art-lyrics {
+        height: min(70cqh, 760px);
+    }
+
+    .lmpl-afs-artwrap.lmpl-afs-artwrap-lyrics {
+        align-self: center;
+    }
+
+    .lmpl-afs-artwrap-lyrics .lmpl-afs-art.lmpl-afs-art-lyrics {
+        flex: none;
+    }
+
+    .lmpl-afs-info {
+        align-self: center;
+        flex: 1 1 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lmpl-afs * {
+        transition: none !important;
+        animation: none !important;
+    }
+}
+
+/* The scale every control here is sized by (see the controls' own definition above), steps up on a large screen. */
+.lmpl-root .lmpl-afs {
+    --lmpl-s: 1;
+}
+
+@container media-root (min-width: 900px) {
+    .lmpl-root .lmpl-afs {
+        --lmpl-s: 1.25;
+    }
+}
+
+@container media-root (min-width: 1400px) {
+    .lmpl-root .lmpl-afs {
+        --lmpl-s: 1.6;
+    }
+}
+
+/*
+ * The same steps, read from the screen's own width: the screen is also hosted without the web player around it (the
+ * app's), where the container above does not exist. The scale is set on the screen's children because a container
+ * cannot query its own width.
+ */
+@container lmpl-afs (min-width: 900px) {
+    .lmpl-root .lmpl-afs > * {
+        --lmpl-s: 1.25;
+    }
+}
+
+@container lmpl-afs (min-width: 1400px) {
+    .lmpl-root .lmpl-afs > * {
+        --lmpl-s: 1.6;
+    }
+}
+
+@container lmpl-afs (min-width: 1800px) {
+    .lmpl-root .lmpl-afs > * {
+        --lmpl-s: 2;
+    }
+}
+
+@container lmpl-afs (min-width: 2400px) {
+    .lmpl-root .lmpl-afs > * {
+        --lmpl-s: 2.6;
+    }
+}
+
+/* Chapters and up next on the now-playing screen are the web player's own panel, from the right when wide. Narrow,
+   it comes up from the foot instead, in the same dress. Not in a player that has gone full-screen from the screen's
+   stage: the screen's narrow box is not what the panel stands in then, and the full screen is wide. */
+@container lmpl-afs (max-aspect-ratio: 6/5) {
+    .lmpl-root .lmpl-afs .lmpl-browse:not(.lmpl-is-fullscreen .lmpl-browse) {
+        /* From the picture's foot down, so it never covers what plays, and one top for both tabs; on a short screen it
+           still keeps near half. */
+        top: min(var(--lmpl-art-bottom, 36%), 52%);
+        left: 0;
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        padding-top: 0;
+        padding-right: 0;
+        border-radius: 18px 18px 0 0;
+        box-shadow: 0 -8px 24px rgb(0 0 0 / 0.4);
+    }
+
+    /* A sheet from the foot: a slim line of tabs, the list taking the rest. */
+    .lmpl-root .lmpl-afs .lmpl-browse-head:not(.lmpl-is-fullscreen .lmpl-browse-head) {
+        padding-top: 2px;
+    }
+
+    .lmpl-root .lmpl-afs .lmpl-browse-tab:not(.lmpl-is-fullscreen .lmpl-browse-tab) {
+        padding-block: 8px;
+    }
+}
+
+/* A short view, a phone on its side: the rows close up so the sleep timer's eight fit without scrolling. */
+@media (max-height: 480px) {
+    .lmpl-afs-menuitem {
+        min-height: 34px;
+    }
+}
+
+/* Captions ride above the control bar while it shows (the skin lifts them by this much, sized for its own, shorter bar). */
+.lmpl-root {
+    --media-caption-controls-y: -132px;
+}
+
+@container media-root (min-width: 900px) {
+    .lmpl-root {
+        --media-caption-controls-y: -170px;
+    }
+}
+
+@container media-root (min-width: 1400px) {
+    .lmpl-root {
+        --media-caption-controls-y: -215px;
+    }
+}
+
+.lmpl-afs-live {
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #ff6b6b;
+}
+
+/* The picture fills the window, for a browser turned sideways: the host's player, with its own controls, is all
+   there is. Placed after the layouts so it wins over each of them. */
+.lmpl-root .lmpl-afs.lmpl-afs-fill .lmpl-afs-top,
+.lmpl-root .lmpl-afs.lmpl-afs-fill .lmpl-afs-info {
+    display: none;
+}
+.lmpl-root .lmpl-afs.lmpl-afs-fill .lmpl-afs-main {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    gap: 0;
+}
+.lmpl-root .lmpl-afs.lmpl-afs-fill .lmpl-afs-art {
+    align-self: stretch;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    aspect-ratio: auto;
+    border-radius: 0;
+    box-shadow: none;
+}
+/* No band under the picture for the host's subtitles: the player in the stage draws its own. */
+.lmpl-root .lmpl-afs.lmpl-afs-fill .lmpl-afs-stage {
+    bottom: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+.lmpl-root .lmpl-afs.lmpl-afs-fill .lmpl-afs-caption {
+    display: none;
+}
+
+/* The play triangle's weight sits left of its box: moved right so it looks centred in its circle. Pause stays. */
+.lmpl-root .lmpl-play .media-play-button-play-icon {
+    translate: 8% 0;
+}
+
+/* Subtitles: one of the two CC glyphs, by whether a track is on. */
+.lmpl-root:not(.lmpl-captions-on) .lmpl-cc-on,
+.lmpl-root.lmpl-captions-on .lmpl-cc-off {
+    display: none;
+}
+
+/* The host's own way on from what plays, under the title: a quiet pill. */
+.lmpl-afs-undertitle {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+}
+
+/* At the line's right end, the glyphs on the line of the seek bar's end (a button's 44 is wider than its glyph). */
+.lmpl-afs-picturetools {
+    display: flex;
+    gap: 4px;
+    margin-inline: auto calc(-8px * var(--lmpl-s));
+}
+
+.lmpl-root .lmpl-afs-picturetools .lmpl-afs-iconbtn svg,
+.lmpl-root .lmpl-afs-picturetools .lmpl-afs-iconbtn .media-button-icon {
+    width: calc(28px * var(--lmpl-s));
+    height: calc(28px * var(--lmpl-s));
+}
+.lmpl-afs-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.14);
+    color: #fff;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.lmpl-afs-pill:hover {
+    background: rgb(255 255 255 / 0.22);
+}
+.lmpl-afs-pill:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+.lmpl-afs-pill svg {
+    width: 18px;
+    height: 18px;
+    flex: none;
+}

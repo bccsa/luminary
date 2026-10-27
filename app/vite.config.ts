@@ -1,6 +1,14 @@
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
+
+// The app compiles its player source, whose Video.js 10 tags are custom elements. Inlined rather than
+// imported from player-web, whose entry loads Video.js and Vue components into the config.
+const isVideoJsElement = (tag: string): boolean =>
+    tag === "video-player" ||
+    tag === "video-skin" ||
+    tag === "hlsjs-video" ||
+    tag.startsWith("media-");
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { visualizer } from "rollup-plugin-visualizer";
 import { VitePWA } from "vite-plugin-pwa";
@@ -60,7 +68,7 @@ export default defineConfig({
         bootSplash(env.VITE_LOGO),
         youtubeEmbedPage(),
         visualizer({ open: false }), // Open visualiser when reviewing build bundle size
-        vue(),
+        vue({ template: { compilerOptions: { isCustomElement: isVideoJsElement } } }),
         viteStaticCopy({
             targets: [
                 {
