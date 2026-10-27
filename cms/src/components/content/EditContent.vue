@@ -112,6 +112,8 @@ watch(showDeleteModal, (open) => {
 
 const { getBucketById } = storageSelection();
 const showReplaceMediaModal = ref(false);
+/** The save takes the video off rather than putting another in its place. */
+const deletesMedia = computed(() => !editableParent.value?.media?.hlsUrl);
 
 /**
  * True when saving drops a saved video in one of our buckets. The API then deletes its
@@ -767,8 +769,12 @@ watch(isLgScreen, (isLg) => {
     </LDialog>
     <LDialog
         v-model:open="showReplaceMediaModal"
-        title="Replace the video?"
-        description="Saving deletes the current video's files from storage, unless another document still uses them. This cannot be undone."
+        :title="deletesMedia ? 'Delete the video?' : 'Replace the video?'"
+        :description="
+            deletesMedia
+                ? 'Saving deletes this video\'s files from storage, unless another document still uses them. This cannot be undone.'
+                : 'Saving deletes the current video\'s files from storage, unless another document still uses them. This cannot be undone.'
+        "
         :primaryAction="
             async () => {
                 showReplaceMediaModal = false;

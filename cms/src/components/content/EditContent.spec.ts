@@ -1060,6 +1060,43 @@ describe("EditContent.vue", () => {
             expect(await savedPostChanges()).toHaveLength(0);
         });
 
+        it(
+            "deletes the video with its own button, asking at save and saving the post without it",
+            async () => {
+                await seedPost();
+                const wrapper = mount(EditContent, {
+                    props: {
+                        docType: DocType.Post,
+                        id: mockData.mockPostDto._id,
+                        languageCode: "eng",
+                        tagOrPostType: PostType.Blog,
+                    },
+                });
+
+                // The whole form, as a person sees it before pressing anything: the button comes earlier.
+                await waitForExpect(() => {
+                    expect(wrapper.find('[data-test="video-url-input"]').exists()).toBe(true);
+                }, 10000);
+                expect(wrapper.find('[data-test="delete-media-button"]').exists()).toBe(true);
+                await wrapper.find('[data-test="delete-media-button"]').trigger("click");
+                await wrapper.find('[data-test="save-button"]').trigger("click");
+
+                await waitForExpect(() => {
+                    expect(wrapper.find('[data-test="replace-media-url"]').text()).toBe(SAVED_URL);
+                }, 10000);
+                expect(wrapper.text()).toContain("Delete the video?");
+                expect(await savedPostChanges()).toHaveLength(0);
+
+                await wrapper.find('[data-test="modal-primary-button"]').trigger("click");
+                await waitForExpect(async () => {
+                    const changes = await savedPostChanges();
+                    expect(changes).toHaveLength(1);
+                    expect((changes[0].doc as PostDto).media?.hlsUrl).toBeUndefined();
+                }, 10000);
+            },
+            { timeout: 15000 },
+        );
+
         it("saves external media without asking, as its files are not in our storage", async () => {
             await seedPost("https://www.youtube.com/watch?v=abc");
 

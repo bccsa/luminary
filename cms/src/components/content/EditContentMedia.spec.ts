@@ -209,6 +209,41 @@ describe("EditContentMedia", () => {
     });
 });
 
+describe("EditContentMedia — deleting the video", () => {
+    const withVideo = () =>
+        ({
+            ...parent(),
+            media: { hlsUrl: "/abc/master.m3u8" },
+            mediaBucketId: "bucket-1",
+        }) as PostDto;
+
+    it("offers Delete video only when the document has one", () => {
+        const noVideo = { ...parent(), media: undefined } as PostDto;
+        expect(
+            mountSection({ parent: noVideo }).find('[data-test="delete-media-button"]').exists(),
+        ).toBe(false);
+        expect(
+            mountSection({ parent: withVideo() })
+                .find('[data-test="delete-media-button"]')
+                .exists(),
+        ).toBe(true);
+    });
+
+    it("takes the video off the document, leaving the save to delete its files", async () => {
+        const wrapper = mountSection({ parent: withVideo() });
+        await wrapper.find('[data-test="delete-media-button"]').trigger("click");
+        const updated = wrapper.emitted("update:parent")?.at(-1)?.[0] as PostDto | undefined;
+        expect((updated ?? (wrapper.props("parent") as PostDto)).media).toBeUndefined();
+    });
+
+    it("cannot be pressed without permission to edit", () => {
+        const wrapper = mountSection({ parent: withVideo(), disabled: true });
+        expect(
+            wrapper.find('[data-test="delete-media-button"]').attributes("disabled"),
+        ).toBeDefined();
+    });
+});
+
 describe("EditContentMedia resume", () => {
     it("asks whether this document already has an encode running", async () => {
         mountSection();

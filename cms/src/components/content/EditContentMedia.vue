@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { type ContentParentDto, type MediaDto, toAbsoluteMediaUrl } from "luminary-shared";
-import { FilmIcon, PencilSquareIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
+import {
+    FilmIcon,
+    PencilSquareIcon,
+    QuestionMarkCircleIcon,
+    TrashIcon,
+} from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
 import LCard from "../common/LCard.vue";
 import LDialog from "../common/LDialog.vue";
@@ -156,6 +161,14 @@ const editVideo = () => {
 };
 
 /**
+ * Takes the video off the document. Nothing leaves storage until the editor saves, and the save
+ * asks first, as it does for a replaced video; until then Revert brings it back.
+ */
+const deleteVideo = () => {
+    if (parent.value) delete parent.value.media;
+};
+
+/**
  * An encode outlives this page, so arriving at a document asks whether one is
  * already running for it rather than assuming the encoder is idle.
  */
@@ -198,6 +211,18 @@ watch(
                 @click.stop="editVideo"
             >
                 <span class="text-sm">Edit video</span>
+            </LButton>
+            <LButton
+                v-if="existingVideoUrl"
+                :icon="TrashIcon"
+                variant="secondary"
+                size="base"
+                :disabled="disabled"
+                title="Remove this video from the document"
+                data-test="delete-media-button"
+                @click.stop="deleteVideo"
+            >
+                <span class="text-sm">Delete video</span>
             </LButton>
             <EncodeMediaButton
                 :availability="availability"
