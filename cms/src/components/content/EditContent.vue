@@ -340,6 +340,33 @@ const saveEncodedMedia = async (write: () => void) => {
     await saveChanges();
 };
 
+// The delete saves at once, so other unsaved edits must be the editor's to save first.
+const saveDeletedMedia = async (write: () => void) => {
+    if (source.hasEditsBesides(["media"])) {
+        notify(
+            "info",
+            "Save your other changes first",
+            `Save or revert your other changes to this ${props.tagOrPostType}, then delete the video.`,
+        );
+        return;
+    }
+    write();
+    // After the write: a saved video in our storage now leaves it.
+    const filesGo = replacesStoredMedia.value;
+    await saveChanges({
+        mediaConfirmed: true,
+        notice: filesGo
+            ? {
+                  title: "Video deleted",
+                  description: `The video was removed from this ${props.tagOrPostType} and its files are being deleted from storage.`,
+              }
+            : {
+                  title: "Video removed",
+                  description: `The video was removed from this ${props.tagOrPostType}. Nothing was deleted where it is hosted.`,
+              },
+    });
+};
+
 const revertChanges = () => {
     if (!isDirty.value) {
         notify("error", "No changes", "There were no changes to revert");
@@ -675,6 +702,7 @@ watch(isLgScreen, (isLg) => {
                                                 existingParent && !isDirty ? undefined : saveChanges
                                             "
                                             :saveEncodedMedia="saveEncodedMedia"
+                                            :saveDeletedMedia="saveDeletedMedia"
                                             v-model:parent="editableParent"
                                         />
                                     </div>
