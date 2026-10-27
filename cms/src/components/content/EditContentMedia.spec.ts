@@ -53,9 +53,7 @@ const mountSection = (props = {}) =>
         },
         global: {
             stubs: {
-                EditContentVideo: {
-                    template: "<div data-test='video-stub'><slot name='actions' /></div>",
-                },
+                EditContentVideo: { template: "<div data-test='video-stub' />" },
                 MediaBucketSelect: { template: "<div data-test='bucket-stub' />" },
             },
         },
