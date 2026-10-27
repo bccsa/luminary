@@ -8,9 +8,15 @@
  */
 
 import { watch } from "vue";
-import { db, type BaseDocumentDto, type UserActivityEntry, type Uuid } from "luminary-shared";
+import {
+    db,
+    DocType,
+    type BaseDocumentDto,
+    type UserActivityDto,
+    type Uuid,
+} from "luminary-shared";
 import { contentProgressAsRef, type ContentProgressEntry } from "@/contentProgress";
-import { recordUserActivity, userActivityId, userActivityVersion } from "./store";
+import { recordUserActivity, userActivityId } from "./store";
 
 /**
  * Reading confirms one segment at a time, so a long article writes progress dozens of
@@ -46,7 +52,7 @@ export function startContentProgressMirror(): () => void {
      * deleted, which would otherwise come back on every start.
      */
     async function backfill(entries: ContentProgressEntry[]): Promise<void> {
-        const rows = new Map<string, UserActivityEntry>();
+        const rows = new Map<string, UserActivityDto>();
 
         for (const entry of entries) {
             const parentId = await parentIdOf(entry.contentId);
@@ -57,7 +63,13 @@ export function startContentProgressMirror(): () => void {
             // Two translations of one post share a row; the later one dates it.
             const _id = userActivityId({ type: "viewed", parentId });
             if ((rows.get(_id)?.updatedTimeUtc ?? -1) >= entry.updatedAt) continue;
-            rows.set(_id, { _id, type: "viewed", parentId, updatedTimeUtc: entry.updatedAt });
+            rows.set(_id, {
+                _id,
+                type: DocType.UserActivity,
+                activity: "viewed",
+                parentId,
+                updatedTimeUtc: entry.updatedAt,
+            });
         }
 
         if (!rows.size) return;
@@ -69,7 +81,6 @@ export function startContentProgressMirror(): () => void {
         if (!missing.length) return;
 
         await db.userActivity.bulkPut(missing);
-        userActivityVersion.value++;
     }
 
     /** Copy the entries whose progress moved since they were last copied. */

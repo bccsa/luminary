@@ -731,7 +731,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 return;
             }
 
-            if (typeIsInSyncList(type)) {
+            // A type with its own table is held locally whether or not it syncs.
+            const ownTable = db.tableFor(type).name !== "docs";
+            if (ownTable || typeIsInSyncList(type)) {
                 // Fully-synced type → Dexie only, no API supplement.
                 this._startLocal(gen, (local) => {
                     if (gen !== this._generation || this._disposed) return;
@@ -745,7 +747,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 });
                 // Re-route to API-only if this type is later REVOKED (membership true→false).
                 // `type` is non-undefined here (it passed typeIsInSyncList).
-                this._watchMembership(type as DocType, gen);
+                if (!ownTable) this._watchMembership(type as DocType, gen);
                 return;
             }
 
@@ -820,15 +822,18 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         // covered by dispose() / the next rebuild.
         this._generationDisposers.add(() => scope.stop());
         scope.run(() => {
-            const source = useDexieLiveQuery<T[]>(() => mangoToDexie<T>(db.docs, this._query), {
-                // A live read that errors and never emits keeps _localPending true (same
-                // silent risk as before this change); surface the error so consumers can
-                // at least react to it.
-                onError: (err) => {
-                    if (gen === this._generation && !this._disposed) this.error.value = err;
-                    this._reportError("live-local-read", err);
+            const source = useDexieLiveQuery<T[]>(
+                () => mangoToDexie<T>(db.tableFor(readType(this._query)), this._query),
+                {
+                    // A live read that errors and never emits keeps _localPending true (same
+                    // silent risk as before this change); surface the error so consumers can
+                    // at least react to it.
+                    onError: (err) => {
+                        if (gen === this._generation && !this._disposed) this.error.value = err;
+                        this._reportError("live-local-read", err);
+                    },
                 },
-            });
+            );
             // `immediate: true` fires synchronously with the ref's initial value
             // (`undefined`) — guarded out so we never pass `undefined` to
             // `mergeById` and never decide the API off a synthetic empty snapshot.

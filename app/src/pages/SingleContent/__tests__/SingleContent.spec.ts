@@ -30,7 +30,12 @@ import {
 import * as luminaryShared from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, appName, cmsLanguages, initLanguage, cmsUrl } from "@/globalConfig";
-import { hasUserActivity, recordUserActivity } from "@/userActivity/store";
+import { recordUserActivity, userActivityId, type ActivityRef } from "@/userActivity/store";
+
+const hasUserActivity = async (ref: ActivityRef) => {
+    const row = await db.userActivity.get(userActivityId(ref));
+    return !!row && !row.deleted;
+};
 import {
     getReadingProgress,
     removeReadingProgress,
