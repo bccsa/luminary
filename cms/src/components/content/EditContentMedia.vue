@@ -20,6 +20,7 @@ import EncodeStatus from "../media/EncodeStatus.vue";
 import MediaBucketSelect from "../media/MediaBucketSelect.vue";
 import EditContentVideo from "./EditContentVideo.vue";
 import { useMediaEncoder } from "@/composables/useMediaEncoder";
+import { isYouTubeUrl } from "@/util/youtubeUtils";
 import { ENCODER_DOWNLOAD_URL } from "@/util/mediaEncoder";
 import { storageSelection } from "@/composables/storageSelection";
 
@@ -184,6 +185,26 @@ const videoInOurStorage = computed(() => {
     return !!bucketRoot && url.startsWith(bucketRoot);
 });
 
+/** What the dialog says: files deleted for ours, only the link removed for a video hosted elsewhere. */
+const deleteWording = computed(() => {
+    if (videoInOurStorage.value) {
+        return {
+            title: "Delete the video?",
+            description:
+                "This removes the video from this document and deletes its files from storage, unless another document still uses them. This cannot be undone.",
+            button: "Delete video",
+        };
+    }
+    const where = isYouTubeUrl(parent.value?.media?.hlsUrl ?? "")
+        ? "on YouTube"
+        : "where it is hosted";
+    return {
+        title: "Remove the video?",
+        description: `This removes the video from this document. The video itself stays ${where}: nothing is deleted.`,
+        button: "Remove video",
+    };
+});
+
 /** Asked here, where the editor pressed Delete, rather than later on Save. */
 const deleteVideo = () => {
     showDeleteVideoModal.value = true;
@@ -315,15 +336,11 @@ watch(
 
     <LDialog
         v-model:open="showDeleteVideoModal"
-        title="Delete the video?"
-        :description="
-            videoInOurStorage
-                ? 'This removes the video from this document and deletes its files from storage, unless another document still uses them. This cannot be undone.'
-                : 'This removes the video from this document. It is hosted elsewhere, so no files are deleted.'
-        "
+        :title="deleteWording.title"
+        :description="deleteWording.description"
         :primaryAction="confirmDeleteVideo"
         :secondaryAction="() => (showDeleteVideoModal = false)"
-        primaryButtonText="Delete video"
+        :primaryButtonText="deleteWording.button"
         secondaryButtonText="Cancel"
         context="danger"
         :showClosingButton="false"

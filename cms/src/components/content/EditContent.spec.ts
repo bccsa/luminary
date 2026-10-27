@@ -1101,6 +1101,9 @@ describe("EditContent.vue", () => {
                 }, 10000);
                 // Asked once, where the editor pressed Delete: the save does not ask again.
                 expect(wrapper.find('[data-test="replace-media-url"]').exists()).toBe(false);
+                expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({ title: "Video deleted", state: "success" }),
+                );
             },
             { timeout: 15000 },
         );

@@ -242,7 +242,9 @@ describe("EditContentMedia — deleting the video", () => {
     const deleteDialog = (wrapper: ReturnType<typeof mountSection>) =>
         wrapper
             .findAllComponents(LDialog)
-            .find((dialog) => dialog.props("title") === "Delete the video?")!;
+            .find((dialog) =>
+                ["Delete the video?", "Remove the video?"].includes(dialog.props("title")),
+            )!;
 
     it("asks first, showing the video that will go, and changes nothing yet", async () => {
         const saveDeletedMedia = vi.fn();
@@ -264,7 +266,7 @@ describe("EditContentMedia — deleting the video", () => {
         expect((wrapper.props("parent") as PostDto).media).toBeUndefined();
     });
 
-    it("says files go only for a video in our storage", async () => {
+    it("says files go only for a video in our storage; a YouTube link is only removed", async () => {
         const stored = mountSection({ parent: withVideo() });
         await stored.find('[data-test="delete-media-button"]').trigger("click");
         expect(deleteDialog(stored).props("description")).toContain("deletes its files");
@@ -272,11 +274,13 @@ describe("EditContentMedia — deleting the video", () => {
         const youtube = mountSection({
             parent: {
                 ...withVideo(),
-                media: { hlsUrl: "https://www.youtube.com/watch?v=abc" },
+                media: { hlsUrl: "https://www.youtube.com/watch?v=aqz-KE-bpKQ" },
             } as PostDto,
         });
         await youtube.find('[data-test="delete-media-button"]').trigger("click");
-        expect(deleteDialog(youtube).props("description")).toContain("no files are deleted");
+        expect(deleteDialog(youtube).props("title")).toBe("Remove the video?");
+        expect(deleteDialog(youtube).props("description")).toContain("stays on YouTube");
+        expect(deleteDialog(youtube).props("primaryButtonText")).toBe("Remove video");
     });
 
     it("leaves the video when cancelled", async () => {

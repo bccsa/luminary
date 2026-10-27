@@ -215,7 +215,10 @@ const isValid = ref(true);
 const isSaving = ref(false);
 
 /** `mediaConfirmed`: the editor has already agreed to the video's files going, where they deleted it. */
-const saveChanges = async (options?: { mediaConfirmed?: boolean }) => {
+const saveChanges = async (options?: {
+    mediaConfirmed?: boolean;
+    notice?: { title: string; description: string };
+}) => {
     if (isSaving.value) return;
     if (!isValid.value) {
         notify("error", "Changes not saved", "There are validation errors that prevent saving");
@@ -257,18 +260,19 @@ const saveChanges = async (options?: { mediaConfirmed?: boolean }) => {
         showReplaceMediaModal.value = true;
         return;
     }
-    await persistChanges();
+    await persistChanges(options?.notice);
     return true;
 };
 
-const persistChanges = async () => {
+/** `notice`: what the save did, when it says more than "saved". */
+const persistChanges = async (notice?: { title: string; description: string }) => {
     isSaving.value = true;
     try {
         await source.save();
         notify(
             "success",
-            `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
-            `The ${props.tagOrPostType} was saved successfully`,
+            notice?.title ?? `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
+            notice?.description ?? `The ${props.tagOrPostType} was saved successfully`,
         );
     } finally {
         isSaving.value = false;
@@ -302,7 +306,20 @@ const saveDeletedMedia = async (write: () => void) => {
         return;
     }
     write();
-    await saveChanges({ mediaConfirmed: true });
+    // After the write: a saved video in our storage now leaves it.
+    const filesGo = replacesStoredMedia.value;
+    await saveChanges({
+        mediaConfirmed: true,
+        notice: filesGo
+            ? {
+                  title: "Video deleted",
+                  description: `The video was removed from this ${props.tagOrPostType} and its files are being deleted from storage.`,
+              }
+            : {
+                  title: "Video removed",
+                  description: `The video was removed from this ${props.tagOrPostType}. Nothing was deleted where it is hosted.`,
+              },
+    });
 };
 
 const revertChanges = () => {
