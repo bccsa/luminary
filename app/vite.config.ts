@@ -9,6 +9,18 @@ const isVideoJsElement = (tag: string): boolean =>
     tag === "video-skin" ||
     tag === "hlsjs-video" ||
     tag.startsWith("media-");
+const VIDEOJS_PACKAGES = [
+    "@videojs/html",
+    "@videojs/hlsjs-video",
+    "@videojs/core",
+    "@videojs/element",
+    "@videojs/media",
+    "@videojs/native-hls-video",
+    "@videojs/spf",
+    "@videojs/store",
+    "@videojs/utils",
+    "hls.js",
+];
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { visualizer } from "rollup-plugin-visualizer";
 import { VitePWA } from "vite-plugin-pwa";
@@ -115,7 +127,9 @@ export default defineConfig({
             "luminary-shared": fileURLToPath(new URL("../shared/src/index.ts", import.meta.url)),
         },
         // shared/src imports these; dedupe so app + shared share one instance.
-        dedupe: ["vue", "dexie", "@vueuse/core"],
+        // The player UI here and its engine in luminary-media-convert must share one Video.js: two copies
+        // register the same custom elements twice and the engine drives an element from the other copy.
+        dedupe: ["vue", "dexie", "@vueuse/core", ...VIDEOJS_PACKAGES],
     },
     define: {
         __APP_BUILD_ID__: JSON.stringify(buildId),
