@@ -354,3 +354,36 @@ export type AutoGroupMappingsDto = ContentBaseDto & {
     groupIds: string[];
     conditions: AuthProviderCondition[];
 };
+
+/** What a {@link UserActivityDto} records the user as having done. */
+export type UserActivityType = "viewed" | "liked" | "highlighted";
+
+/** The names a highlight can be coloured with, as persisted. */
+export type HighlightColor = "yellow" | "green" | "blue" | "pink" | "purple";
+
+/**
+ * A highlight as character offsets into a document's text. `text` is the quoted passage, used to
+ * find the highlight again after the document has been edited.
+ */
+export type HighlightRange = { start: number; end: number; color: HighlightColor; text: string };
+
+/**
+ * A row in the `userActivity` side table: one thing the user did to a document. Kept apart from
+ * `docs` because it is the user's own record rather than a copy of server data, so syncing,
+ * revocation and expiry never touch it, and {@link Database.purge} deliberately leaves it.
+ *
+ * The `_id` is deterministic (`<activity>:<id>`), so the same activity yields the same row on every
+ * device. Removing an activity sets `deleted` instead of deleting the row, so the removal can be
+ * merged by `updatedTimeUtc` rather than lost.
+ */
+export type UserActivityDto = BaseDocumentDto & {
+    type: DocType.UserActivity;
+    activity: UserActivityType;
+    /** The post the activity belongs to. */
+    parentId: Uuid;
+    /** The translation, for activity that applies to one translation rather than the post. */
+    contentId?: Uuid;
+    deleted?: boolean;
+    /** The passages a `highlighted` entry saved. Other types carry no payload. */
+    payload?: { ranges: HighlightRange[] };
+};
