@@ -21,6 +21,7 @@ import {
     formatMinutes,
     sleepMinutesLeft,
 } from "../ui/audioFullscreen";
+import { nextInstanceId } from "../ui/instanceId";
 
 /**
  * The screen fullscreen becomes when only sound is playing: a now-playing screen, not a picture with controls.
@@ -416,7 +417,7 @@ const skip = (seconds: number): void =>
 
 const browseOpen = ref(false);
 watch([menu, browseOpen], ([open, panel]) => emit("covered", open !== null || panel));
-const uid = `lmpl-afs-${Math.random().toString(36).slice(2, 9)}`;
+const uid = nextInstanceId("lmpl-afs");
 /** The tab the panel opens on; the host's default when none is asked for. */
 const browseTab = ref<"chapters" | "upnext" | undefined>(undefined);
 function openChapters(tab?: "chapters"): void {
