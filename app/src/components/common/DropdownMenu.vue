@@ -24,6 +24,25 @@ function close() {
     open.value = false;
 }
 
+/**
+ * Whether this copy's trigger is displayed. A page can render the same menu twice, one copy hidden at its breakpoint
+ * (the content page's quick controls, in the mobile bar and the desktop one), and both share one open state; the panel
+ * is teleported out of its hidden parent, so without this both panels would show.
+ */
+const triggerShown = ref(true);
+function measureTriggerShown() {
+    let node: HTMLElement | null = rootRef.value;
+    while (node) {
+        if (getComputedStyle(node).display === "none") {
+            triggerShown.value = false;
+            return;
+        }
+        node = node.parentElement;
+    }
+    triggerShown.value = true;
+}
+const panelShown = computed(() => open.value && triggerShown.value);
+
 function onEscape(e: KeyboardEvent) {
     if (e.key === "Escape") close();
 }
@@ -57,9 +76,14 @@ const {
 } = useElementBounding(panelRef);
 // Rotation already arrives as a resize, so skip the orientation media query.
 const { width: windowWidth, height: windowHeight } = useWindowSize({ listenOrientation: false });
+// Crossing a breakpoint while open can swap which copy is the one on screen.
+watch(windowWidth, () => {
+    if (open.value) measureTriggerShown();
+});
 
 watch(open, async (isOpen) => {
     if (isOpen) {
+        measureTriggerShown();
         requestAnimationFrame(() => document.addEventListener("keydown", onEscape));
         document.addEventListener("pointerdown", onPointerDown);
     } else {
@@ -154,7 +178,7 @@ const triggerOffsetX = computed(() => {
         </div>
         <LTeleport>
             <div
-                v-show="open"
+                v-show="panelShown"
                 ref="panelRef"
                 role="menu"
                 class="fixed z-[60] min-w-[8rem] max-w-[calc(100vw-1rem)] rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-slate-700"

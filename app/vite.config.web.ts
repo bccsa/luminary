@@ -7,6 +7,7 @@ import type { RouteRecordRaw } from "vue-router";
 import vue from "@vitejs/plugin-vue";
 import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 import { deferEntryUntilPainted } from "./vite-plugins/deferEntryUntilPainted";
+import { youtubeEmbedPage } from "./vite-plugins/youtubeEmbedPage";
 import { buildDeleteQueue } from "./src/ssg/deleteQueue";
 import {
     drainQuery,
@@ -608,6 +609,7 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
     plugins: [
         ssgBuildLock(),
         buildTargetVirtuals(),
+        youtubeEmbedPage(),
         vue(),
         rewriteWebEntry(),
         deferEntryUntilPainted(),

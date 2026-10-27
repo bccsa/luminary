@@ -629,6 +629,7 @@ defineExpose({
         <!-- Page mode on mobile: pinned under the top bar. The sticky offset is measured inside
              <main>'s 0.5rem top padding, hence the subtraction. -->
         <div
+            data-keeps-keyboard
             class="flex min-w-0 items-center gap-3 border-b border-zinc-200 px-3 py-4 dark:border-slate-700 md:p-4"
             :class="
                 isPage &&

@@ -76,7 +76,7 @@ vi.mock("vue-i18n", () => ({
 }));
 
 // The real player has no jsdom-compatible serving strategy; this test isn't about playback.
-vi.mock("@luminary-media-converter/player-web-legacy", async () => {
+vi.mock("@luminary-media-converter/player-web", async () => {
     const { defineComponent, h } = await import("vue");
     return {
         LuminaryPlayer: defineComponent({

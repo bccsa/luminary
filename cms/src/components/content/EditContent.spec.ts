@@ -1060,6 +1060,77 @@ describe("EditContent.vue", () => {
             expect(await savedPostChanges()).toHaveLength(0);
         });
 
+        const openPost = async () => {
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+            // The whole form, as a person sees it before pressing anything.
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="video-url-input"]').exists()).toBe(true);
+                expect(wrapper.find('[data-test="delete-media-button"]').exists()).toBe(true);
+            }, 10000);
+            return wrapper;
+        };
+
+        it(
+            "deletes the video with its own button: asks once, then saves the post without it",
+            async () => {
+                await seedPost();
+                const wrapper = await openPost();
+
+                await wrapper.find('[data-test="delete-media-button"]').trigger("click");
+                await waitForExpect(() => {
+                    expect(wrapper.find('[data-test="delete-media-url"]').text()).toBe(SAVED_URL);
+                }, 10000);
+                expect(await savedPostChanges()).toHaveLength(0);
+
+                const dialog = wrapper
+                    .findAllComponents({ name: "LDialog" })
+                    .find((d) => d.props("title") === "Delete the video?")!;
+                await dialog.props("primaryAction")();
+
+                await waitForExpect(async () => {
+                    const changes = await savedPostChanges();
+                    expect(changes).toHaveLength(1);
+                    expect((changes[0].doc as PostDto).media?.hlsUrl).toBeUndefined();
+                }, 10000);
+                // Asked once, where the editor pressed Delete: the save does not ask again.
+                expect(wrapper.find('[data-test="replace-media-url"]').exists()).toBe(false);
+                expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({ title: "Video deleted", state: "success" }),
+                );
+            },
+            { timeout: 15000 },
+        );
+
+        it(
+            "does not save other unsaved edits on the editor's behalf",
+            async () => {
+                await seedPost();
+                const wrapper = await openPost();
+                await wrapper.find('input[name="title"]').setValue("A new title");
+
+                await wrapper.find('[data-test="delete-media-button"]').trigger("click");
+                const dialog = wrapper
+                    .findAllComponents({ name: "LDialog" })
+                    .find((d) => d.props("title") === "Delete the video?")!;
+                await dialog.props("primaryAction")();
+
+                await new Promise((resolve) => setTimeout(resolve, 200));
+                expect(await savedPostChanges()).toHaveLength(0);
+                expect(
+                    wrapper.find('[data-test="video-url-input"] input').exists() ||
+                        wrapper.find('[data-test="video-url-input"]').exists(),
+                ).toBe(true);
+            },
+            { timeout: 15000 },
+        );
+
         it("saves external media without asking, as its files are not in our storage", async () => {
             await seedPost("https://www.youtube.com/watch?v=abc");
 

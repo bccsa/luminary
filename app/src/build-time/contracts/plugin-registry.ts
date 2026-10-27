@@ -3,6 +3,7 @@ import { installDemoBanner, DemoBannerKey } from "virtual:demo-banner";
 import { installPlatformChrome, PlatformChromeKey } from "virtual:platform-chrome";
 import { installAuthFlow, AuthFlowKey } from "virtual:auth-flow";
 import { installScreenWake, ScreenWakeKey } from "virtual:screen-wake";
+import { installVideoPlayer, VideoPlayerKey } from "virtual:video-player";
 import { installAppUpdate, AppUpdateKey } from "virtual:app-update";
 
 /**
@@ -17,6 +18,7 @@ export function installPlugins(app: App): void {
     installPlatformChrome(app);
     installAuthFlow(app);
     installScreenWake(app);
+    installVideoPlayer(app);
     installAppUpdate(app);
 }
 
@@ -25,6 +27,7 @@ export const plugins = {
     platformChrome: { install: installPlatformChrome, PlatformChromeKey },
     authFlow: { install: installAuthFlow, AuthFlowKey },
     screenWake: { install: installScreenWake, ScreenWakeKey },
+    videoPlayer: { install: installVideoPlayer, VideoPlayerKey },
     appUpdate: { install: installAppUpdate, AppUpdateKey },
 } as const;
 
@@ -32,11 +35,13 @@ export { installDemoBanner, DemoBannerKey };
 export { installPlatformChrome, PlatformChromeKey };
 export { installAuthFlow, AuthFlowKey };
 export { installScreenWake, ScreenWakeKey };
+export { installVideoPlayer, VideoPlayerKey };
 export { installAppUpdate, AppUpdateKey };
 export type { DemoBannerService } from "@/build-time/contracts/demo-banner/contract";
 export type { PlatformChromeService } from "@/build-time/contracts/platform-chrome/contract";
 export type { AuthFlowService } from "@/build-time/contracts/auth-flow/contract";
 export type { ScreenWakeService } from "@/build-time/contracts/screen-wake/contract";
+export type { VideoPlayerService } from "@/build-time/contracts/video-player/contract";
 export type { AppUpdateService } from "@/build-time/contracts/app-update/contract";
 
 /** Vue `app.use()` entry that registers injectable services from the active build target. */

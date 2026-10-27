@@ -112,6 +112,8 @@ watch(showDeleteModal, (open) => {
 
 const { getBucketById } = storageSelection();
 const showReplaceMediaModal = ref(false);
+/** The save takes the video off rather than putting another in its place. */
+const deletesMedia = computed(() => !editableParent.value?.media?.hlsUrl);
 
 /**
  * True when saving drops a saved video in one of our buckets. The API then deletes its
@@ -212,7 +214,11 @@ const isValid = ref(true);
 // Guards against a rapid second save re-entering while the first is still queuing changes.
 const isSaving = ref(false);
 
-const saveChanges = async () => {
+/** `mediaConfirmed`: the editor has already agreed to the video's files going, where they deleted it. */
+const saveChanges = async (options?: {
+    mediaConfirmed?: boolean;
+    notice?: { title: string; description: string };
+}) => {
     if (isSaving.value) return;
     if (!isValid.value) {
         notify("error", "Changes not saved", "There are validation errors that prevent saving");
@@ -250,22 +256,23 @@ const saveChanges = async () => {
         return;
     }
 
-    if (replacesStoredMedia.value) {
+    if (replacesStoredMedia.value && options?.mediaConfirmed !== true) {
         showReplaceMediaModal.value = true;
         return;
     }
-    await persistChanges();
+    await persistChanges(options?.notice);
     return true;
 };
 
-const persistChanges = async () => {
+/** `notice`: what the save did, when it says more than "saved". */
+const persistChanges = async (notice?: { title: string; description: string }) => {
     isSaving.value = true;
     try {
         await source.save();
         notify(
             "success",
-            `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
-            `The ${props.tagOrPostType} was saved successfully`,
+            notice?.title ?? `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
+            notice?.description ?? `The ${props.tagOrPostType} was saved successfully`,
         );
     } finally {
         isSaving.value = false;
@@ -286,6 +293,33 @@ const saveEncodedMedia = async (write: () => void) => {
         return;
     }
     await saveChanges();
+};
+
+// The delete saves at once, so other unsaved edits must be the editor's to save first.
+const saveDeletedMedia = async (write: () => void) => {
+    if (source.hasEditsBesides(["media"])) {
+        notify(
+            "info",
+            "Save your other changes first",
+            `Save or revert your other changes to this ${props.tagOrPostType}, then delete the video.`,
+        );
+        return;
+    }
+    write();
+    // After the write: a saved video in our storage now leaves it.
+    const filesGo = replacesStoredMedia.value;
+    await saveChanges({
+        mediaConfirmed: true,
+        notice: filesGo
+            ? {
+                  title: "Video deleted",
+                  description: `The video was removed from this ${props.tagOrPostType} and its files are being deleted from storage.`,
+              }
+            : {
+                  title: "Video removed",
+                  description: `The video was removed from this ${props.tagOrPostType}. Nothing was deleted where it is hosted.`,
+              },
+    });
 };
 
 const revertChanges = () => {
@@ -614,6 +648,7 @@ watch(isLgScreen, (isLg) => {
                                                 existingParent && !isDirty ? undefined : saveChanges
                                             "
                                             :saveEncodedMedia="saveEncodedMedia"
+                                            :saveDeletedMedia="saveDeletedMedia"
                                             v-model:parent="editableParent"
                                         />
                                     </div>
@@ -767,8 +802,12 @@ watch(isLgScreen, (isLg) => {
     </LDialog>
     <LDialog
         v-model:open="showReplaceMediaModal"
-        title="Replace the video?"
-        description="Saving deletes the current video's files from storage, unless another document still uses them. This cannot be undone."
+        :title="deletesMedia ? 'Delete the video?' : 'Replace the video?'"
+        :description="
+            deletesMedia
+                ? 'Saving deletes this video\'s files from storage, unless another document still uses them. This cannot be undone.'
+                : 'Saving deletes the current video\'s files from storage, unless another document still uses them. This cannot be undone.'
+        "
         :primaryAction="
             async () => {
                 showReplaceMediaModal = false;
