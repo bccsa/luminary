@@ -96,30 +96,10 @@ const handleLogin = () => {
 
 <template>
     <header>
-        <div
-            class="hidden md:max-lg:fixed md:max-lg:left-3 md:max-lg:top-6 md:max-lg:z-50 md:max-lg:block"
-            v-if="showBackButton"
-            data-test="backButton"
-        >
-            <RouterLink
-                :to="{ name: 'home' }"
-                v-slot="{ href }"
-                custom
-            >
-                <a
-                    :href="href"
-                    class="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-700 shadow-md ring-1 ring-zinc-900/10 transition-colors hover:bg-zinc-200 dark:bg-slate-700 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
-                    aria-label="Go back"
-                    @click="onBackClick($event)"
-                >
-                    <ChevronLeftIcon class="h-6 w-6" />
-                </a>
-            </RouterLink>
-        </div>
         <!-- pt-safe-area: the app root is absolutely positioned to the viewport, so the bar
              extends its own background behind the status bar / notch (0 in regular browsers). -->
         <div
-            class="z-40 bg-zinc-100 pt-[env(safe-area-inset-top)] dark:bg-slate-800 md:max-lg:hidden lg:hidden"
+            class="z-40 bg-zinc-100 pt-[env(safe-area-inset-top)] dark:bg-slate-800"
         >
             <div class="flex items-center gap-2 py-5 pl-6 pr-4 lg:pr-5">
                 <div class="flex flex-1 items-center">

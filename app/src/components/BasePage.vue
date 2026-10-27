@@ -146,12 +146,12 @@ onUnmounted(() => {
                  the reader scrolls down, returning on the first scroll up. -->
             <div
                 ref="topBarWrap"
-                class="absolute inset-x-0 top-0 z-30 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform xl:hidden"
+                class="absolute inset-x-0 top-0 z-30 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform lg:hidden"
                 :class="mobileChrome.hidden.value ? '-translate-y-full' : 'translate-y-0'"
             >
                 <TopBar
                     :showBackButton="showBackButton"
-                    class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50"
+                    class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50 min-[768px]:hidden"
                 >
                     <template #quickControls><slot name="quickControls" /></template>
                 </TopBar>
@@ -173,7 +173,7 @@ onUnmounted(() => {
                      so content clears the bars at rest yet scrolls under them. The 74px
                      fallback matches the bar's natural height for prerendered HTML. -->
                 <div
-                    class="pb-[var(--mobile-menu-h,0px)] pt-[var(--top-bar-h,74px)] xl:pb-0 xl:pt-0"
+                    class="pb-[var(--mobile-menu-h,0px)] pt-[var(--top-bar-h,74px)] min-[768px]:pt-0 lg:pb-0"
                 >
                     <!-- Desktop pinned chrome: back (left) + quick controls (right) stay fixed while scrolling.
                      Direct child of the scrolling <main> so `sticky` keeps it pinned the whole way.
@@ -185,7 +185,7 @@ onUnmounted(() => {
                      The fade below the controls row lets content dissolve under the chrome. -->
                     <div
                         v-if="desktopTopBar"
-                        class="pointer-events-none sticky top-0 z-20 -mx-2 -mb-14 hidden h-16 items-start px-2 pt-2 xl:flex"
+                        class="pointer-events-none sticky top-0 z-20 -mx-2 -mb-14 hidden h-16 items-start px-2 pt-2 min-[768px]:flex"
                     >
                         <div
                             :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
@@ -243,7 +243,7 @@ onUnmounted(() => {
                      the same compositor timeline as the bar's slide. -->
                     <div
                         v-if="desktopTopBar && $slots.topBarCenter"
-                        class="pointer-events-none sticky top-[max(0px,calc(env(safe-area-inset-top)-0.75rem))] z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform md:-mx-4 md:px-4 xl:hidden"
+                        class="pointer-events-none sticky top-[max(0px,calc(env(safe-area-inset-top)-0.75rem))] z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform md:-mx-4 md:px-4 lg:hidden"
                         :style="pillPinnedStyle"
                     >
                         <div
