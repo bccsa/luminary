@@ -207,12 +207,11 @@ watch(
                 size="base"
                 :disabled="Boolean(editDisabledReason)"
                 :title="editDisabledReason || 'Edit the chapters and audio tracks of this video'"
+                aria-label="Edit video"
                 data-test="edit-media-button"
                 @click.stop="editVideo"
-            >
-                <span class="text-sm">Edit video</span>
-            </LButton>
-            <!-- An icon alone: the header has room for two labelled buttons, not three. -->
+            />
+            <!-- Icons alone, named by their tooltips: the header has no room for three labels. -->
             <LButton
                 v-if="existingVideoUrl"
                 :icon="TrashIcon"

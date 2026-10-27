@@ -47,10 +47,8 @@ const disabledReason = computed(() => {
         size="base"
         :disabled="Boolean(disabledReason)"
         :title="disabledReason || 'Encode video with Luminary Media Convert'"
+        aria-label="Encode video"
         @click.stop="emit('encode')"
         data-test="encode-media-button"
-    >
-        <span class="block sm:hidden">Encode video</span>
-        <span class="hidden text-sm sm:inline">Encode</span>
-    </LButton>
+    />
 </template>
