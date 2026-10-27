@@ -67,6 +67,7 @@ import BrowsePanel from "./BrowsePanel.vue";
 import { imageAttempts, toPlayerImage, type PlayerImageInput } from "../image";
 import { isYouTubeUrl } from "@luminary-media-converter/player-web";
 import type { PlayerUpNextItem } from "../upNext";
+import { nextInstanceId } from "../ui/instanceId";
 
 interface Props {
     /** What to play. Assigning a new object reloads the player. */
@@ -155,7 +156,7 @@ const mergedControls = computed(() => mergeControls(props.controls));
 const isYouTube = computed(() => isYouTubeUrl(props.source.masterUrl));
 
 /** Element ids in the controls (menu triggers point at their menus by id) must not collide between players. */
-const instanceId = `lmpl-${Math.random().toString(36).slice(2, 9)}`;
+const instanceId = nextInstanceId("lmpl");
 /** The preview frame at a time, for the chapters' pictures. */
 const chapterThumbnailAt = (seconds: number) => controller.value?.thumbnailAt(seconds) ?? null;
 const controlsHtml = computed(() =>

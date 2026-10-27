@@ -113,8 +113,13 @@ const safelist = JSON.parse(read("skin-css-safelist.json"));
  */
 const templateOf = (rel) => {
     const text = read(rel);
-    const body = text.slice(text.indexOf("<template>"), text.lastIndexOf("</template>"));
-    return body.replace(/<!--[\s\S]*?-->/g, "");
+    let body = text.slice(text.indexOf("<template>"), text.lastIndexOf("</template>"));
+    // Until nothing changes: one pass can join the halves of a nested comment into a new one.
+    for (let before = ""; before !== body; ) {
+        before = body;
+        body = body.replace(/<!--[\s\S]*?-->/g, "");
+    }
+    return body;
 };
 
 const content = [
