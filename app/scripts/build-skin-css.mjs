@@ -15,6 +15,7 @@ import { build, transform } from "esbuild";
 import { PurgeCSS } from "purgecss";
 import postcss from "postcss";
 import selectorParser from "postcss-selector-parser";
+import { Buffer } from "node:buffer";
 import { createRequire } from "node:module";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
