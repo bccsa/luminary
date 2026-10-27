@@ -212,18 +212,19 @@ watch(
             >
                 <span class="text-sm">Edit video</span>
             </LButton>
+            <!-- An icon alone: the header has room for two labelled buttons, not three. -->
             <LButton
                 v-if="existingVideoUrl"
                 :icon="TrashIcon"
                 variant="secondary"
+                context="danger"
                 size="base"
                 :disabled="disabled"
-                title="Remove this video from the document"
+                title="Delete video"
+                aria-label="Delete video"
                 data-test="delete-media-button"
                 @click.stop="deleteVideo"
-            >
-                <span class="text-sm">Delete video</span>
-            </LButton>
+            />
             <EncodeMediaButton
                 :availability="availability"
                 :busy="busy"
