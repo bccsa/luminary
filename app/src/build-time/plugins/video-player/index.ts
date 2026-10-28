@@ -1,5 +1,5 @@
 import type { App } from "vue";
-import { LuminaryPlayer } from "@luminary-media-converter/player-web-legacy";
+import { LuminaryPlayer } from "@luminary-media-converter/player-web";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 
 /**

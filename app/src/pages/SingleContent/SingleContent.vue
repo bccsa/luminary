@@ -49,6 +49,7 @@ import RelatedContent from "@/components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 
 import LImage from "@/components/images/LImage.vue";
+import { useGlobalCopyright } from "@/composables/useGlobalCopyright";
 
 import { userPreferencesAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
@@ -62,7 +63,7 @@ import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid"
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
-import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import MediaAction from "@/media-player/MediaAction.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import ArticleOutline from "./ArticleOutline.vue";
@@ -682,6 +683,12 @@ const quickLanguageSwitch = (languageId: string) => {
     showDropdown.value = false;
 };
 
+const { copyrightText: globalCopyright } = useGlobalCopyright();
+const shareCopyright = computed(() => content.value?.copyright || globalCopyright.value);
+
+// Whether the hero image can carry the title/summary as an overlay.
+const hasHeroImage = computed(() => !!(content.value?.parentId || content.value?.parentImageData));
+
 watch([isLoading, content, is404], async () => {
     if (is404.value) {
         await nextTick();
@@ -861,14 +868,8 @@ watch([isLoading, content, is404], async () => {
                                 :mobileOnly="true"
                                 :ignoreTop="true"
                             >
-                                <VideoPlayer
-                                    v-if="content && hasVideoSource(content)"
-                                    :key="content._id"
-                                    :content="content"
-                                    :language="selectedLanguageCode"
-                                />
                                 <div
-                                    v-else-if="content.parentId || content.parentImageData"
+                                    v-if="content.parentId || content.parentImageData"
                                     class="relative cursor-pointer overflow-hidden"
                                     @click="
                                         () => {
@@ -894,12 +895,56 @@ watch([isLoading, content, is404], async () => {
                                     >
                                         <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
                                     </div>
+
+                                    <div
+                                        class="pointer-events-none absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
+                                    ></div>
+                                    <div
+                                        class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
+                                        @click.stop
+                                    >
+                                        <div class="flex items-start gap-2">
+                                            <h1
+                                                class="text-xl font-semibold leading-tight text-white [text-wrap:balance] lg:text-3xl"
+                                            >
+                                                {{ content.title }}
+                                            </h1>
+                                            <button
+                                                v-if="canEdit() && cmsUrl"
+                                                @click="openCmsEditor"
+                                                class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-white/70 hover:text-yellow-400"
+                                                data-test="editButton"
+                                            >
+                                                <PencilIcon class="h-5 w-5" />
+                                            </button>
+                                        </div>
+                                        <p
+                                            v-if="content.summary"
+                                            class="max-w-2xl text-sm leading-relaxed text-white/85 lg:text-base"
+                                        >
+                                            {{ content.summary }}
+                                        </p>
+                                    </div>
+                                    <MediaAction
+                                        v-if="hasVideoSource(content)"
+                                        :key="content._id"
+                                        :content="content"
+                                        :language="selectedLanguageCode"
+                                        corner
+                                    />
                                 </div>
                             </IgnorePagePadding>
                         </div>
 
+                        <MediaAction
+                            v-if="hasVideoSource(content) && !hasHeroImage"
+                            :key="content._id"
+                            :content="content"
+                            :language="selectedLanguageCode"
+                        />
+
                         <div
-                            v-if="content.summary"
+                            v-if="!hasHeroImage && content.summary"
                             class="mt-6 flex justify-center"
                         >
                             <p
@@ -990,6 +1035,8 @@ watch([isLoading, content, is404], async () => {
                         <LHighlightable
                             v-if="content.text"
                             :content-id="content._id"
+                            :title="content.title"
+                            :copyright="content.copyright"
                             @highlighted="
                                 recordAffinity(
                                     content?.parentTags,
