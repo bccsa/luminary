@@ -201,6 +201,13 @@ describe("IdentityCacheService", () => {
             expect(await isHit(svc, authIdentity)).toBe(false);
         });
 
+        it("clears on reconnect", async () => {
+            const { svc, authIdentity, db } = makeService(enabledCfg);
+            await seed(svc);
+            db.emit("reconnect");
+            expect(await isHit(svc, authIdentity)).toBe(false);
+        });
+
         it("does NOT clear on a plain User update (e.g. lastLogin write)", async () => {
             const { svc, authIdentity, db } = makeService(enabledCfg);
             await seed(svc);

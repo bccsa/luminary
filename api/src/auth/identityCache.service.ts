@@ -121,6 +121,11 @@ export class IdentityCacheService implements OnModuleInit {
         this.db.on("disconnect", () => {
             this.flush();
         });
+
+        // Resolves during the outage can cache membership that changed while the feed was down.
+        this.db.on("reconnect", () => {
+            this.flush();
+        });
     }
 
     /**
