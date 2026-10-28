@@ -74,8 +74,8 @@ export type IdentityCacheConfig = {
      */
     ttlMs: number;
     /**
-     * Soft cap on cached identities (OOM guardrail; lazy/sweep eviction, TTL bounds normal
-     * volume). Size to peak concurrent active tokens per instance, with headroom.
+     * Emergency cap on cached identities; at the cap the oldest entry is evicted. Expired
+     * entries are swept once per TTL, so normal volume stays well below it.
      * IDENTITY_CACHE_MAX_ENTRIES (default 50000).
      */
     maxEntries: number;

@@ -9,10 +9,8 @@ import { IdentityCacheConfig } from "../configuration";
 import { BoundedTtlCache } from "./boundedTtlCache";
 
 /**
- * What we cache per token: the resolved membership + identity, WITHOUT the accessMap.
- * The accessMap comes from {@link PermissionSystem} on every hit — memoised there per group
- * set and invalidated by the group graph itself — so ACL (`groupUpdate`) changes are picked up
- * for free without invalidating this cache.
+ * Resolved membership + identity per token. The accessMap is deliberately not cached: it is
+ * re-derived from {@link PermissionSystem} on each hit, so ACL changes need no invalidation here.
  */
 type CachedIdentity = {
     status: "authenticated";
@@ -24,15 +22,9 @@ type CachedIdentity = {
 };
 
 /**
- * Transport-agnostic cache in front of {@link AuthIdentityService.resolveOrDefault}.
- *
- * The full resolve (RS256 verify + 3–4 Mango user lookups + a `lastLogin` write) runs
- * once per token per TTL window; subsequent requests with the same token only pick up the
- * accessMap, which {@link PermissionSystem} memoises per group set. Both the REST `AuthGuard`
- * and the socket handshake call this; a future SSE handler would call the same method, so
- * SSE reconnect churn becomes cache hits instead of re-resolves.
- *
- * Ships OFF (`IDENTITY_CACHE_ENABLED=true` opts in). When disabled it is a pure passthrough.
+ * Per-token cache in front of {@link AuthIdentityService.resolveOrDefault}, shared by the REST
+ * `AuthGuard` and the socket handshake. Off unless `IDENTITY_CACHE_ENABLED=true`; when off it is
+ * a pure passthrough. See `identityCache.README.md`.
  */
 @Injectable()
 export class IdentityCacheService implements OnModuleInit {
@@ -47,8 +39,7 @@ export class IdentityCacheService implements OnModuleInit {
         private readonly authIdentityService: AuthIdentityService,
         private readonly configService: ConfigService,
         private readonly db: DbService,
-        // Injectable clock (ms). Shared with the BoundedTtlCache so TTL computation and the
-
+        // Injectable clock (ms), shared with the cache so TTLs and token expiry use one clock.
         @Optional() now: () => number = Date.now,
     ) {
         this.now = now;
@@ -67,27 +58,17 @@ export class IdentityCacheService implements OnModuleInit {
     onModuleInit() {
         if (!this.enabled || !this.cache) return;
 
-        // Membership changes (additions AND removals) arrive as a write-side `permissionChange`
-        // event carrying the changed doc's type. We invalidate on User membership changes here
-        // rather than off the feed because a pure memberOf ADDITION produces no DeleteCmd — on
-        // the feed it is indistinguishable from a `lastLogin`-style plain User `update`, which we
-        // must keep ignoring (otherwise each miss's own `lastLogin` write would evict the entry).
+        // Write-side signal for User changes (memberOf, new user, email/providerId) that the feed
+        // can't tell apart from our own lastLogin write, which must not flush.
         this.db.on("permissionChange", (evt: any) => {
             if (evt?.docType === DocType.User) this.flush();
         });
 
-        // Invalidate on the rare events that change resolved membership or token-verification
-        // rules. NOT `groupUpdate`: we don't cache the accessMap (PermissionSystem owns it and
-        // drops its own memo on any graph change), so an ACL edit needs no flush here. A plain
-        // User `update` (e.g. the `lastLogin` write) is intentionally ignored — membership
-        // changes come through `permissionChange` (above) and user deletion/provider/mapping
-        // changes are handled below, so `lastLogin` churn never evicts the cache. Keeping this
-        // load-bearing lets the `lastLogin` write cadence stay a free, decoupled choice.
+        // Group (ACL) updates are deliberately not handled: the accessMap is re-derived per hit.
         this.db.on("update", (doc: any) => {
             if (!doc?.type) return;
 
-            // Membership revoked via the feed (DeleteCmd): redundant with `permissionChange` on a
-            // single instance, but the feed-based path also covers removals on multi-instance.
+            // Feed-side membership removal; also reaches instances that didn't do the write.
             if (
                 doc.type === DocType.DeleteCmd &&
                 doc.deleteReason === DeleteReason.PermissionChange &&
@@ -102,10 +83,8 @@ export class IdentityCacheService implements OnModuleInit {
                 this.flush();
                 return;
             }
-            // A User/provider/mapping doc was deleted. User deletion flows through the `deleteReq`
-            // path (no `permissionChange` emit), so this feed handler is the revocation hook for
-            // it: a deleted user's still-valid JWT must stop resolving from cache with stale
-            // (over-)access.
+            // Deletions arrive only as feed DeleteCmds; a deleted user's still-valid JWT must stop
+            // resolving from cache.
             if (
                 doc.type === DocType.DeleteCmd &&
                 doc.deleteReason === DeleteReason.Deleted &&
