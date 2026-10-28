@@ -14,6 +14,7 @@ import { randomUUID } from "crypto";
 import { _contentBaseDto } from "../dto/_contentBaseDto";
 import { ContentDto } from "../dto/ContentDto";
 import { RedirectDto } from "../dto/RedirectDto";
+import { UserDto } from "../dto/UserDto";
 import { isEqualDoc } from "../util/isEqualDoc";
 import { isDeepStrictEqual } from "util";
 import { assertNoNullInArrayOperators } from "./assertNoNullInArrayOperators";
@@ -148,7 +149,7 @@ const FTS_STALE_READ = { stable: true, update: "lazy" as const };
  *
  * @fires DbService#update - Emitted when any valid document with a type field is updated in the database
  * @fires DbService#groupUpdate - Emitted when a group document is updated, used by the permission system to update access maps. Also emitted with a `DeleteCmd` payload (docType === Group) when a group is deleted via the soft-delete flow, so the permission system can evict the entry.
- * @fires DbService#permissionChange - Emitted (write-side, `{ docType, docId }`) right after a non-Group document's `memberOf` changes — additions and removals alike. Lets in-memory per-identity caches invalidate on membership ADDITIONS too: removals already surface via a `PermissionChange` DeleteCmd on the change feed, but a pure addition produces no DeleteCmd, so the feed alone can't distinguish it from a `lastLogin`-style update. Safe for cache eviction (single-instance); not a substitute for the feed-based handlers on multi-instance.
+ * @fires DbService#permissionChange - Emitted (write-side, `{ docType, docId }`) after a non-Group document's `memberOf` changes, or a User doc is created or has its `email`/`providerId` changed. Lets per-identity caches catch changes the feed can't signal (a pure `memberOf` addition emits no DeleteCmd). Local to this instance only.
  * @fires DbService#disconnect - Emitted when a previously-established DB connection is lost. Consumers should drop cached DTO state that may have diverged while disconnected.
  * @fires DbService#reconnect - Emitted after a disconnect has been followed by a successful reconnect. Consumers that need a populated cache to function should rehydrate here.
  *
@@ -556,11 +557,22 @@ export class DbService extends EventEmitter {
         docPlain.updatedTimeUtc = Date.now();
         docPlain._rev = rev;
 
+        // Users are matched by email and scoped by providerId, so a new User doc or a change to
+        // either field alters resolved membership just like a memberOf change does.
+        const userIdentityChanged =
+            doc.type === DocType.User &&
+            (!existing ||
+                (existing as UserDto).email !== doc.email ||
+                (existing as UserDto).providerId !== doc.providerId);
+
         if (!existing) {
             // Passed document does not exist in database: create
             const res = await this.insertDoc(docPlain);
             res.updatedTimeUtc = docPlain.updatedTimeUtc;
             res.changes = docPlain;
+            if (userIdentityChanged) {
+                this.emit("permissionChange", { docType: doc.type, docId: doc._id });
+            }
             return res;
         }
 
@@ -581,7 +593,7 @@ export class DbService extends EventEmitter {
         insertResult.changes = changes;
 
         // Notify in-memory per-identity caches of a membership change once the write is committed.
-        if (memberOfChanged) {
+        if (memberOfChanged || userIdentityChanged) {
             this.emit("permissionChange", { docType: doc.type, docId: doc._id });
         }
 

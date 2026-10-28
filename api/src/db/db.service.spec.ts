@@ -601,6 +601,62 @@ describe("DbService", () => {
 
             service.off("permissionChange", permissionChangeHandler);
         });
+
+        describe("User identity changes", () => {
+            const userDoc = (id: string) => ({
+                _id: id,
+                type: DocType.User,
+                name: "Test User",
+                email: `${id}@example.com`,
+                memberOf: ["group-public-users"],
+            });
+
+            const collectEvents = (docId: string) => {
+                const received: any[] = [];
+                const handler = (update: any) => {
+                    if (update.docId === docId) received.push(update);
+                };
+                service.on("permissionChange", handler);
+                return { received, stop: () => service.off("permissionChange", handler) };
+            };
+
+            it("emits 'permissionChange' when a User document is created", async () => {
+                const doc = userDoc("permission-change-user-create");
+                const events = collectEvents(doc._id);
+
+                await service.upsertDoc(doc);
+
+                expect(events.received).toEqual([{ docType: DocType.User, docId: doc._id }]);
+                events.stop();
+            });
+
+            it("emits 'permissionChange' when a User's email or providerId changes", async () => {
+                const doc = userDoc("permission-change-user-identity");
+                await service.upsertDoc(doc);
+                const events = collectEvents(doc._id);
+
+                await service.upsertDoc({ ...doc, email: "changed@example.com" });
+                await service.upsertDoc({
+                    ...doc,
+                    email: "changed@example.com",
+                    providerId: "provider-b",
+                });
+
+                expect(events.received).toHaveLength(2);
+                events.stop();
+            });
+
+            it("does not emit 'permissionChange' on a User lastLogin-only update", async () => {
+                const doc = userDoc("permission-change-user-lastlogin");
+                await service.upsertDoc(doc);
+                const events = collectEvents(doc._id);
+
+                await service.upsertDoc({ ...doc, lastLogin: Date.now() });
+
+                expect(events.received).toHaveLength(0);
+                events.stop();
+            });
+        });
     });
 
     describe("disconnect events", () => {
