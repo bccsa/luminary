@@ -164,7 +164,8 @@ const deleteTranslation = () => {
         >
             <div class="flex flex-col">
                 <span
-                    class="mb-0 flex cursor-default items-center justify-between text-sm shadow dark:bg-slate-900 dark:text-zinc-100 dark:hover:bg-slate-700"
+                    class="mb-0 flex cursor-default items-center justify-between px-2
+                     rounded-md text-sm shadow dark:bg-slate-900 dark:text-zinc-100 dark:hover:bg-slate-700"
                 >
                     <div class="flex h-8 w-full items-center justify-start">
                         {{ usedLanguage?.name }}
