@@ -215,6 +215,23 @@ describe("IdentityCacheService", () => {
             db.emit("update", { type: DocType.Group, _id: "g1" });
             expect(await isHit(svc, authIdentity)).toBe(true);
         });
+
+        it("does not cache a result whose resolve was in flight when a flush happened", async () => {
+            const { svc, authIdentity, db } = makeService(enabledCfg);
+            let release: () => void;
+            const gate = new Promise<void>((r) => (release = r));
+            authIdentity.resolveOrDefault.mockImplementationOnce(async () => {
+                await gate;
+                return authResult({ groups: ["g1", "g2"] });
+            });
+
+            const inFlight = svc.resolveOrDefault("t", "p");
+            db.emit("permissionChange", { docType: DocType.User, docId: "user-1" });
+            release();
+            await inFlight;
+
+            expect(await isHit(svc, authIdentity)).toBe(false);
+        });
     });
 
     describe("clock (injected, shared with the cache)", () => {

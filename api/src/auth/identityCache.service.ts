@@ -39,6 +39,8 @@ export class IdentityCacheService implements OnModuleInit {
     private readonly maxAgeMs: number;
     private readonly now: () => number;
     private readonly cache?: BoundedTtlCache<CachedIdentity>;
+    // Bumped on every flush so a miss that was already resolving can't re-cache a stale result.
+    private generation = 0;
 
     constructor(
         private readonly authIdentityService: AuthIdentityService,
@@ -69,7 +71,7 @@ export class IdentityCacheService implements OnModuleInit {
         // the feed it is indistinguishable from a `lastLogin`-style plain User `update`, which we
         // must keep ignoring (otherwise each miss's own `lastLogin` write would evict the entry).
         this.db.on("permissionChange", (evt: any) => {
-            if (evt?.docType === DocType.User) this.cache.clear();
+            if (evt?.docType === DocType.User) this.flush();
         });
 
         // Invalidate on the rare events that change resolved membership or token-verification
@@ -89,13 +91,13 @@ export class IdentityCacheService implements OnModuleInit {
                 doc.deleteReason === DeleteReason.PermissionChange &&
                 doc.docType === DocType.User
             ) {
-                this.cache.clear();
+                this.flush();
                 return;
             }
 
             // Default/dynamic group derivation or token-verification rules changed.
             if (doc.type === DocType.AuthProvider || doc.type === DocType.AutoGroupMappings) {
-                this.cache.clear();
+                this.flush();
                 return;
             }
             // A User/provider/mapping doc was deleted. User deletion flows through the `deleteReq`
@@ -109,14 +111,14 @@ export class IdentityCacheService implements OnModuleInit {
                     doc.docType === DocType.AutoGroupMappings ||
                     doc.docType === DocType.User)
             ) {
-                this.cache.clear();
+                this.flush();
             }
         });
 
         // Change feed down → we can't trust freshness; drop everything (same rule as the other
         // DTO-derived caches: AuthIdentityService, QueryService.languages, S3Service).
         this.db.on("disconnect", () => {
-            this.cache.clear();
+            this.flush();
         });
     }
 
@@ -149,10 +151,12 @@ export class IdentityCacheService implements OnModuleInit {
         }
 
         // Miss: run the full resolve. Auth failures throw here and are NOT cached.
+        const generation = this.generation;
         const result = await this.authIdentityService.resolveOrDefault(token, providerId);
 
-        // Only cache authenticated identities, and never past the token's own expiry.
-        if (result.status === "authenticated") {
+        // Only cache authenticated identities, never past the token's own expiry, and never if
+        // a flush happened while resolving (the result may predate the change that caused it).
+        if (result.status === "authenticated" && generation === this.generation) {
             const ttlMs = this.computeTtlMs(result.userDetails.jwtPayload?.exp);
             if (ttlMs > 0) {
                 this.cache.set(
@@ -181,6 +185,11 @@ export class IdentityCacheService implements OnModuleInit {
         if (typeof expSeconds !== "number") return this.maxAgeMs;
         const untilExpiry = expSeconds * 1000 - this.now();
         return Math.min(untilExpiry, this.maxAgeMs);
+    }
+
+    private flush(): void {
+        this.generation++;
+        this.cache.clear();
     }
 
     /** SHA-256 of the token so raw JWTs are never held in memory as keys. */
