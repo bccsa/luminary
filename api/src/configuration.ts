@@ -62,11 +62,10 @@ export type SidecarConfig = {
 
 export type IdentityCacheConfig = {
     /**
-     * Master switch for the in-memory per-token auth identity cache. Ships ON: without it
-     * every authenticated request re-runs the full identity resolve, costing ~16 ms and 7
-     * CouchDB round trips (including a lastLogin write) before any endpoint work begins.
-     * Set to the string "false" to opt out per environment.
-     * Environment variable: IDENTITY_CACHE_ENABLED (default true).
+     * Master switch for the in-memory per-token auth identity cache. Ships OFF: set to the
+     * string "true" per environment to skip the full identity resolve (~16 ms and 7 CouchDB
+     * round trips, including a lastLogin write) on repeat requests with the same token.
+     * Environment variable: IDENTITY_CACHE_ENABLED (default false).
      */
     enabled: boolean;
     /**
@@ -226,7 +225,7 @@ export default () =>
             allowInsecureProviderDomain: process.env.AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN === "true",
         } as AuthConfig,
         identityCache: {
-            enabled: process.env.IDENTITY_CACHE_ENABLED !== "false",
+            enabled: process.env.IDENTITY_CACHE_ENABLED === "true",
             ttlMs: parseInt(process.env.IDENTITY_CACHE_TTL_MS, 10) || 300000,
             maxEntries: parseInt(process.env.IDENTITY_CACHE_MAX_ENTRIES, 10) || 50000,
         } as IdentityCacheConfig,

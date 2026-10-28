@@ -17,7 +17,7 @@ Both the REST API (`AuthGuard`) and the Socket.io connection handshake use this 
 
 ## Off by default
 
-The cache is enabled unless `IDENTITY_CACHE_ENABLED=false` is set. When disabled, every call passes straight through to `AuthIdentityService` — same as if the cache didn't exist.
+The cache is only enabled when `IDENTITY_CACHE_ENABLED=true` is set; any other value leaves it off. When disabled, every call passes straight through to `AuthIdentityService` — same as if the cache didn't exist.
 
 ## Cache entries always expire
 
