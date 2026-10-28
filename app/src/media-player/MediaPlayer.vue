@@ -41,7 +41,7 @@ import {
     type ScrubPosition,
     type ThumbnailSpriteCue,
     type Chapter,
-} from "@luminary-media-converter/player-web";
+} from "@luminary-media-converter/player-web-legacy";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
 import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";

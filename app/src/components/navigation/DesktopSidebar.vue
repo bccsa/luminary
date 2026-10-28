@@ -59,9 +59,9 @@ const forceReauthOnNextLogin = ref(true);
 // The sidebar prerenders on the web/SSG build, but its interactive overlays (e.g. LanguageModal's Dexie-backed query) can't run during the Node prerender, so they mount client-side only.
 const isMounted = useHydrated();
 
-// On small screens (below Tailwind's `lg` breakpoint) the sidebar stays visible on the right-hand
-// side of the screen and starts out in its expanded form. It can still be collapsed and
-// expanded with the toggle. Client-only: matchMedia doesn't exist during the Node prerender.
+// On small screens (below Tailwind's `lg` breakpoint) the sidebar stays visible on the right
+// side of the screen and is loaded in its expanded state by default. It can still be collapsed and
+// expanded with the existing toggle.
 const largeScreenQuery = "(min-width: 1024px)";
 let largeScreenMql: MediaQueryList | undefined;
 

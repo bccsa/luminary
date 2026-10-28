@@ -35,7 +35,7 @@ const engine = vi.hoisted(() => ({
     thumbnailsReady: false,
 }));
 
-vi.mock("@luminary-media-converter/player-web", async () => {
+vi.mock("@luminary-media-converter/player-web-legacy", async () => {
     const { defineComponent, h } = await import("vue");
     return {
         AUDIO_ONLY_ANGLE_ID: "__audio__",
@@ -949,16 +949,16 @@ describe("MediaPlayer", () => {
             screenLandscape = true;
             const wrapper = await playing();
             expect(screen(wrapper).props().fill).toBe(true);
-            expect(wrapper.findComponent({ name: "MediaPlayerWrapper" }).props("windowedControls")).toBe(
-                true,
-            );
+            expect(
+                wrapper.findComponent({ name: "MediaPlayerWrapper" }).props("windowedControls"),
+            ).toBe(true);
 
             await find(wrapper, "mediaPlayerAudio").trigger("click");
             await flushPromises();
             expect(screen(wrapper).props().fill).toBe(false);
-            expect(wrapper.findComponent({ name: "MediaPlayerWrapper" }).props("windowedControls")).toBe(
-                false,
-            );
+            expect(
+                wrapper.findComponent({ name: "MediaPlayerWrapper" }).props("windowedControls"),
+            ).toBe(false);
         });
 
         it("keeps the now-playing screen upright, and in the packaged app, which turns to its own full screen", async () => {
@@ -1122,7 +1122,9 @@ describe("MediaPlayer", () => {
             const wrapper = await playing();
             expect(screen(wrapper).props().captionBand).toBe(true);
             // The browser's player draws nothing there itself.
-            expect(wrapper.findComponent({ name: "MediaPlayerWrapper" }).props("captionBand")).toBe(0);
+            expect(wrapper.findComponent({ name: "MediaPlayerWrapper" }).props("captionBand")).toBe(
+                0,
+            );
 
             engine.state.subtitleTracks = [];
             await flushPromises();

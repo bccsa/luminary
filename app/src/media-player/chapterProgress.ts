@@ -1,4 +1,4 @@
-import type { Chapter } from "@luminary-media-converter/player-web";
+import type { Chapter } from "@luminary-media-converter/player-web-legacy";
 
 /** How much of a chapter has played at `time`: nothing before it, all of it after, the share between. */
 export function chapterProgress(chapter: Chapter, time: number): number {

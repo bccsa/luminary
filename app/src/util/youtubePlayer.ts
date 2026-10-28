@@ -1,5 +1,5 @@
 import { reactive } from "vue";
-import type { PlayerState } from "@luminary-media-converter/player-web";
+import type { PlayerState } from "@luminary-media-converter/player-web-legacy";
 
 /**
  * A video hosted by YouTube, driven from the page. `public/youtube-embed.html` runs YouTube's IFrame Player
