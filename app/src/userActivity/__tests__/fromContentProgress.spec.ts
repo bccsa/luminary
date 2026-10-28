@@ -9,8 +9,7 @@ import {
     syncContentProgressFromStorage,
 } from "@/contentProgress";
 import { MIRROR_INTERVAL_MS, startContentProgressMirror } from "../fromContentProgress";
-import { recordUserActivity, removeUserActivity } from "../store";
-import { getUserActivity } from "./activityQueries";
+import { getUserActivity, recordUserActivity, removeUserActivity } from "../store";
 
 const contentDoc = (_id: string, parentId: string) =>
     ({

@@ -15,9 +15,6 @@ import {
     verifyAccess,
     AclPermission,
     readingDepthWeight,
-    db,
-    useHybridQuery,
-    type UserActivityDto,
 } from "luminary-shared";
 import { publishedNowConditions } from "@/util/mangoIsPublished";
 import { useContentQuery, useContentQueryWithState } from "@/composables/useContentQuery";
@@ -26,7 +23,12 @@ import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
 import { markSeen } from "@/recommendation/seenStore";
 import { hasContentProgress } from "@/contentProgress";
-import { recordUserActivity, removeUserActivity, userActivityId } from "@/userActivity/store";
+import {
+    hasUserActivity,
+    recordUserActivity,
+    removeUserActivity,
+    userActivityVersion,
+} from "@/userActivity/store";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { HeartIcon as HeartIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
@@ -541,11 +543,7 @@ const toggleLike = async () => {
 
     // Read the stored state rather than the displayed one: `isLiked` is refreshed
     // asynchronously, so a quick second tap would otherwise act on a stale value.
-    const stored = await db.get<UserActivityDto>(
-        userActivityId({ type: "liked", parentId }),
-        DocType.UserActivity,
-    );
-    if (stored && !stored.deleted) {
+    if (await hasUserActivity({ type: "liked", parentId })) {
         await removeUserActivity({ type: "liked", parentId });
         recordAffinity(content.value?.parentTags, affinityConfig.value.eventWeight.bookmarkRemoved);
     } else {
@@ -555,21 +553,16 @@ const toggleLike = async () => {
     }
 };
 
-const likedRows = useHybridQuery<UserActivityDto>(
-    () => {
-        const parentId = content.value?.parentId;
-        return {
-            selector: {
-                // `$in` takes the primary-key lookup; an empty list skips the read.
-                _id: { $in: parentId ? [userActivityId({ type: "liked", parentId })] : [] },
-                type: DocType.UserActivity,
-                deleted: { $exists: false },
-            },
-        };
+// Whether the current content is liked. IndexedDB has no reactivity of its own, so this is
+// re-read whenever the content changes or any activity is written.
+const isLiked = ref(false);
+watch(
+    [() => content.value?.parentId, userActivityVersion],
+    async ([parentId]) => {
+        isLiked.value = parentId ? await hasUserActivity({ type: "liked", parentId }) : false;
     },
-    { live: true },
+    { immediate: true },
 );
-const isLiked = computed(() => likedRows.value.length > 0);
 
 // The normal SPA sets the tab/window title imperatively (it has no @unhead plugin). The web
 // build's `useContentHead` above owns the whole head there, including the meta

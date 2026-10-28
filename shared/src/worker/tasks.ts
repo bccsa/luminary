@@ -35,14 +35,7 @@ export const workerTasks = {
 
     mangoQuery: {
         needsDb: true,
-        // Reads `selector.type` directly: `readType` would pull Vue state into the worker bundle.
-        run: (query: MangoQuery) => {
-            const type = query?.selector?.type;
-            return mangoToDexie<BaseDocumentDto>(
-                db.tableFor(typeof type === "string" ? type : undefined),
-                query,
-            );
-        },
+        run: (query: MangoQuery) => mangoToDexie<BaseDocumentDto>(db.docs, query),
     } satisfies WorkerTask<MangoQuery, BaseDocumentDto[]>,
 };
 

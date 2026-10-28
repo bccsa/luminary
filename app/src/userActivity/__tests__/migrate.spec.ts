@@ -8,8 +8,12 @@ import {
     migrateHighlightsToUserActivity,
     migrateToUserActivity,
 } from "../migrate";
-import { clearUserActivity, recordUserActivity, removeUserActivity } from "../store";
-import { getUserActivity } from "./activityQueries";
+import {
+    clearUserActivity,
+    getUserActivity,
+    recordUserActivity,
+    removeUserActivity,
+} from "../store";
 
 const range = (text: string, start = 0): HighlightRange => ({
     start,
@@ -82,7 +86,7 @@ describe("migration to userActivity", () => {
 
             const row = await db.userActivity.get("highlighted:content-1");
             expect(row).toMatchObject({
-                activity: "highlighted",
+                type: "highlighted",
                 contentId: "content-1",
                 parentId: "post-1",
                 updatedTimeUtc: 1234,

@@ -12,7 +12,7 @@ import {
     PublishStatus,
     TagDto,
     TagType,
-    UserActivityDto,
+    UserActivityEntry,
     Uuid,
 } from "../types";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
@@ -35,7 +35,8 @@ const dbName: string = "luminary-db";
  * every write, so an equal timestamp means an identical doc.
  */
 const isSameDoc = (stored: BaseDocumentDto | undefined, doc: BaseDocumentDto): boolean =>
-    stored !== undefined && stored.updatedTimeUtc === doc.updatedTimeUtc;
+    stored !== undefined &&
+    stored.updatedTimeUtc === doc.updatedTimeUtc;
 
 /** The access map `deleteRevoked` last completed against, kept in luminaryInternals. */
 const RECONCILED_ACCESS_MAP_KEY = "reconciledAccessMap";
@@ -124,29 +125,12 @@ export type UpsertOptions<T> = {
     localChangesOnly?: boolean;
 };
 
-// Standalone so the worker can route without pulling in the `Database` class.
-function routeTable(tables: Table[], docs: Table, type?: string): Table<BaseDocumentDto> {
-    return ((type && tables.find((t) => t.name === type)) || docs) as Table<BaseDocumentDto>;
-}
-
-/** Groups items by key, keeping first-seen order. */
-function groupBy<T, K>(items: T[], keyOf: (item: T) => K): Map<K, T[]> {
-    const groups = new Map<K, T[]>();
-    for (const item of items) {
-        const key = keyOf(item);
-        const group = groups.get(key);
-        if (group) group.push(item);
-        else groups.set(key, [item]);
-    }
-    return groups;
-}
-
 class Database extends Dexie {
     docs!: Table<BaseDocumentDto>;
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     luminaryInternals!: Table<LuminaryInternals>;
     retention!: Table<RetentionEntry>;
-    userActivity!: Table<UserActivityDto>;
+    userActivity!: Table<UserActivityEntry>;
 
     // In-memory (not persisted) acknowledgements for callers awaiting the real server ack
     // of a queued local change — see `upsert` and `waitForLocalChangeAck`.
@@ -221,7 +205,7 @@ class Database extends Dexie {
             luminaryInternals: "id",
             retention: "docId, retainUntil",
             userActivity:
-                "_id, type, activity, parentId, contentId, updatedTimeUtc, [activity+updatedTimeUtc], [type+activity]",
+                "_id, type, parentId, contentId, updatedTimeUtc, [type+updatedTimeUtc]",
         };
 
         const version: number = bumpDBVersion(
@@ -287,16 +271,11 @@ class Database extends Dexie {
         });
     }
 
-    /** A doc type with a Dexie table of its own name is stored there; everything else lives in `docs`. */
-    tableFor(type?: string): Table<BaseDocumentDto> {
-        return routeTable(this.tables, this.docs, type);
-    }
-
     /**
      * Get an IndexedDB document by its id
      */
-    get<T extends BaseDocumentDto>(id: Uuid, type?: DocType) {
-        return this.tableFor(type).get(id) as unknown as Promise<T>;
+    get<T extends BaseDocumentDto>(id: Uuid) {
+        return this.docs.get(id) as unknown as Promise<T>;
     }
 
     /**
@@ -308,18 +287,21 @@ class Database extends Dexie {
                 doc.type === DocType.DeleteCmd && this.validateDeleteCommand(doc as DeleteCmdDto),
         ) as DeleteCmdDto[];
 
-        // Fetch each target once, then skip any deleteCmd whose target is already
+        // Bulk-fetch target docs once, then skip any deleteCmd whose target is already
         // at-or-newer than the deleteCmd itself (e.g. unpublish-then-republish race).
-        const toDeleteIds: Uuid[] = [];
-        for (const [table, cmds] of Array.from(
-            groupBy(candidateDeleteCmds, (cmd) => this.tableFor(cmd.docType)),
-        )) {
-            const existing = await table.bulkGet(cmds.map((cmd) => cmd.docId));
-            const ids = cmds
-                .filter((cmd, i) => !isDeleteCmdSuperseded(cmd, existing[i]))
-                .map((cmd) => cmd.docId);
-            if (ids.length > 0) await table.bulkDelete(ids);
-            toDeleteIds.push(...ids);
+        const targetIds = candidateDeleteCmds.map((cmd) => cmd.docId);
+        const existing = targetIds.length > 0 ? await this.docs.bulkGet(targetIds) : [];
+        const existingById = new Map<string, BaseDocumentDto>();
+        for (const d of existing) {
+            if (d) existingById.set(d._id, d);
+        }
+
+        const toDeleteIds = candidateDeleteCmds
+            .filter((cmd) => !isDeleteCmdSuperseded(cmd, existingById.get(cmd.docId)))
+            .map((cmd) => cmd.docId);
+
+        if (toDeleteIds.length > 0) {
+            await this.docs.bulkDelete(toDeleteIds);
         }
 
         const nonDeleteDocs = docs.filter((doc) => doc.type !== DocType.DeleteCmd);
@@ -342,33 +324,22 @@ class Database extends Dexie {
         // never keep expired docs (see deleteExpired), so an expired doc is not written either;
         // a stored copy of it is removed instead.
         const now = Date.now();
-        const groups = groupBy(cleanedDocs, (doc) => this.tableFor(doc.type));
-        const { changed, expiredIds } = await this.transaction(
-            "rw",
-            [this.docs, ...Array.from(groups.keys())],
-            async () => {
-                const changed: BaseDocumentDto[] = [];
-                const expiredIds: Uuid[] = [];
-                for (const [table, docs] of Array.from(groups)) {
-                    const stored = await table.bulkGet(docs.map((doc) => doc._id));
-                    const changedHere: BaseDocumentDto[] = [];
-                    const expiredHere: Uuid[] = [];
-                    docs.forEach((doc, i) => {
-                        const expiryDate = (doc as { expiryDate?: number }).expiryDate;
-                        if (!config.cms && typeof expiryDate === "number" && expiryDate <= now) {
-                            if (stored[i]) expiredHere.push(doc._id);
-                        } else if (!isSameDoc(stored[i], doc)) {
-                            changedHere.push(doc);
-                        }
-                    });
-                    if (expiredHere.length > 0) await table.bulkDelete(expiredHere);
-                    if (changedHere.length > 0) await table.bulkPut(changedHere);
-                    changed.push(...changedHere);
-                    expiredIds.push(...expiredHere);
+        const { changed, expiredIds } = await this.transaction("rw", this.docs, async () => {
+            const stored = await this.docs.bulkGet(cleanedDocs.map((doc) => doc._id));
+            const changed: BaseDocumentDto[] = [];
+            const expiredIds: Uuid[] = [];
+            cleanedDocs.forEach((doc, i) => {
+                const expiryDate = (doc as { expiryDate?: number }).expiryDate;
+                if (!config.cms && typeof expiryDate === "number" && expiryDate <= now) {
+                    if (stored[i]) expiredIds.push(doc._id);
+                } else if (!isSameDoc(stored[i], doc)) {
+                    changed.push(doc);
                 }
-                return { changed, expiredIds };
-            },
-        );
+            });
+            if (expiredIds.length > 0) await this.docs.bulkDelete(expiredIds);
+            if (changed.length > 0) await this.docs.bulkPut(changed);
+            return { changed, expiredIds };
+        });
 
         if (
             toDeleteIds.length > 0 ||
@@ -596,7 +567,7 @@ class Database extends Dexie {
         if (!options.localChangesOnly) {
             if (options.doc.deleteReq) {
                 // Delete the document from the local database. The document will be deleted from the API when the change is sent from the localChanges table
-                await this.tableFor(raw.type).delete(raw._id);
+                await this.docs.delete(raw._id);
                 options.overwriteLocalChanges = true;
 
                 // If the document is a post or tag, delete all the associated content documents
@@ -605,7 +576,7 @@ class Database extends Dexie {
                     await this.docs.where("parentId").equals(raw._id).delete();
                 }
             } else {
-                await this.tableFor(raw.type).put(raw, raw._id);
+                await this.docs.put(raw, raw._id);
             }
         }
 
@@ -725,10 +696,10 @@ class Database extends Dexie {
             }
             if (ack.docs && Array.isArray(ack.docs)) {
                 // Replace our local copy(s) with the provided database version
-                await this.tableFor(localChange.doc.type).bulkPut(ack.docs);
+                await this.docs.bulkPut(ack.docs);
             } else {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
-                await this.tableFor(localChange.doc.type).delete(localChange.doc._id);
+                await this.docs.delete(localChange.doc._id);
             }
         }
 
@@ -770,7 +741,7 @@ class Database extends Dexie {
         if (docType == DocType.Post || docType == DocType.Tag) {
             query = this.docs.where("type").equals(docType).or("parentType").equals(docType);
         } else {
-            query = this.tableFor(docType).where("type").equals(docType);
+            query = this.docs.where("type").equals(docType);
         }
 
         return query.filter((doc) => {
@@ -961,9 +932,10 @@ export async function openDatabaseInWorker(): Promise<void> {
     await connection.open();
     db = {
         name: connection.name,
-        tables: connection.tables,
-        ...Object.fromEntries(connection.tables.map((t) => [t.name, t])),
-        tableFor: (type?: string) => routeTable(connection.tables, connection.table("docs"), type),
+        docs: connection.table("docs"),
+        localChanges: connection.table("localChanges"),
+        luminaryInternals: connection.table("luminaryInternals"),
+        retention: connection.table("retention"),
     } as unknown as Database;
 }
 

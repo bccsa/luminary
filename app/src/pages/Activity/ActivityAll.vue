@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { type ContentDto, type HighlightRange, type UserActivityDto } from "luminary-shared";
+import { type ContentDto, type HighlightRange, type UserActivityEntry } from "luminary-shared";
 import ActivityCard from "./ActivityCard.vue";
 import ActivitySection from "./ActivitySection.vue";
 import { groupByActivityDate } from "./activityGroups";
@@ -34,7 +34,7 @@ const translations = useContentQuery(() => [{ _id: { $in: highlightedIds.value }
     keepPreviousResult: true,
 });
 
-type Entry = { row: UserActivityDto; content: ContentDto; range?: HighlightRange };
+type Entry = { row: UserActivityEntry; content: ContentDto; range?: HighlightRange };
 
 /**
  * One card per activity, in the order the table returned — so the same post appears once
@@ -47,7 +47,7 @@ const entries = computed<Entry[]>(() =>
             ? translations.value.find((c) => c._id === row.contentId)
             : posts.value.find((c) => c.parentId === row.parentId);
         if (!content) return [];
-        if (row.activity !== "highlighted") return [{ row, content }];
+        if (row.type !== "highlighted") return [{ row, content }];
         return (row.payload?.ranges ?? []).map((range) => ({ row, content, range }));
     }),
 );
@@ -67,7 +67,7 @@ const sections = computed(() => groupByActivityDate(entries.value, (e) => e.row.
                     v-for="entry in section.items"
                     :key="`${entry.row._id}-${entry.range?.start ?? ''}`"
                     :content="entry.content"
-                    :type="entry.row.activity"
+                    :type="entry.row.type"
                     :excerpt="entry.range?.text"
                     :excerpt-color="entry.range?.color"
                     :opens-passage="!!entry.range"

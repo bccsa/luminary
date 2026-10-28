@@ -16,8 +16,6 @@ export enum DocType {
     DefaultAffinity = "defaultAffinity",
     // Server-only payload; mirrored here only so Record<DocType> fixtures type-check.
     Sidecar = "sidecar",
-    // Client-only for now; stored in its own Dexie table of the same name.
-    UserActivity = "userActivity",
 }
 
 /**

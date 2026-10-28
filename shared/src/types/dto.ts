@@ -355,7 +355,7 @@ export type AutoGroupMappingsDto = ContentBaseDto & {
     conditions: AuthProviderCondition[];
 };
 
-/** What a {@link UserActivityDto} records the user as having done. */
+/** What a {@link UserActivityEntry} records the user as having done. */
 export type UserActivityType = "viewed" | "liked" | "highlighted";
 
 /** The names a highlight can be coloured with, as persisted. */
@@ -372,17 +372,18 @@ export type HighlightRange = { start: number; end: number; color: HighlightColor
  * `docs` because it is the user's own record rather than a copy of server data, so syncing,
  * revocation and expiry never touch it, and {@link Database.purge} deliberately leaves it.
  *
- * The `_id` is deterministic (`<activity>:<id>`), so the same activity yields the same row on every
+ * The `_id` is deterministic (`<type>:<id>`), so the same activity yields the same row on every
  * device. Removing an activity sets `deleted` instead of deleting the row, so the removal can be
  * merged by `updatedTimeUtc` rather than lost.
  */
-export type UserActivityDto = BaseDocumentDto & {
-    type: DocType.UserActivity;
-    activity: UserActivityType;
+export type UserActivityEntry = {
+    _id: string;
+    type: UserActivityType;
     /** The post the activity belongs to. */
     parentId: Uuid;
     /** The translation, for activity that applies to one translation rather than the post. */
     contentId?: Uuid;
+    updatedTimeUtc: number;
     deleted?: boolean;
     /** The passages a `highlighted` entry saved. Other types carry no payload. */
     payload?: { ranges: HighlightRange[] };

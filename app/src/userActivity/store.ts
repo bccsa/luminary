@@ -10,16 +10,22 @@
  * future upload.
  */
 
+import { ref } from "vue";
 import Dexie from "dexie";
 import {
     db,
-    DocType,
     type HighlightRange,
-    type UserActivityDto,
+    type UserActivityEntry,
     type UserActivityType,
     type Uuid,
 } from "luminary-shared";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
+
+/**
+ * IndexedDB has no Vue reactivity. Every write bumps this, so views reading the table
+ * re-read when it changes — the same idiom as `seenVersion` and `highlightVersion`.
+ */
+export const userActivityVersion = ref(0);
 
 /** Bound `viewed` so a long-lived install can't grow it without limit. */
 export const MAX_VIEWED = 500;
@@ -47,12 +53,11 @@ export const userActivityId = (ref: ActivityRef): string => `${ref.type}:${ident
  */
 export async function recordUserActivity(
     ref: ActivityRef,
-    payload?: UserActivityDto["payload"],
+    payload?: UserActivityEntry["payload"],
 ): Promise<void> {
     await db.userActivity.put({
         _id: userActivityId(ref),
-        type: DocType.UserActivity,
-        activity: ref.type,
+        type: ref.type,
         parentId: ref.parentId,
         contentId: ref.type === "highlighted" ? ref.contentId : undefined,
         updatedTimeUtc: Date.now(),
@@ -60,6 +65,7 @@ export async function recordUserActivity(
     });
 
     if (ref.type === "viewed") await trimViewed();
+    userActivityVersion.value++;
 }
 
 /**
@@ -82,6 +88,8 @@ export async function removeUserActivity(ref: ActivityRef): Promise<void> {
     });
 
     if (ref.type === "highlighted") await dropStoredHighlight(ref.contentId);
+
+    userActivityVersion.value++;
 }
 
 /**
@@ -120,6 +128,8 @@ export async function removeHighlightRange(
         });
         notifyHighlightsChanged();
     }
+
+    userActivityVersion.value++;
 }
 
 /** Removes one content's marks from the store `LHighlightable` reads and writes. */
@@ -135,11 +145,42 @@ async function dropStoredHighlight(contentId: Uuid): Promise<void> {
     notifyHighlightsChanged();
 }
 
-/** Every row of one activity, oldest first, straight off the compound index. */
-const ofType = (activity: UserActivityType) =>
+/** Every row of one type, oldest first, straight off the compound index. */
+const ofType = (type: UserActivityType) =>
     db.userActivity
-        .where("[activity+updatedTimeUtc]")
-        .between([activity, Dexie.minKey], [activity, Dexie.maxKey]);
+        .where("[type+updatedTimeUtc]")
+        .between([type, Dexie.minKey], [type, Dexie.maxKey]);
+
+/** Newest first, tombstones excluded. */
+export async function getUserActivity(
+    type: UserActivityType,
+    limit?: number,
+): Promise<UserActivityEntry[]> {
+    const rows = ofType(type)
+        .reverse()
+        .filter((row) => !row.deleted);
+
+    return limit === undefined ? rows.toArray() : rows.limit(limit).toArray();
+}
+
+/**
+ * Every activity, whatever its type, newest first and tombstones excluded — the feed the
+ * activity page's "all" filter shows. Read straight off the `updatedTimeUtc` index, so the three
+ * types interleave without a sort of our own.
+ */
+export async function getAllUserActivity(): Promise<UserActivityEntry[]> {
+    return db.userActivity
+        .orderBy("updatedTimeUtc")
+        .reverse()
+        .filter((row) => !row.deleted)
+        .toArray();
+}
+
+/** Whether a single activity is currently recorded — for a like button's state. */
+export async function hasUserActivity(ref: ActivityRef): Promise<boolean> {
+    const row = await db.userActivity.get(userActivityId(ref));
+    return !!row && !row.deleted;
+}
 
 /**
  * Drop the oldest `viewed` rows past the cap. Counts and deletes off the index so a record
@@ -166,6 +207,7 @@ export async function clearUserActivity(): Promise<void> {
     await db.userActivity.clear();
     await db.setLuminaryInternals("highlights", {});
     notifyHighlightsChanged();
+    userActivityVersion.value++;
 }
 
 /** Drop tombstones old enough that nothing can still need to learn of the removal. */

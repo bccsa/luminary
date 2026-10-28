@@ -67,56 +67,6 @@ describe("Database", async () => {
         changeReqInfo.value = [];
     });
 
-    describe("doc type table routing", () => {
-        const activity = {
-            _id: "liked:post-route",
-            type: DocType.UserActivity,
-            activity: "liked",
-            parentId: "post-route",
-            updatedTimeUtc: 1,
-        } as const;
-
-        afterEach(async () => {
-            await db.userActivity.clear();
-        });
-
-        it("routes a doc type to the table of the same name, and anything else to docs", () => {
-            expect(db.tableFor(DocType.UserActivity).name).toBe("userActivity");
-            expect(db.tableFor(DocType.Post).name).toBe("docs");
-            expect(db.tableFor(undefined).name).toBe("docs");
-        });
-
-        it("bulkPut lands each doc of a mixed batch in its own table", async () => {
-            const post = { ...mockPostDto, _id: "post-route", updatedTimeUtc: 2 };
-            await db.bulkPut([post, activity]);
-
-            expect(await db.userActivity.get(activity._id)).toMatchObject({ activity: "liked" });
-            expect(await db.docs.get(activity._id)).toBeUndefined();
-            expect(await db.docs.get(post._id)).toBeDefined();
-        });
-
-        it("upsert writes to the routed table and still queues the change", async () => {
-            await db.upsert({ doc: activity });
-
-            expect(await db.userActivity.get(activity._id)).toBeDefined();
-            expect(await db.docs.get(activity._id)).toBeUndefined();
-            expect(await db.localChanges.where({ docId: activity._id }).count()).toBe(1);
-        });
-
-        it("get reads from the routed table when given the type", async () => {
-            await db.userActivity.put(activity);
-
-            expect(await db.get(activity._id, DocType.UserActivity)).toMatchObject(activity);
-        });
-
-        it("purge keeps a routed table it does not name", async () => {
-            await db.userActivity.put(activity);
-            await db.purge();
-
-            expect(await db.userActivity.get(activity._id)).toBeDefined();
-        });
-    });
-
     describe("bulkPut FTS stripping", () => {
         it("strips fts/ftsTokenCount from non-Content docs but keeps them on Content", async () => {
             const userDoc = {
