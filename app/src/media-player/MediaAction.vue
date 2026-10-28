@@ -69,7 +69,7 @@ const watched = computed(() => {
                 stroke-linecap="round"
                 pathLength="100"
                 :stroke-dasharray="`${watched} 100`"
-                class="stroke-yellow-700 dark:stroke-yellow-500"
+                class="stroke-yellow-700"
             />
         </svg>
         <span
