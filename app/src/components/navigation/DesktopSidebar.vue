@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import { useI18n } from "vue-i18n";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
@@ -58,6 +58,26 @@ const forceReauthOnNextLogin = ref(true);
 
 // The sidebar prerenders on the web/SSG build, but its interactive overlays (e.g. LanguageModal's Dexie-backed query) can't run during the Node prerender, so they mount client-side only.
 const isMounted = useHydrated();
+
+// On small screens (below Tailwind's `lg` breakpoint) the sidebar stays visible on the right-hand
+// side of the screen and starts out in its expanded form. It can still be collapsed and
+// expanded with the toggle. Client-only: matchMedia doesn't exist during the Node prerender.
+const largeScreenQuery = "(min-width: 1024px)";
+let largeScreenMql: MediaQueryList | undefined;
+
+const onLargeScreenChange = (e: MediaQueryListEvent) => {
+    if (!e.matches) collapsed.value = false;
+};
+
+onMounted(() => {
+    largeScreenMql = window.matchMedia(largeScreenQuery);
+    if (!largeScreenMql.matches) collapsed.value = false;
+    largeScreenMql.addEventListener("change", onLargeScreenChange);
+});
+
+onBeforeUnmount(() => {
+    largeScreenMql?.removeEventListener("change", onLargeScreenChange);
+});
 
 const navIconClass = "h-5 w-5 flex-shrink-0";
 const navLabelClass = "truncate text-sm font-medium";
@@ -144,30 +164,33 @@ const handleLogin = () => {
 
 <template>
     <nav
-        class="relative hidden flex-shrink-0 flex-col border-r border-zinc-200 bg-zinc-100 transition-[width] duration-200 ease-out dark:border-slate-700 dark:bg-slate-800 lg:flex"
+        class="relative order-last flex flex-shrink-0 flex-col border-l border-zinc-200 bg-zinc-100 transition-[width] duration-200 ease-out dark:border-slate-700 dark:bg-slate-800 lg:order-none lg:border-l-0 lg:border-r"
         :class="collapsed ? 'w-[4.5rem]' : 'w-64'"
     >
-        <!-- Collapse toggle — sits on the right edge, vertically centred -->
+        <!-- Collapse toggle — sits on the inner edge (right edge on desktop, left edge on small screens where the sidebar is on the right), vertically centred -->
         <button
             type="button"
-            class="absolute right-0 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100"
+            class="absolute left-0 top-1/2 z-20 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100 lg:left-auto lg:right-0 lg:translate-x-1/2"
             :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
             @click="toggleCollapsed"
         >
             <ChevronLeftIcon
                 v-if="!collapsed"
-                class="h-4 w-4 -translate-x-0.5"
+                class="h-4 w-4 translate-x-0.5 rotate-180 lg:-translate-x-0.5 lg:rotate-0"
                 aria-hidden="true"
             />
             <ChevronRightIcon
                 v-else
-                class="h-4 w-4 translate-x-0.5"
+                class="h-4 w-4 -translate-x-0.5 rotate-180 lg:translate-x-0.5 lg:rotate-0"
                 aria-hidden="true"
             />
         </button>
 
-        <!-- Logo — outer padding mirrors the nav container; inner padding mirrors a nav item -->
-        <div :class="collapsed ? 'px-2 py-2' : 'px-3 py-2'">
+        <!-- Logo — outer padding mirrors the nav container; inner padding mirrors a nav item. Hidden on small screens. -->
+        <div
+            class="hidden lg:block"
+            :class="collapsed ? 'px-2 py-2' : 'px-3 py-2'"
+        >
             <RouterLink
                 :to="{ name: 'home' }"
                 :class="collapsed ? 'flex justify-center px-3 py-2' : 'flex items-center px-3 py-2'"
