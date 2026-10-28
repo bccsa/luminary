@@ -222,6 +222,14 @@ export class PermissionSystem extends EventEmitter {
             });
         }
 
+        // Shared by every caller with this group set, so a write must fail instead of leaking
+        // into other users' access.
+        Object.values(resultMap).forEach((byDocType) => {
+            Object.values(byDocType).forEach((permissions) => Object.freeze(permissions));
+            Object.freeze(byDocType);
+        });
+        Object.freeze(resultMap);
+
         if (accessMapCache.size >= accessMapCacheMaxEntries) accessMapCache.clear();
         accessMapCache.set(cacheKey, resultMap);
 

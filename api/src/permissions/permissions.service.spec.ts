@@ -1351,6 +1351,18 @@ describe("PermissionService", () => {
             expect(second).toBe(first);
         });
 
+        it("returns a frozen map so one caller can't change another's access", () => {
+            const map = PermissionSystem.getAccessMap(["group-public-editors"]);
+            const groupId = Object.keys(map)[0];
+            expect(groupId).toBeDefined();
+            const docType = Object.keys(map[groupId])[0];
+            const frozen = /read only|not extensible/;
+
+            expect(() => (map["injected"] = {})).toThrow(frozen);
+            expect(() => (map[groupId]["injected"] = {})).toThrow(frozen);
+            expect(() => (map[groupId][docType][AclPermission.Delete] = true)).toThrow(frozen);
+        });
+
         it("drops the memoised map when a group ACL changes", () => {
             const groupId = "group-access-map-memo-acl";
             PermissionSystem.upsertGroups([buildGroup(groupId, [AclPermission.View], 1)]);
