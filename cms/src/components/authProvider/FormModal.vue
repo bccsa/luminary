@@ -213,7 +213,10 @@ const handleRevert = () => {
         :heading="isEditing ? 'Edit Auth Provider' : 'Add Auth Provider'"
         :before-close="beforeClose"
     >
-        <div ref="scrollContainer" class="mb-1 min-h-0 flex-1 overflow-auto">
+        <div
+            ref="scrollContainer"
+            class="auth-provider-form-scroll mb-1 min-h-0 flex-1 overflow-auto"
+        >
             <div v-if="provider" class="space-y-2">
                 <FormErrors :errors="errors ?? []" :validations="providerValidations" />
 
@@ -312,3 +315,22 @@ const handleRevert = () => {
         :show-closing-button="false"
     />
 </template>
+
+<style scoped>
+:global(:root.dark) .auth-provider-form-scroll {
+    scrollbar-color: #475569 #1e293b;
+}
+
+:global(:root.dark) .auth-provider-form-scroll::-webkit-scrollbar-track {
+    background-color: #1e293b;
+}
+
+:global(:root.dark) .auth-provider-form-scroll::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: #475569;
+}
+
+:global(:root.dark) .auth-provider-form-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: #64748b;
+}
+</style>
