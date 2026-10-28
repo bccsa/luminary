@@ -119,6 +119,36 @@ describe("ImageEditor", () => {
         expect(wrapper.text()).toContain("No images uploaded yet.");
     });
 
+    it("shows the vertical preview, not the empty message, for a saved image", () => {
+        const wrapper = mount(ImageEditor, {
+            props: { parent: mockPostDto, disabled: false, showVerticalPreview: true },
+        });
+
+        expect(wrapper.find('[data-test="vertical-preview-open"]').exists()).toBe(true);
+        expect(wrapper.text()).not.toContain("No images uploaded yet.");
+    });
+
+    it("asks to save before previewing a vertical version of a new upload", () => {
+        const wrapper = mount(ImageEditor, {
+            props: {
+                parent: {
+                    ...mockPostDto,
+                    imageData: {
+                        fileCollections: [],
+                        uploadData: [
+                            { filename: "new.jpg", preset: "photo", fileData: new ArrayBuffer(8) },
+                        ],
+                    },
+                },
+                disabled: false,
+                showVerticalPreview: true,
+            },
+        });
+
+        expect(wrapper.find('[data-test="vertical-preview-save-hint"]').exists()).toBe(true);
+        expect(wrapper.find('[data-test="vertical-preview-open"]').exists()).toBe(false);
+    });
+
     it("has a file input for uploading", () => {
         const wrapper = mount(ImageEditor, {
             props: { parent: mockPostDto, disabled: false },

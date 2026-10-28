@@ -410,17 +410,26 @@ defineExpose({
                 </div>
             </div>
 
-            <VerticalImagePreview
-                v-if="showVerticalPreview && parent?.imageData?.fileCollections.length"
-                :fileCollections="parent.imageData.fileCollections"
-                :bucketUrl="existingImagesBucketUrl"
-                class="mt-2"
-            />
-
             <!-- No images fallback -->
             <div v-else class="my-4 text-center italic">
                 <p class="text-sm text-zinc-500 dark:text-zinc-400">No images uploaded yet.</p>
             </div>
+
+            <template v-if="showVerticalPreview">
+                <VerticalImagePreview
+                    v-if="parent?.imageData?.fileCollections.length"
+                    :fileCollections="parent.imageData.fileCollections"
+                    :bucketUrl="existingImagesBucketUrl"
+                    class="mt-2"
+                />
+                <p
+                    v-else-if="parent?.imageData?.uploadData?.length"
+                    class="mt-2 text-xs text-zinc-500 dark:text-zinc-400"
+                    data-test="vertical-preview-save-hint"
+                >
+                    Save to preview a vertical (3:4) version of this image.
+                </p>
+            </template>
         </div>
     </div>
 </template>
