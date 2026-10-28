@@ -1,5 +1,6 @@
 import type { ComputedRef, ShallowRef } from "vue";
 import type { BaseDocumentDto, Uuid } from "../../types";
+import type { HybridDoc } from "./hybridDoc";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
 import { HybridQuery, type HybridQueryOptions } from "./HybridQuery";
 
@@ -19,7 +20,7 @@ import { HybridQuery, type HybridQueryOptions } from "./HybridQuery";
  *   query's result window (it reflects the global outgoing-change queue), so a non-editable
  *   overview can flag the pending-offline state of each row it renders.
  */
-export type UseHybridQueryState<T extends BaseDocumentDto> = {
+export type UseHybridQueryState<T extends HybridDoc> = {
     output: ShallowRef<T[]>;
     isFetching: ComputedRef<boolean>;
     error: ShallowRef<unknown | undefined>;
@@ -91,7 +92,7 @@ export type UseHybridQueryState<T extends BaseDocumentDto> = {
  * {@link useHybridQueryWithState}, which returns `{ output, isFetching, error }` for the
  * same instance (same lifecycle, same options).
  */
-export function useHybridQuery<T extends BaseDocumentDto = BaseDocumentDto>(
+export function useHybridQuery<T extends HybridDoc = BaseDocumentDto>(
     query: MangoQuery | (() => MangoQuery),
     options?: HybridQueryOptions,
 ): ShallowRef<T[]> {
@@ -114,7 +115,7 @@ export function useHybridQuery<T extends BaseDocumentDto = BaseDocumentDto>(
  *
  * See {@link UseHybridQueryState} for the exact `isFetching` / `error` semantics.
  */
-export function useHybridQueryWithState<T extends BaseDocumentDto = BaseDocumentDto>(
+export function useHybridQueryWithState<T extends HybridDoc = BaseDocumentDto>(
     query: MangoQuery | (() => MangoQuery),
     options?: HybridQueryOptions,
 ): UseHybridQueryState<T> {
