@@ -4,7 +4,7 @@ import { createHash } from "crypto";
 import { DbService } from "../db/db.service";
 import { DeleteReason, DocType, Uuid } from "../enums";
 import { PermissionSystem } from "../permissions/permissions.service";
-import { AuthIdentityService, IdentityResult } from "./authIdentity.service";
+import { AuthIdentityService, IdentityResult, JwtUserDetails } from "./authIdentity.service";
 import { IdentityCacheConfig } from "../configuration";
 import { BoundedTtlCache } from "./boundedTtlCache";
 
@@ -20,6 +20,7 @@ type CachedIdentity = {
     userId?: Uuid;
     email?: string;
     name?: string;
+    jwtPayload?: JwtUserDetails["jwtPayload"];
 };
 
 /**
@@ -151,6 +152,7 @@ export class IdentityCacheService implements OnModuleInit {
                     userId: hit.userId,
                     email: hit.email,
                     name: hit.name,
+                    jwtPayload: hit.jwtPayload,
                     accessMap,
                 },
             };
@@ -173,6 +175,7 @@ export class IdentityCacheService implements OnModuleInit {
                         userId: result.userDetails.userId,
                         email: result.userDetails.email,
                         name: result.userDetails.name,
+                        jwtPayload: result.userDetails.jwtPayload,
                     },
                     ttlMs,
                 );

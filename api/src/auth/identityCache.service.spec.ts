@@ -103,6 +103,18 @@ describe("IdentityCacheService", () => {
             expect(res.userDetails.userId).toBe("user-1");
         });
 
+        it("returns the same identity fields on a hit as on the miss", async () => {
+            const { svc } = makeService(enabledCfg);
+            const miss = await svc.resolveOrDefault("t", "p");
+            const hit = await svc.resolveOrDefault("t", "p");
+
+            expect({ ...hit.userDetails, accessMap: undefined }).toEqual({
+                ...miss.userDetails,
+                accessMap: undefined,
+            });
+            expect(hit.status).toBe(miss.status);
+        });
+
         it("keys distinct tokens independently", async () => {
             const { svc, authIdentity } = makeService(enabledCfg);
             await svc.resolveOrDefault("t1", "p");
