@@ -35,7 +35,7 @@ const engine = vi.hoisted(() => ({
     thumbnailsReady: false,
 }));
 
-vi.mock("@luminary-media-converter/player-web", async () => {
+vi.mock("@luminary-media-converter/player-web-legacy", async () => {
     const { defineComponent, h } = await import("vue");
     return {
         AUDIO_ONLY_ANGLE_ID: "__audio__",

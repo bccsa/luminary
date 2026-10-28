@@ -1,5 +1,5 @@
 import type { Component } from "vue";
-import type { PlayerControllerApi, PlayerState } from "@luminary-media-converter/player-web";
+import type { PlayerControllerApi, PlayerState } from "@luminary-media-converter/player-web-legacy";
 
 /** What the lock screen and the notification show for a video. */
 export type VideoNowPlaying = {
