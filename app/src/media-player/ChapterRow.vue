@@ -7,7 +7,7 @@
  */
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import type { Chapter, ThumbnailSpriteCue } from "@luminary-media-converter/player-web-legacy";
+import type { Chapter, ThumbnailSpriteCue } from "./playerCompat";
 
 const props = withDefaults(
     defineProps<{

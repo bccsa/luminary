@@ -1,7 +1,7 @@
 import { computed, type ComputedRef, type Ref } from "vue";
 import { useI18n } from "vue-i18n";
 import type { ContentDto, Uuid } from "luminary-shared";
-import type { PlayerUpNextItem } from "@luminary-media-converter/player-web-legacy";
+import type { PlayerUpNextItem } from "./playerCompat";
 import { useStorageBuckets } from "@/composables/useBucketInfo";
 import { shareImageUrl } from "@/composables/useSocialShare";
 import { aspectRatioNumbers } from "@/components/images/LImageProvider.vue";

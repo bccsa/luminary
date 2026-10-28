@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import type { Plugin } from "vite";
@@ -39,7 +40,10 @@ export function buildTargetVirtuals(
         async resolveId(id, importer) {
             if (nativeImplDir && id.startsWith("virtual:")) {
                 const name = id.slice("virtual:".length);
-                if (platformSwappable.has(name)) return path.join(nativeImplDir, `${name}.ts`);
+                if (platformSwappable.has(name)) {
+                    const nativeTarget = path.join(nativeImplDir, `${name}.ts`);
+                    if (fs.existsSync(nativeTarget)) return nativeTarget;
+                }
             }
             // Bare package imports in external implementation files resolve
             // against the app's own dependency tree, not their on-disk location.

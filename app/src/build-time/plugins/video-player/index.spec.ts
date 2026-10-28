@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@luminary-media-converter/player-web-legacy", () => ({
+vi.mock("@luminary-media-converter/player-web", () => ({
     LuminaryPlayer: { name: "LuminaryPlayer" },
 }));
 
-import { LuminaryPlayer } from "@luminary-media-converter/player-web-legacy";
+import { LuminaryPlayer } from "@luminary-media-converter/player-web";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import { installVideoPlayer } from "./index";
 

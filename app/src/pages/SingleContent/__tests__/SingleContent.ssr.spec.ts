@@ -105,7 +105,6 @@ vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({ bucketBaseUrl: computed(() => "") }),
 }));
 
-
 // Stub every presentational child that is not part of the query chain under test.
 // RelatedContent and ReadMore stay real — their queries and rendered output are the
 // things this spec asserts against.
@@ -153,7 +152,6 @@ vi.mock("@/components/images/ImageModal.vue", () => ({ default: voidStub("ImageM
 vi.mock("@/components/images/LImageProvider.vue", () => ({
     activeImageCollection: () => 0,
 }));
-vi.mock("@/components/content/VideoPlayer.vue", () => ({ default: voidStub("VideoPlayer") }));
 vi.mock("@/components/content/CopyrightBanner.vue", () => ({
     default: voidStub("CopyrightBanner"),
 }));

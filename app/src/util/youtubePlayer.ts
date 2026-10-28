@@ -1,5 +1,5 @@
 import { reactive } from "vue";
-import type { PlayerState } from "@luminary-media-converter/player-web-legacy";
+import type { PlayerState } from "@luminary-media-converter/player-web";
 
 /**
  * A video hosted by YouTube, driven from the page. `public/youtube-embed.html` runs YouTube's IFrame Player
@@ -90,8 +90,6 @@ function initialState(): PlayerState {
         activeChapterTrackId: null,
         chapters: [],
         isAudioOnly: false,
-        live: false,
-        sleepTimer: null,
         thumbnailsReady: false,
         error: null,
     };
