@@ -57,6 +57,7 @@ export class IdentityCacheService implements OnModuleInit {
         if (this.enabled) {
             this.cache = new BoundedTtlCache<CachedIdentity>({
                 maxEntries: cfg.maxEntries,
+                sweepIntervalMs: this.maxAgeMs,
                 now: this.now,
             });
         }
