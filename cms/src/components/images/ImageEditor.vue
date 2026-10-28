@@ -2,6 +2,7 @@
 import { ref, computed, toRaw, watchEffect } from "vue";
 import { ExclamationCircleIcon } from "@heroicons/vue/24/solid";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
+import VerticalImagePreview from "./VerticalImagePreview.vue";
 import LSelect from "../forms/LSelect.vue";
 import {
     type ImageUploadDto,
@@ -16,6 +17,8 @@ type Props = {
     disabled: boolean;
     /** The bucket ID where existing images are currently stored (before any migration) */
     existingImagesBucketId?: string;
+    /** Offer an unsaved 3:4 preview of the saved image (proof of concept). */
+    showVerticalPreview?: boolean;
 };
 const props = defineProps<Props>();
 
@@ -406,6 +409,13 @@ defineExpose({
                     </div>
                 </div>
             </div>
+
+            <VerticalImagePreview
+                v-if="showVerticalPreview && parent?.imageData?.fileCollections.length"
+                :fileCollections="parent.imageData.fileCollections"
+                :bucketUrl="existingImagesBucketUrl"
+                class="mt-2"
+            />
 
             <!-- No images fallback -->
             <div v-else class="my-4 text-center italic">

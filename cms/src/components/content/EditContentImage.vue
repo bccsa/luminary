@@ -147,6 +147,7 @@ const handleFileChange = () => {
                 ref="imageEditorRef"
                 :disabled="disabled"
                 :existing-images-bucket-id="existingImagesBucketId"
+                show-vertical-preview
                 v-model:parent="parent"
                 class="scrollbar-hide"
                 @bucket-selected="() => {}"
@@ -209,6 +210,7 @@ const handleFileChange = () => {
                     ref="imageEditorRef"
                     :disabled="disabled"
                     :existing-images-bucket-id="existingImagesBucketId"
+                    show-vertical-preview
                     v-model:parent="parent"
                     class="scrollbar-hide"
                     @bucket-selected="() => {}"
