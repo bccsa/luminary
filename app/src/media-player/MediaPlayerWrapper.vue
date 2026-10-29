@@ -46,7 +46,7 @@ import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { markSeen } from "@/recommendation/seenStore";
 import { fallbackArtworkDataUrl } from "@/util/fallbackArtwork";
-import { resolveVideoSource, videoSourceFor } from "@/util/videoSource";
+import { resolveMediaSource, mediaSourceFor } from "@/util/mediaSource";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { createMediaWatchTracker } from "@/recommendation/mediaWatchTracker";
 import { shareImageUrl } from "@/composables/useSocialShare";
@@ -102,11 +102,11 @@ const videoPlayer = inject(VideoPlayerKey, {
 const player = ref<VideoPlayerHandle | null>(null);
 
 // The media bucket, so a stored relative URL can be resolved to a fetchable
-// one — see resolveVideoSource.
+// one — see resolveMediaSource.
 const mediaBucketIdRef = computed(() => props.content?.parentMediaBucketId);
 const { bucketBaseUrl: mediaBucketBaseUrl } = useBucketInfo(mediaBucketIdRef);
 
-const videoSource = computed(() => resolveVideoSource(props.content, mediaBucketBaseUrl.value));
+const mediaSource = computed(() => resolveMediaSource(props.content, mediaBucketBaseUrl.value));
 
 const imageBucketIdRef = computed(() => props.content?.parentImageBucketId);
 const { bucketBaseUrl: imageBucketBaseUrl } = useBucketInfo(imageBucketIdRef);
@@ -152,7 +152,14 @@ const playerExtras = computed(() => ({
         ? { nowPlaying: nowPlaying.value }
         : { nowPlaying: webNowPlaying.value, appearance: isDarkTheme.value ? "dark" : "light" }),
     // Withheld until this content's own video is loaded, or the previous video's last frame shows under it.
-    ...(props.inline && videoPlayer.acceptsInline && playingThisContent() ? { inline: props.inline, captionBand: props.captionBand, inlineBadge: props.inlineBadge === true, inlineRadius: props.inlineRadius ?? 0 } : {}),
+    ...(props.inline && videoPlayer.acceptsInline && playingThisContent()
+        ? {
+              inline: props.inline,
+              captionBand: props.captionBand,
+              inlineBadge: props.inlineBadge === true,
+              inlineRadius: props.inlineRadius ?? 0,
+          }
+        : {}),
     // The media player's picture takes the video's own shape, so cover only trims a sliver of rounding at its edges.
     ...(props.inline && !videoPlayer.acceptsInline ? { windowedFit: "cover" as const } : {}),
     ...(props.captionsHidden ? { captionsHidden: true } : {}),
@@ -165,7 +172,7 @@ const playerExtras = computed(() => ({
  * one, because ContentTile knows only the stored form, and a bucket re-pointed or
  * renamed must not lose the viewer's position.
  */
-const mediaId = computed(() => videoSourceFor(props.content));
+const mediaId = computed(() => mediaSourceFor(props.content));
 
 const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
@@ -203,7 +210,7 @@ const preferredLanguage = computed(
  * subtitles, so the web full screen does too. It shows only for a stream that has some.
  */
 const controls = computed(() =>
-    isYouTubeUrl(videoSource.value)
+    isYouTubeUrl(mediaSource.value)
         ? { subtitlesMenu: false, audioVideoToggle: false }
         : {
               subtitlesMenu: true,
@@ -217,7 +224,7 @@ const controls = computed(() =>
  * behind a notice: see `YouTubeWrapper`.
  */
 const youtubeUrl = computed(() =>
-    isYouTubeLink(videoSource.value) ? videoSource.value : undefined,
+    isYouTubeLink(mediaSource.value) ? mediaSource.value : undefined,
 );
 
 /** The angle the load starts on, fixed per content so a later change of mind does not reload. */
@@ -276,7 +283,7 @@ function thumbnailSidecar(masterUrl: string): { url: string } | undefined {
 const keyResolved = ref(false);
 
 const source = computed<PlayerSource | null>(() => {
-    const url = videoSource.value;
+    const url = mediaSource.value;
     if (!url || !keyResolved.value) return null;
     return {
         masterUrl: url,
@@ -341,7 +348,7 @@ watch(
         if (current) {
             heldSource.value = current;
             heldContentId.value = props.content?._id;
-        } else if (!videoSource.value) {
+        } else if (!mediaSource.value) {
             heldSource.value = null;
             heldContentId.value = undefined;
         }

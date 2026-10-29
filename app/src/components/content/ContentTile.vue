@@ -9,7 +9,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { cmsLanguages, cmsDefaultLanguage } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
-import { hasVideoSource, videoSourceFor } from "@/util/videoSource";
+import { hasMediaSource, mediaSourceFor } from "@/util/mediaSource";
 
 const { t } = useI18n();
 
@@ -54,7 +54,7 @@ const publishDateText = computed(() => {
     ).toLocaleString(DateTime.DATETIME_MED);
 });
 
-const hasVideo = computed(() => hasVideoSource(props.content));
+const hasVideo = computed(() => hasMediaSource(props.content));
 
 const mediaIconClass = computed(() =>
     props.titlePosition === "overlay"
@@ -79,11 +79,11 @@ const isComingSoon = computed(() => {
 const mediaProgress = computed(() => {
     if (!props.showProgress) return 0;
 
-    const videoSource = videoSourceFor(props.content);
-    if (!videoSource) return 0;
+    const mediaSource = mediaSourceFor(props.content);
+    if (!mediaSource) return 0;
 
-    const progress = getMediaProgress(videoSource, props.content._id);
-    const duration = getMediaDuration(videoSource, props.content._id);
+    const progress = getMediaProgress(mediaSource, props.content._id);
+    const duration = getMediaDuration(mediaSource, props.content._id);
     return progress > 0 && duration > 0 ? Math.min(100, (progress / duration) * 100) : 0;
 });
 

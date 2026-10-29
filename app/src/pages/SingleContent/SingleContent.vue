@@ -69,7 +69,7 @@ import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import ArticleOutline from "./ArticleOutline.vue";
 import { markPageReady } from "@/util/renderState";
-import { hasVideoSource } from "@/util/videoSource";
+import { hasMediaSource } from "@/util/mediaSource";
 import { computeEstimatedReadingMinutes, resolveReadingSpeedWpm } from "@/util/readingTime";
 import {
     resolveArticleScrollContainer,
@@ -909,7 +909,7 @@ watch([isLoading, content, is404], async () => {
                                                     0) > 1
                                             "
                                             class="absolute right-2 flex items-center gap-1"
-                                            :class="hasVideoSource(content) ? 'top-2' : 'bottom-2'"
+                                            :class="hasMediaSource(content) ? 'top-2' : 'bottom-2'"
                                         >
                                             <DocumentDuplicateIcon
                                                 class="h-10 w-10 text-zinc-400"
@@ -923,7 +923,7 @@ watch([isLoading, content, is404], async () => {
                                         ></div>
                                         <div
                                             class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
-                                            :class="hasVideoSource(content) && 'pr-24 lg:pr-32'"
+                                            :class="hasMediaSource(content) && 'pr-24 lg:pr-32'"
                                             @click.stop
                                         >
                                             <div class="flex items-start gap-2">
@@ -950,7 +950,7 @@ watch([isLoading, content, is404], async () => {
                                         </div>
                                     </div>
                                     <MediaAction
-                                        v-if="hasVideoSource(content)"
+                                        v-if="hasMediaSource(content)"
                                         :key="content._id"
                                         :content="content"
                                         :language="selectedLanguageCode"
@@ -961,7 +961,7 @@ watch([isLoading, content, is404], async () => {
                         </div>
 
                         <MediaAction
-                            v-if="hasVideoSource(content) && !hasHeroImage"
+                            v-if="hasMediaSource(content) && !hasHeroImage"
                             :key="content._id"
                             :content="content"
                             :language="selectedLanguageCode"

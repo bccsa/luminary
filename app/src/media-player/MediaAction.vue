@@ -10,7 +10,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import type { ContentDto } from "luminary-shared";
 import { getMediaDuration, getMediaProgress } from "@/contentProgress";
-import { videoSourceFor } from "@/util/videoSource";
+import { mediaSourceFor } from "@/util/mediaSource";
 import { openMediaPlayer } from "./mediaPlayer";
 import PlayerIcon from "./PlayerIcon.vue";
 
@@ -25,9 +25,9 @@ const { t } = useI18n();
 
 const open = () => openMediaPlayer(props.content, props.language);
 
-/** How far the video was watched, 0–100; 0 until it has been started. */
-const watched = computed(() => {
-    const source = videoSourceFor(props.content);
+/** How far the media was played, 0–100; 0 until it has been started. */
+const mediaProgress = computed(() => {
+    const source = mediaSourceFor(props.content);
     if (!source) return 0;
     const progress = getMediaProgress(source, props.content._id);
     const duration = getMediaDuration(source, props.content._id);
@@ -46,7 +46,7 @@ const watched = computed(() => {
         @click.stop="open"
     >
         <svg
-            v-if="watched > 0"
+            v-if="mediaProgress > 0"
             viewBox="0 0 68 68"
             class="absolute inset-0 h-full w-full -rotate-90"
             aria-hidden="true"
@@ -68,14 +68,14 @@ const watched = computed(() => {
                 stroke-width="5"
                 stroke-linecap="round"
                 pathLength="100"
-                :stroke-dasharray="`${watched} 100`"
+                :stroke-dasharray="`${mediaProgress} 100`"
                 class="stroke-yellow-700"
             />
         </svg>
         <span
             class="relative flex items-center justify-center rounded-full bg-yellow-500 text-zinc-900"
             :class="
-                watched > 0
+                mediaProgress > 0
                     ? 'h-[52px] w-[52px] lg:h-16 lg:w-16'
                     : 'h-[58px] w-[58px] lg:h-[72px] lg:w-[72px]'
             "
