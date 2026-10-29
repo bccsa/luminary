@@ -864,6 +864,26 @@ describe("Database", async () => {
         expect(localStorage.getItem("languages")).toBe('["lang-en"]');
     });
 
+    it("purge leaves the user activity table alone", async () => {
+        await db.userActivity.clear();
+        await db.userActivity.put({
+            _id: "liked:post-1",
+            type: "liked",
+            parentId: "post-1",
+            updatedTimeUtc: 1,
+        });
+        await db.docs.bulkPut([mockPostDto]);
+
+        await db.purge();
+
+        // The cache is gone, the user's own record is not.
+        expect((await db.docs.toArray()).length).toBe(0);
+        expect(await db.userActivity.get("liked:post-1")).toBeDefined();
+
+        // Not covered by purge, so it must not leak into the tests that follow.
+        await db.userActivity.clear();
+    });
+
     describe("revoked documents", () => {
         afterEach(() => {
             isConnected.value = false;

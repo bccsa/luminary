@@ -1,19 +1,13 @@
-/** Highlight colours offered to the reader, keyed by the name that is persisted. */
-export const HIGHLIGHT_COLORS = {
+import type { HighlightColor, HighlightRange } from "luminary-shared";
+
+/** The CSS colour of each highlight colour. Typed by the shared names, so a new one cannot go unpainted. */
+export const HIGHLIGHT_COLORS: Record<HighlightColor, string> = {
     yellow: "rgba(253, 224, 71, 0.5)",
     green: "rgba(74, 222, 128, 0.5)",
     blue: "rgba(96, 165, 250, 0.5)",
     pink: "rgba(244, 114, 182, 0.5)",
     purple: "rgba(192, 132, 252, 0.5)",
-} as const;
-
-export type HighlightColor = keyof typeof HIGHLIGHT_COLORS;
-
-/**
- * A highlight as character offsets into the article's text. `text` is the quoted passage,
- * used to find the highlight again after the article has been edited.
- */
-export type HighlightRange = { start: number; end: number; color: HighlightColor; text: string };
+};
 
 const WORD_CHAR = /[\p{L}\p{N}\p{M}'’_-]/u;
 const SPACE = /\s/;

@@ -59,7 +59,7 @@ import MediaPlayerChapters from "./MediaPlayerChapters.vue";
 import MediaPlayerMenu from "./MediaPlayerMenu.vue";
 import MediaPlayerVolume from "./MediaPlayerVolume.vue";
 import PlayerButton from "./PlayerButton.vue";
-import { videoSourceFor } from "@/util/videoSource";
+import { mediaSourceFor } from "@/util/mediaSource";
 import { isYouTubeLink } from "@/util/youtube";
 import PlayerIcon from "./PlayerIcon.vue";
 import { timeEnds } from "./playerTime";
@@ -399,7 +399,7 @@ const starting = computed(() => {
     if (!item.value || state.value?.lifecycle === "error") return false;
     // A video hosted by YouTube has no player to wait for until the viewer has chosen to play it: its notice
     // stands there, with nothing to report. After that it reports like any other.
-    if (!state.value && isYouTubeLink(videoSourceFor(item.value.content))) return false;
+    if (!state.value && isYouTubeLink(mediaSourceFor(item.value.content))) return false;
     if (!state.value) return true;
     if (state.value.lifecycle === "loading") return true;
     return (

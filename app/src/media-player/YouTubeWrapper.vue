@@ -4,7 +4,7 @@
  * chooses: a poster and a notice stand there first, and Play (or an earlier "Always allow") adds the
  * frame. Data Saver never plays by itself: the notice shows whatever was allowed before.
  *
- * The frame is `youtube-embed.html` on the web app's own address: the packaged app's pages have no address
+ * The frame is `/youtube-embed/` on the web app's own address: the packaged app's pages have no address
  * YouTube accepts (error 153), and a page that has one can also run YouTube's player with its controls off
  * and report to this one. So the app's own controls work on the video, as on one of ours: this exposes the
  * same handle the player package's component does. Where that page is not available (a native build with no
@@ -61,7 +61,7 @@ const loaded = computed(
  */
 const hostedPage = computed(() => {
     if (!id.value) return undefined;
-    const path = `/youtube-embed.html?v=${id.value}&api=1`;
+    const path = `/youtube-embed/?v=${id.value}&api=1`;
     const address = isNativeApp() ? publicUrl(path) : path;
     return address ? new URL(address, window.location.href) : undefined;
 });
@@ -114,7 +114,8 @@ function holdLandscape(held: boolean) {
 function onFullscreenChange() {
     if (!driven.value) return;
     const doc = document as Document & { webkitFullscreenElement?: Element | null };
-    const on = !!frame.value && (doc.fullscreenElement ?? doc.webkitFullscreenElement) === frame.value;
+    const on =
+        !!frame.value && (doc.fullscreenElement ?? doc.webkitFullscreenElement) === frame.value;
     holdLandscape(on);
     youtube.setFullscreen(on, notchSize());
     if (!on) settleLayout();

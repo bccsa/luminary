@@ -12,6 +12,7 @@ import {
     PublishStatus,
     TagDto,
     TagType,
+    UserActivityEntry,
     Uuid,
 } from "../types";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
@@ -62,6 +63,7 @@ type dbIndex = {
     localChanges: string;
     luminaryInternals: string;
     retention: string;
+    userActivity: string;
 };
 
 export type QueryOptions = {
@@ -128,6 +130,7 @@ class Database extends Dexie {
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     luminaryInternals!: Table<LuminaryInternals>;
     retention!: Table<RetentionEntry>;
+    userActivity!: Table<UserActivityEntry>;
 
     // In-memory (not persisted) acknowledgements for callers awaiting the real server ack
     // of a queued local change — see `upsert` and `waitForLocalChangeAck`.
@@ -201,6 +204,8 @@ class Database extends Dexie {
             localChanges: "++id, reqId, docId, status",
             luminaryInternals: "id",
             retention: "docId, retainUntil",
+            userActivity:
+                "_id, type, parentId, contentId, updatedTimeUtc, [type+updatedTimeUtc]",
         };
 
         const version: number = bumpDBVersion(
@@ -879,7 +884,8 @@ class Database extends Dexie {
     }
 
     /**
-     * Purge the local database
+     * Purge the local database. `userActivity` is left alone: it is not a cache of server
+     * documents, so clearing the cache or signing out must not erase what the user did.
      */
     async purge() {
         for (const entry of Array.from(this.localChangeAcks.values())) {
