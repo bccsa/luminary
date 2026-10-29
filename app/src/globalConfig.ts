@@ -3,17 +3,22 @@ import {
     HybridQuery,
     isConnected,
     queryLocal,
+    reportError,
     syncActive,
     type LanguageDto,
     type Uuid,
-    type ContentDto,
 } from "luminary-shared";
 import { computed, ref, watch, watchEffect, type WatchStopHandle } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
-import { audioFilesOf } from "./util/audioFiles";
+import { migrateToUserActivity } from "./userActivity/migrate";
+import { startContentProgressMirror } from "./userActivity/fromContentProgress";
+import { pruneUserActivityTombstones } from "./userActivity/store";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
+/** Interval between expired-document sweeps; shared falls back to 3 hours when unset/invalid. */
+export const deleteExpiredIntervalMs =
+    Number(import.meta.env.VITE_DELETE_EXPIRED_INTERVAL_MS) || undefined;
 export const isDevMode = import.meta.env.DEV;
 export const isTestEnviroment = import.meta.env.MODE === "test";
 export const cmsUrl = ref(import.meta.env.VITE_CLIENT_CMS_URL);
@@ -59,6 +64,34 @@ export const isDataSaverEnabled = (): boolean => {
 export const userDataSaverEnabled = ref(localStorage.getItem("dataSaver") === "true");
 watch(userDataSaverEnabled, (enabled) => {
     localStorage.setItem("dataSaver", String(enabled));
+});
+
+/**
+ * Where the media player puts a video's subtitles: over the foot of the picture (true), or in a band under it
+ * (false, the default). Persisted to localStorage and toggled from the Settings page.
+ */
+export const subtitlesOnVideo = ref(localStorage.getItem("subtitlesOnVideo") === "true");
+watch(subtitlesOnVideo, (onVideo) => {
+    localStorage.setItem("subtitlesOnVideo", String(onVideo));
+});
+
+/**
+ * The subtitles the viewer last chose, carried to every video and audio opened after: `on` is whether they were left
+ * on, `lang` the language picked. Persisted to localStorage.
+ */
+export const subtitlePreference = ref<{ on: boolean; lang?: string }>(
+    (() => {
+        try {
+            const stored = JSON.parse(localStorage.getItem("subtitlePreference") ?? "null");
+            if (stored && typeof stored.on === "boolean") return stored;
+        } catch {
+            /* an unreadable value is no preference */
+        }
+        return { on: false };
+    })(),
+);
+watch(subtitlePreference, (preference) => {
+    localStorage.setItem("subtitlePreference", JSON.stringify(preference));
 });
 
 /**
@@ -117,6 +150,15 @@ export const appLanguageIdsAsRef = ref<string[]>(
     JSON.parse(localStorage.getItem("languages") || "[]") as string[],
 );
 
+/**
+ * Whether language changes are written to local storage. The web build hydrates in the language the
+ * edge picked for the URL, which is not a choice the visitor made, so it suspends persistence for
+ * that seed (see `ssg/hydrationLanguage.ts`) until the language modal commits a real selection.
+ */
+let languagePersistenceSuspended = false;
+export const suspendLanguagePersistence = () => (languagePersistenceSuspended = true);
+export const resumeLanguagePersistence = () => (languagePersistenceSuspended = false);
+
 // Save the preferred languages to local storage
 // Note: We could have used useLocalStorage from VueUse, but it seems to be difficult
 // to test as mocking localStorage is not working very well. For this reason
@@ -125,6 +167,7 @@ export const appLanguageIdsAsRef = ref<string[]>(
 watch(
     appLanguageIdsAsRef,
     (newVal) => {
+        if (languagePersistenceSuspended) return;
         localStorage.setItem("languages", JSON.stringify(newVal.filter((id) => id != null)));
     },
     { deep: true },
@@ -196,6 +239,9 @@ export const appSyncedLanguageIdsAsRef = ref<string[]>(
 watch(
     appSyncedLanguageIdsAsRef,
     (newVal) => {
+        // Also gated: the synced set is derived from the preferred order by the watcher below, so an
+        // unpersisted seed would otherwise still reach local storage through that cascade.
+        if (languagePersistenceSuspended) return;
         localStorage.setItem("syncedLanguages", JSON.stringify(newVal.filter((id) => id != null)));
     },
     { deep: true },
@@ -311,7 +357,7 @@ export const initLanguage = () => {
                 if (cmsLanguages.value.length || !languages.length) return;
                 cmsLanguages.value.push(...languages);
             })
-            .catch((err) => console.error("[initLanguage] local language read failed:", err))
+            .catch((err) => reportError(err, { area: "language", op: "local-read" }))
             .finally(() => (localSeedSettled.value = true));
 
         // Torn down from whichever path resolves first: leaving it subscribed would keep this
@@ -405,82 +451,57 @@ export const initLanguage = () => {
     });
 };
 
-/**
- * Global media queue for audio playback.
- * Contains ContentDto items that should be played in sequence.
- */
-export const mediaQueue = ref<ContentDto[]>([]);
-
-/**
- * Add content to the media queue and start playing if it's the first item.
- * @param content - The content to add to the queue
- */
-export const addToMediaQueue = (content: ContentDto) => {
-    // Check if content has audio files
-    if (!audioFilesOf(content)?.length) {
-        console.warn("Content has no audio files to play");
-        return;
-    }
-
-    // Check if content is already in queue
-    const existingIndex = mediaQueue.value.findIndex((item) => item._id === content._id);
-    if (existingIndex !== -1) {
-        // If already in queue, move it to the front
-        mediaQueue.value.splice(existingIndex, 1);
-    }
-
-    // Add to front of queue
-    mediaQueue.value.unshift(content);
-};
-
-/**
- * Remove content from the media queue.
- * @param contentId - The ID of the content to remove
- */
-export const removeFromMediaQueue = (contentId: string) => {
-    const index = mediaQueue.value.findIndex((item) => item._id === contentId);
-    if (index !== -1) {
-        mediaQueue.value.splice(index, 1);
-    }
-};
-
-/**
- * Clear the entire media queue.
- */
-export const clearMediaQueue = () => {
-    mediaQueue.value = [];
-};
-
-/**
- * Move to the next item in the media queue.
- */
-export const nextInMediaQueue = () => {
-    if (mediaQueue.value.length > 1) {
-        mediaQueue.value.shift(); // Remove first item
-    } else {
-        clearMediaQueue(); // Clear if it was the last item
-    }
-};
-
-type Bookmark = {
+type Like = {
     id: Uuid;
     ts: number;
 };
 
 export type UserPreferences = {
-    bookmarks?: Array<Bookmark>;
+    likes?: Array<Like>;
     privacyPolicy?: { status: "accepted" | "necessaryOnly"; ts: number };
 };
+
+/** Installs predating the rename hold the same entries under `bookmarks`. */
+function readUserPreferences(): UserPreferences {
+    const { bookmarks: legacyBookmarks, ...stored } = JSON.parse(
+        localStorage.getItem("userPreferences") || "{}",
+    );
+    return legacyBookmarks && !stored.likes ? { ...stored, likes: legacyBookmarks } : stored;
+}
 
 /**
  * The user preferences as Vue ref.
  */
-export const userPreferencesAsRef = ref(
-    JSON.parse(localStorage.getItem("userPreferences") || "{}") as UserPreferences,
-);
+export const userPreferencesAsRef = ref(readUserPreferences());
 watch(userPreferencesAsRef.value, (newVal) => {
     localStorage.setItem("userPreferences", JSON.stringify({ ...newVal }));
 });
+
+const USER_ACTIVITY_MIGRATED_KEY = "userActivityMigrated";
+
+/**
+ * Starts the user-activity store. Needs the shared database open, so call it after sync has started.
+ */
+export const initUserActivity = () => {
+    // Expired tombstones are dropped once per start.
+    void pruneUserActivityTombstones().catch((err) =>
+        console.error("User activity tombstone prune failed:", err),
+    );
+
+    // Reading history is taken from the continue-reading store, so the mirror has to be
+    // listening before anything can scroll.
+    startContentProgressMirror();
+
+    // Delete this block, and `userActivity/migrate.ts` with it, once every install has migrated.
+    if (localStorage.getItem(USER_ACTIVITY_MIGRATED_KEY)) return;
+
+    void migrateToUserActivity(userPreferencesAsRef.value.likes)
+        .then(() => {
+            delete userPreferencesAsRef.value.likes;
+            localStorage.setItem(USER_ACTIVITY_MIGRATED_KEY, "true");
+        })
+        .catch((err) => console.error("User activity migration failed:", err));
+};
 
 /**
  * Query string parameters captured on app startup
@@ -548,3 +569,23 @@ export const fallbackImageUrls = loadFallbackImageUrls();
  * True while the app's Startup function is still running. Used to display the loading splash screen.
  */
 export const isAppLoading = ref(!new URLSearchParams(window.location.search).has("nosplash"));
+
+/**
+ * The viewer has allowed videos hosted by YouTube to load without asking each time, on this device.
+ * Off until they tick "Always allow" on a notice; the Settings page turns it off again. A
+ * module-level singleton like Data Saver, so the notice and the Settings toggle share one value.
+ */
+export const youtubeAlwaysAllow = ref(localStorage.getItem("youtubeAlwaysAllow") === "true");
+watch(youtubeAlwaysAllow, (allowed) => {
+    localStorage.setItem("youtubeAlwaysAllow", String(allowed));
+});
+
+/**
+ * The chapters and up next panel under a content page's player is put away: for someone who came to
+ * read, and wants the text to start under the player. Remembered, like the other per-viewer settings,
+ * in the browser. Open until the viewer folds it.
+ */
+export const chaptersPanelFolded = ref(localStorage.getItem("chaptersPanelFolded") === "true");
+watch(chaptersPanelFolded, (folded) => {
+    localStorage.setItem("chaptersPanelFolded", String(folded));
+});

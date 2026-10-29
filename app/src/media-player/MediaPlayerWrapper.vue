@@ -20,15 +20,16 @@ import {
 } from "vue";
 import {
     AUDIO_ONLY_ANGLE_ID,
+    isYouTubeUrl,
     LuminaryPlayer,
     type PlayerSource,
+    type PlayerUpNextItem,
 } from "@luminary-media-converter/player-web";
-import type { PlayerUpNextItem } from "./playerCompat";
-import { isYouTubeLink } from "@/util/youtube";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "@/components/images/LImage.vue";
 import { usePlayerMessages } from "@/media-player/usePlayerMessages";
 import YouTubeWrapper from "./YouTubeWrapper.vue";
+import { isYouTubeLink } from "@/util/youtube";
 import {
     appLanguagesPreferredAsRef,
     isDarkTheme,

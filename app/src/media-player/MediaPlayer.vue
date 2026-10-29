@@ -31,6 +31,7 @@ import {
     AudioFullscreen,
     ScrubPicture,
     ScrubRoster,
+    chapterIndexAt,
     chapterMask,
     chapterSegments,
     mergeMessages,
@@ -38,8 +39,9 @@ import {
     rosterStep,
     rosterTiles,
     type ScrubPosition,
-} from "./playerWebCompat";
-import { chapterIndexAt, type Chapter, type ThumbnailSpriteCue } from "./playerCompat";
+    type ThumbnailSpriteCue,
+    type Chapter,
+} from "@luminary-media-converter/player-web";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
 import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";
@@ -382,8 +384,8 @@ const audioMode = computed(
 const playing = computed(() => state.value?.playing ?? false);
 const currentTime = computed(() => state.value?.currentTime ?? 0);
 const duration = computed(() => state.value?.duration ?? 0);
-/** A live stream: the player reports an infinite duration, which is the current live signal. */
-const live = computed(() => duration.value === Infinity);
+/** A live stream: the player says so (an engine reports no length for one), or the length is infinite. */
+const live = computed(() => state.value?.live === true || duration.value === Infinity);
 /**
  * The duration has arrived. Until then nothing about seeking is known, and a live stream has not yet
  * said so (it reports an infinite duration): the skip buttons, the bar and the speed are kept out of
@@ -452,8 +454,8 @@ const stepVolume = (direction: 1 | -1) => setVolume(volume.value + direction * V
 const inlineVideo = computed(() => engine.value?.inlineActive === true);
 /** The picture's shape, from the best rendition the master states, so a 4:3 or a square video is not boxed in 16:9. */
 const stageAspect = computed(() => {
-    const best = state.value?.qualities?.find((q) => q.height);
-    return best?.height ? Math.min(2.4, Math.max(0.5, 16 / 9)) : undefined;
+    const best = state.value?.qualities?.find((q) => q.width && q.height);
+    return best ? Math.min(2.4, Math.max(0.5, best.width! / best.height!)) : undefined;
 });
 /** The packaged app draws the subtitles at the foot of the video's place, so this leaves a band there for them. */
 const captionBand = computed(
@@ -1306,8 +1308,7 @@ watch([audioMode, () => item.value?.content._id], ([isAudio]) => {
 });
 
 const SLEEP_MINUTES = [5, 10, 15, 30, 45, 60];
-type SleepTimer = { kind: "minutes"; minutes: number } | { kind: "chapter" };
-const sleepTimer = computed<SleepTimer | null>(() => null);
+const sleepTimer = computed(() => state.value?.sleepTimer ?? null);
 
 // --- the now-playing screen on a phone -----------------------------------------------------------
 
@@ -1470,8 +1471,13 @@ function onNowPlayingDragStart(event: PointerEvent) {
     onDragStart(event);
 }
 /** The minutes a minutes timer has left, rounded up, so it never says 0 while it runs. */
-const sleepMinutesLeft = computed(() => null);
-function pickSleep(_option: { kind: "minutes"; minutes: number } | { kind: "chapter" } | null) {
+const sleepMinutesLeft = computed(() =>
+    sleepTimer.value?.kind === "minutes"
+        ? Math.max(1, Math.ceil((sleepTimer.value.endsAt - Date.now()) / 60_000))
+        : null,
+);
+function pickSleep(option: { kind: "minutes"; minutes: number } | { kind: "chapter" } | null) {
+    controller.value?.setSleepTimer(option);
     openMenu.value = null;
 }
 /** `m:ss`, or `h:mm:ss` past an hour. */
@@ -1717,7 +1723,7 @@ function onKeydown(event: KeyboardEvent) {
                 <AudioFullscreen
                     :title="content.title"
                     :subtitle="nowPlayingSubtitle"
-                    :artwork="screenArtwork ?? undefined"
+                    :artwork="screenArtwork"
                     :wash="nowPlayingWash"
                     appearance="dark"
                     :stage="audioMode ? 'cover' : 'video'"
@@ -1751,11 +1757,11 @@ function onKeydown(event: KeyboardEvent) {
                     :thumbnail-at="chapterThumbnailAt"
                     :messages="screenMessages"
                     :subtitle-tracks="state?.subtitleTracks ?? []"
-                    :active-subtitle-track-id="state?.activeSubtitleTrackId ?? undefined"
+                    :active-subtitle-track-id="state?.activeSubtitleTrackId ?? null"
                     :can-picture-in-picture="!!handle?.canPictureInPicture"
                     :fullscreen-tool="(isDesktop && audioMode) || audioLandscapeTool"
                     :fullscreen-active="audioLandscapeLocked"
-                    :lyrics="lyrics as any"
+                    :lyrics="lyrics"
                     @exit="minimiseMediaPlayer"
                     @toggle-play="togglePlay"
                     @seek="(time) => handle?.seek(time)"
@@ -1766,10 +1772,11 @@ function onKeydown(event: KeyboardEvent) {
                             if (next) playNext(next);
                         }
                     "
-                    @rate="(rate: number) => controller?.setPlaybackRate(rate)"
-                    @audio-track="(id: string) => controller?.setAudioTrack(id)"
-                    @quality="(id: string | 'auto') => controller?.setQuality(id)"
-                    @subtitle-track="(id: string | null) => controller?.setSubtitleTrack(id)"
+                    @rate="(rate) => controller?.setPlaybackRate(rate)"
+                    @audio-track="(id) => controller?.setAudioTrack(id)"
+                    @quality="(id) => controller?.setQuality(id)"
+                    @sleep="(option) => controller?.setSleepTimer(option)"
+                    @subtitle-track="(id) => controller?.setSubtitleTrack(id)"
                     @picture-in-picture="handle?.startPictureInPicture?.()"
                     @fullscreen="
                         !audioMode
@@ -2684,7 +2691,7 @@ function onKeydown(event: KeyboardEvent) {
             <AudioFullscreen
                 :title="content.title"
                 :subtitle="nowPlayingSubtitle"
-                :artwork="screenArtwork ?? undefined"
+                :artwork="screenArtwork"
                 :wash="nowPlayingWash"
                 appearance="dark"
                 :chapters="chapters"
@@ -2708,8 +2715,8 @@ function onKeydown(event: KeyboardEvent) {
                 :thumbnail-at="chapterThumbnailAt"
                 :messages="screenMessages"
                 :subtitle-tracks="state.subtitleTracks"
-                :active-subtitle-track-id="state.activeSubtitleTrackId ?? undefined"
-                :lyrics="lyrics as any"
+                :active-subtitle-track-id="state.activeSubtitleTrackId"
+                :lyrics="lyrics"
                 @exit="audioFullscreen = false"
                 @toggle-play="togglePlay"
                 @seek="(time) => controller?.seek(time)"
@@ -2720,9 +2727,10 @@ function onKeydown(event: KeyboardEvent) {
                         if (next) playNext(next);
                     }
                 "
-                @rate="(rate: number) => controller?.setPlaybackRate(rate)"
-                @audio-track="(id: string) => controller?.setAudioTrack(id)"
-                @subtitle-track="(id: string | null) => controller?.setSubtitleTrack(id)"
+                @rate="(rate) => controller?.setPlaybackRate(rate)"
+                @audio-track="(id) => controller?.setAudioTrack(id)"
+                @sleep="(option) => controller?.setSleepTimer(option)"
+                @subtitle-track="(id) => controller?.setSubtitleTrack(id)"
             >
                 <template #audio-tool>
                     <MediaPlayerVolume

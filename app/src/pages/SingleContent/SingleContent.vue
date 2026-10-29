@@ -22,10 +22,17 @@ import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
 import { markSeen } from "@/recommendation/seenStore";
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
+import { hasContentProgress } from "@/contentProgress";
 import {
-    BookmarkIcon as BookmarkIconOutline,
+    hasUserActivity,
+    recordUserActivity,
+    removeUserActivity,
+    userActivityVersion,
+} from "@/userActivity/store";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { HeartIcon as HeartIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
+import {
+    HeartIcon as HeartIconOutline,
     MoonIcon,
     ClockIcon,
     PencilIcon,
@@ -43,18 +50,17 @@ import {
     queryParams,
     cmsUrl,
 } from "@/globalConfig";
-import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import RelatedContent from "@/components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 
 import LImage from "@/components/images/LImage.vue";
-import { useGlobalCopyright } from "@/composables/useGlobalCopyright";
+import ShareMenu from "@/components/content/ShareMenu.vue";
 
-import { userPreferencesAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
 import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
+import { useGlobalCopyright } from "@/composables/useGlobalCopyright";
 import FallbackLanguageBadge from "@/components/content/FallbackLanguageBadge.vue";
 import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
@@ -68,7 +74,7 @@ import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import ArticleOutline from "./ArticleOutline.vue";
 import { markPageReady } from "@/util/renderState";
-import { hasVideoSource } from "@/util/videoSource";
+import { hasMediaSource } from "@/util/mediaSource";
 import { computeEstimatedReadingMinutes, resolveReadingSpeedWpm } from "@/util/readingTime";
 import {
     resolveArticleScrollContainer,
@@ -170,7 +176,7 @@ const liveUrl = () => {
 
 const openCmsEditor = () => {
     if (liveUrl()) {
-        window.open(liveUrl(), "_blank");
+        window.open(liveUrl(), "_blank", "noopener,noreferrer");
     }
 };
 
@@ -178,6 +184,12 @@ const canEdit = () => {
     if (!content.value) return false;
     if (content.value.memberOf.length === 0) return true;
     return verifyAccess(content.value.memberOf, content.value.parentType!, AclPermission.Edit);
+};
+
+const canShare = () => {
+    if (!content.value) return false;
+    if (content.value.memberOf.length === 0) return true;
+    return verifyAccess(content.value.memberOf, content.value.parentType!, AclPermission.Share);
 };
 
 // Redirect resolution: a redirect takes precedence over content, and the server guarantees a slug carries one or the other, so the local check and the content bind never contend. Server-only redirects are caught by queryRemote in the not-found resolver, so normal pages pay no redirect API call.
@@ -341,6 +353,7 @@ if (!isPrerender()) {
         if (c && c._id) {
             touchRetention([c._id]);
             const id = c._id;
+            const parentId = c.parentId;
             const tags = c.parentTags;
             const hasText = !!c.text;
             contentTagsById.set(id, tags);
@@ -356,6 +369,14 @@ if (!isPrerender()) {
             dwellTimer = setTimeout(() => {
                 if (!hasText) recordAffinity(tags);
                 markSeen(id);
+                // History is taken from the continue store, which short content never
+                // reaches: an article that fits one screen, one estimated under a minute,
+                // or audio stopped before the player's 60s mark. Dwelling stands in for the
+                // progress those never record. Anything already in the store is the
+                // mirror's to report.
+                if (parentId && !hasContentProgress(id)) {
+                    void recordUserActivity({ type: "viewed", parentId });
+                }
             }, DWELL_MS);
         }
     });
@@ -515,44 +536,33 @@ const is404 = computed(() => {
     return !content.value;
 });
 
-// Function to toggle bookmark for the current content
-const toggleBookmark = () => {
-    if (!userPreferencesAsRef.value.bookmarks) {
-        userPreferencesAsRef.value.bookmarks = [];
-    }
+// Function to toggle the like for the current content
+const toggleLike = async () => {
+    const parentId = content.value?.parentId;
+    if (!parentId) return;
 
-    if (isBookmarked.value) {
-        // Remove from bookmarks
-        userPreferencesAsRef.value.bookmarks = userPreferencesAsRef.value.bookmarks.filter(
-            (b) => b.id != content.value?.parentId,
-        );
-        if (content.value) {
-            recordAffinity(
-                content.value.parentTags,
-                affinityConfig.value.eventWeight.bookmarkRemoved,
-            );
-        }
+    // Read the stored state rather than the displayed one: `isLiked` is refreshed
+    // asynchronously, so a quick second tap would otherwise act on a stale value.
+    if (await hasUserActivity({ type: "liked", parentId })) {
+        await removeUserActivity({ type: "liked", parentId });
+        recordAffinity(content.value?.parentTags, affinityConfig.value.eventWeight.bookmarkRemoved);
     } else {
-        // Add to bookmarks
-        if (!content.value) return;
-        userPreferencesAsRef.value.bookmarks.push({ id: content.value.parentId, ts: Date.now() });
-        // Bookmarking is explicit, unambiguous intent — weight it above a plain open.
-        recordAffinity(content.value.parentTags, affinityConfig.value.eventWeight.bookmark);
-        useNotificationStore().addNotification({
-            id: "bookmark-added",
-            title: t("bookmarks.notification.title"),
-            description: t("bookmarks.notification.description"),
-            state: "success",
-            type: "toast",
-            timeout: 5000,
-        });
+        await recordUserActivity({ type: "liked", parentId });
+        // Liking is explicit, unambiguous intent — weight it above a plain open.
+        recordAffinity(content.value?.parentTags, affinityConfig.value.eventWeight.bookmark);
     }
 };
 
-// Check if the current content is bookmarked
-const isBookmarked = computed(() => {
-    return userPreferencesAsRef.value.bookmarks?.some((b) => b.id == content.value?.parentId);
-});
+// Whether the current content is liked. IndexedDB has no reactivity of its own, so this is
+// re-read whenever the content changes or any activity is written.
+const isLiked = ref(false);
+watch(
+    [() => content.value?.parentId, userActivityVersion],
+    async ([parentId]) => {
+        isLiked.value = parentId ? await hasUserActivity({ type: "liked", parentId }) : false;
+    },
+    { immediate: true },
+);
 
 // The normal SPA sets the tab/window title imperatively (it has no @unhead plugin). The web
 // build's `useContentHead` above owns the whole head there, including the meta
@@ -683,6 +693,8 @@ const quickLanguageSwitch = (languageId: string) => {
     showDropdown.value = false;
 };
 
+// Posts rarely carry their own copyright, so shared quotes fall back to the instance-wide
+// notice the page already shows in its copyright banner.
 const { copyrightText: globalCopyright } = useGlobalCopyright();
 const shareCopyright = computed(() => content.value?.copyright || globalCopyright.value);
 
@@ -813,15 +825,16 @@ watch([isLoading, content, is404], async () => {
                     :label="t('singlecontent.loading')"
                     class="lg:col-start-2"
                 />
-
                 <template v-else-if="content">
                     <article
                         ref="articleRef"
                         class="w-full lg:col-start-2"
                     >
                         <!-- Desktop: title row originates at the top of the page, level with the pinned
-                         topbar chrome, and scrolls away with the content like normal. -->
+                         topbar chrome, and scrolls away with the content like normal. Suppressed when
+                         a hero image is present, since its overlay carries the title instead. -->
                         <div
+                            v-if="!hasHeroImage"
                             ref="desktopTitleRef"
                             class="hidden h-9 items-center justify-center gap-2 lg:flex"
                         >
@@ -841,6 +854,7 @@ watch([isLoading, content, is404], async () => {
                         </div>
 
                         <div
+                            v-if="!hasHeroImage"
                             ref="mobileTitleRef"
                             class="flex w-full flex-col items-center lg:hidden"
                         >
@@ -863,70 +877,83 @@ watch([isLoading, content, is404], async () => {
                             </div>
                         </div>
 
-                        <div class="mt-5 lg:mt-2">
+                        <!-- The hero overlay carries the title, so there is no title above to leave room for. -->
+                        <div :class="hasHeroImage ? 'lg:mt-2' : 'mt-5 lg:mt-2'">
                             <IgnorePagePadding
                                 :mobileOnly="true"
                                 :ignoreTop="true"
                             >
+                                <!-- The Play button hangs over the picture's edge, so it sits outside the clipped picture. -->
                                 <div
-                                    v-if="content.parentId || content.parentImageData"
-                                    class="relative cursor-pointer overflow-hidden"
-                                    @click="
-                                        () => {
-                                            if (content)
-                                                currentImageIndex = activeImageCollection(content);
-                                            enableZoom = true;
-                                        }
-                                    "
+                                    v-if="hasHeroImage"
+                                    class="relative"
                                 >
-                                    <LImage
-                                        :image="content.parentImageData"
-                                        :content-parent-id="content.parentId"
-                                        :parent-image-bucket-id="content.parentImageBucketId"
-                                        aspectRatio="video"
-                                        size="post"
-                                    />
                                     <div
-                                        v-if="
-                                            (content.parentImageData?.fileCollections?.length ??
-                                                0) > 1
+                                        class="relative cursor-pointer overflow-hidden lg:rounded-xl"
+                                        @click="
+                                            () => {
+                                                if (content)
+                                                    currentImageIndex =
+                                                        activeImageCollection(content);
+                                                enableZoom = true;
+                                            }
                                         "
-                                        class="absolute bottom-2 right-2 flex items-center gap-1"
                                     >
-                                        <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
-                                    </div>
-
-                                    <div
-                                        class="pointer-events-none absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
-                                    ></div>
-                                    <div
-                                        class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
-                                        @click.stop
-                                    >
-                                        <div class="flex items-start gap-2">
-                                            <h1
-                                                class="text-xl font-semibold leading-tight text-white [text-wrap:balance] lg:text-3xl"
-                                            >
-                                                {{ content.title }}
-                                            </h1>
-                                            <button
-                                                v-if="canEdit() && cmsUrl"
-                                                @click="openCmsEditor"
-                                                class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-white/70 hover:text-yellow-400"
-                                                data-test="editButton"
-                                            >
-                                                <PencilIcon class="h-5 w-5" />
-                                            </button>
-                                        </div>
-                                        <p
-                                            v-if="content.summary"
-                                            class="max-w-2xl text-sm leading-relaxed text-white/85 lg:text-base"
+                                        <LImage
+                                            :image="content.parentImageData"
+                                            :content-parent-id="content.parentId"
+                                            :parent-image-bucket-id="content.parentImageBucketId"
+                                            aspectRatio="video"
+                                            size="post"
+                                        />
+                                        <div
+                                            v-if="
+                                                (content.parentImageData?.fileCollections?.length ??
+                                                    0) > 1
+                                            "
+                                            class="absolute right-2 flex items-center gap-1"
+                                            :class="hasMediaSource(content) ? 'top-2' : 'bottom-2'"
                                         >
-                                            {{ content.summary }}
-                                        </p>
+                                            <DocumentDuplicateIcon
+                                                class="h-10 w-10 text-zinc-400"
+                                            />
+                                        </div>
+
+                                        <!-- Title + summary scrim: the gradient carries just the title/summary
+                                         zone, not the whole image, so the photo above it stays readable. -->
+                                        <div
+                                            class="pointer-events-none absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
+                                        ></div>
+                                        <div
+                                            class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
+                                            :class="hasMediaSource(content) && 'pr-24 lg:pr-32'"
+                                            @click.stop
+                                        >
+                                            <div class="flex items-start gap-2">
+                                                <h1
+                                                    class="text-xl font-semibold leading-tight text-white [text-wrap:balance] lg:text-3xl"
+                                                >
+                                                    {{ content.title }}
+                                                </h1>
+                                                <button
+                                                    v-if="canEdit() && cmsUrl"
+                                                    @click="openCmsEditor"
+                                                    class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-white/70 hover:text-yellow-400"
+                                                    data-test="editButton"
+                                                >
+                                                    <PencilIcon class="h-5 w-5" />
+                                                </button>
+                                            </div>
+                                            <p
+                                                v-if="content.summary"
+                                                class="max-w-2xl text-sm leading-relaxed text-white/85 lg:text-base"
+                                            >
+                                                {{ content.summary }}
+                                            </p>
+                                        </div>
                                     </div>
                                     <MediaAction
-                                        v-if="hasVideoSource(content)"
+                                        v-if="hasMediaSource(content)"
                                         :key="content._id"
                                         :content="content"
                                         :language="selectedLanguageCode"
@@ -937,7 +964,7 @@ watch([isLoading, content, is404], async () => {
                         </div>
 
                         <MediaAction
-                            v-if="hasVideoSource(content) && !hasHeroImage"
+                            v-if="hasMediaSource(content) && !hasHeroImage"
                             :key="content._id"
                             :content="content"
                             :language="selectedLanguageCode"
@@ -954,10 +981,10 @@ watch([isLoading, content, is404], async () => {
                             </p>
                         </div>
 
-                        <div class="mt-6 flex flex-col items-center gap-4">
-                            <div
-                                class="flex w-fit flex-wrap items-center justify-center gap-y-2 border-t-2 border-yellow-500/25 px-8 pt-6 text-sm text-zinc-500 dark:text-slate-400"
-                            >
+                        <div
+                            class="mt-4 flex flex-col items-center gap-2 px-4 text-sm text-zinc-500 dark:text-slate-400"
+                        >
+                            <div class="flex flex-wrap items-center justify-center gap-y-1">
                                 <!-- Author -->
                                 <div
                                     v-if="content.author"
@@ -989,28 +1016,36 @@ watch([isLoading, content, is404], async () => {
                                 <FallbackLanguageBadge :content="content" />
                             </div>
 
-                            <!-- Bookmark Button -->
-                            <button
-                                v-if="
-                                    !(
-                                        content.parentPostType &&
-                                        content.parentPostType == PostType.Page
-                                    )
-                                "
-                                @click="toggleBookmark"
-                                data-test="bookmark"
-                                class="flex items-center transition-colors"
-                            >
-                                <component
-                                    :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
-                                    class="h-5 w-5"
-                                    :class="{
-                                        'text-yellow-500': isBookmarked,
-                                        'text-zinc-400 hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200':
-                                            !isBookmarked,
-                                    }"
+                            <div class="flex items-center gap-3">
+                                <!-- Like Button -->
+                                <button
+                                    v-if="
+                                        !(
+                                            content.parentPostType &&
+                                            content.parentPostType == PostType.Page
+                                        )
+                                    "
+                                    @click="toggleLike"
+                                    data-test="like"
+                                    class="flex items-center transition-colors"
+                                >
+                                    <component
+                                        :is="isLiked ? HeartIconSolid : HeartIconOutline"
+                                        class="h-5 w-5"
+                                        :class="{
+                                            'text-yellow-500': isLiked,
+                                            'text-zinc-400 hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200':
+                                                !isLiked,
+                                        }"
+                                    />
+                                </button>
+
+                                <ShareMenu
+                                    v-if="canShare()"
+                                    :content="content"
+                                    :copyright="shareCopyright"
                                 />
-                            </button>
+                            </div>
                         </div>
 
                         <div
@@ -1035,8 +1070,11 @@ watch([isLoading, content, is404], async () => {
                         <LHighlightable
                             v-if="content.text"
                             :content-id="content._id"
+                            :parent-id="content.parentId"
                             :title="content.title"
-                            :copyright="content.copyright"
+                            :revision="text"
+                            :copyright="shareCopyright"
+                            :can-share="canShare()"
                             @highlighted="
                                 recordAffinity(
                                     content?.parentTags,
@@ -1057,12 +1095,11 @@ watch([isLoading, content, is404], async () => {
                                 v-html="text"
                                 class="prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
                                 :class="{
-                                    'border-t border-zinc-100 pt-8 dark:border-slate-800':
+                                    'border-t border-zinc-100 pt-4 dark:border-slate-800':
                                         categoryTags.length == 0,
                                 }"
-                            ></div>
-                        </LHighlightable>
-                        <br />
+                            ></div> </LHighlightable
+                        ><br />
                         <div
                             v-if="content.copyright"
                             class="text-xs text-zinc-500 dark:text-slate-300"
