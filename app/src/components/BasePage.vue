@@ -185,7 +185,7 @@ onUnmounted(() => {
                      The fade below the controls row lets content dissolve under the chrome. -->
                     <div
                         v-if="desktopTopBar"
-                        class="pointer-events-none sticky top-0 z-20 -mx-2 -mb-14 hidden h-16 items-start px-2 pt-2 min-[768px]:flex"
+                        class="pointer-events-none sticky top-0 z-20 -mx-2 -mb-14 hidden h-16 items-start px-2 pt-2 md:-mx-4 md:flex md:px-4 md:max-lg:mb-0"
                     >
                         <div
                             :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
@@ -243,7 +243,7 @@ onUnmounted(() => {
                      the same compositor timeline as the bar's slide. -->
                     <div
                         v-if="desktopTopBar && $slots.topBarCenter"
-                        class="pointer-events-none sticky top-[max(0px,calc(env(safe-area-inset-top)-0.75rem))] z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform md:-mx-4 md:px-4 lg:hidden"
+                        class="pointer-events-none sticky top-[max(0px,calc(env(safe-area-inset-top)-0.75rem))] z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform md:-mx-4 md:hidden md:px-4"
                         :style="pillPinnedStyle"
                     >
                         <div
