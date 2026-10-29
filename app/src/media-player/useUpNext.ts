@@ -9,6 +9,7 @@ import {
     type Uuid,
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
+import { hasVideoSelector } from "@/util/videoSource";
 import { rank, affinityScoreScale } from "@/recommendation/ranking";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
@@ -67,13 +68,7 @@ export function useUpNext(
                 ? [selectedTag.value]
                 : (content.value?.parentTags ?? []);
             return [
-                // Newer content has only the parent's encoded media, older only the per-language URL.
-                {
-                    $or: [
-                        { $and: [{ video: { $exists: true, $ne: "" } }, { video: { $ne: null } }] },
-                        { "parentMedia.hlsUrl": { $exists: true, $ne: "" } },
-                    ],
-                },
+                hasVideoSelector,
                 {
                     $or: [
                         { parentPostType: { $exists: false } },
