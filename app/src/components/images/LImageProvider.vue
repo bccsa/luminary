@@ -264,10 +264,18 @@ const decodeThumbHash = (base64?: string): string | undefined => {
 // A decode encodes a PNG in JS, wasted on a cached image that paints over the preview unseen, so
 // decode only while the image is still loading. onMounted runs before first paint: no blank frame.
 const imageElement1 = ref<HTMLImageElement>();
+const imageElement2 = ref<HTMLImageElement>();
 const showThumbHash = ref(isPrerender());
 onMounted(() => {
     const img = imageElement1.value;
     showThumbHash.value = !(img?.complete && img.naturalWidth > 0);
+
+    // Hydration keeps the prerendered (reduced, uninflated) `sizes` because Vue doesn't patch plain
+    // attributes, and nothing re-renders it afterwards — so correct it once on mount.
+    const el = img ?? imageElement2.value;
+    if (el && sizesAttr.value && el.getAttribute("sizes") !== sizesAttr.value) {
+        el.setAttribute("sizes", sizesAttr.value);
+    }
 });
 const thumbHashDataUrl = computed(() =>
     showThumbHash.value ? decodeThumbHash(displayCollection.value?.thumbHash) : undefined,
@@ -275,17 +283,6 @@ const thumbHashDataUrl = computed(() =>
 const thumbHashStyle = computed(() =>
     thumbHashDataUrl.value ? { backgroundImage: `url("${thumbHashDataUrl.value}")` } : undefined,
 );
-
-const imageElement2 = ref<HTMLImageElement>();
-
-// Hydration keeps the prerendered (reduced, uninflated) `sizes` because Vue doesn't patch plain
-// attributes, and nothing re-renders it afterwards — so correct it once on mount.
-onMounted(() => {
-    const el = imageElement1.value ?? imageElement2.value;
-    if (el && sizesAttr.value && el.getAttribute("sizes") !== sizesAttr.value) {
-        el.setAttribute("sizes", sizesAttr.value);
-    }
-});
 
 // Direct src for icon mode: pick the smallest available image file (no srcset needed)
 const iconSrc = computed(() => {

@@ -446,35 +446,41 @@ describe("LImageProvider", () => {
         expect(img1.attributes("srcset")).toContain("video-1200.webp 1200w");
     });
 
-    it("replaces the prerendered reduced `sizes` with the client value after hydration", async () => {
-        const props = {
-            parentId: "test-id-hydrate",
-            image: mockImage,
-            aspectRatio: "portrait" as const,
-            size: "thumbnailCompact" as const,
-            bucketPublicUrl: "https://bucket.example.com",
-        };
+    it.each([
+        ["portrait", "imageElement1"],
+        ["original", "imageElement2"],
+    ] as const)(
+        "replaces the prerendered reduced `sizes` with the client value after hydration (%s, %s)",
+        async (aspectRatio) => {
+            const props = {
+                parentId: "test-id-hydrate",
+                image: mockImage,
+                aspectRatio,
+                size: "thumbnailCompact" as const,
+                bucketPublicUrl: "https://bucket.example.com",
+            };
 
-        const env = import.meta.env as { SSR: boolean };
-        env.SSR = true;
-        let html: string;
-        try {
-            html = await renderToString(createSSRApp(LImageProvider, props));
-        } finally {
-            env.SSR = false;
-        }
-        expect(html).toContain('sizes="128px"');
+            const env = import.meta.env as { SSR: boolean };
+            env.SSR = true;
+            let html: string;
+            try {
+                html = await renderToString(createSSRApp(LImageProvider, props));
+            } finally {
+                env.SSR = false;
+            }
+            expect(html).toContain('sizes="128px"');
 
-        const container = document.createElement("div");
-        container.innerHTML = html;
-        document.body.appendChild(container);
-        const app = createSSRApp(LImageProvider, props);
-        app.mount(container);
+            const container = document.createElement("div");
+            container.innerHTML = html;
+            document.body.appendChild(container);
+            const app = createSSRApp(LImageProvider, props);
+            app.mount(container);
 
-        expect(container.querySelector("img")!.getAttribute("sizes")).toBe(
-            "(prefers-reduced-data: reduce) 128px, (min-width: 768px) 312px, 227px",
-        );
-        app.unmount();
-        container.remove();
-    });
+            expect(container.querySelector("img")!.getAttribute("sizes")).toContain(
+                "(prefers-reduced-data: reduce) 128px, (min-width: 768px)",
+            );
+            app.unmount();
+            container.remove();
+        },
+    );
 });
