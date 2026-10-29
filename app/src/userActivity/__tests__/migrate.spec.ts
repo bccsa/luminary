@@ -2,7 +2,6 @@ import "fake-indexeddb/auto";
 import { describe, it, beforeEach, expect } from "vitest";
 import { db, DocType, type ContentDto, type HighlightRange } from "luminary-shared";
 
-import { userPreferencesAsRef } from "@/globalConfig";
 import {
     migrateLikesToUserActivity,
     migrateHighlightsToUserActivity,
@@ -36,17 +35,16 @@ describe("migration to userActivity", () => {
         await db.userActivity.clear();
         await db.docs.clear();
         await db.setLuminaryInternals("highlights", undefined);
-        delete userPreferencesAsRef.value.likes;
     });
 
     describe("likes", () => {
         it("moves stored likes in as liked rows keyed on the post", async () => {
-            userPreferencesAsRef.value.likes = [
+            const likes = [
                 { id: "post-1", ts: 1000 },
                 { id: "post-2", ts: 2000 },
             ];
 
-            expect(await migrateLikesToUserActivity()).toBe(2);
+            expect(await migrateLikesToUserActivity(likes)).toBe(2);
 
             const liked = await getUserActivity("liked");
             expect(liked.map((row) => row.parentId)).toEqual(["post-2", "post-1"]);
@@ -54,22 +52,24 @@ describe("migration to userActivity", () => {
             expect(await db.userActivity.get("liked:post-1")).toBeDefined();
         });
 
-        it("clears the source so a second run is a no-op", async () => {
-            userPreferencesAsRef.value.likes = [{ id: "post-1", ts: 1000 }];
+        it("stays safe to re-run on the same likes", async () => {
+            const likes = [{ id: "post-1", ts: 1000 }];
 
-            await migrateLikesToUserActivity();
+            await migrateLikesToUserActivity(likes);
 
-            expect(userPreferencesAsRef.value.likes).toBeUndefined();
-            expect(await migrateLikesToUserActivity()).toBe(0);
+            expect(await migrateLikesToUserActivity(likes)).toBe(0);
             expect(await db.userActivity.count()).toBe(1);
+        });
+
+        it("does nothing without likes", async () => {
+            expect(await migrateLikesToUserActivity(undefined)).toBe(0);
+            expect(await migrateLikesToUserActivity([])).toBe(0);
         });
 
         it("does not revive a like the user has since removed", async () => {
             await recordUserActivity({ type: "liked", parentId: "post-1" });
             await removeUserActivity({ type: "liked", parentId: "post-1" });
-            userPreferencesAsRef.value.likes = [{ id: "post-1", ts: 1000 }];
-
-            await migrateLikesToUserActivity();
+            await migrateLikesToUserActivity([{ id: "post-1", ts: 1000 }]);
 
             expect(await getUserActivity("liked")).toEqual([]);
         });
@@ -156,13 +156,12 @@ describe("migration to userActivity", () => {
     });
 
     it("runs both passes together", async () => {
-        userPreferencesAsRef.value.likes = [{ id: "post-1", ts: 1000 }];
         await db.docs.bulkPut([contentDoc("content-1", "post-2")]);
         await db.setLuminaryInternals("highlights", {
             "content-1": { ranges: [range("hi")], updatedAt: 1234 },
         });
 
-        await migrateToUserActivity();
+        await migrateToUserActivity([{ id: "post-1", ts: 1000 }]);
 
         expect(await db.userActivity.count()).toBe(2);
         expect(await getUserActivity("liked")).toHaveLength(1);

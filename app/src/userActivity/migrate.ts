@@ -13,10 +13,12 @@ import {
     type UserActivityEntry,
     type Uuid,
 } from "luminary-shared";
-import { userPreferencesAsRef } from "@/globalConfig";
 import { getHighlightRanges, getLegacyHighlightHtml } from "@/recommendation/highlightStore";
 import { rangesFromLegacyHtml } from "@/util/highlightRanges";
 import { userActivityId, userActivityVersion } from "./store";
+
+/** A like as `userPreferences` stored it. */
+export type LegacyLike = { id: Uuid; ts: number };
 
 /** Write the rows the database does not already hold, and report how many were added. */
 async function addMissing(rows: UserActivityEntry[]): Promise<number> {
@@ -32,15 +34,11 @@ async function addMissing(rows: UserActivityEntry[]): Promise<number> {
     return missing.length;
 }
 
-/**
- * Likes already store the post id, so they convert directly. Clearing the source is what
- * makes this idempotent — a second run finds nothing to move.
- */
-export async function migrateLikesToUserActivity(): Promise<number> {
-    const likes = userPreferencesAsRef.value.likes;
+/** Likes already store the post id, so they convert directly. The caller clears the source. */
+export async function migrateLikesToUserActivity(likes?: LegacyLike[]): Promise<number> {
     if (!likes?.length) return 0;
 
-    const added = await addMissing(
+    return addMissing(
         likes.map((like) => ({
             _id: userActivityId({ type: "liked", parentId: like.id }),
             type: "liked",
@@ -48,21 +46,16 @@ export async function migrateLikesToUserActivity(): Promise<number> {
             updatedTimeUtc: like.ts,
         })),
     );
-
-    delete userPreferencesAsRef.value.likes;
-
-    return added;
 }
 
 /**
  * Highlights are stored per translation. Entries written since the post was stored with them
  * carry it; older ones are matched to their Content document instead. An entry whose post
  * cannot be found either way is skipped — its document is not local, so the activity page could not
- * render it anyway — and picked up by a later run once that document syncs.
+ * render it anyway.
  *
  * The source is deliberately left in place: `LHighlightable` still reads and writes it, so
- * clearing it would erase highlights from the article view. That is also what makes skipping
- * safe: nothing is lost, the entry is simply migrated later.
+ * clearing it would erase highlights from the article view.
  */
 export async function migrateHighlightsToUserActivity(): Promise<number> {
     const stored = await db.getLuminaryInternals("highlights");
@@ -123,8 +116,8 @@ function updatedAtOf(value: unknown): number {
     return 0;
 }
 
-/** Both passes, for the app to run once at startup. */
-export async function migrateToUserActivity(): Promise<void> {
-    await migrateLikesToUserActivity();
+/** Both passes, for the app to run once. */
+export async function migrateToUserActivity(likes?: LegacyLike[]): Promise<void> {
+    await migrateLikesToUserActivity(likes);
     await migrateHighlightsToUserActivity();
 }
