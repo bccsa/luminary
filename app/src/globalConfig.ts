@@ -440,6 +440,14 @@ export const initLanguage = () => {
             if (cmsLanguages.value.length > 0) return;
 
             const syncPassFinished = sawSyncRun && !syncActive.value;
+            // No language sync pass has started yet, so a connected app can still get stranded on
+            // the splash forever while waiting for a signal that may never come. Boot anyway: the
+            // live watchers above keep normalizing the preferred/synced sets for any later sync.
+            if (!sawSyncRun) {
+                stopGate();
+                resolve();
+                return;
+            }
             if (isConnected.value && !syncPassFinished) return;
 
             stopGate();
