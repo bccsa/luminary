@@ -137,8 +137,8 @@ export default async function processPostTagDto(
     let collectionMoved = false;
 
     if (doc.media) {
-        const allowExternalMedia = configuration().media.allowExternalUrls;
-        if (doc.media.hlsUrl && (!doc.mediaBucketId || !allowExternalMedia)) {
+        const allowedHosts = configuration().media.allowedExternalHosts;
+        if (doc.media.hlsUrl) {
             const buckets = await db.getDocsByType(DocType.Storage);
             const publicUrls = buckets.docs.map((b: StorageDto) => b.publicUrl);
 
@@ -147,11 +147,11 @@ export default async function processPostTagDto(
                     doc.media.hlsUrl,
                     prevDoc?.media?.hlsUrl,
                     publicUrls,
-                    allowExternalMedia,
+                    allowedHosts,
                 )
             ) {
                 throw new Error(
-                    "Media URLs outside the configured storage buckets are not allowed.",
+                    "Media URLs must be in the configured storage buckets or on an allowed external host.",
                 );
             }
 

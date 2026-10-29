@@ -112,27 +112,43 @@ describe("isInOurStorage", () => {
 
 describe("isMediaUrlAllowed", () => {
     const publicUrls = ["https://cdn.example.com/media"];
+    const hosts = ["youtube.com", "youtu.be"];
 
-    it("allows anything when external URLs are allowed", () => {
-        expect(isMediaUrlAllowed("https://evil.example/x.m3u8", undefined, publicUrls, true)).toBe(
-            true,
-        );
-    });
-
-    it("rejects a new external URL when external URLs are not allowed", () => {
-        expect(isMediaUrlAllowed("https://evil.example/x.m3u8", undefined, publicUrls, false)).toBe(
+    it("rejects a new URL on a host that is not whitelisted", () => {
+        expect(isMediaUrlAllowed("https://evil.example/x.m3u8", undefined, publicUrls, hosts)).toBe(
             false,
         );
     });
 
+    it("allows whitelisted hosts and their subdomains", () => {
+        for (const url of [
+            "https://youtube.com/watch?v=a",
+            "https://www.youtube.com/watch?v=a",
+            "https://youtu.be/a",
+        ]) {
+            expect(isMediaUrlAllowed(url, undefined, publicUrls, hosts)).toBe(true);
+        }
+    });
+
+    it("does not let a look-alike host or query string pass", () => {
+        for (const url of [
+            "https://youtube.com.evil.example/a",
+            "https://evilyoutube.com/a",
+            "https://evil.example/?youtube.com",
+            "javascript://youtube.com/%0Aalert(1)",
+        ]) {
+            expect(isMediaUrlAllowed(url, undefined, publicUrls, hosts)).toBe(false);
+        }
+    });
+
     it("allows bucket-relative URLs and URLs under a configured bucket", () => {
-        expect(isMediaUrlAllowed("/a/master.m3u8", undefined, publicUrls, false)).toBe(true);
+        expect(isMediaUrlAllowed("/a/master.m3u8", undefined, publicUrls, hosts)).toBe(true);
         expect(
             isMediaUrlAllowed(
                 "https://cdn.example.com/media/a/master.m3u8",
                 undefined,
                 publicUrls,
-                false,
+                hosts,
             ),
         ).toBe(true);
     });
@@ -143,17 +159,17 @@ describe("isMediaUrlAllowed", () => {
                 "https://cdn.example.com/media-archive/a.m3u8",
                 undefined,
                 publicUrls,
-                false,
+                hosts,
             ),
         ).toBe(false);
     });
 
-    it("keeps already-stored external media editable when its URL is unchanged", () => {
+    it("keeps already-stored media editable when its URL is unchanged", () => {
         const url = "https://old.example/x.m3u8";
-        expect(isMediaUrlAllowed(url, url, publicUrls, false)).toBe(true);
+        expect(isMediaUrlAllowed(url, url, publicUrls, hosts)).toBe(true);
     });
 
     it("treats an empty URL as allowed", () => {
-        expect(isMediaUrlAllowed(undefined, undefined, publicUrls, false)).toBe(true);
+        expect(isMediaUrlAllowed(undefined, undefined, publicUrls, hosts)).toBe(true);
     });
 });

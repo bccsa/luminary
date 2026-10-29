@@ -107,10 +107,10 @@ export type AudioS3Config = {
 
 export type MediaConfig = {
     /**
-     * Whether a saved media URL may point outside the configured storage buckets (e.g. YouTube
-     * or another CDN). Defaults to true; set MEDIA_ALLOW_EXTERNAL_URLS=false to restrict.
+     * Hosts (and their subdomains) a saved media URL may point to besides the configured storage
+     * buckets. Comma-separated MEDIA_ALLOWED_EXTERNAL_HOSTS; defaults to YouTube.
      */
-    allowExternalUrls: boolean;
+    allowedExternalHosts: string[];
 };
 
 export type SocketIoConfig = {
@@ -206,7 +206,13 @@ export default () =>
             maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
         } as SocketIoConfig,
         media: {
-            allowExternalUrls: process.env.MEDIA_ALLOW_EXTERNAL_URLS !== "false",
+            allowedExternalHosts: (
+                process.env.MEDIA_ALLOWED_EXTERNAL_HOSTS ??
+                "youtube.com,youtube-nocookie.com,youtu.be"
+            )
+                .split(",")
+                .map((h) => h.trim())
+                .filter(Boolean),
         } as MediaConfig,
         validation: {
             bypassTemplateValidation: process.env.BYPASS_TEMPLATE_VALIDATION === "true",
