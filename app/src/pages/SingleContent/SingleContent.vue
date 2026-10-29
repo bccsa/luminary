@@ -1060,8 +1060,9 @@ watch([isLoading, content, is404], async () => {
                                     'border-t border-zinc-100 pt-8 dark:border-slate-800':
                                         categoryTags.length == 0,
                                 }"
-                            ></div> </LHighlightable
-                        ><br />
+                            ></div>
+                        </LHighlightable>
+                        <br />
                         <div
                             v-if="content.copyright"
                             class="text-xs text-zinc-500 dark:text-slate-300"
