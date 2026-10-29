@@ -21,7 +21,9 @@ const stubDb = () =>
         upsertDoc: jest.fn().mockResolvedValue({ id: "x" }),
         getDocs: jest.fn().mockResolvedValue({ docs: [] }),
         getDoc: jest.fn().mockResolvedValue({ docs: [] }),
-        getDocsByType: jest.fn().mockResolvedValue({ docs: [] }),
+        getDocsByType: jest
+            .fn()
+            .mockResolvedValue({ docs: [{ publicUrl: "http://localhost:9000/media" }] }),
         // The delete path also drops the document's sidecars (ADR 0019).
         deleteDoc: jest.fn().mockResolvedValue(undefined),
     }) as unknown as DbService;

@@ -120,6 +120,14 @@ export type AudioS3Config = {
     audioBucket: string;
 };
 
+export type MediaConfig = {
+    /**
+     * Hosts (and their subdomains) a saved media URL may point to besides the configured storage
+     * buckets. Comma-separated MEDIA_ALLOWED_EXTERNAL_HOSTS; defaults to YouTube.
+     */
+    allowedExternalHosts: string[];
+};
+
 export type SocketIoConfig = {
     maxHttpBufferSize: number;
 };
@@ -133,6 +141,7 @@ export type Configuration = {
     sidecar?: SidecarConfig;
     imageProcessing?: ImageProcessingConfig;
     socketIo?: SocketIoConfig;
+    media?: MediaConfig;
     validation?: ValidationConfig;
     auth?: AuthConfig;
     identityCache?: IdentityCacheConfig;
@@ -212,6 +221,15 @@ export default () =>
         socketIo: {
             maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
         } as SocketIoConfig,
+        media: {
+            allowedExternalHosts: (
+                process.env.MEDIA_ALLOWED_EXTERNAL_HOSTS ??
+                "youtube.com,youtube-nocookie.com,youtu.be"
+            )
+                .split(",")
+                .map((h) => h.trim())
+                .filter(Boolean),
+        } as MediaConfig,
         validation: {
             bypassTemplateValidation: process.env.BYPASS_TEMPLATE_VALIDATION === "true",
         } as ValidationConfig,

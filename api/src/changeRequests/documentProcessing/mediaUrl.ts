@@ -95,3 +95,43 @@ export function isInOurStorage(
         return hlsUrl.startsWith(`${base}/`);
     });
 }
+
+/**
+ * Whether the URL's host is one of the allowed hosts or a subdomain of one.
+ *
+ * Compared on the parsed hostname, so `https://youtube.com.evil.example` and
+ * `https://evil.example/?youtube.com` do not pass.
+ */
+export function isAllowedExternalHost(hlsUrl: string | undefined, allowedHosts: string[]): boolean {
+    if (!hlsUrl) return false;
+
+    let hostname: string;
+    try {
+        const url = new URL(hlsUrl);
+        if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+        hostname = url.hostname.toLowerCase();
+    } catch {
+        return false;
+    }
+
+    return allowedHosts.some((host) => {
+        const allowed = host.trim().toLowerCase();
+        return !!allowed && (hostname === allowed || hostname.endsWith(`.${allowed}`));
+    });
+}
+
+/**
+ * Whether a saved media URL may be stored: it must be in our storage or on an allowed host.
+ *
+ * Only a URL that changed is checked, so media saved before a host was removed from the
+ * whitelist stays editable; a URL that is unchanged was already accepted once.
+ */
+export function isMediaUrlAllowed(
+    hlsUrl: string | undefined,
+    previousHlsUrl: string | undefined,
+    publicUrls: (string | undefined)[],
+    allowedHosts: string[],
+): boolean {
+    if (!hlsUrl || hlsUrl === previousHlsUrl) return true;
+    return isInOurStorage(hlsUrl, publicUrls) || isAllowedExternalHost(hlsUrl, allowedHosts);
+}

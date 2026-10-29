@@ -7,7 +7,8 @@ import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
 import { deleteMediaCollection } from "./deleteMediaCollection";
 import { migrateMediaCollection } from "./migrateMediaCollection";
-import { isInOurStorage } from "./mediaUrl";
+import { isInOurStorage, isMediaUrlAllowed } from "./mediaUrl";
+import configuration from "../../configuration";
 import { StorageDto } from "../../dto/StorageDto";
 import { assertHexKey } from "../../util/maskKey";
 import {
@@ -137,13 +138,27 @@ export default async function processPostTagDto(
     let collectionMoved = false;
 
     if (doc.media) {
-        // A collection in our own storage must name its bucket: that is how the URL is
-        // stored relative, migrated and deleted. External media has no bucket to name.
-        if (doc.media.hlsUrl && !doc.mediaBucketId) {
+        const allowedHosts = configuration().media.allowedExternalHosts;
+        if (doc.media.hlsUrl) {
             const buckets = await db.getDocsByType(DocType.Storage);
             const publicUrls = buckets.docs.map((b: StorageDto) => b.publicUrl);
 
-            if (isInOurStorage(doc.media.hlsUrl, publicUrls)) {
+            if (
+                !isMediaUrlAllowed(
+                    doc.media.hlsUrl,
+                    prevDoc?.media?.hlsUrl,
+                    publicUrls,
+                    allowedHosts,
+                )
+            ) {
+                throw new Error(
+                    "Media URLs must be in the configured storage buckets or on an allowed external host.",
+                );
+            }
+
+            // A collection in our own storage must name its bucket: that is how the URL is
+            // stored relative, migrated and deleted. External media has no bucket to name.
+            if (!doc.mediaBucketId && isInOurStorage(doc.media.hlsUrl, publicUrls)) {
                 throw new Error("Bucket is not specified for media processing.");
             }
         }

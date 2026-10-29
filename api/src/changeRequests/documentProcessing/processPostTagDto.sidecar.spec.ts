@@ -15,7 +15,7 @@ import { maskKeyHex } from "../../util/maskKey";
 // the real processMedia write path, which the mocked spec cannot exercise. Covers
 // sidecar lifecycle and deletion (ADR 0019).
 
-const HLS_URL = "https://cdn.example.com/media/master.m3u8";
+const HLS_URL = "https://www.youtube.com/watch?v=abc123";
 const KEY_A = "0123456789abcdef0123456789abcdef";
 const KEY_B = "fedcba9876543210fedcba9876543210";
 

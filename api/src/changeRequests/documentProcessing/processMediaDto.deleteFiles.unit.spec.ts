@@ -12,7 +12,7 @@ jest.mock("./migrateMediaCollection", () => ({ migrateMediaCollection: jest.fn()
 jest.mock("./deleteMediaCollection", () => ({ deleteMediaCollection: jest.fn() }));
 jest.mock("./processImageDto", () => ({ processImage: jest.fn(), deleteImage: jest.fn() }));
 
-const HLS = "https://cdn.elsewhere.example.com/abc/master.m3u8";
+const HLS = "https://www.youtube.com/watch?v=abc123";
 
 const child = () => ({ _id: "content-1", type: "content" }) as unknown as ContentDto;
 
