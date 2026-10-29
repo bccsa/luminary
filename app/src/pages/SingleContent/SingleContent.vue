@@ -69,7 +69,7 @@ import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import ArticleOutline from "./ArticleOutline.vue";
 import { markPageReady } from "@/util/renderState";
-import { hasVideoSource } from "@/util/videoSource";
+import { hasMediaSource } from "@/util/mediaSource";
 import { computeEstimatedReadingMinutes, resolveReadingSpeedWpm } from "@/util/readingTime";
 import {
     resolveArticleScrollContainer,
@@ -696,9 +696,7 @@ const { copyrightText: globalCopyright } = useGlobalCopyright();
 const shareCopyright = computed(() => content.value?.copyright || globalCopyright.value);
 
 // Whether the hero image can carry the title/summary as an overlay.
-const hasHeroImage = computed(
-    () => !!(content.value?.parentId || content.value?.parentImageData),
-);
+const hasHeroImage = computed(() => !!(content.value?.parentId || content.value?.parentImageData));
 
 watch([isLoading, content, is404], async () => {
     if (is404.value) {
@@ -882,67 +880,77 @@ watch([isLoading, content, is404], async () => {
                                 :mobileOnly="true"
                                 :ignoreTop="true"
                             >
+                                <!-- The Play button hangs over the picture's edge, so it sits outside the clipped picture. -->
                                 <div
                                     v-if="hasHeroImage"
-                                    class="relative cursor-pointer overflow-hidden lg:rounded-xl"
-                                    @click="
-                                        () => {
-                                            if (content)
-                                                currentImageIndex = activeImageCollection(content);
-                                            enableZoom = true;
-                                        }
-                                    "
+                                    class="relative"
                                 >
-                                    <LImage
-                                        :image="content.parentImageData"
-                                        :content-parent-id="content.parentId"
-                                        :parent-image-bucket-id="content.parentImageBucketId"
-                                        aspectRatio="video"
-                                        size="post"
-                                    />
                                     <div
-                                        v-if="
-                                            (content.parentImageData?.fileCollections?.length ??
-                                                0) > 1
+                                        class="relative cursor-pointer overflow-hidden lg:rounded-xl"
+                                        @click="
+                                            () => {
+                                                if (content)
+                                                    currentImageIndex =
+                                                        activeImageCollection(content);
+                                                enableZoom = true;
+                                            }
                                         "
-                                        class="absolute bottom-2 right-2 flex items-center gap-1"
                                     >
-                                        <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
-                                    </div>
-
-                                    <!-- Title + summary scrim: the gradient carries just the title/summary
-                                         zone, not the whole image, so the photo above it stays readable. -->
-                                    <div
-                                        class="pointer-events-none absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
-                                    ></div>
-                                    <div
-                                        class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
-                                        @click.stop
-                                    >
-                                        <div class="flex items-start gap-2">
-                                            <h1
-                                                class="text-xl font-semibold leading-tight text-white [text-wrap:balance] lg:text-3xl"
-                                            >
-                                                {{ content.title }}
-                                            </h1>
-                                            <button
-                                                v-if="canEdit() && cmsUrl"
-                                                @click="openCmsEditor"
-                                                class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-white/70 hover:text-yellow-400"
-                                                data-test="editButton"
-                                            >
-                                                <PencilIcon class="h-5 w-5" />
-                                            </button>
-                                        </div>
-                                        <p
-                                            v-if="content.summary"
-                                            class="max-w-2xl text-sm leading-relaxed text-white/85 lg:text-base"
+                                        <LImage
+                                            :image="content.parentImageData"
+                                            :content-parent-id="content.parentId"
+                                            :parent-image-bucket-id="content.parentImageBucketId"
+                                            aspectRatio="video"
+                                            size="post"
+                                        />
+                                        <div
+                                            v-if="
+                                                (content.parentImageData?.fileCollections?.length ??
+                                                    0) > 1
+                                            "
+                                            class="absolute right-2 flex items-center gap-1"
+                                            :class="hasMediaSource(content) ? 'top-2' : 'bottom-2'"
                                         >
-                                            {{ content.summary }}
-                                        </p>
+                                            <DocumentDuplicateIcon
+                                                class="h-10 w-10 text-zinc-400"
+                                            />
+                                        </div>
+
+                                        <!-- Title + summary scrim: the gradient carries just the title/summary
+                                         zone, not the whole image, so the photo above it stays readable. -->
+                                        <div
+                                            class="pointer-events-none absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
+                                        ></div>
+                                        <div
+                                            class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
+                                            :class="hasMediaSource(content) && 'pr-24 lg:pr-32'"
+                                            @click.stop
+                                        >
+                                            <div class="flex items-start gap-2">
+                                                <h1
+                                                    class="text-xl font-semibold leading-tight text-white [text-wrap:balance] lg:text-3xl"
+                                                >
+                                                    {{ content.title }}
+                                                </h1>
+                                                <button
+                                                    v-if="canEdit() && cmsUrl"
+                                                    @click="openCmsEditor"
+                                                    class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-white/70 hover:text-yellow-400"
+                                                    data-test="editButton"
+                                                >
+                                                    <PencilIcon class="h-5 w-5" />
+                                                </button>
+                                            </div>
+                                            <p
+                                                v-if="content.summary"
+                                                class="max-w-2xl text-sm leading-relaxed text-white/85 lg:text-base"
+                                            >
+                                                {{ content.summary }}
+                                            </p>
+                                        </div>
                                     </div>
                                     <MediaAction
-                                        v-if="hasVideoSource(content)"
+                                        v-if="hasMediaSource(content)"
                                         :key="content._id"
                                         :content="content"
                                         :language="selectedLanguageCode"
@@ -953,7 +961,7 @@ watch([isLoading, content, is404], async () => {
                         </div>
 
                         <MediaAction
-                            v-if="hasVideoSource(content) && !hasHeroImage"
+                            v-if="hasMediaSource(content) && !hasHeroImage"
                             :key="content._id"
                             :content="content"
                             :language="selectedLanguageCode"

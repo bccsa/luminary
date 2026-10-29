@@ -14,7 +14,7 @@ import { affinityProfile } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { getSeenArticleIds } from "@/recommendation/seenStore";
 import { sessionNow } from "@/util/sessionNow";
-import { hasVideoSource } from "@/util/videoSource";
+import { hasMediaSource } from "@/util/mediaSource";
 
 /** How many of each to offer: a handful, not a feed. */
 const UP_NEXT_LIMIT = 10;
@@ -145,7 +145,7 @@ export function useUpNext(
         if (!current) return { series: [], next: [], related: [], tags: [] };
         const withMedia = docs.value.filter(
             (doc) =>
-                hasVideoSource(doc) &&
+                hasMediaSource(doc) &&
                 (!selectedTag.value || (doc.parentTags ?? []).includes(selectedTag.value)),
         );
         const candidates = withMedia.filter((doc) => doc.parentId !== current.parentId);
