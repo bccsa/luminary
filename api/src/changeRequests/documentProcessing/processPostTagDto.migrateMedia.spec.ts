@@ -17,7 +17,12 @@ const stubDb = () =>
         upsertDoc: jest.fn().mockResolvedValue({ id: "x" }),
         getDocs: jest.fn().mockResolvedValue({ docs: [] }),
         getDoc: jest.fn().mockResolvedValue({ docs: [] }),
-        getDocsByType: jest.fn().mockResolvedValue({ docs: [] }),
+        getDocsByType: jest.fn().mockResolvedValue({
+            docs: [
+                { publicUrl: "http://old.example.com/media" },
+                { publicUrl: "http://new.example.com/media" },
+            ],
+        }),
     }) as unknown as DbService;
 
 const HLS = "http://old.example.com/media/c5829f07-4ba8-42ed-a449-80d83e6c0b53/master.m3u8";
@@ -114,7 +119,12 @@ describe("processPostTagDto — migrating media between buckets", () => {
         // reports a bucket problem the editor never caused.
         const incoming = post(undefined as unknown as string);
 
-        const warnings = await processPostTagDto(incoming, post("bucket-old"), stubDb());
+        // No bucket's public URL matches, so the URL counts as external rather than ours.
+        const db = stubDb();
+        (db.getDocsByType as jest.Mock).mockResolvedValue({ docs: [] });
+        incoming.media!.hlsUrl = "https://www.youtube.com/watch?v=abc123";
+
+        const warnings = await processPostTagDto(incoming, post("bucket-old"), db);
 
         expect(migrateMediaCollection).not.toHaveBeenCalled();
         expect(warnings.some((w) => w.includes("Reverted to previous bucket"))).toBe(false);

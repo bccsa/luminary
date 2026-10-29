@@ -544,9 +544,22 @@ describe("processPostTagDto", () => {
         ).resolves.not.toThrow();
     });
 
-    it("saves an HLS master on someone else's CDN with no bucket", async () => {
+    it("saves a whitelisted external URL (YouTube) with no bucket", async () => {
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-external-hls";
+        (changeRequest.doc as PostDto).media = {
+            hlsUrl: "https://www.youtube.com/watch?v=abc123",
+        };
+        delete (changeRequest.doc as PostDto).mediaBucketId;
+
+        await expect(
+            processChangeRequest("test-user", changeRequest, ["group-super-admins"], db),
+        ).resolves.not.toThrow();
+    });
+
+    it("rejects a new media URL on a host that is not whitelisted", async () => {
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-external-hls-rejected";
         (changeRequest.doc as PostDto).media = {
             hlsUrl: "https://cdn.example.com/somebody-else/master.m3u8",
         };
@@ -554,7 +567,7 @@ describe("processPostTagDto", () => {
 
         await expect(
             processChangeRequest("test-user", changeRequest, ["group-super-admins"], db),
-        ).resolves.not.toThrow();
+        ).rejects.toThrow(/allowed external host/);
     });
 
     it("fails the change request when the key store throws (no silent key loss)", async () => {
