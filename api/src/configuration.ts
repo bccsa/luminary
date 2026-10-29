@@ -60,14 +60,8 @@ export type SidecarConfig = {
     rateLimit: SidecarRateLimitConfig;
 };
 
+/** Tuning for the always-on per-token auth identity cache (`IdentityCacheService`). */
 export type IdentityCacheConfig = {
-    /**
-     * Master switch for the in-memory per-token auth identity cache. Ships OFF: set to the
-     * string "true" per environment to skip the full identity resolve (~16 ms and 7 CouchDB
-     * round trips, including a lastLogin write) on repeat requests with the same token.
-     * Environment variable: IDENTITY_CACHE_ENABLED (default false).
-     */
-    enabled: boolean;
     /**
      * Max age (ms) of a cached identity. The effective TTL is min(this, token's own exp),
      * so a hit never serves a token past expiry. IDENTITY_CACHE_TTL_MS (default 300000 = 5min).
@@ -225,8 +219,8 @@ export default () =>
             allowInsecureProviderDomain: process.env.AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN === "true",
         } as AuthConfig,
         identityCache: {
-            enabled: process.env.IDENTITY_CACHE_ENABLED === "true",
-            ttlMs: parseInt(process.env.IDENTITY_CACHE_TTL_MS, 10) || 300000,
-            maxEntries: parseInt(process.env.IDENTITY_CACHE_MAX_ENTRIES, 10) || 50000,
+            // Math.max turns a negative value into 0, which falls back to the default like NaN.
+            ttlMs: Math.max(0, parseInt(process.env.IDENTITY_CACHE_TTL_MS, 10)) || 300000,
+            maxEntries: Math.max(0, parseInt(process.env.IDENTITY_CACHE_MAX_ENTRIES, 10)) || 50000,
         } as IdentityCacheConfig,
     }) as Configuration;

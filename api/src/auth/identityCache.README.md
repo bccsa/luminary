@@ -10,14 +10,14 @@ Resolving a user's identity from their auth token is expensive: verifying the JW
 
 1. A request comes in with a token. `IdentityCacheService.resolveOrDefault(token, providerId)` is called instead of going straight to `AuthIdentityService`.
 2. The token is hashed (SHA-256) and used as a cache key — the raw token is never stored.
-3. **Cache hit:** the cached groups/user info is returned immediately. The user's permissions (`accessMap`) are not stored here — they come from `PermissionSystem`, which keeps its own memo per group set and drops it whenever the group graph changes, so permission changes are picked up instantly even on a hit. The memoised map is shared between callers, so it is frozen: treat it as read-only.
+3. **Cache hit:** the cached groups, user info and permissions (`accessMap`) are returned immediately. The `accessMap` is the one `PermissionSystem` builds and memoises per group set; it is shared between callers rather than copied, so it is frozen: treat it as read-only.
 4. **Cache miss:** the full resolve runs against `AuthIdentityService`, and the result is stored in the cache before being returned.
 
 Both the REST API (`AuthGuard`) and the Socket.io connection handshake use this same cache.
 
-## Off by default
+## Always on
 
-The cache is only enabled when `IDENTITY_CACHE_ENABLED=true` is set; any other value leaves it off. When disabled, every call passes straight through to `AuthIdentityService` — same as if the cache didn't exist.
+The cache is always on; there is no setting to switch it off. Requests without a token (anonymous) are never cached and always go straight to `AuthIdentityService`. With the cache on, a user's `lastLogin` is updated once per cache entry (at most every `IDENTITY_CACHE_TTL_MS`) instead of on every request.
 
 ## Cache entries always expire
 
@@ -29,23 +29,26 @@ Expired entries are removed when they are next looked up, and by a sweep of the 
 
 Waiting for the TTL isn't always good enough — some changes need to take effect right away:
 
-- A user's group membership changes (they gain or lose access to something) → the whole cache is cleared.
-- A User document is created, or its `email` or `providerId` changes → the whole cache is cleared, since those decide which groups a token resolves to. A user's first login backfills `providerId`, so it clears the cache once.
-- A user is deleted → the whole cache is cleared, so their now-invalid access stops working immediately.
-- An auth provider or group-mapping rule changes → the whole cache is cleared.
+- A User document is created, edited or deleted through a change request (e.g. from the CMS) → `ChangeRequestService` clears the whole cache. This covers group membership, `email` and `providerId` changes, and new users.
+- Any group changes — its permissions (ACL) are edited, or a group is created or deleted → the whole cache is cleared, since every cached `accessMap` was built from the old groups.
+- A user loses a group, or is deleted → the change feed's DeleteCmd also clears the whole cache, so revocations apply even when made outside the API.
+- An auth provider or group-mapping rule changes → the whole cache is cleared (via the change feed).
 - The database connection drops or comes back → the whole cache is cleared (we can no longer trust it's up to date).
 
-This is a coarse invalidation — one change clears everyone's cached identity, not just the affected user's. That's a deliberate simplicity trade-off: safe, but it does mean a busy system with frequent membership changes will see a lower cache hit rate.
+This is a coarse invalidation — one change clears everyone's cached identity, not just the affected user's. That's a deliberate interim trade-off: safe, and fine while user and group changes are rare (days or weeks apart), but a busy system with frequent permission changes would see a lower cache hit rate. Clearing only the affected users is a planned improvement.
 
 A request that is already resolving when the cache is cleared does not store its result, since it may have read the data from before the change.
 
-## Multi-instance note
+### Why User edits aren't picked up from the change feed
 
-If the API runs as multiple instances, User changes made on one instance (a membership addition, a new user, an `email` or `providerId` change) only reach the others once their entries expire. Removals and deletions propagate immediately everywhere, since they also go through the shared database change feed. Pick `IDENTITY_CACHE_TTL_MS` with that window in mind.
+Resolving an identity writes the user's `lastLogin` to their User document. On the change feed that write looks exactly like an admin edit, so clearing on every User update would mean every cache miss clears the cache. Admin edits are the only User changes that come through change requests, so that is where the cache is cleared.
+
+The consequence: a User document edited outside the API (directly in CouchDB), or on another API instance, is only picked up when the entries expire — except removals and deletions, which also arrive via the feed. Pick `IDENTITY_CACHE_TTL_MS` with that window in mind.
 
 ## Related files
 
 - `boundedTtlCache.ts` — the underlying generic cache (expiry sweep + emergency cap, no background timers).
 - `authIdentity.service.ts` — does the actual resolve work this cache is fronting.
+- `../endpoints/changeRequest.service.ts` — clears the cache after an accepted User change request.
 - `../permissions/permissions.service.ts` — owns the `accessMap` projection and its memo.
 - `../configuration.ts` — defines the `IDENTITY_CACHE_*` environment variables.

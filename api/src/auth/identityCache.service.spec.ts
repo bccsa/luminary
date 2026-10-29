@@ -41,7 +41,7 @@ function makeService(cfg: any, now?: () => number) {
     return { svc, authIdentity, db: db as unknown as EventEmitter };
 }
 
-const enabledCfg = { enabled: true, ttlMs: 300000, maxEntries: 1000 };
+const cacheCfg = { ttlMs: 300000, maxEntries: 1000 };
 
 describe("IdentityCacheService", () => {
     let getAccessMapSpy: jest.SpyInstance;
@@ -56,16 +56,16 @@ describe("IdentityCacheService", () => {
         jest.restoreAllMocks();
     });
 
-    describe("passthrough", () => {
-        it("does not cache when disabled (calls resolveOrDefault every time)", async () => {
-            const { svc, authIdentity } = makeService({ enabled: false });
+    describe("setup and anonymous passthrough", () => {
+        it("caches with the default settings when there is no identityCache config", async () => {
+            const { svc, authIdentity } = makeService(undefined);
             await svc.resolveOrDefault("t", "p");
             await svc.resolveOrDefault("t", "p");
-            expect(authIdentity.resolveOrDefault).toHaveBeenCalledTimes(2);
+            expect(authIdentity.resolveOrDefault).toHaveBeenCalledTimes(1);
         });
 
         it("passes through the anonymous path (no token) without caching", async () => {
-            const { svc, authIdentity } = makeService(enabledCfg);
+            const { svc, authIdentity } = makeService(cacheCfg);
             await svc.resolveOrDefault(undefined, undefined);
             await svc.resolveOrDefault(undefined, undefined);
             expect(authIdentity.resolveOrDefault).toHaveBeenCalledTimes(2);
@@ -73,7 +73,7 @@ describe("IdentityCacheService", () => {
         });
 
         it("passes through when a token is given without a providerId", async () => {
-            const { svc, authIdentity } = makeService(enabledCfg);
+            const { svc, authIdentity } = makeService(cacheCfg);
             await svc.resolveOrDefault("t", undefined);
             await svc.resolveOrDefault("t", undefined);
             expect(authIdentity.resolveOrDefault).toHaveBeenCalledTimes(2);
@@ -82,48 +82,70 @@ describe("IdentityCacheService", () => {
 
     describe("hit / miss", () => {
         it("caches on miss and serves the second request from cache", async () => {
-            const { svc, authIdentity } = makeService(enabledCfg);
+            const { svc, authIdentity } = makeService(cacheCfg);
             await svc.resolveOrDefault("t", "p");
             await svc.resolveOrDefault("t", "p");
             expect(authIdentity.resolveOrDefault).toHaveBeenCalledTimes(1);
         });
 
-        it("re-derives the accessMap live on a hit from the cached groups", async () => {
-            const { svc } = makeService(enabledCfg);
+        it("serves the cached accessMap on a hit without rebuilding it", async () => {
+            const { svc, authIdentity } = makeService(cacheCfg);
+            const resolvedMap = new Map([["resolved", true]]) as any;
+            authIdentity.resolveOrDefault.mockResolvedValue(authResult({ accessMap: resolvedMap }));
+
             await svc.resolveOrDefault("t", "p"); // miss → cache
-            getAccessMapSpy.mockClear();
-
-            const sentinel = new Map([["live", true]]) as any;
-            getAccessMapSpy.mockReturnValue(sentinel);
-
             const res = await svc.resolveOrDefault("t", "p"); // hit
-            expect(getAccessMapSpy).toHaveBeenCalledWith(["g1", "g2"]);
-            expect(res.userDetails.accessMap).toBe(sentinel);
-            expect(res.userDetails.groups).toEqual(["g1", "g2"]);
-            expect(res.userDetails.userId).toBe("user-1");
+
+            expect(getAccessMapSpy).not.toHaveBeenCalled();
+            expect(res.userDetails.accessMap).toBe(resolvedMap);
         });
 
-        it("returns the same identity fields on a hit as on the miss", async () => {
-            const { svc } = makeService(enabledCfg);
+        it("returns the same identity on a hit as on the miss", async () => {
+            const { svc } = makeService(cacheCfg);
             const miss = await svc.resolveOrDefault("t", "p");
             const hit = await svc.resolveOrDefault("t", "p");
 
-            expect({ ...hit.userDetails, accessMap: undefined }).toEqual({
-                ...miss.userDetails,
-                accessMap: undefined,
-            });
+            expect(hit.userDetails).toEqual(miss.userDetails);
             expect(hit.status).toBe(miss.status);
         });
 
+        it("does not let a providerId containing ':' collide with another providerId/token pair", async () => {
+            const { svc, authIdentity } = makeService(cacheCfg);
+            await svc.resolveOrDefault("c", "a:b"); // a plain "providerId:token" key would be "a:b:c"
+            await svc.resolveOrDefault("b:c", "a"); // ...and so would this one
+            expect(authIdentity.resolveOrDefault).toHaveBeenCalledTimes(2);
+        });
+
+        it("hands out a frozen jwtPayload on hits, isolated from the miss caller's copy", async () => {
+            const { svc, authIdentity } = makeService(cacheCfg);
+            authIdentity.resolveOrDefault.mockResolvedValue(
+                authResult({
+                    jwtPayload: { exp: Math.floor(Date.now() / 1000) + 3600, aud: ["api"] },
+                }),
+            );
+
+            const miss = await svc.resolveOrDefault("t", "p");
+            (miss.userDetails.jwtPayload.aud as string[]).push("changed-by-miss-caller");
+
+            const hit = await svc.resolveOrDefault("t", "p");
+            expect(hit.userDetails.jwtPayload.aud).toEqual(["api"]);
+            expect(() => (hit.userDetails.jwtPayload.sub = "x")).toThrow(
+                /read only|not extensible/,
+            );
+            expect(() => (hit.userDetails.jwtPayload.aud as string[]).push("x")).toThrow(
+                /read only|not extensible/,
+            );
+        });
+
         it("keys distinct tokens independently", async () => {
-            const { svc, authIdentity } = makeService(enabledCfg);
+            const { svc, authIdentity } = makeService(cacheCfg);
             await svc.resolveOrDefault("t1", "p");
             await svc.resolveOrDefault("t2", "p");
             expect(authIdentity.resolveOrDefault).toHaveBeenCalledTimes(2);
         });
 
         it("does not cache an already-expired token (ttl <= 0)", async () => {
-            const { svc, authIdentity } = makeService(enabledCfg);
+            const { svc, authIdentity } = makeService(cacheCfg);
             authIdentity.resolveOrDefault.mockResolvedValue(
                 authResult({ jwtPayload: { exp: Math.floor(Date.now() / 1000) - 10 } }),
             );
@@ -133,7 +155,7 @@ describe("IdentityCacheService", () => {
         });
 
         it("does not cache thrown auth failures and propagates them", async () => {
-            const { svc, authIdentity } = makeService(enabledCfg);
+            const { svc, authIdentity } = makeService(cacheCfg);
             authIdentity.resolveOrDefault.mockRejectedValue(new Error("boom"));
             await expect(svc.resolveOrDefault("t", "p")).rejects.toThrow("boom");
             await expect(svc.resolveOrDefault("t", "p")).rejects.toThrow("boom");
@@ -154,22 +176,15 @@ describe("IdentityCacheService", () => {
             return authIdentity.resolveOrDefault.mock.calls.length === 0;
         };
 
-        it("clears on a User permissionChange event (membership add or remove)", async () => {
-            const { svc, authIdentity, db } = makeService(enabledCfg);
+        it("clears on invalidate()", async () => {
+            const { svc, authIdentity } = makeService(cacheCfg);
             await seed(svc);
-            db.emit("permissionChange", { docType: DocType.User, docId: "user-1" });
+            svc.invalidate();
             expect(await isHit(svc, authIdentity)).toBe(false);
         });
 
-        it("does NOT clear on a non-User permissionChange event", async () => {
-            const { svc, authIdentity, db } = makeService(enabledCfg);
-            await seed(svc);
-            db.emit("permissionChange", { docType: DocType.Post, docId: "post-1" });
-            expect(await isHit(svc, authIdentity)).toBe(true);
-        });
-
         it("clears on a User PermissionChange DeleteCmd (feed-based removal)", async () => {
-            const { svc, authIdentity, db } = makeService(enabledCfg);
+            const { svc, authIdentity, db } = makeService(cacheCfg);
             await seed(svc);
             db.emit("update", {
                 type: DocType.DeleteCmd,
@@ -181,7 +196,7 @@ describe("IdentityCacheService", () => {
         });
 
         it("clears on a User Deleted DeleteCmd (account deletion revocation)", async () => {
-            const { svc, authIdentity, db } = makeService(enabledCfg);
+            const { svc, authIdentity, db } = makeService(cacheCfg);
             await seed(svc);
             db.emit("update", {
                 type: DocType.DeleteCmd,
@@ -193,50 +208,61 @@ describe("IdentityCacheService", () => {
         });
 
         it("clears on an AuthProvider update", async () => {
-            const { svc, authIdentity, db } = makeService(enabledCfg);
+            const { svc, authIdentity, db } = makeService(cacheCfg);
             await seed(svc);
             db.emit("update", { type: DocType.AuthProvider, _id: "ap1" });
             expect(await isHit(svc, authIdentity)).toBe(false);
         });
 
         it("clears on an AutoGroupMappings update", async () => {
-            const { svc, authIdentity, db } = makeService(enabledCfg);
+            const { svc, authIdentity, db } = makeService(cacheCfg);
             await seed(svc);
             db.emit("update", { type: DocType.AutoGroupMappings, _id: "m1" });
             expect(await isHit(svc, authIdentity)).toBe(false);
         });
 
         it("clears on disconnect", async () => {
-            const { svc, authIdentity, db } = makeService(enabledCfg);
+            const { svc, authIdentity, db } = makeService(cacheCfg);
             await seed(svc);
             db.emit("disconnect");
             expect(await isHit(svc, authIdentity)).toBe(false);
         });
 
         it("clears on reconnect", async () => {
-            const { svc, authIdentity, db } = makeService(enabledCfg);
+            const { svc, authIdentity, db } = makeService(cacheCfg);
             await seed(svc);
             db.emit("reconnect");
             expect(await isHit(svc, authIdentity)).toBe(false);
         });
 
         it("does NOT clear on a plain User update (e.g. lastLogin write)", async () => {
-            const { svc, authIdentity, db } = makeService(enabledCfg);
+            const { svc, authIdentity, db } = makeService(cacheCfg);
             await seed(svc);
             db.emit("update", { type: DocType.User, _id: "user-1", lastLogin: 123 });
             expect(await isHit(svc, authIdentity)).toBe(true);
         });
 
-        it("does NOT clear on a groupUpdate-style Group update (accessMap is re-derived live)", async () => {
-            const { svc, authIdentity, db } = makeService(enabledCfg);
+        it("clears on a group change (cached accessMaps may be stale)", async () => {
+            const { svc, authIdentity, db } = makeService(cacheCfg);
             await seed(svc);
-            // Group docs come through `update` too; the service must ignore them for Layer I.
-            db.emit("update", { type: DocType.Group, _id: "g1" });
-            expect(await isHit(svc, authIdentity)).toBe(true);
+            db.emit("groupUpdate", { type: DocType.Group, _id: "g1" });
+            expect(await isHit(svc, authIdentity)).toBe(false);
         });
 
-        it("does not cache a result whose resolve was in flight when a flush happened", async () => {
-            const { svc, authIdentity, db } = makeService(enabledCfg);
+        it("clears on a group deletion", async () => {
+            const { svc, authIdentity, db } = makeService(cacheCfg);
+            await seed(svc);
+            db.emit("groupUpdate", {
+                type: DocType.DeleteCmd,
+                deleteReason: DeleteReason.Deleted,
+                docType: DocType.Group,
+                docId: "g1",
+            });
+            expect(await isHit(svc, authIdentity)).toBe(false);
+        });
+
+        it("does not cache a result whose resolve was in flight when the cache was invalidated", async () => {
+            const { svc, authIdentity } = makeService(cacheCfg);
             let release: () => void;
             const gate = new Promise<void>((r) => (release = r));
             authIdentity.resolveOrDefault.mockImplementationOnce(async () => {
@@ -245,7 +271,7 @@ describe("IdentityCacheService", () => {
             });
 
             const inFlight = svc.resolveOrDefault("t", "p");
-            db.emit("permissionChange", { docType: DocType.User, docId: "user-1" });
+            svc.invalidate();
             release();
             await inFlight;
 
@@ -258,7 +284,7 @@ describe("IdentityCacheService", () => {
 
         it("expires a hit once the injected clock passes the TTL (capped by maxAge)", async () => {
             let clock = BASE;
-            const { svc, authIdentity } = makeService(enabledCfg, () => clock);
+            const { svc, authIdentity } = makeService(cacheCfg, () => clock);
             // Far-future exp → TTL is capped by maxAge (300000), not by expiry.
             authIdentity.resolveOrDefault.mockResolvedValue(
                 authResult({ jwtPayload: { exp: Math.floor(BASE / 1000) + 3600 } }),
@@ -278,7 +304,7 @@ describe("IdentityCacheService", () => {
 
         it("caps the TTL at the token's own exp when that is sooner than maxAge", async () => {
             let clock = BASE;
-            const { svc, authIdentity } = makeService(enabledCfg, () => clock);
+            const { svc, authIdentity } = makeService(cacheCfg, () => clock);
             // exp is 10s out → TTL = min(10000, 300000) = 10000.
             authIdentity.resolveOrDefault.mockResolvedValue(
                 authResult({ jwtPayload: { exp: Math.floor(BASE / 1000) + 10 } }),

@@ -502,9 +502,8 @@ describe("AuthGuard (Integrated)", () => {
         };
 
         authIdentityService = new AuthIdentityService(mockJwtService, mockDbService);
-        // The guard resolves through IdentityCacheService; with the cache disabled
-        // (config returns no "identityCache") it's a passthrough to the real service,
-        // so this still exercises the full guard → AuthIdentityService path.
+        // A fresh IdentityCacheService per test, so each test's first call still runs the full
+        // guard → AuthIdentityService path.
         const identityCacheService = new IdentityCacheService(
             authIdentityService,
             { get: () => undefined } as any,

@@ -3,14 +3,14 @@ import { ConfigService } from "@nestjs/config";
 import { createHash } from "crypto";
 import { DbService } from "../db/db.service";
 import { DeleteReason, DocType, Uuid } from "../enums";
-import { PermissionSystem } from "../permissions/permissions.service";
+import { AccessMap } from "../permissions/permissions.service";
 import { AuthIdentityService, IdentityResult, JwtUserDetails } from "./authIdentity.service";
 import { IdentityCacheConfig } from "../configuration";
 import { BoundedTtlCache } from "./boundedTtlCache";
 
 /**
- * Resolved membership + identity per token. The accessMap is deliberately not cached: it is
- * re-derived from {@link PermissionSystem} on each hit, so ACL changes need no invalidation here.
+ * Resolved identity per token, including its accessMap (the frozen map shared through the
+ * PermissionSystem memo, not a copy). Any group change therefore clears the whole cache.
  */
 type CachedIdentity = {
     status: "authenticated";
@@ -19,20 +19,27 @@ type CachedIdentity = {
     email?: string;
     name?: string;
     jwtPayload?: JwtUserDetails["jwtPayload"];
+    accessMap: AccessMap;
 };
+
+function deepFreeze<T>(value: T): T {
+    if (value && typeof value === "object" && !Object.isFrozen(value)) {
+        Object.freeze(value);
+        Object.values(value).forEach(deepFreeze);
+    }
+    return value;
+}
 
 /**
  * Per-token cache in front of {@link AuthIdentityService.resolveOrDefault}, shared by the REST
- * `AuthGuard` and the socket handshake. Off unless `IDENTITY_CACHE_ENABLED=true`; when off it is
- * a pure passthrough. See `identityCache.README.md`.
+ * `AuthGuard` and the socket handshake. Always on. See `identityCache.README.md`.
  */
 @Injectable()
 export class IdentityCacheService implements OnModuleInit {
-    private readonly enabled: boolean;
     private readonly maxAgeMs: number;
     private readonly now: () => number;
-    private readonly cache?: BoundedTtlCache<CachedIdentity>;
-    // Bumped on every flush so a miss that was already resolving can't re-cache a stale result.
+    private readonly cache: BoundedTtlCache<CachedIdentity>;
+    // Bumped by invalidate() so a miss that was already resolving can't re-cache a stale result.
     private generation = 0;
 
     constructor(
@@ -44,43 +51,39 @@ export class IdentityCacheService implements OnModuleInit {
     ) {
         this.now = now;
         const cfg = this.configService.get<IdentityCacheConfig>("identityCache");
-        this.enabled = !!cfg?.enabled;
         this.maxAgeMs = cfg?.ttlMs ?? 300000;
-        if (this.enabled) {
-            this.cache = new BoundedTtlCache<CachedIdentity>({
-                maxEntries: cfg.maxEntries,
-                sweepIntervalMs: this.maxAgeMs,
-                now: this.now,
-            });
-        }
+        this.cache = new BoundedTtlCache<CachedIdentity>({
+            maxEntries: cfg?.maxEntries,
+            sweepIntervalMs: this.maxAgeMs,
+            now: this.now,
+        });
     }
 
     onModuleInit() {
-        if (!this.enabled || !this.cache) return;
-
-        // Write-side signal for User changes (memberOf, new user, email/providerId) that the feed
-        // can't tell apart from our own lastLogin write, which must not flush.
-        this.db.on("permissionChange", (evt: any) => {
-            if (evt?.docType === DocType.User) this.flush();
+        // Cached accessMaps were built from the group graph, so any group change (ACL edit, group
+        // created or deleted) makes them all potentially stale.
+        this.db.on("groupUpdate", () => {
+            this.invalidate();
         });
 
-        // Group (ACL) updates are deliberately not handled: the accessMap is re-derived per hit.
+        // User edits are not handled here: on the feed they look like our own lastLogin write, so
+        // ChangeRequestService calls invalidate() instead.
         this.db.on("update", (doc: any) => {
             if (!doc?.type) return;
 
-            // Feed-side membership removal; also reaches instances that didn't do the write.
+            // Membership removals arrive here too, so revocations made outside the API apply.
             if (
                 doc.type === DocType.DeleteCmd &&
                 doc.deleteReason === DeleteReason.PermissionChange &&
                 doc.docType === DocType.User
             ) {
-                this.flush();
+                this.invalidate();
                 return;
             }
 
             // Default/dynamic group derivation or token-verification rules changed.
             if (doc.type === DocType.AuthProvider || doc.type === DocType.AutoGroupMappings) {
-                this.flush();
+                this.invalidate();
                 return;
             }
             // Deletions arrive only as feed DeleteCmds; a deleted user's still-valid JWT must stop
@@ -92,38 +95,37 @@ export class IdentityCacheService implements OnModuleInit {
                     doc.docType === DocType.AutoGroupMappings ||
                     doc.docType === DocType.User)
             ) {
-                this.flush();
+                this.invalidate();
             }
         });
 
         // Change feed down → we can't trust freshness; drop everything (same rule as the other
         // DTO-derived caches: AuthIdentityService, QueryService.languages, S3Service).
         this.db.on("disconnect", () => {
-            this.flush();
+            this.invalidate();
         });
 
         // Resolves during the outage can cache membership that changed while the feed was down.
         this.db.on("reconnect", () => {
-            this.flush();
+            this.invalidate();
         });
     }
 
     /**
      * Cache-fronted equivalent of {@link AuthIdentityService.resolveOrDefault}. Identical
-     * signature/return so callers are transport-agnostic. Anonymous (no token) and the
-     * disabled state pass straight through.
+     * signature/return so callers are transport-agnostic. Anonymous requests (no token or
+     * providerId) pass straight through.
      */
     async resolveOrDefault(token?: string, providerId?: string): Promise<IdentityResult> {
-        if (!this.enabled || !this.cache || !token || !providerId) {
+        if (!token || !providerId) {
             return this.authIdentityService.resolveOrDefault(token, providerId);
         }
 
-        const key = this.hashToken(`${providerId}:${token}`);
+        // JSON-encoded so no providerId/token pair can produce another pair's key.
+        const key = this.hashToken(JSON.stringify([providerId, token]));
 
         const hit = this.cache.get(key);
         if (hit) {
-            // Sourced from PermissionSystem so ACL-graph changes are always reflected.
-            const accessMap = PermissionSystem.getAccessMap(hit.groups);
             return {
                 status: hit.status,
                 userDetails: {
@@ -132,7 +134,7 @@ export class IdentityCacheService implements OnModuleInit {
                     email: hit.email,
                     name: hit.name,
                     jwtPayload: hit.jwtPayload,
-                    accessMap,
+                    accessMap: hit.accessMap,
                 },
             };
         }
@@ -142,7 +144,7 @@ export class IdentityCacheService implements OnModuleInit {
         const result = await this.authIdentityService.resolveOrDefault(token, providerId);
 
         // Only cache authenticated identities, never past the token's own expiry, and never if
-        // a flush happened while resolving (the result may predate the change that caused it).
+        // the cache was invalidated while resolving (the result may predate the change).
         if (result.status === "authenticated" && generation === this.generation) {
             const ttlMs = this.computeTtlMs(result.userDetails.jwtPayload?.exp);
             if (ttlMs > 0) {
@@ -154,7 +156,9 @@ export class IdentityCacheService implements OnModuleInit {
                         userId: result.userDetails.userId,
                         email: result.userDetails.email,
                         name: result.userDetails.name,
-                        jwtPayload: result.userDetails.jwtPayload,
+                        // Every hit shares this object, so callers must not be able to change it.
+                        jwtPayload: deepFreeze(structuredClone(result.userDetails.jwtPayload)),
+                        accessMap: result.userDetails.accessMap,
                     },
                     ttlMs,
                 );
@@ -162,6 +166,12 @@ export class IdentityCacheService implements OnModuleInit {
         }
 
         return result;
+    }
+
+    /** Drop every cached identity, e.g. after a User or group change. */
+    invalidate(): void {
+        this.generation++;
+        this.cache.clear();
     }
 
     /**
@@ -173,11 +183,6 @@ export class IdentityCacheService implements OnModuleInit {
         if (typeof expSeconds !== "number") return this.maxAgeMs;
         const untilExpiry = expSeconds * 1000 - this.now();
         return Math.min(untilExpiry, this.maxAgeMs);
-    }
-
-    private flush(): void {
-        this.generation++;
-        this.cache.clear();
     }
 
     /** SHA-256 of the token so raw JWTs are never held in memory as keys. */

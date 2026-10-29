@@ -65,8 +65,7 @@ export async function createTestingModule(testName: string) {
                     }),
                 },
             },
-            // Real service; config mock returns undefined for "identityCache" so it stays
-            // disabled (pure passthrough to the mocked AuthIdentityService above).
+            // Real service in front of the mock above; its anonymous results are never cached.
             IdentityCacheService,
             {
                 provide: ConfigService,

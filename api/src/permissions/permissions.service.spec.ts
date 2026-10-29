@@ -1351,6 +1351,13 @@ describe("PermissionService", () => {
             expect(second).toBe(first);
         });
 
+        it("does not merge group sets whose ids contain the old '|' separator", () => {
+            const joined = PermissionSystem.getAccessMap(["group-a|group-b"]);
+            const separate = PermissionSystem.getAccessMap(["group-a", "group-b"]);
+
+            expect(joined).not.toBe(separate);
+        });
+
         it("returns a frozen map so one caller can't change another's access", () => {
             const map = PermissionSystem.getAccessMap(["group-public-editors"]);
             const groupId = Object.keys(map)[0];

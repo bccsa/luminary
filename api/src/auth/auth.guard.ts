@@ -11,8 +11,7 @@ declare module "fastify" {
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-    // Resolve through the identity cache (transport-agnostic; a pure passthrough to
-    // AuthIdentityService.resolveOrDefault when the cache is disabled).
+    // Resolves through the identity cache, which the socket handshake shares.
     constructor(private identityCacheService: IdentityCacheService) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {

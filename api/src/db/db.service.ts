@@ -14,7 +14,6 @@ import { randomUUID } from "crypto";
 import { _contentBaseDto } from "../dto/_contentBaseDto";
 import { ContentDto } from "../dto/ContentDto";
 import { RedirectDto } from "../dto/RedirectDto";
-import { UserDto } from "../dto/UserDto";
 import { isEqualDoc } from "../util/isEqualDoc";
 import { isDeepStrictEqual } from "util";
 import { assertNoNullInArrayOperators } from "./assertNoNullInArrayOperators";
@@ -149,7 +148,6 @@ const FTS_STALE_READ = { stable: true, update: "lazy" as const };
  *
  * @fires DbService#update - Emitted when any valid document with a type field is updated in the database
  * @fires DbService#groupUpdate - Emitted when a group document is updated, used by the permission system to update access maps. Also emitted with a `DeleteCmd` payload (docType === Group) when a group is deleted via the soft-delete flow, so the permission system can evict the entry.
- * @fires DbService#permissionChange - Emitted (write-side, `{ docType, docId }`) after a non-Group document's `memberOf` changes, or a User doc is created or has its `email`/`providerId` changed. Lets per-identity caches catch changes the feed can't signal (a pure `memberOf` addition emits no DeleteCmd). Local to this instance only.
  * @fires DbService#disconnect - Emitted when a previously-established DB connection is lost. Consumers should drop cached DTO state that may have diverged while disconnected.
  * @fires DbService#reconnect - Emitted after a disconnect has been followed by a successful reconnect. Consumers that need a populated cache to function should rehydrate here.
  *
@@ -462,10 +460,6 @@ export class DbService extends EventEmitter {
 
         let rev: string;
 
-        // Tracks whether this write changes `memberOf` (add or remove) so we can emit a
-        // `permissionChange` event after the write succeeds — see the `@fires` note above.
-        let memberOfChanged = false;
-
         // Generate delete command if the document is set to be deleted, and delete the document
         if (doc.deleteReq) {
             await this.insertDeleteCmd({
@@ -501,7 +495,6 @@ export class DbService extends EventEmitter {
                     doc.memberOf.sort(),
                 )
             ) {
-                memberOfChanged = true;
                 await this.insertDeleteCmd({
                     reason: DeleteReason.PermissionChange,
                     doc: doc as _contentBaseDto,
@@ -557,22 +550,11 @@ export class DbService extends EventEmitter {
         docPlain.updatedTimeUtc = Date.now();
         docPlain._rev = rev;
 
-        // Users are matched by email and scoped by providerId, so a new User doc or a change to
-        // either field alters resolved membership just like a memberOf change does.
-        const userIdentityChanged =
-            doc.type === DocType.User &&
-            (!existing ||
-                (existing as UserDto).email !== doc.email ||
-                (existing as UserDto).providerId !== doc.providerId);
-
         if (!existing) {
             // Passed document does not exist in database: create
             const res = await this.insertDoc(docPlain);
             res.updatedTimeUtc = docPlain.updatedTimeUtc;
             res.changes = docPlain;
-            if (userIdentityChanged) {
-                this.emit("permissionChange", { docType: doc.type, docId: doc._id });
-            }
             return res;
         }
 
@@ -591,12 +573,6 @@ export class DbService extends EventEmitter {
         const insertResult = await this.insertDoc(docPlain);
         insertResult.updatedTimeUtc = docPlain.updatedTimeUtc;
         insertResult.changes = changes;
-
-        // Notify in-memory per-identity caches of a membership change once the write is committed.
-        if (memberOfChanged || userIdentityChanged) {
-            this.emit("permissionChange", { docType: doc.type, docId: doc._id });
-        }
-
         return insertResult;
     }
 

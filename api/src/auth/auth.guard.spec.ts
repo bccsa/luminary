@@ -4,9 +4,7 @@ import type { IdentityResult } from "./authIdentity.service";
 
 describe("AuthGuard", () => {
     let guard: AuthGuard;
-    // The guard now resolves through IdentityCacheService (a passthrough to
-    // AuthIdentityService.resolveOrDefault when the cache is disabled); the mock
-    // exposes the same resolveOrDefault contract.
+    // The guard resolves through IdentityCacheService; the mock exposes its resolveOrDefault.
     let authIdentityService: Partial<IdentityCacheService>;
 
     const defaultUserDetails = {

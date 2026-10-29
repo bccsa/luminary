@@ -194,7 +194,8 @@ export class PermissionSystem extends EventEmitter {
      * @returns - Access Map for the passed group IDs
      */
     static getAccessMap(groupIds: Array<Uuid>): AccessMap {
-        const cacheKey = groupIds ? Array.from(new Set(groupIds)).sort().join("|") : "";
+        // JSON-encoded so a group id containing the separator can't merge two group sets.
+        const cacheKey = JSON.stringify(Array.from(new Set(groupIds ?? [])).sort());
         const cached = accessMapCache.get(cacheKey);
         if (cached) return cached;
 
