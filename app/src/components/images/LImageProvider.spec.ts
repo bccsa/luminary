@@ -446,11 +446,8 @@ describe("LImageProvider", () => {
         expect(img1.attributes("srcset")).toContain("video-1200.webp 1200w");
     });
 
-    it.each([
-        ["portrait", "imageElement1"],
-        ["original", "imageElement2"],
-    ] as const)(
-        "replaces the prerendered reduced `sizes` with the client value after hydration (%s, %s)",
+    it.each(["portrait", "original"] as const)(
+        "replaces the prerendered reduced `sizes` with the client value after hydration (%s)",
         async (aspectRatio) => {
             const props = {
                 parentId: "test-id-hydrate",
