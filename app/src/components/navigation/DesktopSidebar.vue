@@ -59,9 +59,10 @@ const forceReauthOnNextLogin = ref(true);
 // The sidebar prerenders on the web/SSG build, but its interactive overlays (e.g. LanguageModal's Dexie-backed query) can't run during the Node prerender, so they mount client-side only.
 const isMounted = useHydrated();
 
-// On small screens (below Tailwind's `lg` breakpoint) the sidebar stays visible on the right
-// side of the screen and is loaded in its expanded state by default. It can still be collapsed and
-// expanded with the existing toggle.
+// On small screens (below Tailwind's `lg` breakpoint) the sidebar stays on the left side of the
+// screen (same as on desktop) and is loaded in its expanded state by default. It can still be
+// collapsed and expanded with the existing toggle. When collapsed on small screens it is not
+// shown at all (no icon-only rail like on desktop) — only the toggle button remains visible.
 const largeScreenQuery = "(min-width: 1024px)";
 let largeScreenMql: MediaQueryList | undefined;
 
@@ -164,24 +165,29 @@ const handleLogin = () => {
 
 <template>
     <nav
-        class="relative order-last flex flex-shrink-0 flex-col border-l border-zinc-200 bg-zinc-100 transition-[width] duration-200 ease-out dark:border-slate-700 dark:bg-slate-800 lg:order-none lg:border-l-0 lg:border-r"
-        :class="collapsed ? 'w-[4.5rem]' : 'w-64'"
+        class="relative flex flex-shrink-0 flex-col border-zinc-200 bg-zinc-100 transition-[width] duration-200 ease-out dark:border-slate-700 dark:bg-slate-800"
+        :class="collapsed ? 'w-0 lg:w-[4.5rem] lg:border-r' : 'w-64 border-r'"
     >
-        <!-- Collapse toggle — sits on the inner edge (right edge on desktop, left edge on small screens where the sidebar is on the right), vertically centred -->
+        <!-- Collapse toggle — sits on the inner edge (right edge of the sidebar) on all screen sizes, vertically centred. On small screens when collapsed the sidebar itself is hidden, so the toggle sits at the left edge of the screen and is the only thing visible. -->
         <button
             type="button"
-            class="absolute left-0 top-1/2 z-20 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100 lg:left-auto lg:right-0 lg:translate-x-1/2"
+            class="absolute top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100"
+            :class="
+                collapsed
+                    ? 'left-1 lg:left-auto lg:right-0 lg:translate-x-1/2'
+                    : 'right-0 translate-x-1/2'
+            "
             :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
             @click="toggleCollapsed"
         >
             <ChevronLeftIcon
                 v-if="!collapsed"
-                class="h-4 w-4 translate-x-0.5 rotate-180 lg:-translate-x-0.5 lg:rotate-0"
+                class="h-4 w-4 -translate-x-0.5"
                 aria-hidden="true"
             />
             <ChevronRightIcon
                 v-else
-                class="h-4 w-4 -translate-x-0.5 rotate-180 lg:translate-x-0.5 lg:rotate-0"
+                class="h-4 w-4 translate-x-0.5"
                 aria-hidden="true"
             />
         </button>
@@ -226,7 +232,7 @@ const handleLogin = () => {
         <!-- Nav -->
         <div
             class="flex-1 overflow-y-auto overflow-x-hidden py-2 scrollbar-hide"
-            :class="collapsed ? 'px-2' : 'px-3'"
+            :class="collapsed ? 'hidden px-2 lg:block' : 'px-3'"
         >
             <RouterLink
                 v-for="item in navigationItems.slice(0, -1)"
@@ -370,7 +376,7 @@ const handleLogin = () => {
         <!-- Account -->
         <div
             class="border-t border-zinc-200 py-3 dark:border-slate-700"
-            :class="collapsed ? 'px-2' : 'px-3'"
+            :class="collapsed ? 'hidden px-2 lg:block' : 'px-3'"
         >
             <button
                 type="button"
