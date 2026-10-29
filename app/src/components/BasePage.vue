@@ -151,7 +151,7 @@ onUnmounted(() => {
             >
                 <TopBar
                     :showBackButton="showBackButton"
-                    class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50 min-[768px]:hidden"
+                    class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50 md:hidden"
                 >
                     <template #quickControls><slot name="quickControls" /></template>
                 </TopBar>
@@ -173,7 +173,7 @@ onUnmounted(() => {
                      so content clears the bars at rest yet scrolls under them. The 74px
                      fallback matches the bar's natural height for prerendered HTML. -->
                 <div
-                    class="pb-[var(--mobile-menu-h,0px)] pt-[var(--top-bar-h,74px)] min-[768px]:pt-0 lg:pb-0"
+                    class="pb-[var(--mobile-menu-h,0px)] pt-[var(--top-bar-h,74px)] md:pt-0 lg:pb-0"
                 >
                     <!-- Desktop pinned chrome: back (left) + quick controls (right) stay fixed while scrolling.
                      Direct child of the scrolling <main> so `sticky` keeps it pinned the whole way.
