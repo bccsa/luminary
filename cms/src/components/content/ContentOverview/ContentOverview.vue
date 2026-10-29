@@ -265,7 +265,7 @@ const createNew = () => {
             />
         </template>
 
-        <div v-if="cmsLanguageIdAsRef" class="flex flex-col gap-[3px]">
+        <div v-if="cmsLanguageIdAsRef" class="flex flex-col gap-[8px]">
             <div v-if="searchActive" class="px-2 py-1 text-xs text-zinc-500">
                 {{ showRelated ? "Showing related results" : "Showing exact matches" }}
                 for "{{ (queryOptions.search ?? "").trim() }}".

@@ -60,7 +60,7 @@ vi.mock("@/globalConfig", () => ({
     cmsLanguages: ref([]),
     queryParams: { get: vi.fn() },
     cmsUrl: ref(""),
-    userPreferencesAsRef: ref({ bookmarks: [] }),
+    userPreferencesAsRef: ref({ likes: [] }),
     appLanguageIdsAsRef: ref(["lang-eng"]),
     appLanguageAsRef: ref(undefined),
     initLanguage: vi.fn(),
@@ -156,7 +156,7 @@ vi.mock("@/components/images/ImageModal.vue", () => ({ default: voidStub("ImageM
 vi.mock("@/components/images/LImageProvider.vue", () => ({
     activeImageCollection: () => 0,
 }));
-vi.mock("@/components/content/VideoPlayer.vue", () => ({ default: voidStub("VideoPlayer") }));
+vi.mock("@/media-player/MediaPlayerWrapper.vue", () => ({ default: voidStub("MediaPlayerWrapper") }));
 vi.mock("@/components/content/CopyrightBanner.vue", () => ({
     default: voidStub("CopyrightBanner"),
 }));

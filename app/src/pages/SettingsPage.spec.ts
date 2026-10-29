@@ -1,25 +1,44 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsPage from "./SettingsPage.vue";
+import LDialog from "@/components/common/LDialog.vue";
+import { recordUserActivity } from "@/userActivity/store";
 import { mount, flushPromises } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { db, isConnected } from "luminary-shared";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
-import { isDataSaverEnabled, userDataSaverEnabled, localCacheVersion } from "@/globalConfig";
+import {
+    isDataSaverEnabled,
+    userDataSaverEnabled,
+    localCacheVersion,
+    youtubeAlwaysAllow,
+    subtitlesOnVideo,
+} from "@/globalConfig";
 
 vi.mock("@/globalConfig", async () => {
     const { ref, watch } = await import("vue");
     const userDataSaverEnabled = ref(false);
     const localCacheVersion = ref(0);
+    const youtubeAlwaysAllow = ref(false);
+    const subtitlesOnVideo = ref(false);
+    watch(subtitlesOnVideo, (onVideo) => {
+        localStorage.setItem("subtitlesOnVideo", String(onVideo));
+    });
+    watch(youtubeAlwaysAllow, (allowed) => {
+        localStorage.setItem("youtubeAlwaysAllow", String(allowed));
+    });
     watch(userDataSaverEnabled, (enabled) => {
         localStorage.setItem("dataSaver", String(enabled));
     });
     return {
         getDeviceInfo: () => ({ platform: "Test OS", userAgent: "Test Browser" }),
+        isTestEnviroment: true,
         isDataSaverEnabled: vi.fn(() => false),
         userDataSaverEnabled,
         localCacheVersion,
+        youtubeAlwaysAllow,
+        subtitlesOnVideo,
     };
 });
 vi.mock("@/components/BasePage.vue", async () => {
@@ -172,6 +191,31 @@ describe("SettingsPage data saver", () => {
         expect(localStorage.getItem("dataSaver")).toBe("true");
     });
 
+    it("lets the viewer choose where subtitles go: under the video by default, or over it", async () => {
+        const wrapper = mountSettingsPage();
+        const toggle = wrapper.find("[data-test='subtitlesOnVideoToggle']");
+        expect(toggle.exists()).toBe(true);
+        expect(subtitlesOnVideo.value).toBe(false);
+
+        await toggle.trigger("click");
+
+        expect(subtitlesOnVideo.value).toBe(true);
+        expect(localStorage.getItem("subtitlesOnVideo")).toBe("true");
+    });
+
+    it('turns off "always allow" for videos hosted by YouTube', async () => {
+        youtubeAlwaysAllow.value = true;
+        const wrapper = mountSettingsPage();
+        const toggle = wrapper.find("[data-test='youtubeAllowToggle']");
+        expect(toggle.exists()).toBe(true);
+        expect(toggle.attributes("aria-checked")).toBe("true");
+
+        await toggle.trigger("click");
+
+        expect(youtubeAlwaysAllow.value).toBe(false);
+        expect(localStorage.getItem("youtubeAlwaysAllow")).toBe("false");
+    });
+
     it("forces the toggle on visually and disables it when browser Data Saver is detected", async () => {
         vi.mocked(isDataSaverEnabled).mockReturnValue(true);
         const wrapper = mountSettingsPage();
@@ -200,5 +244,18 @@ describe("SettingsPage data saver", () => {
         await wrapper.vm.$nextTick();
 
         expect(wrapper.find("[data-test='dataSaverNote']").exists()).toBe(false);
+    });
+
+    it("clears the activity only after the confirmation is accepted", async () => {
+        await recordUserActivity({ type: "liked", parentId: "post-1" });
+        const wrapper = mount(SettingsPage);
+
+        await wrapper.find("[data-test=clearUserActivity]").trigger("click");
+        expect(await db.userActivity.count()).toBe(1);
+
+        await wrapper.findComponent(LDialog).props("primaryAction")();
+
+        await flushPromises();
+        expect(await db.userActivity.count()).toBe(0);
     });
 });

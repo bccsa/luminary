@@ -39,12 +39,11 @@ indistinguishable downstream.
 ## The player, and what adopting it retired
 
 The app and the CMS play HLS through `LuminaryPlayer` from the encoder's
-`player-web-legacy` package — Video.js 8 over the shared `player-core` pipeline. It
-decrypts LMCENC playlists before the engine sees them and serves the AES key from
-memory for the `luminary://key` sentinel, which is what makes an encrypted
-collection playable at all. `player-web-legacy` rather than `player-web` (the hls.js
-build) because it reproduces the chrome the app already drew, so the swap was
-invisible to viewers.
+`player-web` package — Video.js 10 over hls.js, with the shared `player-core`
+pipeline. It decrypts LMCENC playlists before the engine sees them and serves the AES
+key from memory for the `luminary://key` sentinel, which is what makes an encrypted
+collection playable at all. YouTube is not played by it: the app draws its own embed
+(`YouTubeWrapper.vue`).
 
 Encryption is requested on every session (`encryption: { required: true }` in
 [`useMediaEncoder.ts`](../../cms/src/composables/useMediaEncoder.ts)). The CMS states

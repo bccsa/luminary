@@ -185,10 +185,18 @@ class RestApi {
      * Fetch the encode destination for a media bucket. Requires Assign permission on
      * the bucket, since the response carries credentials that can write to it.
      */
-    async getEncoderConfig(bucketId: string): Promise<EncoderConfigResponse | undefined> {
+    /**
+     * `parentId` asks for an edit of that post's or tag's existing video: the API then
+     * also checks the caller may edit it, and that the bucket is the one it uses.
+     */
+    async getEncoderConfig(
+        bucketId: string,
+        parentId?: string,
+    ): Promise<EncoderConfigResponse | undefined> {
         return await this.http.getWithQueryParams("storage/encoderconfig", {
             bucketId,
             apiVersion: "0.0.0",
+            ...(parentId ? { parentId } : {}),
         });
     }
 }

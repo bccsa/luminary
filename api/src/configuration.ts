@@ -60,6 +60,21 @@ export type SidecarConfig = {
     rateLimit: SidecarRateLimitConfig;
 };
 
+/** Tuning for the always-on per-token auth identity cache (`IdentityCacheService`). */
+export type IdentityCacheConfig = {
+    /**
+     * Max age (ms) of a cached identity. The effective TTL is min(this, token's own exp),
+     * so a hit never serves a token past expiry. IDENTITY_CACHE_TTL_MS (default 300000 = 5min).
+     */
+    ttlMs: number;
+    /**
+     * Emergency cap on cached identities; at the cap the oldest entry is evicted. Expired
+     * entries are swept once per TTL, so normal volume stays well below it.
+     * IDENTITY_CACHE_MAX_ENTRIES (default 50000).
+     */
+    maxEntries: number;
+};
+
 export type ValidationConfig = {
     /**
      * When set to true, query template validation will log warnings instead of throwing exceptions.
@@ -120,6 +135,7 @@ export type Configuration = {
     socketIo?: SocketIoConfig;
     validation?: ValidationConfig;
     auth?: AuthConfig;
+    identityCache?: IdentityCacheConfig;
 };
 
 /**
@@ -202,4 +218,9 @@ export default () =>
         auth: {
             allowInsecureProviderDomain: process.env.AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN === "true",
         } as AuthConfig,
+        identityCache: {
+            // Math.max turns a negative value into 0, which falls back to the default like NaN.
+            ttlMs: Math.max(0, parseInt(process.env.IDENTITY_CACHE_TTL_MS, 10)) || 300000,
+            maxEntries: Math.max(0, parseInt(process.env.IDENTITY_CACHE_MAX_ENTRIES, 10)) || 50000,
+        } as IdentityCacheConfig,
     }) as Configuration;

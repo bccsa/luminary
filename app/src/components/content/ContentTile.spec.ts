@@ -322,7 +322,7 @@ describe("ContentTile", () => {
 
     it("shows progress for an encoded video, keyed as the player stores it", () => {
         // The tile has only the stored, bucket-relative URL and never resolves a
-        // bucket, so VideoPlayer has to key the store by the same thing.
+        // bucket, so MediaPlayerWrapper has to key the store by the same thing.
         const content = {
             _id: "encoded-content-id",
             title: "Encoded Content",

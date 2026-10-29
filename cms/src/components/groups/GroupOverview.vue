@@ -238,7 +238,7 @@ const hasAnyContent = computed(() => editable.value.length > 0);
             />
         </template>
 
-        <div v-show="currentTab === 'overview'" class="flex flex-col gap-[3px]">
+        <div v-show="currentTab === 'overview'" class="flex flex-col gap-[8px]">
             <p v-if="hasAnyContent" class="mb-2 px-2 py-1 text-sm text-zinc-500">
                 <span>
                     Configure access permissions for the groups listed below to control who can

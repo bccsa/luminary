@@ -6,10 +6,14 @@ import { JwtUserDetails } from "../auth/authIdentity.service";
 import { processChangeRequest } from "../changeRequests/processChangeRequest";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { PermissionSystem } from "../permissions/permissions.service";
+import { IdentityCacheService } from "../auth/identityCache.service";
 
 @Injectable()
 export class ChangeRequestService {
-    constructor(private db: DbService) {}
+    constructor(
+        private db: DbService,
+        private identityCacheService: IdentityCacheService,
+    ) {}
 
     async changeRequest(
         changeRequest: ChangeReqDto,
@@ -23,6 +27,12 @@ export class ChangeRequestService {
             this.db,
         )
             .then(async (result) => {
+                // Admin User edits only arrive here; the auth path's own lastLogin write never
+                // does, so this is where a User change can invalidate cached identities.
+                if (changeRequest.doc?.type === DocType.User) {
+                    this.identityCacheService.invalidate();
+                }
+
                 const ack = await this.upsertDocAck(
                     changeRequest,
                     AckStatus.Accepted,

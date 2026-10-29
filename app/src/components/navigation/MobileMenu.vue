@@ -5,6 +5,7 @@ import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import ProfileMenu from "./ProfileMenu.vue";
+import { keyboardOpen } from "@/composables/useKeyboardOpen";
 
 // `closeSearch` still closes the desktop modal if it happens to be open; mobile navigates to
 // the dedicated /search page rather than opening the overlay.
@@ -49,20 +50,26 @@ const publishHeight = (height: number) => {
     document.documentElement.style.setProperty("--mobile-menu-h", `${height}px`);
 };
 
+const measure = () => {
+    if (rootRef.value) publishHeight(rootRef.value.getBoundingClientRect().height);
+};
+
 onMounted(() => {
     if (!rootRef.value) return;
-    const measure = () => {
-        if (rootRef.value) publishHeight(rootRef.value.getBoundingClientRect().height);
-    };
     measure();
     if (typeof ResizeObserver !== "undefined") {
         resizeObserver = new ResizeObserver(measure);
-        resizeObserver.observe(rootRef.value);
+        // The border box: turning the phone changes only the safe-area padding, which the content box
+        // never sees, and whatever rides on the menu would be left floating above it.
+        resizeObserver.observe(rootRef.value, { box: "border-box" });
     }
+    // iOS before 15.4 ignores `box`; a turn resizes the window, so the menu is measured then too.
+    window.addEventListener("resize", measure);
 });
 
 onUnmounted(() => {
     resizeObserver?.disconnect();
+    window.removeEventListener("resize", measure);
     document.documentElement.style.removeProperty("--mobile-menu-h");
 });
 </script>
@@ -70,6 +77,7 @@ onUnmounted(() => {
 <template>
     <div
         ref="rootRef"
+        v-show="!keyboardOpen"
         class="flex flex-row justify-center gap-3 bg-zinc-100 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.625rem),calc(var(--native-inset-bottom,0px)+0.5rem))] pt-3 dark:bg-slate-800"
     >
         <!-- Older Android WebViews report a 0 bottom env() inset under 3-button navigation; the

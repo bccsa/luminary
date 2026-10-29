@@ -151,4 +151,44 @@ describe("configuration", () => {
         expect(config.sidecar.rateLimit.read.enabled).toBe(false);
         expect(config.sidecar.rateLimit.probe.freeStrikes).toBe(3);
     });
+
+    it("should default the identity cache config", () => {
+        delete process.env.IDENTITY_CACHE_TTL_MS;
+        delete process.env.IDENTITY_CACHE_MAX_ENTRIES;
+
+        const config = configuration();
+        expect(config.identityCache).toEqual({
+            ttlMs: 300000,
+            maxEntries: 50000,
+        });
+    });
+
+    it("should read identity cache config from env vars", () => {
+        process.env.IDENTITY_CACHE_TTL_MS = "60000";
+        process.env.IDENTITY_CACHE_MAX_ENTRIES = "10";
+
+        const config = configuration();
+        expect(config.identityCache).toEqual({
+            ttlMs: 60000,
+            maxEntries: 10,
+        });
+    });
+
+    it("should fall back to defaults for non-numeric or zero identity cache values", () => {
+        process.env.IDENTITY_CACHE_TTL_MS = "not-a-number";
+        process.env.IDENTITY_CACHE_MAX_ENTRIES = "0";
+
+        const config = configuration();
+        expect(config.identityCache.ttlMs).toBe(300000);
+        expect(config.identityCache.maxEntries).toBe(50000);
+    });
+
+    it("should fall back to defaults for negative identity cache values", () => {
+        process.env.IDENTITY_CACHE_TTL_MS = "-1000";
+        process.env.IDENTITY_CACHE_MAX_ENTRIES = "-5";
+
+        const config = configuration();
+        expect(config.identityCache.ttlMs).toBe(300000);
+        expect(config.identityCache.maxEntries).toBe(50000);
+    });
 });

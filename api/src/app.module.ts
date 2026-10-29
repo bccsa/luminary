@@ -18,6 +18,7 @@ import { StorageStatusController } from "./endpoints/storageStatus.controller";
 import { EncoderConfigController } from "./endpoints/encoderConfig.controller";
 import { SidecarController } from "./endpoints/sidecar.controller";
 import { AuthIdentityService } from "./auth/authIdentity.service";
+import { IdentityCacheService } from "./auth/identityCache.service";
 import { QueryRateLimiterService } from "./ratelimit/queryRateLimiter.service";
 import { SidecarRateLimiterService } from "./ratelimit/sidecarRateLimiter.service";
 
@@ -73,6 +74,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         FtsSearchService,
         ChangeRequestService,
         AuthIdentityService,
+        IdentityCacheService,
     ],
 })
 export class AppModule {}

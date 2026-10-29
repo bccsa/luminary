@@ -11,6 +11,7 @@ import { getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
 import {
     appSyncedLanguageIdsAsRef,
     initLanguage,
+    initUserActivity,
     isAppLoading,
     isInstalledStandalone,
 } from "./globalConfig";
@@ -137,6 +138,8 @@ async function Startup() {
 
     await initLanguage();
     initSync();
+
+    initUserActivity();
 
     isAppLoading.value = false;
 
