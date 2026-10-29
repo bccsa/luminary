@@ -22,10 +22,17 @@ import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
 import { markSeen } from "@/recommendation/seenStore";
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
+import { hasContentProgress } from "@/contentProgress";
 import {
-    BookmarkIcon as BookmarkIconOutline,
+    hasUserActivity,
+    recordUserActivity,
+    removeUserActivity,
+    userActivityVersion,
+} from "@/userActivity/store";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { HeartIcon as HeartIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
+import {
+    HeartIcon as HeartIconOutline,
     MoonIcon,
     ClockIcon,
     PencilIcon,
@@ -43,7 +50,6 @@ import {
     queryParams,
     cmsUrl,
 } from "@/globalConfig";
-import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import RelatedContent from "@/components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
@@ -51,7 +57,6 @@ import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import LImage from "@/components/images/LImage.vue";
 import ShareMenu from "@/components/content/ShareMenu.vue";
 
-import { userPreferencesAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
 import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
@@ -348,6 +353,7 @@ if (!isPrerender()) {
         if (c && c._id) {
             touchRetention([c._id]);
             const id = c._id;
+            const parentId = c.parentId;
             const tags = c.parentTags;
             const hasText = !!c.text;
             contentTagsById.set(id, tags);
@@ -363,6 +369,14 @@ if (!isPrerender()) {
             dwellTimer = setTimeout(() => {
                 if (!hasText) recordAffinity(tags);
                 markSeen(id);
+                // History is taken from the continue store, which short content never
+                // reaches: an article that fits one screen, one estimated under a minute,
+                // or audio stopped before the player's 60s mark. Dwelling stands in for the
+                // progress those never record. Anything already in the store is the
+                // mirror's to report.
+                if (parentId && !hasContentProgress(id)) {
+                    void recordUserActivity({ type: "viewed", parentId });
+                }
             }, DWELL_MS);
         }
     });
@@ -522,44 +536,33 @@ const is404 = computed(() => {
     return !content.value;
 });
 
-// Function to toggle bookmark for the current content
-const toggleBookmark = () => {
-    if (!userPreferencesAsRef.value.bookmarks) {
-        userPreferencesAsRef.value.bookmarks = [];
-    }
+// Function to toggle the like for the current content
+const toggleLike = async () => {
+    const parentId = content.value?.parentId;
+    if (!parentId) return;
 
-    if (isBookmarked.value) {
-        // Remove from bookmarks
-        userPreferencesAsRef.value.bookmarks = userPreferencesAsRef.value.bookmarks.filter(
-            (b) => b.id != content.value?.parentId,
-        );
-        if (content.value) {
-            recordAffinity(
-                content.value.parentTags,
-                affinityConfig.value.eventWeight.bookmarkRemoved,
-            );
-        }
+    // Read the stored state rather than the displayed one: `isLiked` is refreshed
+    // asynchronously, so a quick second tap would otherwise act on a stale value.
+    if (await hasUserActivity({ type: "liked", parentId })) {
+        await removeUserActivity({ type: "liked", parentId });
+        recordAffinity(content.value?.parentTags, affinityConfig.value.eventWeight.bookmarkRemoved);
     } else {
-        // Add to bookmarks
-        if (!content.value) return;
-        userPreferencesAsRef.value.bookmarks.push({ id: content.value.parentId, ts: Date.now() });
-        // Bookmarking is explicit, unambiguous intent — weight it above a plain open.
-        recordAffinity(content.value.parentTags, affinityConfig.value.eventWeight.bookmark);
-        useNotificationStore().addNotification({
-            id: "bookmark-added",
-            title: t("bookmarks.notification.title"),
-            description: t("bookmarks.notification.description"),
-            state: "success",
-            type: "toast",
-            timeout: 5000,
-        });
+        await recordUserActivity({ type: "liked", parentId });
+        // Liking is explicit, unambiguous intent — weight it above a plain open.
+        recordAffinity(content.value?.parentTags, affinityConfig.value.eventWeight.bookmark);
     }
 };
 
-// Check if the current content is bookmarked
-const isBookmarked = computed(() => {
-    return userPreferencesAsRef.value.bookmarks?.some((b) => b.id == content.value?.parentId);
-});
+// Whether the current content is liked. IndexedDB has no reactivity of its own, so this is
+// re-read whenever the content changes or any activity is written.
+const isLiked = ref(false);
+watch(
+    [() => content.value?.parentId, userActivityVersion],
+    async ([parentId]) => {
+        isLiked.value = parentId ? await hasUserActivity({ type: "liked", parentId }) : false;
+    },
+    { immediate: true },
+);
 
 // The normal SPA sets the tab/window title imperatively (it has no @unhead plugin). The web
 // build's `useContentHead` above owns the whole head there, including the meta
@@ -1014,7 +1017,7 @@ watch([isLoading, content, is404], async () => {
                             </div>
 
                             <div class="flex items-center gap-3">
-                                <!-- Bookmark Button -->
+                                <!-- Like Button -->
                                 <button
                                     v-if="
                                         !(
@@ -1022,17 +1025,17 @@ watch([isLoading, content, is404], async () => {
                                             content.parentPostType == PostType.Page
                                         )
                                     "
-                                    @click="toggleBookmark"
-                                    data-test="bookmark"
+                                    @click="toggleLike"
+                                    data-test="like"
                                     class="flex items-center transition-colors"
                                 >
                                     <component
-                                        :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
+                                        :is="isLiked ? HeartIconSolid : HeartIconOutline"
                                         class="h-5 w-5"
                                         :class="{
-                                            'text-yellow-500': isBookmarked,
+                                            'text-yellow-500': isLiked,
                                             'text-zinc-400 hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200':
-                                                !isBookmarked,
+                                                !isLiked,
                                         }"
                                     />
                                 </button>
@@ -1067,6 +1070,7 @@ watch([isLoading, content, is404], async () => {
                         <LHighlightable
                             v-if="content.text"
                             :content-id="content._id"
+                            :parent-id="content.parentId"
                             :title="content.title"
                             :revision="text"
                             :copyright="shareCopyright"

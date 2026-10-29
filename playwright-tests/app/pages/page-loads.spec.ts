@@ -1,7 +1,7 @@
 import type { Page, Response } from "@playwright/test";
 import { appPageTest as test, expect, expectPageReady, viewports } from "../../fixtures/pageLoads";
 
-const routes = ["/", "/explore", "/watch", "/search", "/bookmarks", "/settings"] as const;
+const routes = ["/", "/explore", "/watch", "/search", "/activity", "/settings"] as const;
 type AppRoute = (typeof routes)[number];
 
 function expectSuccessfulResponse(response: Response | null) {
@@ -21,8 +21,12 @@ async function expectPageLoaded(page: Page, route: AppRoute) {
             await expect(main.getByRole("combobox")).toBeVisible();
             await expect(main.getByRole("combobox")).toBeEditable();
             break;
-        case "/bookmarks":
-            await expect(main.getByRole("heading", { level: 1 })).toBeVisible();
+        case "/activity":
+            // The page has no heading of its own — the pinned filter bar is its first
+            // element, so that is what proves the page's own UI rendered and not just
+            // the shell. Asserted by role, not by label, which is translated.
+            await expect(main.getByRole("tablist")).toBeVisible();
+            await expect(main.getByRole("tab").first()).toBeVisible();
             break;
         case "/settings":
             await expect(main.locator('[data-test="deleteLocalDatabase"]')).toBeVisible();
