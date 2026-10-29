@@ -10,7 +10,7 @@ Resolving a user's identity from their auth token is expensive: verifying the JW
 
 1. A request comes in with a token. `IdentityCacheService.resolveOrDefault(token, providerId)` is called instead of going straight to `AuthIdentityService`.
 2. The token is hashed (SHA-256) and used as a cache key — the raw token is never stored.
-3. **Cache hit:** the cached groups, user info and permissions (`accessMap`) are returned immediately. The `accessMap` is the one `PermissionSystem` builds and memoises per group set; it is shared between callers rather than copied, so it is frozen: treat it as read-only.
+3. **Cache hit:** the cached groups, user info and permissions (`accessMap`) are returned immediately. The `accessMap` is calculated for that user on the cache miss and stored in their own entry; nothing is shared between users. Every request with that token gets the same stored objects, so they are frozen: treat them as read-only.
 4. **Cache miss:** the full resolve runs against `AuthIdentityService`, and the result is stored in the cache before being returned.
 
 Both the REST API (`AuthGuard`) and the Socket.io connection handshake use this same cache.
@@ -50,5 +50,5 @@ The consequence: a User document edited outside the API (directly in CouchDB), o
 - `boundedTtlCache.ts` — the underlying generic cache (expiry sweep + emergency cap, no background timers).
 - `authIdentity.service.ts` — does the actual resolve work this cache is fronting.
 - `../endpoints/changeRequest.service.ts` — clears the cache after an accepted User change request.
-- `../permissions/permissions.service.ts` — owns the `accessMap` projection and its memo.
+- `../permissions/permissions.service.ts` — builds each user's `accessMap` from the group graph.
 - `../configuration.ts` — defines the `IDENTITY_CACHE_*` environment variables.

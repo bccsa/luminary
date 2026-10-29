@@ -137,6 +137,21 @@ describe("IdentityCacheService", () => {
             );
         });
 
+        it("hands out the user's accessMap frozen, with its permissions intact", async () => {
+            const { svc, authIdentity } = makeService(cacheCfg);
+            // AccessMaps keep their entries as plain properties on the Map object.
+            const accessMap: any = new Map();
+            accessMap["group-a"] = { post: { view: true } };
+            authIdentity.resolveOrDefault.mockResolvedValue(authResult({ accessMap }));
+
+            await svc.resolveOrDefault("t", "p"); // miss → cache
+            const hit: any = (await svc.resolveOrDefault("t", "p")).userDetails.accessMap;
+
+            expect(hit["group-a"].post.view).toBe(true);
+            expect(() => (hit["group-a"].post.edit = true)).toThrow(/read only|not extensible/);
+            expect(() => (hit["group-b"] = {})).toThrow(/read only|not extensible/);
+        });
+
         it("keys distinct tokens independently", async () => {
             const { svc, authIdentity } = makeService(cacheCfg);
             await svc.resolveOrDefault("t1", "p");

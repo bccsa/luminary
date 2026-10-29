@@ -106,21 +106,6 @@ export type AccessMap = Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>;
 const groupMap: Map<Uuid, PermissionSystem> = new Map<Uuid, PermissionSystem>();
 
 /**
- * Memoised {@link PermissionSystem.getAccessMap} results, keyed by the sorted group ID set.
- * The projection is pure over the group graph, so an entry stays valid until the graph itself
- * changes — and every mutation funnels synchronously through `upsertGroups` / `removeGroups`,
- * which drop this map. Keyed by group set rather than by user so that all identities sharing a
- * membership (every anonymous request, everyone in the same role) share one entry.
- */
-const accessMapCache = new Map<string, AccessMap>();
-
-/**
- * Soft cap on {@link accessMapCache}: distinct group sets are few in practice, so an
- * unexpected blow-up is dropped wholesale rather than tracked with eviction metadata.
- */
-const accessMapCacheMaxEntries = 10_000;
-
-/**
  * Represents a permission system that uses a tree structure to organize groups and manage permissions.
  * Each group keeps track of implied permissions and references to parents and children.
  */
@@ -186,19 +171,11 @@ export class PermissionSystem extends EventEmitter {
     }
 
     /**
-     * Extract an access map for the passed group ID's.
-     *
-     * Results are memoised per group set and invalidated on any group graph change, so the
-     * returned map is shared between callers and must be treated as read-only.
+     * Extract an access map for the passed group ID's
      * @param groupIds - Group IDs for which the access map should be extracted
      * @returns - Access Map for the passed group IDs
      */
     static getAccessMap(groupIds: Array<Uuid>): AccessMap {
-        // JSON-encoded so a group id containing the separator can't merge two group sets.
-        const cacheKey = JSON.stringify(Array.from(new Set(groupIds ?? [])).sort());
-        const cached = accessMapCache.get(cacheKey);
-        if (cached) return cached;
-
         const resultMap: AccessMap = new Map<Uuid, Map<DocType, Map<AclPermission, boolean>>>();
 
         if (groupIds) {
@@ -222,17 +199,6 @@ export class PermissionSystem extends EventEmitter {
                 });
             });
         }
-
-        // Shared by every caller with this group set, so a write must fail instead of leaking
-        // into other users' access.
-        Object.values(resultMap).forEach((byDocType) => {
-            Object.values(byDocType).forEach((permissions) => Object.freeze(permissions));
-            Object.freeze(byDocType);
-        });
-        Object.freeze(resultMap);
-
-        if (accessMapCache.size >= accessMapCacheMaxEntries) accessMapCache.clear();
-        accessMapCache.set(cacheKey, resultMap);
 
         return resultMap;
     }
@@ -378,19 +344,13 @@ export class PermissionSystem extends EventEmitter {
      * @param groupDocs
      */
     static upsertGroups(groupDocs: Array<any>) {
-        try {
-            while (groupDocs.length > 0) {
-                const doc = groupDocs.splice(0, 1)[0];
-                if (doc?.type === DocType.DeleteCmd) {
-                    this.removeGroup(doc.docId);
-                } else if (doc) {
-                    this.upsertGroup(doc, groupDocs);
-                }
+        while (groupDocs.length > 0) {
+            const doc = groupDocs.splice(0, 1)[0];
+            if (doc?.type === DocType.DeleteCmd) {
+                this.removeGroup(doc.docId);
+            } else if (doc) {
+                this.upsertGroup(doc, groupDocs);
             }
-        } finally {
-            // The graph moved, so every memoised access map is potentially stale. Cleared in a
-            // `finally` so a partially applied batch can't leave stale entries behind.
-            accessMapCache.clear();
         }
     }
 
@@ -448,12 +408,8 @@ export class PermissionSystem extends EventEmitter {
      * @param groupDocs
      */
     static removeGroups(groupIds: Array<Uuid>) {
-        try {
-            while (groupIds.length > 0) {
-                this.removeGroup(groupIds.splice(0, 1)[0]);
-            }
-        } finally {
-            accessMapCache.clear();
+        while (groupIds.length > 0) {
+            this.removeGroup(groupIds.splice(0, 1)[0]);
         }
     }
 

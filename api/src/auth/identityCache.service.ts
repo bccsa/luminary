@@ -9,8 +9,8 @@ import { IdentityCacheConfig } from "../configuration";
 import { BoundedTtlCache } from "./boundedTtlCache";
 
 /**
- * Resolved identity per token, including its accessMap (the frozen map shared through the
- * PermissionSystem memo, not a copy). Any group change therefore clears the whole cache.
+ * Resolved identity per token, including the accessMap built for that user on the miss, so a
+ * hit needs no rebuilding. Any group change therefore clears the whole cache.
  */
 type CachedIdentity = {
     status: "authenticated";
@@ -22,6 +22,7 @@ type CachedIdentity = {
     accessMap: AccessMap;
 };
 
+/** Object.freeze applied to nested objects and arrays too, not just the top level. */
 function deepFreeze<T>(value: T): T {
     if (value && typeof value === "object" && !Object.isFrozen(value)) {
         Object.freeze(value);
@@ -156,9 +157,11 @@ export class IdentityCacheService implements OnModuleInit {
                         userId: result.userDetails.userId,
                         email: result.userDetails.email,
                         name: result.userDetails.name,
-                        // Every hit shares this object, so callers must not be able to change it.
+                        // Every hit with this token shares these, so they are frozen: a change
+                        // throws instead of leaking into later requests. The accessMap is frozen
+                        // in place because structuredClone would drop the properties it keeps.
                         jwtPayload: deepFreeze(structuredClone(result.userDetails.jwtPayload)),
-                        accessMap: result.userDetails.accessMap,
+                        accessMap: deepFreeze(result.userDetails.accessMap),
                     },
                     ttlMs,
                 );
