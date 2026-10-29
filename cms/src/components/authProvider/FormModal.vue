@@ -215,7 +215,7 @@ const handleRevert = () => {
     >
         <div
             ref="scrollContainer"
-            class="auth-provider-form-scroll mb-1 min-h-0 flex-1 overflow-auto"
+            class="mb-1 min-h-0 flex-1 overflow-auto dark:[scrollbar-color:#475569_#1e293b] dark:[&::-webkit-scrollbar-thumb:hover]:bg-[#64748b] dark:[&::-webkit-scrollbar-thumb]:rounded-full dark:[&::-webkit-scrollbar-thumb]:bg-[#475569] dark:[&::-webkit-scrollbar-track]:bg-[#1e293b]"
         >
             <div v-if="provider" class="space-y-2">
                 <FormErrors :errors="errors ?? []" :validations="providerValidations" />
@@ -315,22 +315,3 @@ const handleRevert = () => {
         :show-closing-button="false"
     />
 </template>
-
-<style scoped>
-:global(:root.dark) .auth-provider-form-scroll {
-    scrollbar-color: #475569 #1e293b;
-}
-
-:global(:root.dark) .auth-provider-form-scroll::-webkit-scrollbar-track {
-    background-color: #1e293b;
-}
-
-:global(:root.dark) .auth-provider-form-scroll::-webkit-scrollbar-thumb {
-    border-radius: 9999px;
-    background-color: #475569;
-}
-
-:global(:root.dark) .auth-provider-form-scroll::-webkit-scrollbar-thumb:hover {
-    background-color: #64748b;
-}
-</style>
