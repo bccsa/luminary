@@ -69,6 +69,15 @@ declare module "virtual:screen-wake" {
     export function installScreenWake(app: App): void;
 }
 
+declare module "virtual:video-player" {
+    import type { App } from "vue";
+    import type { InjectionKey } from "vue";
+    import type { VideoPlayerService } from "@/build-time/contracts/video-player/contract";
+
+    export const VideoPlayerKey: InjectionKey<VideoPlayerService>;
+    export function installVideoPlayer(app: App): void;
+}
+
 declare module "virtual:app-update" {
     import type { App } from "vue";
     import type { InjectionKey } from "vue";

@@ -41,7 +41,6 @@ import {
     cmsLanguages,
     cmsDefaultLanguage,
     queryParams,
-    addToMediaQueue,
     cmsUrl,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
@@ -62,17 +61,15 @@ import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
 import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
-import { SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
-import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import MediaAction from "@/media-player/MediaAction.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import ArticleOutline from "./ArticleOutline.vue";
 import { markPageReady } from "@/util/renderState";
-import { hasVideoSource } from "@/util/videoSource";
-import { audioFilesOf } from "@/util/audioFiles";
+import { hasMediaSource } from "@/util/mediaSource";
 import { computeEstimatedReadingMinutes, resolveReadingSpeedWpm } from "@/util/readingTime";
 import {
     resolveArticleScrollContainer,
@@ -693,32 +690,13 @@ const quickLanguageSwitch = (languageId: string) => {
     showDropdown.value = false;
 };
 
-// Check if the current content has audio files - fully reactive to data changes
-const hasAudioFiles = computed(() => {
-    // Check the live query result first (most up-to-date), then fall back to content ref
-    const dataSource = contentArr.value[0] || content.value;
-    return !!audioFilesOf(dataSource)?.length;
-});
-
-// Function to start playing audio
-const playAudio = () => {
-    if (content.value && hasAudioFiles.value) {
-        addToMediaQueue(content.value);
-    }
-};
-
 // Posts rarely carry their own copyright, so shared quotes fall back to the instance-wide
 // notice the page already shows in its copyright banner.
 const { copyrightText: globalCopyright } = useGlobalCopyright();
 const shareCopyright = computed(() => content.value?.copyright || globalCopyright.value);
 
-// Whether the hero image can carry the title/summary as an overlay. Video has its own
-// player chrome the overlay would fight with, so it keeps a plain title above instead.
-const hasHeroImage = computed(
-    () =>
-        !hasVideoSource(content.value) &&
-        !!(content.value?.parentId || content.value?.parentImageData),
-);
+// Whether the hero image can carry the title/summary as an overlay.
+const hasHeroImage = computed(() => !!(content.value?.parentId || content.value?.parentImageData));
 
 watch([isLoading, content, is404], async () => {
     if (is404.value) {
@@ -902,91 +880,92 @@ watch([isLoading, content, is404], async () => {
                                 :mobileOnly="true"
                                 :ignoreTop="true"
                             >
-                                <VideoPlayer
-                                    v-if="content && hasVideoSource(content)"
-                                    :key="content._id"
-                                    :content="content"
-                                    :language="selectedLanguageCode"
-                                />
+                                <!-- The Play button hangs over the picture's edge, so it sits outside the clipped picture. -->
                                 <div
-                                    v-else-if="hasHeroImage"
-                                    class="relative cursor-pointer overflow-hidden lg:rounded-xl"
-                                    @click="
-                                        () => {
-                                            if (content)
-                                                currentImageIndex = activeImageCollection(content);
-                                            enableZoom = true;
-                                        }
-                                    "
+                                    v-if="hasHeroImage"
+                                    class="relative"
                                 >
-                                    <LImage
-                                        :image="content.parentImageData"
-                                        :content-parent-id="content.parentId"
-                                        :parent-image-bucket-id="content.parentImageBucketId"
-                                        aspectRatio="video"
-                                        size="post"
-                                    />
                                     <div
-                                        v-if="
-                                            (content.parentImageData?.fileCollections?.length ??
-                                                0) > 1
-                                        "
-                                        class="absolute bottom-2 right-2 flex items-center gap-1"
-                                    >
-                                        <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
-                                    </div>
-
-                                    <!-- Small Play Audio Button (only show if content has audio but no video) -->
-                                    <button
-                                        v-if="hasAudioFiles"
-                                        @click.stop="
-                                            (event) => {
-                                                playAudio();
-                                                // Prevent focus staying on button
-                                                (event.target as HTMLElement).blur();
+                                        class="relative cursor-pointer overflow-hidden lg:rounded-xl"
+                                        @click="
+                                            () => {
+                                                if (content)
+                                                    currentImageIndex =
+                                                        activeImageCollection(content);
+                                                enableZoom = true;
                                             }
                                         "
-                                        class="absolute bottom-2.5 left-3.5 flex items-center justify-center gap-1.5 rounded-full bg-black/60 py-1 pl-2 pr-3.5 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                                        title="Play Audio"
                                     >
-                                        <SpeakerWaveIcon class="h-5 w-5" />
-                                        {{ t("singlecontent.listen") }}
-                                    </button>
-
-                                    <!-- Title + summary scrim: the gradient carries just the title/summary
-                                         zone, not the whole image, so the photo above it stays readable. -->
-                                    <div
-                                        class="pointer-events-none absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
-                                    ></div>
-                                    <div
-                                        class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
-                                        @click.stop
-                                    >
-                                        <div class="flex items-start gap-2">
-                                            <h1
-                                                class="text-xl font-semibold leading-tight text-white [text-wrap:balance] lg:text-3xl"
-                                            >
-                                                {{ content.title }}
-                                            </h1>
-                                            <button
-                                                v-if="canEdit() && cmsUrl"
-                                                @click="openCmsEditor"
-                                                class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-white/70 hover:text-yellow-400"
-                                                data-test="editButton"
-                                            >
-                                                <PencilIcon class="h-5 w-5" />
-                                            </button>
-                                        </div>
-                                        <p
-                                            v-if="content.summary"
-                                            class="max-w-2xl text-sm leading-relaxed text-white/85 lg:text-base"
+                                        <LImage
+                                            :image="content.parentImageData"
+                                            :content-parent-id="content.parentId"
+                                            :parent-image-bucket-id="content.parentImageBucketId"
+                                            aspectRatio="video"
+                                            size="post"
+                                        />
+                                        <div
+                                            v-if="
+                                                (content.parentImageData?.fileCollections?.length ??
+                                                    0) > 1
+                                            "
+                                            class="absolute right-2 flex items-center gap-1"
+                                            :class="hasMediaSource(content) ? 'top-2' : 'bottom-2'"
                                         >
-                                            {{ content.summary }}
-                                        </p>
+                                            <DocumentDuplicateIcon
+                                                class="h-10 w-10 text-zinc-400"
+                                            />
+                                        </div>
+
+                                        <!-- Title + summary scrim: the gradient carries just the title/summary
+                                         zone, not the whole image, so the photo above it stays readable. -->
+                                        <div
+                                            class="pointer-events-none absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
+                                        ></div>
+                                        <div
+                                            class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
+                                            :class="hasMediaSource(content) && 'pr-24 lg:pr-32'"
+                                            @click.stop
+                                        >
+                                            <div class="flex items-start gap-2">
+                                                <h1
+                                                    class="text-xl font-semibold leading-tight text-white [text-wrap:balance] lg:text-3xl"
+                                                >
+                                                    {{ content.title }}
+                                                </h1>
+                                                <button
+                                                    v-if="canEdit() && cmsUrl"
+                                                    @click="openCmsEditor"
+                                                    class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-white/70 hover:text-yellow-400"
+                                                    data-test="editButton"
+                                                >
+                                                    <PencilIcon class="h-5 w-5" />
+                                                </button>
+                                            </div>
+                                            <p
+                                                v-if="content.summary"
+                                                class="max-w-2xl text-sm leading-relaxed text-white/85 lg:text-base"
+                                            >
+                                                {{ content.summary }}
+                                            </p>
+                                        </div>
                                     </div>
+                                    <MediaAction
+                                        v-if="hasMediaSource(content)"
+                                        :key="content._id"
+                                        :content="content"
+                                        :language="selectedLanguageCode"
+                                        corner
+                                    />
                                 </div>
                             </IgnorePagePadding>
                         </div>
+
+                        <MediaAction
+                            v-if="hasMediaSource(content) && !hasHeroImage"
+                            :key="content._id"
+                            :content="content"
+                            :language="selectedLanguageCode"
+                        />
 
                         <div
                             v-if="!hasHeroImage && content.summary"

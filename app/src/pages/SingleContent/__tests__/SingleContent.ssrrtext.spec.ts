@@ -145,7 +145,7 @@ vi.mock("@/components/common/DropdownMenu.vue", () => ({ default: passthrough("D
 vi.mock("@/components/images/LImage.vue", () => ({ default: voidStub("LImage") }));
 vi.mock("@/components/images/ImageModal.vue", () => ({ default: voidStub("ImageModal") }));
 vi.mock("@/components/images/LImageProvider.vue", () => ({ activeImageCollection: () => 0 }));
-vi.mock("@/components/content/VideoPlayer.vue", () => ({ default: voidStub("VideoPlayer") }));
+vi.mock("@/media-player/MediaPlayerWrapper.vue", () => ({ default: voidStub("MediaPlayerWrapper") }));
 vi.mock("@/components/content/CopyrightBanner.vue", () => ({
     default: voidStub("CopyrightBanner"),
 }));

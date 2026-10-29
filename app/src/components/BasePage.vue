@@ -99,6 +99,8 @@ const topChromeFade =
 provide("appMainScrollEl", main);
 
 const handleArrowKeyFocus = (e: KeyboardEvent) => {
+    // A key something else has handled, such as the media player's volume, is not for scrolling.
+    if (e.defaultPrevented) return;
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         if (main.value) main.value.focus();
     }
@@ -146,6 +148,7 @@ onUnmounted(() => {
                  the reader scrolls down, returning on the first scroll up. -->
             <div
                 ref="topBarWrap"
+                data-top-bar
                 class="absolute inset-x-0 top-0 z-30 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform xl:hidden"
                 :class="mobileChrome.hidden.value ? '-translate-y-full' : 'translate-y-0'"
             >
@@ -173,7 +176,7 @@ onUnmounted(() => {
                      so content clears the bars at rest yet scrolls under them. The 74px
                      fallback matches the bar's natural height for prerendered HTML. -->
                 <div
-                    class="pb-[var(--mobile-menu-h,0px)] pt-[var(--top-bar-h,74px)] xl:pb-0 xl:pt-0"
+                    class="pb-[calc(var(--mobile-menu-h,0px)+var(--media-bar-h,0px))] pt-[var(--top-bar-h,74px)] xl:pb-0 xl:pt-0"
                 >
                     <!-- Desktop pinned chrome: back (left) + quick controls (right) stay fixed while scrolling.
                      Direct child of the scrolling <main> so `sticky` keeps it pinned the whole way.
