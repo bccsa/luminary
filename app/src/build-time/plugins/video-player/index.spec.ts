@@ -3,8 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@luminary-media-converter/player-web", () => ({
     LuminaryPlayer: { name: "LuminaryPlayer" },
 }));
+// The app's player UI re-exports the mocked engine's stand-ins.
+vi.mock("@/media-player/player", () => import("@luminary-media-converter/player-web"));
 
-import { LuminaryPlayer } from "@luminary-media-converter/player-web";
+import { LuminaryPlayer } from "@/media-player/player";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import { installVideoPlayer } from "./index";
 
