@@ -11,6 +11,7 @@ import { WinstonModule } from "nest-winston";
 import * as winston from "winston";
 import { S3Service } from "../s3/s3.service";
 import { AuthIdentityService } from "../auth/authIdentity.service";
+import { IdentityCacheService } from "../auth/identityCache.service";
 
 export type testingModuleOptions = {
     dbName?: string;
@@ -64,6 +65,8 @@ export async function createTestingModule(testName: string) {
                     }),
                 },
             },
+            // Real service in front of the mock above; its anonymous results are never cached.
+            IdentityCacheService,
             {
                 provide: ConfigService,
                 useValue: {
