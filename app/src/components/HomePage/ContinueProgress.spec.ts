@@ -52,6 +52,16 @@ describe("ContinueProgress", () => {
         localStorage.clear();
     });
 
+    it("hides content that is finished from 95%", async () => {
+        await db.docs.bulkPut([mockEnglishContentDto]);
+        setMediaProgress(`media-${mockEnglishContentDto._id}`, mockEnglishContentDto._id, 290, 300);
+
+        const wrapper = mount(ContinueProgress);
+
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(wrapper.text()).not.toContain(mockEnglishContentDto.title);
+    });
+
     it("displays content with only video progress", async () => {
         await db.docs.bulkPut([mockEnglishContentDto]);
         setMediaProgress(`media-${mockEnglishContentDto._id}`, mockEnglishContentDto._id, 60, 300);

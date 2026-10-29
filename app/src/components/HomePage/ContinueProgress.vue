@@ -5,6 +5,7 @@ import { computed, onMounted, onUnmounted } from "vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 import {
     contentProgressAsRef,
+    isContentProgressFinished,
     watchContentProgressStorage,
     type ContentProgressEntry,
 } from "@/contentProgress";
@@ -16,12 +17,13 @@ onMounted(() => {
     onUnmounted(watchContentProgressStorage());
 });
 
-// Progress entries are recency-ordered; keep any with reading or watching progress.
+// Progress entries are recency-ordered; keep any with unfinished reading or watching progress.
 const contentIds = computed<string[]>(() =>
     contentProgressAsRef.value
         .filter(
             (entry: ContentProgressEntry) =>
-                entry.reading !== undefined || entry.watching !== undefined,
+                (entry.reading !== undefined || entry.watching !== undefined) &&
+                !isContentProgressFinished(entry),
         )
         .map((entry: ContentProgressEntry) => entry.contentId),
 );

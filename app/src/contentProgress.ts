@@ -11,6 +11,9 @@ import type { Uuid } from "luminary-shared";
 const CONTENT_PROGRESS_KEY = "contentProgress";
 const MAX_CONTENT_PROGRESS_ENTRIES = 10;
 
+/** From this percentage a content counts as finished: kept in the store, hidden from Continue. */
+export const FINISHED_PROGRESS_PERCENT = 95;
+
 export type ContentProgressWatching = {
     mediaId: string;
     progress: number;
@@ -37,6 +40,22 @@ type LegacyMediaProgressEntry = ContentProgressWatching & {
 type ReadingProgressEntry = {
     contentId: Uuid;
     progress: number;
+};
+
+/** Reading progress is already a percentage; watching progress is seconds against a duration. */
+export const isReadingFinished = (percent: number): boolean => percent >= FINISHED_PROGRESS_PERCENT;
+
+const isWatchingFinished = (watching: ContentProgressWatching): boolean =>
+    watching.duration > 0 &&
+    (watching.progress / watching.duration) * 100 >= FINISHED_PROGRESS_PERCENT;
+
+/** Finished when every recorded part (reading, watching) is; an entry with no part is not. */
+export const isContentProgressFinished = (entry: ContentProgressEntry): boolean => {
+    if (!entry.reading && !entry.watching) return false;
+    return (
+        (!entry.reading || isReadingFinished(entry.reading.progress)) &&
+        (!entry.watching || isWatchingFinished(entry.watching))
+    );
 };
 
 function isContentProgressEntry(item: unknown): item is ContentProgressEntry {
@@ -153,10 +172,24 @@ function touchContentProgressEntry(contentId: Uuid): ContentProgressEntry {
         _contentProgress.splice(index, 1);
     }
     _contentProgress.unshift(entry);
-    if (_contentProgress.length > MAX_CONTENT_PROGRESS_ENTRIES) {
-        _contentProgress.splice(MAX_CONTENT_PROGRESS_ENTRIES);
-    }
     return entry;
+}
+
+/**
+ * Finished entries go first, so they cannot push unfinished ones out of Continue. Runs after
+ * the progress is written, since whether the touched entry itself is finished is only known then.
+ */
+function evictOverflowingContentProgress() {
+    while (_contentProgress.length > MAX_CONTENT_PROGRESS_ENTRIES) {
+        let evict = _contentProgress.length - 1;
+        for (let i = evict; i >= 0; i--) {
+            if (isContentProgressFinished(_contentProgress[i])) {
+                evict = i;
+                break;
+            }
+        }
+        _contentProgress.splice(evict, 1);
+    }
 }
 
 function pruneEmptyContentProgressEntry(contentId: Uuid) {
@@ -191,6 +224,12 @@ export function watchContentProgressStorage(): () => void {
 export const hasContentProgress = (contentId: Uuid): boolean => {
     const entry = findTrackedContentProgressEntry(contentId);
     return !!entry && (entry.reading !== undefined || entry.watching !== undefined);
+};
+
+/** Whether this media was played to the end, so that opening it again starts over. */
+export const isMediaFinished = (mediaId: string, contentId: Uuid): boolean => {
+    const watching = findTrackedContentProgressEntry(contentId)?.watching;
+    return !!watching && watching.mediaId === mediaId && isWatchingFinished(watching);
 };
 
 /**
@@ -234,6 +273,7 @@ export const setMediaProgress = (
 
     const entry = touchContentProgressEntry(contentId);
     entry.watching = { mediaId, progress, duration };
+    evictOverflowingContentProgress();
     applyContentProgressList([..._contentProgress]);
     persistContentProgress();
 };
@@ -280,6 +320,7 @@ export const setReadingProgress = (contentId: Uuid, progress: number) => {
 
     const entry = touchContentProgressEntry(contentId);
     entry.reading = { progress: clampedProgress };
+    evictOverflowingContentProgress();
     applyContentProgressList([..._contentProgress]);
     persistContentProgress();
 };
