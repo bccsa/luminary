@@ -1036,6 +1036,28 @@ export class DbService extends EventEmitter {
     }
 
     /**
+     * Get the IDs of the Post and Tag documents tagged with each of the given tags, read from
+     * the stored documents' `tags` (the source of truth for a tag's `taggedDocs` cache)
+     * @param tagIds - Single or array of tag IDs
+     * @returns Map of tag ID to tagged document IDs; every requested tag has an entry
+     */
+    async getTaggedDocIds(tagIds: Uuid | Uuid[]): Promise<Map<Uuid, Uuid[]>> {
+        await this.ensureConnected();
+        if (!Array.isArray(tagIds)) tagIds = [tagIds];
+
+        const tagged = new Map<Uuid, Uuid[]>(tagIds.map((id) => [id, []]));
+        if (!tagIds.length) return tagged;
+
+        const queryRes = await this.db.view("tags", "tags", { keys: tagIds });
+        for (const row of queryRes.rows) {
+            const ids = tagged.get(row.key as Uuid);
+            if (ids && !ids.includes(row.id)) ids.push(row.id);
+        }
+
+        return tagged;
+    }
+
+    /**
      * Get all documents with a specific type
      * @param docType - Type of documents to retrieve
      * @param limit - Maximum number of documents to retrieve (optional)
