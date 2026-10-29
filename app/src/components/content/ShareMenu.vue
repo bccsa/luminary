@@ -195,7 +195,7 @@ async function shareToInstagram() {
             </span>
         </template>
 
-        <template #default="{ triggerOffsetX = 0, above = true }">
+        <template #default="slotProps">
             <div class="flex flex-col gap-0.5">
                 <button
                     type="button"
@@ -249,8 +249,12 @@ async function shareToInstagram() {
                  when the panel has been clamped to the viewport. -->
             <div
                 class="absolute h-3 w-3 -rotate-45 border-zinc-200 bg-white dark:border-slate-500 dark:bg-slate-700"
-                :class="above ? '-bottom-1.5 border-b border-l' : '-top-1.5 border-r border-t'"
-                :style="{ left: `${triggerOffsetX - 6}px` }"
+                :class="
+                    (slotProps?.above ?? true)
+                        ? '-bottom-1.5 border-b border-l'
+                        : '-top-1.5 border-r border-t'
+                "
+                :style="{ left: `${(slotProps?.triggerOffsetX ?? 0) - 6}px` }"
             ></div>
         </template>
     </DropdownMenu>

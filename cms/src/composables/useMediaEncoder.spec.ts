@@ -17,7 +17,6 @@ const checkEncoderHealthMock = vi.hoisted(() => vi.fn());
 const fetchEncoderSessionStatusMock = vi.hoisted(() => vi.fn());
 const fetchEncoderSessionKeyMock = vi.hoisted(() => vi.fn());
 const subscribeMock = vi.hoisted(() => vi.fn(() => vi.fn()));
-const fetchHlsKeyMock = vi.hoisted(() => vi.fn());
 
 // The handle store is left real: it is the thing a reload depends on, and jsdom
 // gives it the localStorage it needs.
@@ -33,7 +32,6 @@ vi.mock("@/util/mediaEncoder", async (importOriginal) => ({
 vi.mock("luminary-shared", async (importOriginal) => ({
     ...(await importOriginal<typeof import("luminary-shared")>()),
     getRest: () => ({ getEncoderConfig: getEncoderConfigMock }),
-    fetchHlsKey: fetchHlsKeyMock,
 }));
 
 import { useMediaEncoder } from "./useMediaEncoder";
@@ -105,58 +103,6 @@ describe("useMediaEncoder", () => {
                 audioByteRangeMaxFileSizeMB: 100,
             }),
         );
-    });
-});
-
-describe("useMediaEncoder editing the existing video", () => {
-    const options = {
-        documentId: "post-1",
-        title: "Episode 1",
-        mediaBucketId: "bucket-1",
-        hlsUrl: "https://cdn.example.com/media/posts/p1/s1/master.m3u8",
-    };
-
-    it("opens it in the encoder with its key, naming the document so the API checks it may be edited", async () => {
-        fetchHlsKeyMock.mockResolvedValue("aabbccddeeff00112233445566778899");
-        const { edit, error } = useMediaEncoder();
-        await edit(options);
-
-        expect(getEncoderConfigMock).toHaveBeenCalledWith("bucket-1", "post-1");
-        expect(fetchHlsKeyMock).toHaveBeenCalledWith("post-1", { cms: true });
-        expect(createEncoderSessionMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                documentId: "post-1",
-                mode: "edit",
-                existingMedia: {
-                    hlsUrl: options.hlsUrl,
-                    hlsKey: "aabbccddeeff00112233445566778899",
-                },
-            }),
-        );
-        expect(error.value).toBeUndefined();
-    });
-
-    it("follows no session and remembers none: nothing comes back to the document", async () => {
-        fetchHlsKeyMock.mockResolvedValue(undefined);
-        const { edit } = useMediaEncoder();
-        await edit(options);
-
-        expect(subscribeMock).not.toHaveBeenCalled();
-        expect(localStorage.length).toBe(0);
-        expect(createEncoderSessionMock.mock.calls[0][0].existingMedia).toEqual({
-            hlsUrl: options.hlsUrl,
-        });
-    });
-
-    it("says so when the API refuses the storage settings", async () => {
-        getEncoderConfigMock.mockRejectedValue(
-            new Error("Insufficient permissions to edit this document's media"),
-        );
-        const { edit, error } = useMediaEncoder();
-        await edit(options);
-
-        expect(error.value).toContain("permissions");
-        expect(createEncoderSessionMock).not.toHaveBeenCalled();
     });
 });
 

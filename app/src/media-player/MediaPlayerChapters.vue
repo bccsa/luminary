@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /** The chapters of what plays: tap one to go there. The one the playhead is in is marked. */
 import { computed } from "vue";
-import { chapterIndexAt } from "@luminary-media-converter/player-web";
-import type { Chapter, ThumbnailSpriteCue } from "@luminary-media-converter/player-web";
+import { chapterIndexAt } from "./playerCompat";
+import type { Chapter, ThumbnailSpriteCue } from "./playerCompat";
 import ChapterRow from "./ChapterRow.vue";
 import { chapterProgress } from "./chapterProgress";
 

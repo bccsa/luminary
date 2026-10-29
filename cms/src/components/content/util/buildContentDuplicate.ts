@@ -26,7 +26,6 @@ export function buildContentDuplicate(
     clonedParent._id = db.uuid();
     delete (clonedParent as any)._rev;
     if (clonedParent.type === DocType.Tag) (clonedParent as TagDto).taggedDocs = [];
-    delete clonedParent.media;
 
     if (clonedParent.imageData) {
         const imageData = clonedParent.imageData as typeof clonedParent.imageData & {

@@ -31,7 +31,6 @@ import {
     AudioFullscreen,
     ScrubPicture,
     ScrubRoster,
-    chapterIndexAt,
     chapterMask,
     chapterSegments,
     mergeMessages,
@@ -39,9 +38,8 @@ import {
     rosterStep,
     rosterTiles,
     type ScrubPosition,
-    type ThumbnailSpriteCue,
-    type Chapter,
-} from "@luminary-media-converter/player-web";
+} from "./playerWebCompat";
+import { chapterIndexAt, type Chapter, type ThumbnailSpriteCue } from "./playerCompat";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
 import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";

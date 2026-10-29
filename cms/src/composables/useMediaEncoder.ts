@@ -1,5 +1,5 @@
 import { computed, ref, onUnmounted } from "vue";
-import { fetchHlsKey, getRest, type MediaDto } from "luminary-shared";
+import { getRest, type MediaDto } from "luminary-shared";
 
 /** Called once per encode, as soon as it has a published URL, naming the document it is for. */
 export type MediaReadyHandler = (
@@ -213,50 +213,6 @@ export function useMediaEncoder() {
     }
 
     /**
-     * Opens the document's existing video in the encoder, to change its chapters and
-     * its audio tracks' languages and names. Nothing is encoded and nothing comes back
-     * to the document: the video keeps its URL and key, so there is no session to follow.
-     */
-    async function edit(options: {
-        documentId: string;
-        title: string;
-        mediaBucketId: string;
-        /** The video's master playlist, absolute. */
-        hlsUrl: string;
-    }): Promise<void> {
-        error.value = undefined;
-        busy.value = true;
-        try {
-            if (!(await refreshAvailability())) {
-                throw new Error("Luminary Media Convert is not running. Start it and try again.");
-            }
-            // Naming the document has the API check the editor may edit it, and that
-            // the bucket is the one its video is in.
-            const config = await getRest().getEncoderConfig(
-                options.mediaBucketId,
-                options.documentId,
-            );
-            if (!config) {
-                throw new Error("Could not read the storage configuration for this bucket.");
-            }
-            // The encoder reads the video's playlists with it when they are encrypted;
-            // none back is a video that never was.
-            const hlsKey = await fetchHlsKey(options.documentId, { cms: true });
-            await createEncoderSession({
-                documentId: options.documentId,
-                title: options.title,
-                ...config,
-                mode: "edit",
-                existingMedia: { hlsUrl: options.hlsUrl, ...(hlsKey ? { hlsKey } : {}) },
-            });
-        } catch (err: any) {
-            error.value = err?.message ?? String(err);
-        } finally {
-            busy.value = false;
-        }
-    }
-
-    /**
      * Hand the caller the playback URL and, when the session has one, its key.
      *
      * Resolves to whether the media was published, so a failed attempt can be made
@@ -419,7 +375,6 @@ export function useMediaEncoder() {
         watchForEncoder,
         stopWatching,
         start,
-        edit,
         resume,
         stop,
     };

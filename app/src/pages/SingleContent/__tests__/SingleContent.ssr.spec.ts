@@ -64,8 +64,6 @@ vi.mock("@/globalConfig", () => ({
     appLanguageIdsAsRef: ref(["lang-eng"]),
     appLanguageAsRef: ref(undefined),
     initLanguage: vi.fn(),
-    userDataSaverEnabled: ref(false),
-    isDataSaverEnabled: () => false,
 }));
 
 vi.mock("@/seo/contentHead", () => ({ useContentHead: () => {} }));
@@ -120,9 +118,7 @@ function passthrough(name: string) {
         setup:
             (_, { slots }) =>
             () =>
-                // Empty props object, not no arguments: a scoped-slot consumer (ShareMenu
-                // reads DropdownMenu's) destructures what it is handed.
-                h("div", slots.default?.({})),
+                h("div", slots.default?.()),
     });
 }
 
@@ -156,7 +152,6 @@ vi.mock("@/components/images/ImageModal.vue", () => ({ default: voidStub("ImageM
 vi.mock("@/components/images/LImageProvider.vue", () => ({
     activeImageCollection: () => 0,
 }));
-vi.mock("@/media-player/MediaPlayerWrapper.vue", () => ({ default: voidStub("MediaPlayerWrapper") }));
 vi.mock("@/components/content/CopyrightBanner.vue", () => ({
     default: voidStub("CopyrightBanner"),
 }));

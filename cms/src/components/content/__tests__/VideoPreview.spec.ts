@@ -13,7 +13,7 @@ const panelState = vi.hoisted(() => ({
 }));
 const getBucketByIdMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@luminary-media-converter/player-web", async () => {
+vi.mock("@luminary-media-converter/player-web-legacy", async () => {
     const { defineComponent, h } = await import("vue");
     return {
         LuminaryPlayer: defineComponent({
