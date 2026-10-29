@@ -10,6 +10,9 @@ import {
 } from "luminary-shared";
 import { computed, ref, watch, watchEffect, type WatchStopHandle } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
+import { migrateToUserActivity } from "./userActivity/migrate";
+import { startContentProgressMirror } from "./userActivity/fromContentProgress";
+import { pruneUserActivityTombstones } from "./userActivity/store";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -448,25 +451,57 @@ export const initLanguage = () => {
     });
 };
 
-type Bookmark = {
+type Like = {
     id: Uuid;
     ts: number;
 };
 
 export type UserPreferences = {
-    bookmarks?: Array<Bookmark>;
+    likes?: Array<Like>;
     privacyPolicy?: { status: "accepted" | "necessaryOnly"; ts: number };
 };
+
+/** Installs predating the rename hold the same entries under `bookmarks`. */
+function readUserPreferences(): UserPreferences {
+    const { bookmarks: legacyBookmarks, ...stored } = JSON.parse(
+        localStorage.getItem("userPreferences") || "{}",
+    );
+    return legacyBookmarks && !stored.likes ? { ...stored, likes: legacyBookmarks } : stored;
+}
 
 /**
  * The user preferences as Vue ref.
  */
-export const userPreferencesAsRef = ref(
-    JSON.parse(localStorage.getItem("userPreferences") || "{}") as UserPreferences,
-);
+export const userPreferencesAsRef = ref(readUserPreferences());
 watch(userPreferencesAsRef.value, (newVal) => {
     localStorage.setItem("userPreferences", JSON.stringify({ ...newVal }));
 });
+
+const USER_ACTIVITY_MIGRATED_KEY = "userActivityMigrated";
+
+/**
+ * Starts the user-activity store. Needs the shared database open, so call it after sync has started.
+ */
+export const initUserActivity = () => {
+    // Expired tombstones are dropped once per start.
+    void pruneUserActivityTombstones().catch((err) =>
+        console.error("User activity tombstone prune failed:", err),
+    );
+
+    // Reading history is taken from the continue-reading store, so the mirror has to be
+    // listening before anything can scroll.
+    startContentProgressMirror();
+
+    // Delete this block, and `userActivity/migrate.ts` with it, once every install has migrated.
+    if (localStorage.getItem(USER_ACTIVITY_MIGRATED_KEY)) return;
+
+    void migrateToUserActivity(userPreferencesAsRef.value.likes)
+        .then(() => {
+            delete userPreferencesAsRef.value.likes;
+            localStorage.setItem(USER_ACTIVITY_MIGRATED_KEY, "true");
+        })
+        .catch((err) => console.error("User activity migration failed:", err));
+};
 
 /**
  * Query string parameters captured on app startup
