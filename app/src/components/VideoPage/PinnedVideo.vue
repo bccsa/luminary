@@ -3,7 +3,7 @@ import { PostType, TagType } from "luminary-shared";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { useContentQuery } from "@/composables/useContentQuery";
-import { hasVideoSelector } from "@/util/videoSource";
+import { hasVideoSelector } from "@/util/mediaSource";
 
 const pinnedCategories = useContentQuery(
     () => [{ parentPinned: 1 }, { parentTagType: TagType.Category }],

@@ -9,7 +9,7 @@ import {
     type Uuid,
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
-import { hasVideoSelector } from "@/util/videoSource";
+import { hasVideoSelector } from "@/util/mediaSource";
 import { rank, affinityScoreScale } from "@/recommendation/ranking";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
