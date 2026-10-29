@@ -213,7 +213,17 @@ const handleRevert = () => {
         :heading="isEditing ? 'Edit Auth Provider' : 'Add Auth Provider'"
         :before-close="beforeClose"
     >
-        <div ref="scrollContainer" class="mb-1 min-h-0 flex-1 overflow-auto">
+        <div
+            ref="scrollContainer"
+            class="
+                 mb-1 min-h-0 flex-1 overflow-auto 
+                 dark:[scrollbar-color:#475569_#1e293b] 
+                 dark:[&::-webkit-scrollbar-thumb:hover]:bg-[#64748b] 
+                 dark:[&::-webkit-scrollbar-thumb]:rounded-full 
+                 dark:[&::-webkit-scrollbar-thumb]:bg-[#475569] 
+                 dark:[&::-webkit-scrollbar-track]:bg-[#1e293b]
+                "
+        >
             <div v-if="provider" class="space-y-2">
                 <FormErrors :errors="errors ?? []" :validations="providerValidations" />
 
