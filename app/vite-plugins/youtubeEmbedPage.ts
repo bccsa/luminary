@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { build, transform } from "esbuild";
 import type { Plugin } from "vite";
+import { PAGE_FILES, isPageRequest } from "./youtubeEmbedPaths";
 
 const source = new URL("../src/youtube-embed/", import.meta.url);
 
@@ -43,7 +44,7 @@ export function youtubeEmbedPage(): Plugin {
         },
         configureServer(server) {
             server.middlewares.use((request, response, next) => {
-                if (request.url?.split("?")[0] !== "/youtube-embed.html") return next();
+                if (!isPageRequest(request.url)) return next();
                 renderYouTubeEmbedPage().then(
                     (page) => {
                         response.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -55,11 +56,8 @@ export function youtubeEmbedPage(): Plugin {
         },
         async generateBundle() {
             if (ssr) return;
-            this.emitFile({
-                type: "asset",
-                fileName: "youtube-embed.html",
-                source: await renderYouTubeEmbedPage(),
-            });
+            const source = await renderYouTubeEmbedPage();
+            for (const fileName of PAGE_FILES) this.emitFile({ type: "asset", fileName, source });
         },
     };
 }
