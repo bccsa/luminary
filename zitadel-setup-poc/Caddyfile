@@ -1,0 +1,22 @@
+auth.luminary.local {
+	tls internal
+
+	# The API fetches JWKS from a fixed `/.well-known/jwks.json` (see
+	# authIdentity.service.ts) while Zitadel publishes keys at /oauth/v2/keys.
+	# Mapping the paths here keeps the API's validator untouched.
+	handle /.well-known/jwks.json {
+		rewrite * /oauth/v2/keys
+		reverse_proxy h2c://zitadel:8080
+	}
+
+	# Login v2 runs as its own service, so this path leaves the monolith.
+	handle /ui/v2/login* {
+		reverse_proxy login:3000
+	}
+
+	# Zitadel serves gRPC alongside REST on one port, so the console needs h2c
+	# rather than a plain HTTP/1.1 upstream.
+	handle {
+		reverse_proxy h2c://zitadel:8080
+	}
+}
