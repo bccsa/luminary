@@ -23,7 +23,7 @@ import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
 
 /**
  * IndexedDB has no Vue reactivity. Every write bumps this, so views reading the table
- * re-read when it changes — the same idiom as `seenVersion` and `highlightVersion`.
+ * re-read when it changes — the same idiom as `highlightVersion`.
  */
 export const userActivityVersion = ref(0);
 
@@ -66,6 +66,15 @@ export async function recordUserActivity(
 
     if (ref.type === "viewed") await trimViewed();
     userActivityVersion.value++;
+}
+
+/**
+ * Record an activity only if none is live yet, leaving an existing row's timestamp alone so
+ * the post does not jump to the top of the feed. A tombstoned row counts as absent.
+ */
+export async function ensureUserActivity(ref: ActivityRef): Promise<void> {
+    if (await hasUserActivity(ref)) return;
+    await recordUserActivity(ref);
 }
 
 /**
@@ -174,6 +183,19 @@ export async function getAllUserActivity(): Promise<UserActivityEntry[]> {
         .reverse()
         .filter((row) => !row.deleted)
         .toArray();
+}
+
+/** The posts the user has viewed, for filtering what is recommended. Tombstones excluded. */
+export async function getViewedParentIds(): Promise<Set<Uuid>> {
+    // No IndexedDB during the SSG prerender; nothing is viewed there.
+    try {
+        const rows = await ofType("viewed")
+            .filter((row) => !row.deleted)
+            .toArray();
+        return new Set(rows.map((row) => row.parentId));
+    } catch {
+        return new Set();
+    }
 }
 
 /** Whether a single activity is currently recorded — for a like button's state. */

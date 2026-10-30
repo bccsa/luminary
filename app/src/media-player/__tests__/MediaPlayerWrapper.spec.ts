@@ -105,8 +105,8 @@ vi.mock("@/recommendation/affinityStore", () => ({ recordAffinity: recordAffinit
 vi.mock("@/recommendation/defaultAffinityStore", () => ({
     affinityConfig: computed(() => ({ eventWeight: { completion: 5 } })),
 }));
-const markSeenMock = vi.hoisted(() => vi.fn());
-vi.mock("@/recommendation/seenStore", () => ({ markSeen: markSeenMock }));
+const ensureUserActivityMock = vi.hoisted(() => vi.fn());
+vi.mock("@/userActivity/store", () => ({ ensureUserActivity: ensureUserActivityMock }));
 
 const RELATIVE = "/media/abc/master.m3u8";
 const ABSOLUTE = "https://bucket.example.com/media/abc/master.m3u8";
@@ -700,7 +700,10 @@ describe("MediaPlayerWrapper", () => {
                 mockEnglishContentDto._id,
             );
             expect(recordAffinityMock).toHaveBeenCalledWith(mockEnglishContentDto.parentTags, 5);
-            expect(markSeenMock).toHaveBeenCalledWith(mockEnglishContentDto._id);
+            expect(ensureUserActivityMock).toHaveBeenCalledWith({
+                type: "viewed",
+                parentId: mockEnglishContentDto.parentId,
+            });
             expect(exitFullscreenMock).toHaveBeenCalled();
         });
 
@@ -711,7 +714,7 @@ describe("MediaPlayerWrapper", () => {
 
             stub(wrapper).vm.$emit("timeupdate", 599.5, 600);
 
-            expect(markSeenMock).toHaveBeenCalledTimes(1);
+            expect(ensureUserActivityMock).toHaveBeenCalledTimes(1);
         });
 
         it("counts a completion once, however it was detected", async () => {
@@ -796,7 +799,10 @@ describe("MediaPlayerWrapper", () => {
                 RELATIVE,
                 mockEnglishContentDto._id,
             );
-            expect(markSeenMock).toHaveBeenCalledWith(mockEnglishContentDto._id);
+            expect(ensureUserActivityMock).toHaveBeenCalledWith({
+                type: "viewed",
+                parentId: mockEnglishContentDto.parentId,
+            });
             expect(pauseMock).toHaveBeenCalled();
         });
 
