@@ -333,6 +333,11 @@ describe("ImageEditor", () => {
             expect(wrapper.find('[data-test="small-image-warning"]').exists()).toBe(false);
         });
 
+        it("does not warn for an upload within the API's 10% upscaling tolerance", async () => {
+            const wrapper = await uploadFile(1200);
+            expect(wrapper.find('[data-test="small-image-warning"]').exists()).toBe(false);
+        });
+
         it("does not warn when the image cannot be decoded", async () => {
             const wrapper = await uploadFile("reject");
             expect(wrapper.find('[data-test="small-image-warning"]').exists()).toBe(false);

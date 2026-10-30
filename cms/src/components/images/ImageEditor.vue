@@ -251,7 +251,12 @@ const processFiles = (files: File[]) => {
             if (typeof createImageBitmap === "function") {
                 createImageBitmap(file)
                     .then((bitmap) => {
-                        if (bitmap.width < MIN_RECOMMENDED_IMAGE_WIDTH) smallUploads.add(uploadData);
+                        // The API upscales by up to 10%, so only warn below that tolerance
+                        const stillPresent = parent.value?.imageData?.uploadData?.some(
+                            (u) => toRaw(u) === uploadData,
+                        );
+                        if (stillPresent && bitmap.width < MIN_RECOMMENDED_IMAGE_WIDTH / 1.1)
+                            smallUploads.add(uploadData);
                         bitmap.close();
                     })
                     .catch(() => {});
