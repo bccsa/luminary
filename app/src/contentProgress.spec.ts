@@ -31,32 +31,32 @@ describe("contentProgress.ts", () => {
         expect(getMediaProgress("unknown", "unknown")).toBe(0);
     });
 
-    it("only keeps the playback progress of the last 10 media items", async () => {
-        for (let i = 0; i < 20; i++) {
+    it("only keeps the playback progress of the last 50 media items", async () => {
+        for (let i = 0; i < 60; i++) {
             setMediaProgress(`mediaId${i}`, `contentId${i}`, i, i * 10);
         }
         expect(getMediaProgress("mediaId0", "contentId0")).toBe(0);
         expect(getMediaProgress("mediaId9", "contentId9")).toBe(0);
         expect(getMediaProgress("mediaId10", "contentId10")).toBe(10);
-        expect(getMediaProgress("mediaId19", "contentId19")).toBe(19);
+        expect(getMediaProgress("mediaId59", "contentId59")).toBe(59);
     });
 
     it("drops the oldest finished item first when over the limit, keeping unfinished ones", async () => {
         for (let i = 0; i < 4; i++) setReadingProgress(`unfinished${i}`, 40);
-        for (let i = 0; i < 8; i++) setReadingProgress(`finished${i}`, 100);
+        for (let i = 0; i < 50; i++) setReadingProgress(`finished${i}`, 100);
 
         const ids = contentProgressAsRef.value.map((entry) => entry.contentId);
-        expect(ids).toHaveLength(10);
+        expect(ids).toHaveLength(50);
         for (let i = 0; i < 4; i++) expect(ids).toContain(`unfinished${i}`);
         expect(ids).not.toContain("finished0");
-        expect(ids).toContain("finished7");
+        expect(ids).toContain("finished49");
     });
 
     it("drops the oldest item when every entry is unfinished", async () => {
-        for (let i = 0; i < 11; i++) setReadingProgress(`unfinished${i}`, 40);
+        for (let i = 0; i < 51; i++) setReadingProgress(`unfinished${i}`, 40);
 
         const ids = contentProgressAsRef.value.map((entry) => entry.contentId);
-        expect(ids).toHaveLength(10);
+        expect(ids).toHaveLength(50);
         expect(ids).not.toContain("unfinished0");
     });
 

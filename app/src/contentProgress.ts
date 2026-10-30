@@ -9,7 +9,7 @@ import type { Uuid } from "luminary-shared";
  */
 
 const CONTENT_PROGRESS_KEY = "contentProgress";
-const MAX_CONTENT_PROGRESS_ENTRIES = 10;
+const MAX_CONTENT_PROGRESS_ENTRIES = 50;
 
 /** From this percentage a content counts as finished: kept in the store, hidden from Continue. */
 export const FINISHED_PROGRESS_PERCENT = 95;

@@ -193,7 +193,7 @@ It drives both **skim detection** (whose `wordsPerPixel` to use) and **dwell acc
 ]
 ```
 
-Each entry is keyed by `contentId`. `watching` tracks video/audio playback (seconds); `reading` tracks article progress (0–100%). Both can be present on the same content. Entries are ordered by most recently updated; at most **10** are kept, and when the limit is exceeded the oldest finished (≥ 95%) entry is dropped first, so finished items never push unfinished ones out of the row.
+Each entry is keyed by `contentId`. `watching` tracks video/audio playback (seconds); `reading` tracks article progress (0–100%). Both can be present on the same content. Entries are ordered by most recently updated; at most **50** are kept (the homepage row shows the 10 most recent unfinished ones), and when the limit is exceeded the oldest finished (≥ 95%) entry is dropped first, so finished items never push unfinished ones out of the row.
 
 On first load, legacy `readingProgress` and `mediaProgress` keys are merged into `contentProgress` and removed.
 
