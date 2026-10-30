@@ -19,6 +19,8 @@ export type JwtUserDetails = {
     name?: string;
     jwtPayload?: JWT.JwtPayload;
     accessMap?: AccessMap;
+    /** Set when no valid credentials were presented and the identity is just the default groups */
+    anonymous?: true;
 };
 
 export type IdentityResult =
@@ -185,6 +187,7 @@ export class AuthIdentityService implements OnModuleInit {
             userDetails: {
                 groups: defaultGroups,
                 accessMap: PermissionSystem.getAccessMap(defaultGroups),
+                anonymous: true,
             },
         };
     }

@@ -15,6 +15,7 @@ describe("ChangeRequestController", () => {
     let app: NestFastifyApplication;
     const mockChangeRequest = jest.fn();
     const mockRateLimiter = { check: jest.fn(), recordRequest: jest.fn() };
+    let mockAnonymous = false;
     const testImagePath = path.join(__dirname, "../test/testImage.jpg");
 
     beforeAll(async () => {
@@ -34,7 +35,9 @@ describe("ChangeRequestController", () => {
             .useValue({
                 canActivate: (context: any) => {
                     const req = context.switchToHttp().getRequest();
-                    req.user = { groups: ["group-public-users"], userId: "mock-user" };
+                    req.user = mockAnonymous
+                        ? { groups: ["group-public-users"], anonymous: true }
+                        : { groups: ["group-public-users"], userId: "mock-user" };
                     return true;
                 },
             })
@@ -58,6 +61,22 @@ describe("ChangeRequestController", () => {
         mockChangeRequest.mockClear();
         mockRateLimiter.check.mockReset().mockReturnValue({ allowed: true, retryAfterMs: 0 });
         mockRateLimiter.recordRequest.mockClear();
+        mockAnonymous = false;
+    });
+
+    it("rejects anonymous requests with 401 before parsing the body, rate limiting or calling the service", async () => {
+        mockAnonymous = true;
+
+        const res = await app.inject({
+            method: "POST",
+            url: "/changerequest",
+            payload: { apiVersion: "0.0.0", doc: {} },
+        });
+
+        expect(res.statusCode).toBe(401);
+        expect(mockRateLimiter.check).not.toHaveBeenCalled();
+        expect(mockRateLimiter.recordRequest).not.toHaveBeenCalled();
+        expect(mockChangeRequest).not.toHaveBeenCalled();
     });
 
     it("answers 429 with Retry-After when the caller is over the limit", async () => {
