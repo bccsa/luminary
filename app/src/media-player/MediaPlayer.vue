@@ -1054,7 +1054,7 @@ function pickSubtitles(id: string | null) {
 }
 const rateLabel = (rate: number) => `${rate}x`;
 
-/** A wide screen: the player is the card in the corner, and a minimised video keeps only its picture. */
+/** A wide screen: the player is the card in the corner. */
 const desktopQuery = window.matchMedia("(min-width: 1024px)");
 const isDesktop = ref(desktopQuery.matches);
 /**
@@ -1078,7 +1078,7 @@ const webFill = computed(
 );
 /**
  * The now-playing screen is what the full player shows on a phone, and on a computer too, as the card in the
- * corner. A computer's minimised video keeps only its picture, which the old markup below draws.
+ * corner.
  */
 const screen = computed(() => nowPlaying.value || expanded.value);
 /**
@@ -1100,13 +1100,6 @@ onBeforeUnmount(() => {
     document.removeEventListener("fullscreenchange", syncDesktopAfterFullscreen);
 });
 /**
- * Minimised on a video, phone and computer alike, the bar keeps its picture: the player shrinks to a thumbnail
- * over the bar's left end, with the platform's video drawn over the page there.
- */
-const miniStageWanted = computed(
-    () => !expanded.value && !!item.value && !!state.value && !audioMode.value,
-);
-/**
  * While reading a post on a phone, once the menu has stepped aside, the bar is a card floating over the page's foot, as
  * the computer's is in its corner: rounded, clear of the edges, its progress line along its foot. It sits low: on an
  * iPhone just above the home indicator rather than its whole band, high enough that its corners clear the screen's
@@ -1121,21 +1114,6 @@ const floatingCard = computed(
 );
 /** The progress line runs under the whole bar, at its foot on a card (a computer's, or a phone's while reading). */
 const lineAtFoot = computed(() => isDesktop.value || floatingCard.value);
-/** The picture's height: the bar's less the progress line, which it leaves clear above or below it. */
-const MINI_PICTURE_HEIGHT = computed(() => 61);
-/** The widest the picture gets, so a wide video still leaves the title its room. */
-const MINI_PICTURE_MAX_WIDTH = 114;
-/** The picture's width at the bar's left end: the video's shape at the bar's height, or the square cover. */
-const miniPictureWidth = computed(() =>
-    miniStageWanted.value
-        ? Math.round(
-              Math.min(
-                  MINI_PICTURE_MAX_WIDTH,
-                  MINI_PICTURE_HEIGHT.value * (stageAspect.value ?? 16 / 9),
-              ),
-          )
-        : MINI_PICTURE_HEIGHT.value,
-);
 /** The bar's fill: the post image's colour, or the plain dark bar when it has none. */
 const barTint = computed(() => thumbHashTint(content.value));
 /**
@@ -1159,7 +1137,7 @@ const barFill = computed(() => {
 /** The player busy, shown alike in the bar and the full player: the spinner standing in for play. */
 const playerBusy = computed(() => starting.value || swapping.value || stalled.value);
 const barCoverFailed = ref(false);
-/** The cover at the bar's left end for sound alone: the post's own, else the app's stand-in, else a note. */
+/** The cover at the bar's left end, for sound and video alike: the post's own, else the app's stand-in, else a note. */
 const barCover = computed(() => {
     const artwork = screenArtwork.value;
     if (!artwork) return undefined;
@@ -1169,68 +1147,6 @@ watch(
     () => content.value?._id,
     () => (barCoverFailed.value = false),
 );
-const miniSpacer = ref<HTMLElement | null>(null);
-const miniRect = ref<{ x: number; y: number; w: number; h: number } | null>(null);
-const miniStage = computed(() => miniStageWanted.value && miniRect.value !== null);
-/** Frames the slot must hold still before it stops being followed: a frame read on every page costs a core. */
-const MINI_SETTLE_FRAMES = 10;
-let miniFrame = 0;
-let miniStillFrames = 0;
-function trackMiniSpacer() {
-    miniFrame = 0;
-    const el = miniSpacer.value;
-    if (el) {
-        const r = el.getBoundingClientRect();
-        const prev = miniRect.value;
-        if (
-            !prev ||
-            prev.x !== r.left ||
-            prev.y !== r.top ||
-            prev.w !== r.width ||
-            prev.h !== r.height
-        ) {
-            miniRect.value = { x: r.left, y: r.top, w: r.width, h: r.height };
-            miniStillFrames = 0;
-        } else miniStillFrames++;
-    }
-    if (miniStillFrames < MINI_SETTLE_FRAMES) miniFrame = requestAnimationFrame(trackMiniSpacer);
-}
-/** The slot moves only with a transition, a resize or a change of its own size: each starts the following again. */
-function followMiniSpacer() {
-    if (!miniStageWanted.value) return;
-    miniStillFrames = 0;
-    if (!miniFrame) miniFrame = requestAnimationFrame(trackMiniSpacer);
-}
-const miniMoves = ["transitionrun", "transitionend", "animationstart", "resize"] as const;
-for (const type of miniMoves) window.addEventListener(type, followMiniSpacer, true);
-window.visualViewport?.addEventListener("resize", followMiniSpacer);
-const miniResize =
-    typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(followMiniSpacer);
-watch(miniSpacer, (el, before) => {
-    if (before) miniResize?.unobserve(before);
-    if (el) miniResize?.observe(el);
-});
-watch(
-    miniStageWanted,
-    (wanted) => {
-        cancelAnimationFrame(miniFrame);
-        miniFrame = 0;
-        miniStillFrames = 0;
-        if (wanted) trackMiniSpacer();
-        else miniRect.value = null;
-    },
-    { immediate: true },
-);
-watch([floatingCard, lineAtFoot, miniPictureWidth], followMiniSpacer);
-onBeforeUnmount(() => {
-    cancelAnimationFrame(miniFrame);
-    for (const type of miniMoves) window.removeEventListener(type, followMiniSpacer, true);
-    window.visualViewport?.removeEventListener("resize", followMiniSpacer);
-    miniResize?.disconnect();
-});
-// The slot can move without resizing (the window turning upright), which sends no frame of its own: the
-// platform's video would be left where the slot was.
-watch(miniRect, () => nudgeInlineVideo());
 
 /** The sound alone wears the cover's colour over the whole player: pale in the light theme, dark in the dark one. */
 const wash = computed(() => audioMode.value);
@@ -1682,25 +1598,11 @@ function onKeydown(event: KeyboardEvent) {
                 expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
                 // The picture follows the card's left corners; at the foot it stops above the progress line, so its
                 // corner there is the card's less the line.
-                miniStage
-                    ? 'lg:rounded-bl-[9px] lg:rounded-tl-xl lg:shadow-none'
-                    : 'lg:w-96 lg:rounded-xl',
+                'lg:w-96 lg:rounded-xl',
                 // The screen has no height of its own, so on a computer the card is as tall as a phone's screen.
                 screen && expanded ? 'lg:h-[min(46rem,calc(100dvh-2.5rem))]' : '',
-                miniStage ? 'lmc-mini-stage pointer-events-none overflow-hidden' : '',
             ]"
             :style="{
-                ...(miniStage && miniRect
-                    ? {
-                          inset: 'auto',
-                          top: `${miniRect.y}px`,
-                          left: `${miniRect.x}px`,
-                          width: `${miniRect.w}px`,
-                          height: `${miniRect.h}px`,
-                          transform: 'none',
-                          transition: 'none',
-                      }
-                    : {}),
                 ...(playerDragging
                     ? { '--tw-translate-y': `${playerDragY}px`, transition: 'none' }
                     : {}),
@@ -1729,8 +1631,8 @@ function onKeydown(event: KeyboardEvent) {
                     :stage="audioMode ? 'cover' : 'video'"
                     :fill="webFill"
                     :stage-hole="inlineHole"
-                    :stage-aspect="miniStage ? undefined : stageAspect"
-                    :caption-band="screenCaptionBand && !miniStage"
+                    :stage-aspect="stageAspect"
+                    :caption-band="screenCaptionBand"
                     :caption="webCaption"
                     @covered="screenCovered = $event"
                     :exit-label="t('media_player.minimise')"
@@ -1890,8 +1792,8 @@ function onKeydown(event: KeyboardEvent) {
                             autoplay
                             @nextupselect="swapToNext"
                             @upnextselect="swapToNext"
-                            :inline="miniStage ? 'front' : true"
-                            :caption-band="captionBand && !miniStage ? 64 : 0"
+                            :inline="true"
+                            :caption-band="captionBand ? 64 : 0"
                             :fullscreen-on-play="isNativeApp()"
                             :windowed-controls="webFill"
                             :captions-hidden="
@@ -1932,7 +1834,6 @@ function onKeydown(event: KeyboardEvent) {
             </div>
             <div
                 v-if="!screen"
-                v-show="!miniStage"
                 class="flex-none touch-none bg-amber-50 dark:bg-slate-800 max-lg:pt-[env(safe-area-inset-top)]"
                 :class="{ '!bg-transparent': wash }"
                 data-test="mediaPlayerHandle"
@@ -2114,7 +2015,6 @@ function onKeydown(event: KeyboardEvent) {
                  upward over the picture. -->
             <div
                 v-if="!screen"
-                v-show="!miniStage"
                 class="flex min-h-0 flex-1 flex-col overflow-visible bg-amber-50 dark:bg-slate-800"
                 :class="{ '!bg-transparent': wash }"
                 data-test="mediaPlayerScroll"
@@ -2819,18 +2719,8 @@ function onKeydown(event: KeyboardEvent) {
                 data-test="mediaPlayerBarPicture"
                 @click="expandMediaPlayer"
             >
-                <div
-                    v-if="miniStageWanted"
-                    ref="miniSpacer"
-                    class="h-[calc(100%-3px)] flex-none self-start transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
-                    :class="lineAtFoot ? '' : 'translate-y-[3px]'"
-                    :style="{
-                        width: `${miniPictureWidth}px`,
-                    }"
-                    aria-hidden="true"
-                />
                 <img
-                    v-else-if="barCover"
+                    v-if="barCover"
                     :src="barCover"
                     alt=""
                     class="h-[61px] w-[61px] flex-none self-start object-cover transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"

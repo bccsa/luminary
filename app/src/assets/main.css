@@ -41,29 +41,3 @@ html.lmc-inline-video.lmc-player-dragging main {
 html.dark.lmc-inline-video.lmc-player-dragging main {
     background-color: rgb(15 23 42);
 }
-
-/* The now-playing screen as a thumbnail: only its picture is left. */
-.lmc-mini-stage .lmpl-afs-top,
-.lmc-mini-stage .lmpl-afs-info,
-.lmc-mini-stage .lmpl-afs-bg,
-.lmc-mini-stage .lmpl-afs-scrubzone,
-.lmc-mini-stage .lmpl-afs-cueline,
-/* No room for the message and its Retry: opening the player shows them. */
-.lmc-mini-stage .lmpl-error {
-    display: none !important;
-}
-.lmc-mini-stage .lmpl-afs-main {
-    padding: 0;
-    gap: 0;
-}
-.lmc-mini-stage .lmpl-afs-video .lmpl-afs-art {
-    width: 100%;
-    height: 100%;
-    max-height: none;
-    aspect-ratio: auto;
-    /* Edge to edge in the bar: the wide screen's rounding and lift are for the picture on a screen of its own. */
-    border-radius: 0;
-}
-.lmc-mini-stage .lmpl-afs-stage {
-    box-shadow: none;
-}

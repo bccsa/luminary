@@ -1388,28 +1388,15 @@ describe("MediaPlayer", () => {
             hidden.value = false;
         });
 
-        it("stops following the picture's slot once it holds still, and follows it again when it moves", async () => {
-            const frames: FrameRequestCallback[] = [];
-            const raf = vi
-                .spyOn(window, "requestAnimationFrame")
-                .mockImplementation((cb) => frames.push(cb));
-            try {
-                await playing();
-                minimiseMediaPlayer();
-                await flushPromises();
-                const runFrames = (n: number) => {
-                    for (let i = 0; i < n && frames.length; i++) frames.shift()!(0);
-                };
-                runFrames(50);
-                expect(frames).toHaveLength(0);
+        it("shows a video's cover in the bar, with no picture of its own playing there", async () => {
+            const wrapper = await playing();
+            minimiseMediaPlayer();
+            await flushPromises();
 
-                window.dispatchEvent(new Event("transitionrun"));
-                expect(frames.length).toBeGreaterThan(0);
-                runFrames(50);
-                expect(frames).toHaveLength(0);
-            } finally {
-                raf.mockRestore();
-            }
+            const picture = find(wrapper, "mediaPlayerBarPicture");
+            expect(picture.find("img").attributes("src")).toBe("/stand-in.jpg");
+            expect(find(wrapper, "mediaPlayer").attributes("style") ?? "").not.toContain("top:");
+            expect(engine.props.inline).toBe(true);
         });
 
         it("is the plain dark bar, with nothing blurred, when the post has no ThumbHash", async () => {
