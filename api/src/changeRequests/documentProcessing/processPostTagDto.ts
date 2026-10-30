@@ -2,7 +2,7 @@ import { ContentDto } from "../../dto/ContentDto";
 import { PostDto } from "../../dto/PostDto";
 import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
-import { DocType, SidecarType, Uuid } from "../../enums";
+import { DocType, SidecarType } from "../../enums";
 import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
 import { deleteMediaCollection } from "./deleteMediaCollection";
@@ -206,6 +206,12 @@ export default async function processPostTagDto(
         );
     }
 
+    // taggedDocs is server-owned: the client's copy dates from when the editor loaded the
+    // tag, so saving it would drop everything tagged since (#2366).
+    if (doc.type == DocType.Tag) {
+        (doc as TagDto).taggedDocs = (await db.getTaggedDocIds(doc._id)).get(doc._id);
+    }
+
     // Get content documents that are children of the Post / Tag document
     // and copy essential properties from the Post / Tag document to the child content document
     const contentDocs = await db.getContentByParentId(doc._id);
@@ -224,6 +230,7 @@ export default async function processPostTagDto(
         if (doc.type == DocType.Tag) {
             contentDoc.parentTagType = (doc as TagDto).tagType;
             contentDoc.parentPinned = (doc as TagDto).pinned;
+            contentDoc.parentTaggedDocs = (doc as TagDto).taggedDocs;
         }
 
         contentDoc.parentPublishDateVisible = doc.publishDateVisible;
@@ -249,35 +256,27 @@ export default async function processPostTagDto(
     const changedTags = addedTags
         .concat(removedTags)
         .filter((tag, index, self) => self.indexOf(tag) === index);
-    const tagDocs = changedTags.length ? (await db.getDocs(changedTags, [DocType.Tag])).docs : [];
-    const tagDocsContent = changedTags.length
-        ? (await db.getContentByParentId(changedTags)).docs
-        : [];
-    const updatedDocs = tagDocs.concat(tagDocsContent);
+    if (!changedTags.length) return warnings;
 
-    for (const d of updatedDocs) {
-        let taggedDocsArray: Uuid[];
-        let tagId: Uuid;
-        if (d.type == DocType.Tag) {
-            const tag = d as TagDto;
-            tag.taggedDocs = tag.taggedDocs || [];
-            taggedDocsArray = tag.taggedDocs;
-            tagId = tag._id;
-        } else {
-            const content = d as ContentDto;
-            content.parentTaggedDocs = content.parentTaggedDocs || [];
-            taggedDocsArray = content.parentTaggedDocs;
-            tagId = content.parentId;
-        }
+    // Rebuilt from the stored docs' tags rather than patched in place, so a concurrent save
+    // cannot lose an entry for good. This doc is written after processing, so the stored
+    // copy still has its previous tags.
+    const taggedByTag = await db.getTaggedDocIds(changedTags);
+    for (const [tagId, ids] of taggedByTag) {
+        const others = ids.filter((id) => id !== doc._id);
+        taggedByTag.set(tagId, doc.tags.includes(tagId) ? [...others, doc._id] : others);
+    }
 
-        if (addedTags.includes(tagId)) taggedDocsArray.push(doc._id);
+    const tagDocs = (await db.getDocs(changedTags, [DocType.Tag])).docs as TagDto[];
+    for (const tag of tagDocs) {
+        tag.taggedDocs = taggedByTag.get(tag._id);
+        await db.upsertDoc(tag);
+    }
 
-        if (removedTags.includes(tagId)) {
-            const index = taggedDocsArray.indexOf(doc._id);
-            if (index > -1) taggedDocsArray.splice(index, 1);
-        }
-
-        await db.upsertDoc(d);
+    const tagDocsContent = (await db.getContentByParentId(changedTags)).docs as ContentDto[];
+    for (const content of tagDocsContent) {
+        content.parentTaggedDocs = taggedByTag.get(content.parentId);
+        await db.upsertDoc(content);
     }
 
     return warnings;
