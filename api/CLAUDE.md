@@ -100,7 +100,7 @@ All endpoints use `AuthGuard` and validate `apiVersion` via `validation/apiVersi
 3. A doc-type-specific `process*Dto` finalizes the document (image processing, FTS indexing, language file generation, S3 uploads, etc.).
 4. `db.upsertDoc(doc)` writes and emits.
 
-`util/ftsIndexing.ts` computes server-side trigram FTS for Content docs as part of `processContentDto`. **Boost/field config must stay identical** to `shared/src/fts/ftsSearch.ts` — when you change one, change both (ADR 0009). The same boosts and BM25 params are also reused by server-side FTS *search* in `util/ftsScoring.ts` (the `POST /fts` endpoint, see below), so the "change one, change all" rule spans three files now (ADR 0010).
+`processContentDto` sanitizes `text` first (`util/sanitizeContentText.ts`, allowlist = what the CMS editor can produce) because the app renders it with `v-html`; `sanitize-html` is pinned to exactly 2.17.2 because later versions pull in an ESM-only `htmlparser2` that breaks Jest and Node 20 CommonJS. `util/ftsIndexing.ts` computes server-side trigram FTS for Content docs as part of `processContentDto`. **Boost/field config must stay identical** to `shared/src/fts/ftsSearch.ts` — when you change one, change both (ADR 0009). The same boosts and BM25 params are also reused by server-side FTS *search* in `util/ftsScoring.ts` (the `POST /fts` endpoint, see below), so the "change one, change all" rule spans three files now (ADR 0010).
 
 ### S3 (`src/s3/s3.service.ts`)
 
