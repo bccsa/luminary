@@ -6,7 +6,7 @@ import { isPrerender } from "@/ssg/isPrerender";
 import { rank, affinityScoreScale } from "@/recommendation/ranking";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
-import { getSeenArticleIds } from "@/recommendation/seenStore";
+import { getViewedParentIds } from "@/userActivity/store";
 import { sessionNow } from "@/util/sessionNow";
 import { useI18n } from "vue-i18n";
 import ReadMore from "./ReadMore.vue";
@@ -81,7 +81,7 @@ const scoreScale = affinityScoreScale(affinityConfig.value.eventWeight.completio
 // snapshot per article and rank against that — re-taken only when the reader moves to another
 // article, which is also when a fresh set of recommendations is wanted.
 const rankingAffinity = shallowRef<AffinityMap>({});
-const rankingSeenIds = shallowRef<Set<Uuid>>(new Set());
+const rankingViewedParentIds = shallowRef<Set<Uuid>>(new Set());
 watch(
     () => props.selectedContent.parentId,
     () => {
@@ -90,7 +90,7 @@ watch(
             sessionNow(),
             affinityConfig.value,
         ).affinity;
-        rankingSeenIds.value = new Set(getSeenArticleIds());
+        void getViewedParentIds().then((ids) => (rankingViewedParentIds.value = ids));
     },
     { immediate: true },
 );
@@ -99,7 +99,7 @@ const readMoreItems = computed(() => {
     // The grid shows related articles only — the dedicated topic cards (props.tags) are no
     // longer mixed in, since the section is already topical. Already-seen articles are still
     // excluded (that filter is for read articles, not topic cards).
-    const candidates = relatedContent.value.filter((item) => !rankingSeenIds.value.has(item._id));
+    const candidates = relatedContent.value.filter((item) => !rankingViewedParentIds.value.has(item.parentId));
     return rank(candidates, [], rankingAffinity.value, {
         topicTagIds: topicTagIds.value,
         scoreScale,
