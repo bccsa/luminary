@@ -1,4 +1,15 @@
-import { type ContentDto, toAbsoluteMediaUrl } from "luminary-shared";
+import { type ContentDto, type MangoSelector, toAbsoluteMediaUrl } from "luminary-shared";
+
+/**
+ * Content query clause matching what {@link hasVideoSource} accepts: newer content has only
+ * the parent's encoded media, older only the per-language `video` URL.
+ */
+export const hasVideoSelector: MangoSelector = {
+    $or: [
+        { $and: [{ video: { $exists: true, $ne: "" } }, { video: { $ne: null } }] },
+        { "parentMedia.hlsUrl": { $exists: true, $ne: "" } },
+    ],
+};
 
 /**
  * The video a content document should play. The encoded collection on the parent
