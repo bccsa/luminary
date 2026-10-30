@@ -44,7 +44,7 @@ import {
 import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
-import { markSeen } from "@/recommendation/seenStore";
+import { ensureUserActivity } from "@/userActivity/store";
 import { fallbackArtworkDataUrl } from "@/util/fallbackArtwork";
 import { resolveMediaSource, mediaSourceFor } from "@/util/mediaSource";
 import { useBucketInfo } from "@/composables/useBucketInfo";
@@ -391,8 +391,8 @@ function applyCompletion() {
     recordAffinity(props.content.parentTags, affinityConfig.value.eventWeight.completion);
 
     // mediaProgress is a 10-slot ring buffer used only to resume playback, not a
-    // history — record completion in the durable seen store instead.
-    markSeen(props.content._id);
+    // history — record completion in the activity history instead.
+    void ensureUserActivity({ type: "viewed", parentId: props.content.parentId });
 }
 
 /** Below this, a position is not worth resuming and is not recorded. */

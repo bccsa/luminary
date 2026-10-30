@@ -21,7 +21,6 @@ import { useContentQuery, useContentQueryWithState } from "@/composables/useCont
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
-import { markSeen } from "@/recommendation/seenStore";
 import { hasContentProgress } from "@/contentProgress";
 import {
     hasUserActivity,
@@ -368,7 +367,6 @@ if (!isPrerender()) {
             });
             dwellTimer = setTimeout(() => {
                 if (!hasText) recordAffinity(tags);
-                markSeen(id);
                 // History is taken from the continue store, which short content never
                 // reaches: an article that fits one screen, one estimated under a minute,
                 // or audio stopped before the player's 60s mark. Dwelling stands in for the

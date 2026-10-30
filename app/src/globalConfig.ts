@@ -10,7 +10,7 @@ import {
 } from "luminary-shared";
 import { computed, ref, watch, watchEffect, type WatchStopHandle } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
-import { migrateToUserActivity } from "./userActivity/migrate";
+import { migrateSeenToUserActivity, migrateToUserActivity } from "./userActivity/migrate";
 import { startContentProgressMirror } from "./userActivity/fromContentProgress";
 import { pruneUserActivityTombstones } from "./userActivity/store";
 
@@ -491,6 +491,12 @@ export const initUserActivity = () => {
     // Reading history is taken from the continue-reading store, so the mirror has to be
     // listening before anything can scroll.
     startContentProgressMirror();
+
+    // Outside the one-shot flag below: installs that already migrated still hold seen ids. It
+    // removes its source, so later starts find nothing to do.
+    void migrateSeenToUserActivity().catch((err) =>
+        console.error("Seen ids migration failed:", err),
+    );
 
     // Delete this block, and `userActivity/migrate.ts` with it, once every install has migrated.
     if (localStorage.getItem(USER_ACTIVITY_MIGRATED_KEY)) return;

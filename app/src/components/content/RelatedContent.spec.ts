@@ -8,6 +8,7 @@ import waitForExpect from "wait-for-expect";
 import { db, type ContentDto } from "luminary-shared";
 import { ref } from "vue";
 import { appLanguageIdsAsRef } from "@/globalConfig";
+import { recordUserActivity } from "@/userActivity/store";
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -30,20 +31,11 @@ vi.mock("vue-i18n", () => ({
 // mutate these holders to drive seen-exclusion and affinity ordering. The refs themselves
 // are created lazily inside the (async) mock factories so `ref` is imported, not TDZ'd.
 const affinityStoreMock = vi.hoisted(() => ({ affinityProfile: null as any }));
-const seenStoreMock = vi.hoisted(() => ({ seenVersion: null as any, seenIds: [] as string[] }));
 
 vi.mock("@/recommendation/affinityStore", async () => {
     const { ref } = await import("vue");
     affinityStoreMock.affinityProfile = ref({ affinity: {}, lastDecayUtc: undefined });
     return { affinityProfile: affinityStoreMock.affinityProfile };
-});
-vi.mock("@/recommendation/seenStore", async () => {
-    const { ref } = await import("vue");
-    seenStoreMock.seenVersion = ref(0);
-    return {
-        seenVersion: seenStoreMock.seenVersion,
-        getSeenArticleIds: () => seenStoreMock.seenIds,
-    };
 });
 
 describe("RelatedContent", () => {
@@ -57,8 +49,7 @@ describe("RelatedContent", () => {
         ]);
         appLanguageIdsAsRef.value.unshift("lang-eng");
         affinityStoreMock.affinityProfile.value = { affinity: {}, lastDecayUtc: undefined };
-        seenStoreMock.seenIds = [];
-        seenStoreMock.seenVersion.value++;
+        await db.userActivity.clear();
     });
 
     afterEach(async () => {
@@ -226,8 +217,7 @@ describe("RelatedContent", () => {
     });
 
     it("excludes already-seen articles from Read more", async () => {
-        seenStoreMock.seenIds = ["content-postA-eng"];
-        seenStoreMock.seenVersion.value++;
+        await recordUserActivity({ type: "viewed", parentId: "post-postA" });
 
         await db.docs.bulkPut([
             {
@@ -325,8 +315,7 @@ describe("RelatedContent", () => {
                 expect(titlesOf(wrapper)).toEqual(["Stable A", "Stable B"]);
             });
 
-            seenStoreMock.seenIds = ["content-stableA-eng"];
-            seenStoreMock.seenVersion.value++;
+            await recordUserActivity({ type: "viewed", parentId: "post-stableA" });
             affinityStoreMock.affinityProfile.value = {
                 affinity: { [mockTopicContentDto.parentId]: 0.05 },
                 lastDecayUtc: undefined,
@@ -344,8 +333,7 @@ describe("RelatedContent", () => {
                 expect(titlesOf(wrapper)).toEqual(["Stable A", "Stable B"]);
             });
 
-            seenStoreMock.seenIds = ["content-stableA-eng"];
-            seenStoreMock.seenVersion.value++;
+            await recordUserActivity({ type: "viewed", parentId: "post-stableA" });
             await wrapper.setProps({
                 selectedContent: {
                     ...mockEnglishContentDto,

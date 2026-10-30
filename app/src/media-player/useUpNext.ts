@@ -13,7 +13,7 @@ import { hasVideoSelector } from "@/util/mediaSource";
 import { rank, affinityScoreScale } from "@/recommendation/ranking";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
-import { getSeenArticleIds } from "@/recommendation/seenStore";
+import { getViewedParentIds } from "@/userActivity/store";
 import { sessionNow } from "@/util/sessionNow";
 import { hasMediaSource } from "@/util/mediaSource";
 
@@ -120,7 +120,7 @@ export function useUpNext(
     // One snapshot of what the viewer has seen and liked per item: watching it writes those very
     // signals, and the list must not reshuffle under them.
     const affinity = shallowRef<AffinityMap>({});
-    const seen = shallowRef<Set<Uuid>>(new Set());
+    const viewedParentIds = shallowRef<Set<Uuid>>(new Set());
     watch(
         () => content.value?.parentId,
         () => {
@@ -129,7 +129,7 @@ export function useUpNext(
                 sessionNow(),
                 affinityConfig.value,
             ).affinity;
-            seen.value = new Set(getSeenArticleIds());
+            void getViewedParentIds().then((ids) => (viewedParentIds.value = ids));
         },
         { immediate: true },
     );
@@ -187,8 +187,8 @@ export function useUpNext(
         );
         // Stable: within each group the ranking's order stands.
         const related = [
-            ...ranked.filter((doc) => !seen.value.has(doc._id)),
-            ...ranked.filter((doc) => seen.value.has(doc._id)),
+            ...ranked.filter((doc) => !viewedParentIds.value.has(doc.parentId)),
+            ...ranked.filter((doc) => viewedParentIds.value.has(doc.parentId)),
         ].slice(0, UP_NEXT_LIMIT);
 
         // In the content's own order, the series first.

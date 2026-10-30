@@ -1,6 +1,11 @@
 import { ref, watch, type Ref } from "vue";
-import type { UserActivityEntry, UserActivityType } from "luminary-shared";
-import { getAllUserActivity, getUserActivity, userActivityVersion } from "./store";
+import type { UserActivityEntry, UserActivityType, Uuid } from "luminary-shared";
+import {
+    getAllUserActivity,
+    getUserActivity,
+    getViewedParentIds,
+    userActivityVersion,
+} from "./store";
 
 /**
  * The stored activity, newest first — one type, or `"all"` for the three interleaved.
@@ -19,4 +24,19 @@ export function useUserActivity(type: UserActivityType | "all"): Ref<UserActivit
     );
 
     return rows;
+}
+
+/** The posts the user has viewed, re-read whenever an activity is written. */
+export function useViewedParentIds(): Ref<Set<Uuid>> {
+    const ids = ref<Set<Uuid>>(new Set());
+
+    watch(
+        userActivityVersion,
+        async () => {
+            ids.value = await getViewedParentIds();
+        },
+        { immediate: true },
+    );
+
+    return ids;
 }

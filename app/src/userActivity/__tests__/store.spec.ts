@@ -6,7 +6,9 @@ import {
     MAX_VIEWED,
     TOMBSTONE_TTL_MS,
     clearUserActivity,
+    ensureUserActivity,
     getUserActivity,
+    getViewedParentIds,
     hasUserActivity,
     pruneUserActivityTombstones,
     recordUserActivity,
@@ -34,6 +36,45 @@ describe("userActivity", () => {
     // Dexie deadlocks under Vitest's fake timers (fake-indexeddb schedules its own work),
     // so time is controlled by stubbing the clock these helpers read.
     const at = (ms: number) => vi.spyOn(Date, "now").mockReturnValue(ms);
+
+    describe("ensureUserActivity", () => {
+        it("records an activity that is not there yet", async () => {
+            at(1000);
+            await ensureUserActivity({ type: "viewed", parentId: "post-1" });
+
+            expect((await getUserActivity("viewed"))[0].updatedTimeUtc).toBe(1000);
+        });
+
+        it("leaves the timestamp of a live row alone", async () => {
+            at(1000);
+            await recordUserActivity({ type: "viewed", parentId: "post-1" });
+
+            at(5000);
+            await ensureUserActivity({ type: "viewed", parentId: "post-1" });
+
+            expect((await getUserActivity("viewed"))[0].updatedTimeUtc).toBe(1000);
+        });
+
+        it("revives a row the user removed", async () => {
+            await recordUserActivity({ type: "viewed", parentId: "post-1" });
+            await removeUserActivity({ type: "viewed", parentId: "post-1" });
+
+            await ensureUserActivity({ type: "viewed", parentId: "post-1" });
+
+            expect(await hasUserActivity({ type: "viewed", parentId: "post-1" })).toBe(true);
+        });
+    });
+
+    describe("getViewedParentIds", () => {
+        it("returns the viewed posts, without tombstones or other types", async () => {
+            await recordUserActivity({ type: "viewed", parentId: "post-1" });
+            await recordUserActivity({ type: "viewed", parentId: "post-2" });
+            await recordUserActivity({ type: "liked", parentId: "post-3" });
+            await removeUserActivity({ type: "viewed", parentId: "post-2" });
+
+            expect(await getViewedParentIds()).toEqual(new Set(["post-1"]));
+        });
+    });
 
     describe("identity", () => {
         it("keys likes and views on the post", async () => {

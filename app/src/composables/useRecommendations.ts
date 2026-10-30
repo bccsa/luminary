@@ -24,7 +24,7 @@ import {
     loadSearchQueries,
     type SearchQuery,
 } from "@/recommendation/searchQueryStore";
-import { getSeenArticleIds, seenVersion } from "@/recommendation/seenStore";
+import { useViewedParentIds } from "@/userActivity/useUserActivity";
 import { appSyncedDisplayLanguageIdsAsRef } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
 import { filterTopicTagIds } from "@/recommendation/topicTags";
@@ -393,19 +393,16 @@ export function useRecommendations({
         onScopeDispose(() => clearTimeout(ftsDebounceTimer));
     }
 
-    const seenIds = computed(() => {
-        void seenVersion.value; // reactive dependency: getSeenArticleIds itself reads localStorage
-        return new Set(getSeenArticleIds());
-    });
+    const viewedParentIds = useViewedParentIds();
 
     const recommended = computed(() => {
         // Filter seen and pinned content out *before* ranking/diversity-capping, not after —
         // otherwise ineligible docs still consume slots in the per-tag MMR cap and push
         // eligible content into overflow (and past `slice(0, limit)` entirely).
-        const isEligible = (doc: ContentDto, docId: Uuid) =>
-            !seenIds.value.has(docId) && !hasPinnedParent(doc);
-        const eligibleTagCandidates = content.value.filter((c) => isEligible(c, c._id));
-        const eligibleFtsCandidates = ftsResults.value.filter((r) => isEligible(r.doc, r.docId));
+        const isEligible = (doc: ContentDto) =>
+            !viewedParentIds.value.has(doc.parentId) && !hasPinnedParent(doc);
+        const eligibleTagCandidates = content.value.filter((c) => isEligible(c));
+        const eligibleFtsCandidates = ftsResults.value.filter((r) => isEligible(r.doc));
         return rank(eligibleTagCandidates, eligibleFtsCandidates, decayedAffinity.value, {
             topicTagIds: topicTagIds.value,
             tagWeight: TAG_LEG_WEIGHT * (0.3 + 0.7 * richness.value),
