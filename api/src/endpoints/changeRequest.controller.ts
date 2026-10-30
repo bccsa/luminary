@@ -1,20 +1,48 @@
-import { Controller, Post, Req, UseGuards, UsePipes } from "@nestjs/common";
+import {
+    Controller,
+    HttpException,
+    HttpStatus,
+    Post,
+    Req,
+    Res,
+    UseGuards,
+    UsePipes,
+} from "@nestjs/common";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
 import { ChangeRequestService } from "./changeRequest.service";
-import { FastifyRequest } from "fastify";
+import { FastifyReply, FastifyRequest } from "fastify";
+import { ChangeRequestRateLimiterService } from "../ratelimit/changeRequestRateLimiter.service";
 import { removeDangerousKeys } from "../util/removeDangerousKeys";
 import { patchFileData } from "../util/patchFileData";
 
 @Controller("changerequest")
 export class ChangeRequestController {
-    constructor(private readonly changeRequestService: ChangeRequestService) {}
+    constructor(
+        private readonly changeRequestService: ChangeRequestService,
+        private readonly rateLimiter: ChangeRequestRateLimiterService,
+    ) {}
 
     @Post()
     @UseGuards(AuthGuard)
     @UsePipes()
-    async handleChangeRequest(@Req() request: FastifyRequest) {
+    async handleChangeRequest(
+        @Req() request: FastifyRequest,
+        @Res({ passthrough: true }) reply: FastifyReply,
+    ) {
+        // Counted before parsing so a flood of oversized or malformed requests is limited too
+        const identityKey = request.user?.userId ?? `ip:${request.ip}`;
+        const gate = this.rateLimiter.check(identityKey);
+        if (!gate.allowed) {
+            reply.header("Retry-After", String(Math.ceil(gate.retryAfterMs / 1000)));
+            throw new HttpException(
+                "Too many change requests; retry later",
+                HttpStatus.TOO_MANY_REQUESTS,
+            );
+        }
+        this.rateLimiter.recordRequest(identityKey);
+
         // Check if the request is multipart
         const isMultipartRequest =
             typeof request.isMultipart === "function" ? request.isMultipart() : false;
