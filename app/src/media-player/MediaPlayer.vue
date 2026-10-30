@@ -26,8 +26,8 @@ import {
     MusicalNoteIcon,
     XMarkIcon,
 } from "@heroicons/vue/20/solid";
+import { AUDIO_ONLY_ANGLE_ID } from "@luminary-media-converter/player-web";
 import {
-    AUDIO_ONLY_ANGLE_ID,
     AudioFullscreen,
     ScrubPicture,
     ScrubRoster,
@@ -38,10 +38,8 @@ import {
     rosterFineStep,
     rosterStep,
     rosterTiles,
-    type ScrubPosition,
-    type ThumbnailSpriteCue,
-    type Chapter,
-} from "@luminary-media-converter/player-web";
+} from "./playerWebCompat";
+import type { Chapter, ScrubPosition, ThumbnailSpriteCue } from "./playerCompat";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
 import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";

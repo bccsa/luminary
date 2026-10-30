@@ -20,11 +20,10 @@ import {
 } from "vue";
 import {
     AUDIO_ONLY_ANGLE_ID,
-    isYouTubeUrl,
     LuminaryPlayer,
     type PlayerSource,
-    type PlayerUpNextItem,
 } from "@luminary-media-converter/player-web";
+import type { PlayerUpNextItem } from "./playerCompat";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "@/components/images/LImage.vue";
 import { usePlayerMessages } from "@/media-player/usePlayerMessages";
@@ -210,7 +209,7 @@ const preferredLanguage = computed(
  * subtitles, so the web full screen does too. It shows only for a stream that has some.
  */
 const controls = computed(() =>
-    isYouTubeUrl(mediaSource.value)
+    isYouTubeLink(mediaSource.value)
         ? { subtitlesMenu: false, audioVideoToggle: false }
         : {
               subtitlesMenu: true,

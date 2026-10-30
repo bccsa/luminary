@@ -288,28 +288,6 @@ const handleLogin = () => {
                 <span :class="[navLabelClass, labelVisibilityClass]">{{ t("menu.search") }}</span>
             </span>
 
-            <RouterLink
-                :to="{ name: 'bookmarks' }"
-                v-slot="{ isActive, href, navigate }"
-                custom
-            >
-                <a
-                    :href="href"
-                    :class="navItemClasses(isActive)"
-                    :title="t('profile_menu.bookmarks')"
-                    @click="navigate"
-                >
-                    <component
-                        :is="isActive ? FilledBookmarkIcon : BookmarkIcon"
-                        :class="navIconClass"
-                        aria-hidden="true"
-                    />
-                    <span :class="[navLabelClass, labelVisibilityClass]">{{
-                        t("profile_menu.bookmarks")
-                    }}</span>
-                </a>
-            </RouterLink>
-
             <div
                 class="mt-2 border-t border-zinc-200 pt-3 dark:border-slate-700"
                 :class="collapsed ? 'mx-0' : ''"
