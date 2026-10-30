@@ -191,4 +191,18 @@ describe("configuration", () => {
         expect(config.identityCache.ttlMs).toBe(300000);
         expect(config.identityCache.maxEntries).toBe(50000);
     });
+
+    it("honours BYPASS_TEMPLATE_VALIDATION outside production", () => {
+        process.env.BYPASS_TEMPLATE_VALIDATION = "true";
+        process.env.NODE_ENV = "development";
+
+        expect(configuration().validation.bypassTemplateValidation).toBe(true);
+    });
+
+    it("ignores BYPASS_TEMPLATE_VALIDATION in production", () => {
+        process.env.BYPASS_TEMPLATE_VALIDATION = "true";
+        process.env.NODE_ENV = "production";
+
+        expect(configuration().validation.bypassTemplateValidation).toBe(false);
+    });
 });
