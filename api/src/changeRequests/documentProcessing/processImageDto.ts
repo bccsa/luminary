@@ -79,7 +79,12 @@ export async function deleteImage(
     return deleteImageFilesFromBucket(files, bucketId, db);
 }
 
-const imageSizes = [180, 360, 640, 1280, 2560];
+const imageSizes = [180, 360, 640, 960, 1280, 2560];
+
+/** Renditions generated for a source width; allows slight (10%) upscaling. */
+export function renditionSizesForWidth(width: number): number[] {
+    return imageSizes.filter((size) => width >= size / 1.1);
+}
 
 const defaultImageQuality = configuration().imageProcessing.imageQuality || 80; // Default image quality for webp conversion
 
@@ -462,8 +467,7 @@ async function processImageUpload(
             // Create bucket-specific S3 service with bucket's credentials
             const s3Service = await S3Service.create(bucketId, db);
 
-            imageSizes.forEach(async (size) => {
-                if (metadata.width < size / 1.1) return; // allow slight upscaling
+            renditionSizesForWidth(metadata.width).forEach(async (size) => {
                 promises.push(
                     resizeAndUploadImage(
                         uploadData,
