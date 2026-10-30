@@ -9,7 +9,7 @@ import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import SearchModal from "@/components/navigation/SearchModal.vue";
-//import MobileMenu from "@/components/navigation/MobileMenu.vue";
+import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { useDismissKeyboardOnTouch } from "@/composables/useDismissKeyboardOnTouch";
 import { useKeyboardOpen } from "@/composables/useKeyboardOpen";

@@ -33,6 +33,13 @@ describe("initLanguage", () => {
         expect(await settledWithin(initLanguage(), 500)).toBe("settled");
     });
 
+    it("boots when the app is connected but no sync pass has started yet", async () => {
+        isConnected.value = true;
+        syncActive.value = false;
+
+        expect(await settledWithin(initLanguage(), 500)).toBe("settled");
+    });
+
     it("keeps waiting while a connection could still deliver them", async () => {
         isConnected.value = true;
         syncActive.value = true;
