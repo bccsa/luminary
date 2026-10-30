@@ -95,6 +95,21 @@ describe("ProfileMenu", () => {
         expect(wrapper.html()).toContain(t("language.modal.title"));
     });
 
+    it("opens the text & font modal from the menu", async () => {
+        (auth as any).useAuth.mockReturnValue({
+            isAuthenticated: ref(false),
+        });
+
+        const wrapper = mount(ProfileMenu);
+
+        await wrapper.find("button").trigger("click");
+        await wrapper.find("[data-test='menu-reader-settings']").trigger("click");
+
+        await waitForExpect(() => {
+            expect(wrapper.find("[data-test='readerPreview']").exists()).toBe(true);
+        });
+    });
+
     it("closes the slide-in menu when a non-routed item is clicked", async () => {
         const { t } = useI18n();
 

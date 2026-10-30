@@ -4,10 +4,10 @@ import { resolveI18nEmbedded } from "./resolveI18nEmbedded";
 describe("resolveI18nEmbedded", () => {
     const t = (key: string) =>
         (
-            {
+            ({
                 "login.provider.button": "Sign in with Example Org",
                 "organization.name": "Example Org",
-            } as Record<string, string>
+            }) as Record<string, string>
         )[key] ?? key;
 
     it("returns empty string for empty input", () => {

@@ -33,6 +33,7 @@
         "profile_menu.title": "Menu",
         "profile_menu.settings": "Settings",
         "profile_menu.theme": "Theme",
+        "profile_menu.reader_settings": "Text & font",
         "profile_menu.language": "Language",
         "profile_menu.activity": "My Activity",
         "profile_menu.privacy_policy": "Privacy Policy",
@@ -135,6 +136,11 @@
         "select_theme.dark": "Dark",
         "select_theme.system": "System",
         "select_theme.close_button": "Close",
+        "reader_settings.font": "Font",
+        "reader_settings.preview_line_1": "The quick brown fox jumps over the lazy dog.",
+        "reader_settings.preview_line_2": "This is how your articles will look.",
+        "reader_settings.title": "Text & font",
+        "reader_settings.close_button": "Close",
         "title.home": "Home",
         "title.explore": "Explore",
         "title.watch": "Watch",
@@ -296,6 +302,10 @@
         "video_player.loading": "Loading",
         "video_player.browse": "Chapters and up next",
         "video_player.close_browse": "Close the chapters and up next",
-        "video_player.dismiss_next_up": "Dismiss the next video"
+        "video_player.dismiss_next_up": "Dismiss the next video",
+        "singlecontent.textSize": "Text size",
+        "singlecontent.lineHeight": "Line height",
+        "singlecontent.smallerText": "Smaller text",
+        "singlecontent.largerText": "Larger text"
     }
 }
