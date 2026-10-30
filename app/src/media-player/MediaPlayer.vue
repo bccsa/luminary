@@ -299,7 +299,8 @@ onBeforeUnmount(() => clearTimeout(swapLimit));
 /** Another video, offered under this one: it takes the player. */
 function playNext(next: ContentDto) {
     startSwap();
-    openMediaPlayer(next, item.value?.language);
+    // Carry the viewer's current mode over, or the next one would fall back to Data Saver's default
+    openMediaPlayer(next, item.value?.language, { audio: audioMode.value });
 }
 
 /**

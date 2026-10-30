@@ -945,6 +945,30 @@ describe("MediaPlayer", () => {
             }
         });
 
+        it.each([
+            ["the sound alone", true],
+            ["the picture", false],
+        ])("keeps %s for a video picked from Up Next", async (_mode, audio) => {
+            const next = {
+                ...mockEnglishContentDto,
+                _id: "next-1",
+                parentId: "next-1-parent",
+                title: "The next one",
+                video: "https://cdn.example.com/next.m3u8",
+            };
+            upNextDocs.value = [next];
+            const wrapper = await playing();
+            engine.state.activeAngleId = audio ? AUDIO : "angle_0";
+            await flushPromises();
+
+            screen(wrapper).vm.$emit("upnextselect", "next-1");
+            await flushPromises();
+
+            expect(mediaPlayerItem.value?.content._id).toBe("next-1");
+            expect(mediaPlayerItem.value?.audio).toBe(audio);
+            expect(engine.props.startAudio).toBe(audio);
+        });
+
         it("lets a video fill the window of a phone's browser turned sideways, with the player's own controls", async () => {
             screenLandscape = true;
             const wrapper = await playing();
