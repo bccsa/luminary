@@ -23,13 +23,20 @@ export function isTransientIndexedDbError(err: unknown): boolean {
     );
 }
 
-/** Runs `op`, retrying it once after a short delay if it fails on a transient IndexedDB error. */
-export async function retryOnTransientIndexedDbError<T>(op: () => Promise<T>): Promise<T> {
+/**
+ * Runs `op`, retrying it once after a short delay if it fails on a transient IndexedDB error.
+ * `shouldAbort` is checked after the delay so a superseded caller doesn't issue a pointless retry.
+ */
+export async function retryOnTransientIndexedDbError<T>(
+    op: () => Promise<T>,
+    shouldAbort?: () => boolean,
+): Promise<T> {
     try {
         return await op();
     } catch (err) {
         if (!isTransientIndexedDbError(err)) throw err;
         await new Promise((resolve) => setTimeout(resolve, TRANSIENT_INDEXEDDB_RETRY_DELAY_MS));
+        if (shouldAbort?.()) throw err;
         return op();
     }
 }

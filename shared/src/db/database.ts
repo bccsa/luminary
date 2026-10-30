@@ -287,6 +287,7 @@ class Database extends Dexie {
         return retryOnTransientIndexedDbError(() => this.bulkPutOnce(docs));
     }
 
+    // Must stay idempotent: `bulkPut` may run it twice after a transient IndexedDB error.
     private async bulkPutOnce(docs: BaseDocumentDto[]) {
         const candidateDeleteCmds = docs.filter(
             (doc) =>

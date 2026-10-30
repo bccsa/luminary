@@ -2955,6 +2955,23 @@ describe("HybridQuery", () => {
             errSpy.mockRestore();
         });
 
+        it("one-shot local read: does not retry when disposed during the retry delay", async () => {
+            const transient = new DOMException("Transaction aborted", "AbortError");
+            mocks.mangoToDexieMock.mockRejectedValueOnce(transient);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+            vi.useFakeTimers({ toFake: ["setTimeout"] });
+            const q = new HybridQuery({ selector: { type: "content" } });
+            await nextTick();
+            q.dispose();
+            await vi.advanceTimersByTimeAsync(100);
+
+            expect(mocks.mangoToDexieMock).toHaveBeenCalledTimes(1);
+            errSpy.mockRestore();
+            vi.useRealTimers();
+        });
+
         it("one-shot local read: retries once and recovers on a transient WebKit IndexedDB error, never setting error", async () => {
             const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
             const transient = new DOMException("Transaction aborted", "AbortError");
@@ -2962,14 +2979,16 @@ describe("HybridQuery", () => {
             mocks.mangoToDexieMock.mockRejectedValueOnce(transient).mockResolvedValueOnce(local);
             postHttpMock.mockResolvedValueOnce({ docs: [] });
 
+            vi.useFakeTimers({ toFake: ["setTimeout"] });
             const q = new HybridQuery({ selector: { type: "content" } });
-            await flush();
-            await new Promise((r) => setTimeout(r, 150)); // past the retry delay
+            await nextTick();
+            await vi.advanceTimersByTimeAsync(100); // past the retry delay
 
             expect(mocks.mangoToDexieMock).toHaveBeenCalledTimes(2);
             expect(q.error.value).toBeUndefined();
             expect(errSpy).not.toHaveBeenCalled();
             errSpy.mockRestore();
+            vi.useRealTimers();
         });
 
         it("one-shot local read: retries once, then falls back to empty + error, when the transient error persists", async () => {
@@ -2980,14 +2999,16 @@ describe("HybridQuery", () => {
                 .mockRejectedValueOnce(transient());
             postHttpMock.mockResolvedValueOnce({ docs: [] });
 
+            vi.useFakeTimers({ toFake: ["setTimeout"] });
             const q = new HybridQuery({ selector: { type: "content" } });
-            await flush();
-            await new Promise((r) => setTimeout(r, 150));
+            await nextTick();
+            await vi.advanceTimersByTimeAsync(100);
 
             expect(mocks.mangoToDexieMock).toHaveBeenCalledTimes(2);
             expect(q.error.value).toEqual(expect.objectContaining({ name: "AbortError" }));
             expect(q.output.value).toEqual([]);
             errSpy.mockRestore();
+            vi.useRealTimers();
         });
 
         it("a superseded generation's late POST does not clear the new generation's isFetching", async () => {

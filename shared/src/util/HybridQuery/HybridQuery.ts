@@ -812,6 +812,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         if (!this._live) {
             void retryOnTransientIndexedDbError(
                 () => runInWorker("mangoQuery", this._query) as Promise<T[]>,
+                () => gen !== this._generation || this._disposed,
             ).then(onLocal, (err) => {
                 if (gen === this._generation && !this._disposed) this.error.value = err;
                 this._reportError("local-read", err);
