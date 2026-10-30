@@ -33,6 +33,7 @@
         "profile_menu.title": "Menu",
         "profile_menu.settings": "Paramètres",
         "profile_menu.theme": "Thème",
+        "profile_menu.reader_settings": "Texte et police",
         "profile_menu.language": "Langue",
         "profile_menu.activity": "Mon Activité",
         "profile_menu.privacy_policy": "Politique de confidentialité",
@@ -135,6 +136,11 @@
         "select_theme.dark": "Sombre",
         "select_theme.system": "Système",
         "select_theme.close_button": "Fermer",
+        "reader_settings.font": "Police",
+        "reader_settings.preview_line_1": "Voici un aperçu du texte des articles.",
+        "reader_settings.preview_line_2": "Vos articles s'afficheront ainsi.",
+        "reader_settings.title": "Texte et police",
+        "reader_settings.close_button": "Fermer",
         "title.home": "Accueil",
         "title.explore": "Explore",
         "title.watch": "Regarde",
@@ -296,6 +302,10 @@
         "video_player.loading": "Chargement",
         "video_player.browse": "Chapitres et à suivre",
         "video_player.close_browse": "Fermer les chapitres et à suivre",
-        "video_player.dismiss_next_up": "Ignorer la vidéo suivante"
+        "video_player.dismiss_next_up": "Ignorer la vidéo suivante",
+        "singlecontent.textSize": "Taille du texte",
+        "singlecontent.lineHeight": "Interligne",
+        "singlecontent.smallerText": "Texte plus petit",
+        "singlecontent.largerText": "Texte plus grand"
     }
 }
