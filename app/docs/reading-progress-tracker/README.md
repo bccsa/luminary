@@ -54,10 +54,10 @@ progress % = round(confirmed segments ÷ total segments × 100)
 1. On article open, the tracker collects segments from the prose root.
 2. Each segment must pass **three gates** before it is added to the `confirmed` set.
 3. When the confirmed count changes, the percentage is saved to `localStorage` (`contentProgress` key, `reading` field on the content entry).
-4. At **100%**, the entry is **removed** — the article is finished, not “in progress”.
+4. From **95%** the article counts as finished: the entry stays in the store but the homepage row hides it.
 5. Progress **never decreases** for a given article (`Math.max(existing, computed)`).
 
-On re-open, the saved percentage **seeds** the confirmed set so progress does not drop if the tracker re-initializes.
+On re-open, the saved percentage **seeds** the confirmed set so progress does not drop if the tracker re-initializes. A finished article is the exception: it is read again from the start, and its first confirmed segment replaces the saved progress.
 
 ---
 
@@ -193,7 +193,7 @@ It drives both **skim detection** (whose `wordsPerPixel` to use) and **dwell acc
 ]
 ```
 
-Each entry is keyed by `contentId`. `watching` tracks video/audio playback (seconds); `reading` tracks article progress (0–100%). Both can be present on the same content. Entries are ordered by most recently updated; at most **10** are kept.
+Each entry is keyed by `contentId`. `watching` tracks video/audio playback (seconds); `reading` tracks article progress (0–100%). Both can be present on the same content. Entries are ordered by most recently updated; at most **50** are kept (the homepage row shows the 10 most recent unfinished ones), and when the limit is exceeded the oldest finished (≥ 95%) entry is dropped first, so finished items never push unfinished ones out of the row.
 
 On first load, legacy `readingProgress` and `mediaProgress` keys are merged into `contentProgress` and removed.
 

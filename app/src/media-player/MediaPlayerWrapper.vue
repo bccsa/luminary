@@ -41,7 +41,7 @@ import {
     connectionSpeed,
     hasMeasuredConnectionSpeed,
 } from "@/composables/useNetworkSpeedEstimator";
-import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
+import { getMediaProgress, isMediaFinished, setMediaProgress } from "@/contentProgress";
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { markSeen } from "@/recommendation/seenStore";
@@ -481,7 +481,9 @@ function onLoadedMetadata() {
     startHandled = true;
 
     const progress = getMediaProgress(id, props.content._id);
-    if (progress > MIN_RESUME_SECONDS) player.value?.seek(progress - RESUME_REWIND_SECONDS);
+    if (progress > MIN_RESUME_SECONDS && !isMediaFinished(id, props.content._id)) {
+        player.value?.seek(progress - RESUME_REWIND_SECONDS);
+    }
 
     // A video hosted by YouTube plays in its own frame, started by the viewer, in the page: it neither
     // needs a play nor goes full-screen, which is for a player that shows video only there.
@@ -553,14 +555,16 @@ watch(
     () => (nextUpDismissed.value = false),
 );
 
-/** Books the playthrough as finished: the progress goes, and the completion is scored once. */
+/** Books the playthrough as finished: the progress is kept as complete, and the completion is scored once. */
 function finishPlaythrough(): boolean {
     const id = mediaId.value;
     if (!id || completed) return false;
     completed = true;
 
+    // Media under MIN_RESUME_SECONDS never reaches the store, and stays out of it.
+    const point = pendingProgress ?? savedProgress;
     forgetProgress();
-    removeMediaProgress(id, props.content._id);
+    if (point) setMediaProgress(id, props.content._id, point.duration, point.duration);
 
     // Nothing to score if the watched fraction already claimed it.
     if (watchTracker.claimCompletion()) applyCompletion();

@@ -7,6 +7,8 @@ import {
     removeMediaProgress,
     getReadingProgress,
     hasContentProgress,
+    isMediaFinished,
+    isContentProgressFinished,
     contentProgressAsRef,
     removeReadingProgress,
     setReadingProgress,
@@ -29,14 +31,62 @@ describe("contentProgress.ts", () => {
         expect(getMediaProgress("unknown", "unknown")).toBe(0);
     });
 
-    it("only keeps the playback progress of the last 10 media items", async () => {
-        for (let i = 0; i < 20; i++) {
+    it("only keeps the playback progress of the last 50 media items", async () => {
+        for (let i = 0; i < 60; i++) {
             setMediaProgress(`mediaId${i}`, `contentId${i}`, i, i * 10);
         }
         expect(getMediaProgress("mediaId0", "contentId0")).toBe(0);
         expect(getMediaProgress("mediaId9", "contentId9")).toBe(0);
         expect(getMediaProgress("mediaId10", "contentId10")).toBe(10);
-        expect(getMediaProgress("mediaId19", "contentId19")).toBe(19);
+        expect(getMediaProgress("mediaId59", "contentId59")).toBe(59);
+    });
+
+    it("drops the oldest finished item first when over the limit, keeping unfinished ones", async () => {
+        for (let i = 0; i < 4; i++) setReadingProgress(`unfinished${i}`, 40);
+        for (let i = 0; i < 50; i++) setReadingProgress(`finished${i}`, 100);
+
+        const ids = contentProgressAsRef.value.map((entry) => entry.contentId);
+        expect(ids).toHaveLength(50);
+        for (let i = 0; i < 4; i++) expect(ids).toContain(`unfinished${i}`);
+        expect(ids).not.toContain("finished0");
+        expect(ids).toContain("finished49");
+    });
+
+    it("drops the oldest item when every entry is unfinished", async () => {
+        for (let i = 0; i < 51; i++) setReadingProgress(`unfinished${i}`, 40);
+
+        const ids = contentProgressAsRef.value.map((entry) => entry.contentId);
+        expect(ids).toHaveLength(50);
+        expect(ids).not.toContain("unfinished0");
+    });
+
+    it("counts media and reading as finished from 95%", async () => {
+        setMediaProgress("mediaId", "contentId", 189, 200);
+        expect(isMediaFinished("mediaId", "contentId")).toBe(false);
+        setMediaProgress("mediaId", "contentId", 190, 200);
+        expect(isMediaFinished("mediaId", "contentId")).toBe(true);
+        expect(isMediaFinished("otherMedia", "contentId")).toBe(false);
+
+        expect(
+            isContentProgressFinished({ contentId: "a", updatedAt: 0, reading: { progress: 94 } }),
+        ).toBe(false);
+        expect(
+            isContentProgressFinished({ contentId: "a", updatedAt: 0, reading: { progress: 95 } }),
+        ).toBe(true);
+        expect(isContentProgressFinished({ contentId: "a", updatedAt: 0 })).toBe(false);
+    });
+
+    it("needs every recorded part to be finished", async () => {
+        const entry = {
+            contentId: "a",
+            updatedAt: 0,
+            reading: { progress: 100 },
+            watching: { mediaId: "m", progress: 10, duration: 200 },
+        };
+        expect(isContentProgressFinished(entry)).toBe(false);
+        expect(
+            isContentProgressFinished({ ...entry, watching: { ...entry.watching, progress: 200 } }),
+        ).toBe(true);
     });
 
     it("can remove the playback progress of a media item", async () => {
