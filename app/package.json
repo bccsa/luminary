@@ -30,6 +30,9 @@
         "pretype-check": "npm run skin:css"
     },
     "dependencies": {
+        "@fontsource-variable/lexend": "^5.3.0",
+        "@fontsource-variable/literata": "^5.3.0",
+        "@fontsource/atkinson-hyperlegible": "^5.3.0",
         "@headlessui/vue": "^1.7.19",
         "@luminary-media-converter/player-web": "file:../luminary-media-convert/player-web",
         "@sentry/vue": "^7.110.1",
