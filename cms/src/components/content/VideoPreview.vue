@@ -182,7 +182,7 @@ watch(masterUrl, () => (showing.value = false));
                 <LuminaryPlayer
                     v-if="showing"
                     :source="source"
-                    :controls="{ subtitlesMenu: false }"
+                    :controls="{ audioMenu: false }"
                     data-test="video-preview-player"
                 >
                     <!--

@@ -1,6 +1,11 @@
 import { reactive } from "vue";
 import type { PlayerState } from "@luminary-media-converter/player-web";
 
+type YouTubePlayerState = PlayerState & {
+    live?: boolean;
+    sleepTimer?: { kind: string; endsAt: number } | null;
+};
+
 /**
  * A video hosted by YouTube, driven from the page. The app's `/youtube-embed/` page runs YouTube's IFrame Player
  * API with its controls off and reports over `postMessage`; this turns those reports into the state the
@@ -68,7 +73,7 @@ export type YouTubePlayerOptions = {
     onEnded?: () => void;
 };
 
-function initialState(): PlayerState {
+function initialState(): YouTubePlayerState {
     return {
         lifecycle: "loading",
         playing: false,
@@ -94,11 +99,11 @@ function initialState(): PlayerState {
         sleepTimer: null,
         thumbnailsReady: false,
         error: null,
-    };
+    } as YouTubePlayerState;
 }
 
 export function createYouTubePlayer(options: YouTubePlayerOptions) {
-    const state = reactive(initialState()) as PlayerState;
+    const state = reactive(initialState()) as YouTubePlayerState;
     const flags = reactive({ muted: false });
     let sawDuration = false;
     let endedReported = false;

@@ -167,7 +167,10 @@ describe("VideoPreview", () => {
             props: { parent: parent({ hlsUrl: "/abc/master.m3u8", hlsKey_id: "sidecar-1" }) },
         });
         await wrapper.setProps({
-            parent: { ...parent({ hlsUrl: "/def/master.m3u8", hlsKey_id: "sidecar-2" }), _id: "post-2" },
+            parent: {
+                ...parent({ hlsUrl: "/def/master.m3u8", hlsKey_id: "sidecar-2" }),
+                _id: "post-2",
+            },
         });
         await new Promise((resolve) => setTimeout(resolve, 0));
         resolveFirst("a".repeat(32));
@@ -191,10 +194,10 @@ describe("VideoPreview", () => {
         expect(player(wrapper).props("source").keyHex).toBe("a".repeat(32));
     });
 
-    it("keeps the subtitles menu out, as the app does", async () => {
+    it("keeps the audio menu out, as the app does", async () => {
         const wrapper = await mountAndOpen({ hlsUrl: "/abc/master.m3u8" });
 
-        expect(player(wrapper).props("controls")).toEqual({ subtitlesMenu: false });
+        expect(player(wrapper).props("controls")).toEqual({ audioMenu: false });
     });
 
     it("closes again when the collection changes", async () => {

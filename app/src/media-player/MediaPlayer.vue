@@ -26,8 +26,8 @@ import {
     MusicalNoteIcon,
     XMarkIcon,
 } from "@heroicons/vue/20/solid";
+import { AUDIO_ONLY_ANGLE_ID } from "@luminary-media-converter/player-web";
 import {
-    AUDIO_ONLY_ANGLE_ID,
     AudioFullscreen,
     ScrubPicture,
     ScrubRoster,
@@ -38,10 +38,8 @@ import {
     rosterFineStep,
     rosterStep,
     rosterTiles,
-    type ScrubPosition,
-    type ThumbnailSpriteCue,
-    type Chapter,
-} from "@luminary-media-converter/player-web";
+} from "./playerWebCompat";
+import type { Chapter, ScrubPosition, ThumbnailSpriteCue } from "./playerCompat";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
 import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";
@@ -385,7 +383,11 @@ const playing = computed(() => state.value?.playing ?? false);
 const currentTime = computed(() => state.value?.currentTime ?? 0);
 const duration = computed(() => state.value?.duration ?? 0);
 /** A live stream: the player says so (an engine reports no length for one), or the length is infinite. */
-const live = computed(() => state.value?.live === true || duration.value === Infinity);
+const live = computed(
+    () =>
+        (state.value as { live?: boolean } | null | undefined)?.live === true ||
+        duration.value === Infinity,
+);
 /**
  * The duration has arrived. Until then nothing about seeking is known, and a live stream has not yet
  * said so (it reports an infinite duration): the skip buttons, the bar and the speed are kept out of
@@ -454,8 +456,12 @@ const stepVolume = (direction: 1 | -1) => setVolume(volume.value + direction * V
 const inlineVideo = computed(() => engine.value?.inlineActive === true);
 /** The picture's shape, from the best rendition the master states, so a 4:3 or a square video is not boxed in 16:9. */
 const stageAspect = computed(() => {
-    const best = state.value?.qualities?.find((q) => q.width && q.height);
-    return best ? Math.min(2.4, Math.max(0.5, best.width! / best.height!)) : undefined;
+    const best = state.value?.qualities?.find(
+        (q): q is { width: number; height: number } =>
+            typeof (q as { width?: unknown; height?: unknown }).width === "number" &&
+            typeof (q as { width?: unknown; height?: unknown }).height === "number",
+    );
+    return best ? Math.min(2.4, Math.max(0.5, best.width / best.height)) : undefined;
 });
 /** The packaged app draws the subtitles at the foot of the video's place, so this leaves a band there for them. */
 const captionBand = computed(
@@ -1308,7 +1314,12 @@ watch([audioMode, () => item.value?.content._id], ([isAudio]) => {
 });
 
 const SLEEP_MINUTES = [5, 10, 15, 30, 45, 60];
-const sleepTimer = computed(() => state.value?.sleepTimer ?? null);
+type SleepTimerState = { kind: "minutes" | "chapter"; endsAt?: number; minutes?: number };
+const sleepTimer = computed<SleepTimerState | null>(
+    () =>
+        (state.value as { sleepTimer?: SleepTimerState | null } | null | undefined)?.sleepTimer ??
+        null,
+);
 
 // --- the now-playing screen on a phone -----------------------------------------------------------
 
@@ -1477,7 +1488,7 @@ const sleepMinutesLeft = computed(() =>
         : null,
 );
 function pickSleep(option: { kind: "minutes"; minutes: number } | { kind: "chapter" } | null) {
-    controller.value?.setSleepTimer(option);
+    (controller.value as any)?.setSleepTimer?.(option);
     openMenu.value = null;
 }
 /** `m:ss`, or `h:mm:ss` past an hour. */
@@ -1775,7 +1786,7 @@ function onKeydown(event: KeyboardEvent) {
                     @rate="(rate) => controller?.setPlaybackRate(rate)"
                     @audio-track="(id) => controller?.setAudioTrack(id)"
                     @quality="(id) => controller?.setQuality(id)"
-                    @sleep="(option) => controller?.setSleepTimer(option)"
+                    @sleep="(option) => (controller as any)?.setSleepTimer?.(option)"
                     @subtitle-track="(id) => controller?.setSubtitleTrack(id)"
                     @picture-in-picture="handle?.startPictureInPicture?.()"
                     @fullscreen="
@@ -2728,9 +2739,9 @@ function onKeydown(event: KeyboardEvent) {
                     }
                 "
                 @rate="(rate) => controller?.setPlaybackRate(rate)"
-                @audio-track="(id) => controller?.setAudioTrack(id)"
-                @sleep="(option) => controller?.setSleepTimer(option)"
-                @subtitle-track="(id) => controller?.setSubtitleTrack(id)"
+                @audio-track="(id) => (controller as any)?.setAudioTrack?.(id)"
+                @sleep="(option) => (controller as any)?.setSleepTimer?.(option)"
+                @subtitle-track="(id) => (controller as any)?.setSubtitleTrack?.(id)"
             >
                 <template #audio-tool>
                     <MediaPlayerVolume

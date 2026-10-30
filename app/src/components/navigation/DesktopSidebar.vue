@@ -1,3 +1,5 @@
+CSS only SideBar:
+
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -5,7 +7,7 @@ import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { useDesktopSidebar } from "@/composables/useDesktopSidebar";
 import {
-    HeartIcon,
+    BookmarkIcon,
     Cog6ToothIcon,
     SunIcon,
     LanguageIcon,
@@ -14,7 +16,7 @@ import {
     ChevronRightIcon,
 } from "@heroicons/vue/24/outline";
 import {
-    HeartIcon as FilledHeartIcon,
+    BookmarkIcon as FilledBookmarkIcon,
     Cog6ToothIcon as FilledCog6ToothIcon,
     UserIcon,
     ArrowRightEndOnRectangleIcon,
@@ -59,22 +61,38 @@ const forceReauthOnNextLogin = ref(true);
 // The sidebar prerenders on the web/SSG build, but its interactive overlays (e.g. LanguageModal's Dexie-backed query) can't run during the Node prerender, so they mount client-side only.
 const isMounted = useHydrated();
 
+// On small screens (below Tailwind's `lg` breakpoint) the sidebar stays on the left side of the
+// screen (same as on desktop) and is loaded in its expanded state by default. It can still be
+// collapsed and expanded with the toggle. When collapsed on small screens it is not
+// shown at all (no icon-only rail like on desktop) — only the toggle button remains visible.
+// The small-screen behaviour is driven purely by CSS breakpoints (`lg:` variants): there is no
+// JavaScript viewport detection. `mobileOpen` only tracks the open/closed state on small screens
+// and is independent from the desktop `collapsed` state, so resizing never resets or mixes them.
+const mobileOpen = ref(true);
+const toggleMobileOpen = () => {
+    mobileOpen.value = !mobileOpen.value;
+};
+
 const navIconClass = "h-5 w-5 flex-shrink-0";
 const navLabelClass = "truncate text-sm font-medium";
 const navMetaClass = "mt-0.5 truncate text-xs text-zinc-500 dark:text-slate-300";
 
+// Labels are always rendered and hidden with CSS on desktop only when the icon rail is collapsed,
+// so they stay visible on small screens whenever the sidebar is open.
+const labelVisibilityClass = computed(() => (collapsed.value ? "lg:hidden" : ""));
+
 function navItemClasses(active: boolean) {
     return [
-        "mb-1 flex cursor-pointer rounded-md hover:bg-zinc-200 dark:hover:bg-slate-700",
-        collapsed.value ? "justify-center p-2.5" : "items-center gap-3 px-3 py-2.5",
+        "mb-1 flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700",
+        collapsed.value ? "lg:justify-center lg:p-2.5" : "",
         active ? "text-yellow-700 dark:text-yellow-400" : "text-zinc-600 dark:text-slate-100",
     ];
 }
 
 function actionButtonClasses() {
     return [
-        "mb-1 flex w-full cursor-pointer rounded-md text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700",
-        collapsed.value ? "justify-center p-2.5" : "items-center gap-3 px-3 py-2.5 text-left",
+        "mb-1 flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700",
+        collapsed.value ? "lg:justify-center lg:p-2.5" : "",
     ];
 }
 
@@ -144,13 +162,36 @@ const handleLogin = () => {
 
 <template>
     <nav
-        class="relative hidden flex-shrink-0 flex-col border-r border-zinc-200 bg-zinc-100 transition-[width] duration-200 ease-out dark:border-slate-700 dark:bg-slate-800 lg:flex"
-        :class="collapsed ? 'w-[4.5rem]' : 'w-64'"
+        class="relative flex flex-shrink-0 flex-col border-zinc-200 bg-zinc-100 transition-[width] duration-200 ease-out dark:border-slate-700 dark:bg-slate-800 lg:border-r"
+        :class="[
+            mobileOpen ? 'w-64 border-r' : 'w-0 border-r-0',
+            collapsed ? 'lg:w-[4.5rem]' : 'lg:w-64',
+        ]"
     >
-        <!-- Collapse toggle — sits on the right edge, vertically centred -->
+        <!-- Collapse toggle (small screens) — sits on the right edge of the sidebar when it is open, vertically centred. When the sidebar is closed it is not shown at all, so this button sits at the left edge of the screen and is the only thing visible. Hidden on large screens. -->
         <button
             type="button"
-            class="absolute right-0 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100"
+            class="absolute top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100 lg:hidden"
+            :class="mobileOpen ? 'right-0 translate-x-1/2' : 'left-1'"
+            :aria-label="mobileOpen ? 'Collapse sidebar' : 'Expand sidebar'"
+            @click="toggleMobileOpen"
+        >
+            <ChevronLeftIcon
+                v-if="mobileOpen"
+                class="h-4 w-4 -translate-x-0.5"
+                aria-hidden="true"
+            />
+            <ChevronRightIcon
+                v-else
+                class="h-4 w-4 translate-x-0.5"
+                aria-hidden="true"
+            />
+        </button>
+
+        <!-- Collapse toggle (large screens) — sits on the inner edge (right edge), vertically centred. Hidden on small screens. -->
+        <button
+            type="button"
+            class="absolute right-0 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100 lg:flex"
             :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
             @click="toggleCollapsed"
         >
@@ -166,8 +207,11 @@ const handleLogin = () => {
             />
         </button>
 
-        <!-- Logo — outer padding mirrors the nav container; inner padding mirrors a nav item -->
-        <div :class="collapsed ? 'px-2 py-2' : 'px-3 py-2'">
+        <!-- Logo — outer padding mirrors the nav container; inner padding mirrors a nav item. Hidden on small screens. -->
+        <div
+            class="hidden lg:block"
+            :class="collapsed ? 'px-2 py-2' : 'px-3 py-2'"
+        >
             <RouterLink
                 :to="{ name: 'home' }"
                 :class="collapsed ? 'flex justify-center px-3 py-2' : 'flex items-center px-3 py-2'"
@@ -203,7 +247,7 @@ const handleLogin = () => {
         <!-- Nav -->
         <div
             class="flex-1 overflow-y-auto overflow-x-hidden py-2 scrollbar-hide"
-            :class="collapsed ? 'px-2' : 'px-3'"
+            :class="[collapsed ? 'px-3 lg:px-2' : 'px-3', mobileOpen ? '' : 'hidden lg:block']"
         >
             <RouterLink
                 v-for="item in navigationItems.slice(0, -1)"
@@ -223,11 +267,7 @@ const handleLogin = () => {
                         :class="navIconClass"
                         aria-hidden="true"
                     />
-                    <span
-                        v-if="!collapsed"
-                        :class="navLabelClass"
-                        >{{ item.name }}</span
-                    >
+                    <span :class="[navLabelClass, labelVisibilityClass]">{{ item.name }}</span>
                 </a>
             </RouterLink>
 
@@ -245,36 +285,8 @@ const handleLogin = () => {
                     :class="navIconClass"
                     aria-hidden="true"
                 />
-                <span
-                    v-if="!collapsed"
-                    :class="navLabelClass"
-                    >{{ t("menu.search") }}</span
-                >
+                <span :class="[navLabelClass, labelVisibilityClass]">{{ t("menu.search") }}</span>
             </span>
-
-            <RouterLink
-                :to="{ name: 'activity' }"
-                v-slot="{ isActive, href, navigate }"
-                custom
-            >
-                <a
-                    :href="href"
-                    :class="navItemClasses(isActive)"
-                    :title="t('profile_menu.activity')"
-                    @click="navigate"
-                >
-                    <component
-                        :is="isActive ? FilledHeartIcon : HeartIcon"
-                        :class="navIconClass"
-                        aria-hidden="true"
-                    />
-                    <span
-                        v-if="!collapsed"
-                        :class="navLabelClass"
-                        >{{ t("profile_menu.activity") }}</span
-                    >
-                </a>
-            </RouterLink>
 
             <div
                 class="mt-2 border-t border-zinc-200 pt-3 dark:border-slate-700"
@@ -289,11 +301,9 @@ const handleLogin = () => {
                         :class="navIconClass"
                         aria-hidden="true"
                     />
-                    <span
-                        v-if="!collapsed"
-                        :class="navLabelClass"
-                        >{{ t("profile_menu.theme") }}</span
-                    >
+                    <span :class="[navLabelClass, labelVisibilityClass]">{{
+                        t("profile_menu.theme")
+                    }}</span>
                 </span>
 
                 <span
@@ -306,8 +316,8 @@ const handleLogin = () => {
                         aria-hidden="true"
                     />
                     <div
-                        v-if="!collapsed"
                         class="flex min-w-0 flex-col leading-none"
+                        :class="labelVisibilityClass"
                     >
                         <span :class="navLabelClass">{{ t("profile_menu.language") }}</span>
                         <span
@@ -334,11 +344,9 @@ const handleLogin = () => {
                             :class="navIconClass"
                             aria-hidden="true"
                         />
-                        <span
-                            v-if="!collapsed"
-                            :class="navLabelClass"
-                            >{{ t("profile_menu.settings") }}</span
-                        >
+                        <span :class="[navLabelClass, labelVisibilityClass]">{{
+                            t("profile_menu.settings")
+                        }}</span>
                     </a>
                 </RouterLink>
             </div>
@@ -347,7 +355,7 @@ const handleLogin = () => {
         <!-- Account -->
         <div
             class="border-t border-zinc-200 py-3 dark:border-slate-700"
-            :class="collapsed ? 'px-2' : 'px-3'"
+            :class="[collapsed ? 'px-3 lg:px-2' : 'px-3', mobileOpen ? '' : 'hidden lg:block']"
         >
             <button
                 type="button"
@@ -359,16 +367,14 @@ const handleLogin = () => {
                     :class="navIconClass"
                     aria-hidden="true"
                 />
-                <span
-                    v-if="!collapsed"
-                    :class="navLabelClass"
-                    >{{ t("profile_menu.privacy_policy") }}</span
-                >
+                <span :class="[navLabelClass, labelVisibilityClass]">{{
+                    t("profile_menu.privacy_policy")
+                }}</span>
             </button>
 
             <button
                 type="button"
-                :class="[...actionButtonClasses(), !collapsed ? 'mb-2' : 'mb-1']"
+                :class="[...actionButtonClasses(), collapsed ? 'mb-2 lg:mb-1' : 'mb-2']"
                 :title="isAuthenticated ? t('profile_menu.logout') : t('profile_menu.login')"
                 @click="isAuthenticated ? handleLogout() : handleLogin()"
             >
@@ -379,10 +385,7 @@ const handleLogin = () => {
                     :class="navIconClass"
                     aria-hidden="true"
                 />
-                <span
-                    v-if="!collapsed"
-                    :class="navLabelClass"
-                >
+                <span :class="[navLabelClass, labelVisibilityClass]">
                     {{ isAuthenticated ? t("profile_menu.logout") : t("profile_menu.login") }}
                 </span>
             </button>
@@ -390,8 +393,8 @@ const handleLogin = () => {
             <div
                 v-if="isAuthenticated"
                 :class="[
-                    'flex items-center rounded-md',
-                    collapsed ? 'justify-center px-0 py-1' : 'gap-3 py-1.5 pl-1.5',
+                    'flex items-center gap-3 rounded-md py-1.5 pl-1.5',
+                    collapsed ? 'lg:justify-center lg:px-0 lg:py-1' : '',
                 ]"
                 :title="profileTooltip"
             >
@@ -408,8 +411,8 @@ const handleLogin = () => {
                     <UserIcon class="h-5 w-5 text-zinc-600 dark:text-slate-100" />
                 </div>
                 <span
-                    v-if="!collapsed"
                     class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100"
+                    :class="labelVisibilityClass"
                 >
                     {{ user?.name || user?.email }}
                 </span>
