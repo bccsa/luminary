@@ -4,12 +4,12 @@ import vue from "@vitejs/plugin-vue";
 
 // The app compiles its player source, whose Video.js 10 tags are custom elements. Inlined rather than
 // imported from player-web, whose entry loads Video.js and Vue components into the config.
-const isVideoJsElement = (tag: string): boolean =>
+export const isVideoJsElement = (tag: string): boolean =>
     tag === "video-player" ||
     tag === "video-skin" ||
     tag === "hlsjs-video" ||
     tag.startsWith("media-");
-const VIDEOJS_PACKAGES = [
+export const VIDEOJS_PACKAGES = [
     "@videojs/html",
     "@videojs/hlsjs-video",
     "@videojs/core",

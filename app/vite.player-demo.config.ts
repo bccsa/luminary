@@ -1,20 +1,21 @@
 import { defineConfig } from "vite";
-import { resolve } from "node:path";
-import { vuePlugin } from "./vite.config";
+import { fileURLToPath, URL } from "node:url";
+import vue from "@vitejs/plugin-vue";
+import { isVideoJsElement, VIDEOJS_PACKAGES } from "./vite.config";
 
-/** Dev server for the test harness in `demo/`; workspace libraries resolve to source, so no build is needed. */
+/**
+ * Dev server for the player's test harness in `player-demo/`, which the player's browser specs drive. It
+ * compiles the player from source, as the app does: Video.js 10 tags are custom elements, and one Video.js
+ * is shared between the player UI and its engine.
+ */
 export default defineConfig({
-    root: resolve(__dirname, "demo"),
-    plugins: [vuePlugin()],
+    root: fileURLToPath(new URL("./player-demo", import.meta.url)),
+    plugins: [vue({ template: { compilerOptions: { isCustomElement: isVideoJsElement } } })],
     resolve: {
         alias: {
-            "@luminary-media-converter/player-core": resolve(
-                __dirname,
-                "../player-core/src/index.ts",
-            ),
-            "@luminary-media-converter/hls-core": resolve(__dirname, "../hls-core/src/index.ts"),
+            "@": fileURLToPath(new URL("./src", import.meta.url)),
         },
-        dedupe: ["vue"],
+        dedupe: ["vue", ...VIDEOJS_PACKAGES],
     },
     server: { host: "127.0.0.1", port: 5182, strictPort: true },
 });

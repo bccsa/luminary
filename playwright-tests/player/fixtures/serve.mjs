@@ -7,11 +7,11 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, 'out');
 /**
- * The native player's sample stream, read where it lives rather than copied (54 MB): two angles, four languages,
+ * The native sample stream, written by `make-sample-stream.py` (54 MB, not committed): two angles, four languages,
  * AES-128 under `luminary://key`, byte-range chunk chains. Served at `/native/`; its key is
  * 6c756d696e6172792d737069a4e2c0de.
  */
-const NATIVE = join(HERE, '../../../player-native/spike/android/app/src/main/assets/stream');
+const NATIVE = join(HERE, 'out-native');
 const PORT = Number(process.env.FIXTURE_PORT ?? 5190);
 const TYPES = { '.m3u8': 'application/vnd.apple.mpegurl', '.m4s': 'video/iso.segment', '.mp4': 'video/mp4' };
 /** Every request seen, so a test can assert on what the player asked for. */

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AUDIO_ONLY_ANGLE_ID } from "@luminary-media-converter/player-core";
+import { AUDIO_ONLY_ANGLE_ID } from "@luminary-media-converter/player-web";
 /**
  * Dev-only harness for the player (Video.js).
  *
@@ -15,13 +15,13 @@ import { AUDIO_ONLY_ANGLE_ID } from "@luminary-media-converter/player-core";
  * selectors below drive `setAngle` / `setQuality` / `setAudioTrack` through
  * the video.js path.
  *
- * Not shipped anywhere: served only by `npm -w player-web run demo`.
+ * Not shipped anywhere: served only by `npm run player:demo`.
  */
 import { computed, onMounted, reactive, ref, shallowRef, watchEffect } from "vue";
-import type { PlayerSource } from "@luminary-media-converter/player-core";
-import { isYouTubeUrl } from "../src/youtube";
-import LuminaryPlayer from "../src/components/LuminaryPlayer.vue";
-import type { PlayerImage } from "../src/image";
+import type { PlayerSource } from "@luminary-media-converter/player-web";
+import { isYouTubeUrl } from "@luminary-media-converter/player-web";
+import LuminaryPlayer from "@/media-player/player/components/LuminaryPlayer.vue";
+import type { PlayerImage } from "@/media-player/player/image";
 
 const STORAGE_KEY = "luminary-legacy-player-demo";
 

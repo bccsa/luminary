@@ -1,13 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
-/**
- * `ENGINE=v10|v8` picks which player the specs drive: v10 is `player-web`, the main one and the default; v8 is the
- * frozen `player-web-v8`, kept as a baseline to compare against. The specs themselves are engine-neutral.
- */
-// The specs read `process.env.ENGINE` too, and skip themselves when it is not `v10`.
+// The specs skip themselves unless `process.env.ENGINE` is `v10`, the Video.js 10 player they were written for.
 process.env.ENGINE ??= 'v10';
-const engine = process.env.ENGINE;
-const demoPort = engine === 'v8' ? 5183 : 5182;
+const demoPort = 5182;
 /**
  * The tests get a fixture server of their own. They arm faults, reset the simulated live stream and clear the
  * request log, which would reach into anyone looking at the same server in a browser (the compare page uses
@@ -16,8 +11,8 @@ const demoPort = engine === 'v8' ? 5183 : 5182;
 const fixturePort = process.env.FIXTURE_PORT ?? '5191';
 
 export default defineConfig({
-    testDir: 'e2e',
-    // Pixel baselines are taken per run (see zz-visual.spec.ts) and kept out of the repository.
+    testDir: '.',
+    // Pixel baselines are taken per run (see visual-guard.spec.ts) and kept out of the repository.
     snapshotPathTemplate: process.env.SNAPSHOT_DIR ? process.env.SNAPSHOT_DIR + '/{arg}-{projectName}{ext}' : '{testDir}/__screenshots__/{arg}-{projectName}{ext}',
     testMatch: '**/*.spec.ts',
     timeout: 60_000,
@@ -31,14 +26,14 @@ export default defineConfig({
     ],
     webServer: [
         {
-            command: 'node e2e/fixtures/serve.mjs',
+            command: 'node fixtures/serve.mjs',
             env: { FIXTURE_PORT: fixturePort },
             url: `http://127.0.0.1:${fixturePort}/__log`,
             reuseExistingServer: true,
         },
         {
-            // Built first for the main player: `built.spec.ts` drives the library as an app gets it, not the source.
-            command: engine === 'v8' ? 'npm --prefix ../player-web-v8 run demo' : 'npm run build:lib && npm run demo',
+            // The app's player, compiled from source by the app's demo server.
+            command: 'npm --prefix ../../app run player:demo',
             url: `http://127.0.0.1:${demoPort}`,
             reuseExistingServer: true,
         },

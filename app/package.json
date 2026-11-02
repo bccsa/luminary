@@ -19,6 +19,8 @@
         "format": "prettier --write src/",
         "postinstall": "patch-package",
         "skin:css": "node scripts/build-skin-css.mjs",
+        "player:demo": "vite --config vite.player-demo.config.ts",
+        "preplayer:demo": "npm run skin:css",
         "predev": "npm run skin:css",
         "predev:web": "npm run skin:css",
         "prebuild-only": "npm run skin:css",

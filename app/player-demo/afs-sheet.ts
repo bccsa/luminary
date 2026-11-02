@@ -1,8 +1,8 @@
-import "../src/generated/skin.css";
-import "../src/styles.css";
+import "@/media-player/player/generated/skin.css";
+import "@/media-player/player/styles.css";
 import { createApp, h } from "vue";
-import AudioFullscreen from "../src/components/AudioFullscreen.vue";
-import { DEFAULT_MESSAGES } from "../src/messages";
+import AudioFullscreen from "@/media-player/player/components/AudioFullscreen.vue";
+import { DEFAULT_MESSAGES } from "@/media-player/player/messages";
 
 // The screen on its own, as an app hosts it over its own engine: the panel for chapters and up next is its own.
 const params = new URLSearchParams(location.search);

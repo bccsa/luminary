@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Builds a watchable sample stream for the Android spike, laid out the way the encoder writes it,
-bundles it in the app, and records the payload the TypeScript half would send for it.
+Builds the sample stream the player's browser specs play at /native/, laid out the way the encoder
+writes it.
 
 - Two angles: "Wide" (the source) and "Mirror" (flipped), each a 720p / 360p / 240p ladder.
 - Every audio track of the source, stereo AAC, in one audio group.
@@ -10,15 +10,13 @@ bundles it in the app, and records the payload the TypeScript half would send fo
   chunk of a chain closes at about 20 s of content, as the encoder's does. #EXT-X-KEY follows
   #EXT-X-MAP, so the inits stay plaintext.
 
-The stream goes to android/app/src/main/assets/stream/, which the app serves on
-http://127.0.0.1:8765. This script serves the same files on the same address while
-make-payload.mjs runs, so the segment URLs in the payload work on the phone unchanged.
+The stream goes to out-native/ (gitignored), which fixtures/serve.mjs serves at /native/. The
+source video is the encoder's test media, in the media-converter checkout this repository pins.
 
 Usage: python3 make-sample-stream.py [source-video]
-Needs ffmpeg, ffprobe, openssl and node, and `npm run build:libs` done first.
+Needs ffmpeg, ffprobe and openssl.
 """
 
-import http.server
 import json
 import math
 import os
@@ -27,13 +25,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import threading
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
-DEFAULT_SOURCE = os.path.join(REPO, "test-media", "trim-test-1080p-4audio.mp4")
-OUT = os.path.join(HERE, "android", "app", "src", "main", "assets", "stream")
-PORT = 8765
+MEDIA_CONVERT = os.path.abspath(os.path.join(HERE, "..", "..", "..", "luminary-media-convert"))
+DEFAULT_SOURCE = os.path.join(MEDIA_CONVERT, "test-media", "trim-test-1080p-4audio.mp4")
+OUT = os.path.join(HERE, "out-native")
 
 # A spike's key: bundled next to the stream it opens, so it protects nothing.
 KEY_HEX = "6c756d696e6172792d737069a4e2c0de"
@@ -137,19 +133,6 @@ def pack_chain(chain, streams):
         total = sum(length for _, length, *_ in entries[name]) * 8 / sum(d for d, *_ in entries[name])
         rates[name] = (int(peak), int(total))
     return rates
-
-
-class Server(http.server.ThreadingHTTPServer):
-    # The munge fetches every playlist at once; the default backlog of 5 resets the rest.
-    request_queue_size = 64
-
-
-class Handler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=OUT, **kwargs)
-
-    def log_message(self, *args):
-        pass
 
 
 def vtt_time(seconds):
@@ -266,15 +249,6 @@ def main():
 
     size = sum(os.path.getsize(os.path.join(d, f)) for d, _, files in os.walk(OUT) for f in files)
     print(f"stream: {size / 1024 / 1024:.1f} MiB in {OUT}")
-
-    # The payload, recorded against the same address the app serves the stream on.
-    server = Server(("127.0.0.1", PORT), Handler)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    try:
-        subprocess.run(["node", os.path.join(HERE, "make-payload.mjs"), "--android",
-                        f"http://127.0.0.1:{PORT}/master.m3u8", KEY_HEX], check=True, cwd=HERE)
-    finally:
-        server.shutdown()
 
 
 if __name__ == "__main__":
