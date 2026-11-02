@@ -36,6 +36,7 @@ import { mergeControls, type PlayerControlsOptions } from "../controls";
 import { createKeepAlive, SILENT_AUDIO_DATA_URI, type KeepAlive } from "../ui/keepAlive";
 import { buildControlsHtml } from "../ui/controlsHtml";
 import { installAutoHide, type ControlsStore } from "../ui/autoHide";
+import { attachPressActivation } from "../ui/pressActivate";
 import { stepVolume } from "../ui/volume";
 import { liftCues, liftLine, type LiftableCue } from "../ui/cueLift";
 import { cuesToLyrics, type LyricCue } from "../ui/lyrics";
@@ -351,6 +352,7 @@ function bindTrackLists(): void {
 const tooltip = shallowRef<Tooltip | null>(null);
 const tooltipEl = ref<HTMLElement | null>(null);
 let removeTooltips: (() => void) | null = null;
+let removePressActivation: (() => void) | null = null;
 // Placed once it is drawn: its width decides how far from the edge it must stay.
 watch(
     tooltip,
@@ -371,6 +373,12 @@ watch(
 onMounted(() => {
     if (containerEl.value)
         removeTooltips = attachControlTooltips(containerEl.value, (tip) => (tooltip.value = tip));
+    if (containerEl.value) {
+        removePressActivation = attachPressActivation(containerEl.value, () => {
+            const media = mediaEl.value;
+            return !!media && (!media.paused || media.played.length > 0);
+        });
+    }
     const media = mediaEl.value;
     if (!media) return;
 
@@ -460,6 +468,8 @@ watch(
 onBeforeUnmount(() => {
     removeTooltips?.();
     removeTooltips = null;
+    removePressActivation?.();
+    removePressActivation = null;
     for (const [type, handler] of mediaListeners) mediaEl.value?.removeEventListener(type, handler);
     mediaListeners.length = 0;
     audioTrackList?.removeEventListener("change", onEngineAudioTrackChange);
