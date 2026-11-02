@@ -2719,6 +2719,116 @@ describe("HybridQuery", () => {
         });
     });
 
+    describe("waitForRemote", () => {
+        const doc = (id: string, publishDate: number) => ({
+            _id: id,
+            updatedTimeUtc: 1,
+            publishDate,
+            type: "content",
+        });
+        const local = [doc("new1", 3000), doc("new2", 2000)];
+        const tail = [doc("old1", 900), doc("old2", 800)];
+        const query = () => ({
+            selector: { type: "content" },
+            $sort: [{ publishDate: "desc" as const }],
+            $limit: 10,
+        });
+        const record = (q: HybridQuery<any>) => {
+            const emissions: string[][] = [];
+            watch(q.output, (v) => emissions.push(v.map((d: any) => d._id)), { flush: "sync" });
+            return emissions;
+        };
+
+        it("without it, a supplement publishes the local subset first, then the merged list", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            postHttpMock.mockResolvedValueOnce({ docs: tail });
+            const q = new HybridQuery(query());
+            const emissions = record(q);
+            await flush();
+
+            expect(emissions).toEqual([
+                ["new1", "new2"],
+                ["new1", "new2", "old1", "old2"],
+            ]);
+        });
+
+        it("publishes the merged list once, after the supplement settles", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            let resolvePost!: (v: unknown) => void;
+            postHttpMock.mockReturnValueOnce(new Promise((r) => (resolvePost = r)));
+            const q = new HybridQuery(query(), { waitForRemote: true });
+            const emissions = record(q);
+            await flush();
+
+            // Local landed, supplement in flight: nothing published, still fetching.
+            expect(q.output.value).toEqual([]);
+            expect(q.isFetching.value).toBe(true);
+
+            resolvePost({ docs: tail });
+            await flush();
+
+            expect(emissions).toEqual([["new1", "new2", "old1", "old2"]]);
+            expect(q.isFetching.value).toBe(false);
+        });
+
+        it("publishes the local result when the supplement fails", async () => {
+            vi.spyOn(console, "error").mockImplementation(() => {});
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            postHttpMock.mockRejectedValueOnce(new Error("boom"));
+            const q = new HybridQuery(query(), { waitForRemote: true });
+            const emissions = record(q);
+            await flush();
+
+            expect(emissions).toEqual([["new1", "new2"]]);
+        });
+
+        it("publishes the local result straight away when offline", async () => {
+            mocks.isConnected.value = false;
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            const q = new HybridQuery(query(), { waitForRemote: true });
+            const emissions = record(q);
+            await flush();
+
+            expect(postHttpMock).not.toHaveBeenCalled();
+            expect(emissions).toEqual([["new1", "new2"]]);
+        });
+
+        it("does not hold when no supplement is owed (full-corpus sync)", async () => {
+            mocks.cutoff = OPEN_MIN;
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            const q = new HybridQuery(query(), { waitForRemote: true });
+            const emissions = record(q);
+            await flush();
+
+            expect(postHttpMock).not.toHaveBeenCalled();
+            expect(emissions).toEqual([["new1", "new2"]]);
+        });
+
+        it("keeps a cache seed on screen until the merged list replaces it", async () => {
+            const opts = { cache: true, cacheId: "wait-seed", waitForRemote: true };
+            writeResponseCache(
+                structuralCacheKey(query(), "wait-seed"),
+                { local: [doc("seed1", 2500)], remote: [] },
+                10,
+            );
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            let resolvePost!: (v: unknown) => void;
+            postHttpMock.mockReturnValueOnce(new Promise((r) => (resolvePost = r)));
+            const q = new HybridQuery(query(), opts);
+            expect(q.output.value.map((d) => d._id)).toEqual(["seed1"]);
+            const emissions = record(q);
+            await flush();
+
+            // The local read must not replace the seed with the local-only subset.
+            expect(q.output.value.map((d) => d._id)).toEqual(["seed1"]);
+
+            resolvePost({ docs: tail });
+            await flush();
+
+            expect(emissions).toEqual([["new1", "new2", "old1", "old2"]]);
+        });
+    });
+
     describe("isFetching / error", () => {
         it("content one-shot: isFetching true (output empty) before flush, false after local + POST settle", async () => {
             mocks.mangoToDexieMock.mockResolvedValueOnce([

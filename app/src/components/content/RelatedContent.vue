@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { decay, type AffinityMap, type ContentDto, type Uuid } from "luminary-shared";
-import { computed, ref, shallowRef, watch } from "vue";
+import { computed, shallowRef, watch } from "vue";
 import { useContentQueryWithState } from "@/composables/useContentQuery";
 import { isPrerender } from "@/ssg/isPrerender";
 import { rank, affinityScoreScale } from "@/recommendation/ranking";
@@ -38,21 +38,16 @@ const { output: contentDocs, isFetching } = useContentQueryWithState(
         // articles don't share an entry.
         cache: true,
         cacheId: `related:${props.selectedContent.slug}`,
+        // The list is re-ranked below, so the API tail would reorder visible cards.
+        waitForRemote: true,
     },
 );
 
-// Without a cached first paint, hold ghosts until the query settles so the partial local list
-// never shows. Latched: later refetches keep the cards. Never during prerender, so the static
-// HTML (and the hydration it seeds) always carries the real cards.
-const settled = ref(contentDocs.value.length > 0);
-watch(
-    isFetching,
-    (fetching) => {
-        if (!fetching) settled.value = true;
-    },
-    { immediate: true },
+// Ghosts while nothing is painted yet. Never during prerender, so the static HTML (and the
+// hydration it seeds) always carries the real cards.
+const showGhosts = computed(
+    () => !isPrerender() && isFetching.value && contentDocs.value.length === 0,
 );
-const showGhosts = computed(() => !isPrerender() && !settled.value);
 
 // One flat, newest-first list (dedup is inherent — a single query, not one row per tag),
 // with the current article removed. Exclude by `parentId` rather than `_id` so a different
