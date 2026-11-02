@@ -18,6 +18,8 @@ const TYPES = { '.m3u8': 'application/vnd.apple.mpegurl', '.m4s': 'video/iso.seg
 const log = [];
 /** Armed faults: a request whose path contains `match` waits `ms`, and answers `status` when one is set, `times` times. */
 const faults = [];
+/** No armed delay outlasts a spec's own timeout. */
+const MAX_FAULT_MS = 60_000;
 /** When the simulated live stream started, so the window can advance with the wall clock. */
 let liveStart = Date.now();
 const LIVE_SEGMENT_SECONDS = 2;
@@ -55,7 +57,7 @@ createServer((req, res) => {
     }
     if (url.pathname === '/__fault') {
         if (url.searchParams.has('clear')) faults.length = 0;
-        else faults.push({ match: url.searchParams.get('match') ?? '', ms: Number(url.searchParams.get('ms') ?? 0), status: Number(url.searchParams.get('status') ?? 0), times: Number(url.searchParams.get('times') ?? 1) });
+        else faults.push({ match: url.searchParams.get('match') ?? '', ms: Math.min(Math.max(Number(url.searchParams.get('ms')) || 0, 0), MAX_FAULT_MS), status: Number(url.searchParams.get('status') ?? 0), times: Number(url.searchParams.get('times') ?? 1) });
         return void res.writeHead(204).end();
     }
     if (url.pathname === '/__live-reset') {
