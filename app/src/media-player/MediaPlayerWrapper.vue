@@ -21,10 +21,9 @@ import {
 import {
     AUDIO_ONLY_ANGLE_ID,
     isYouTubeUrl,
-    LuminaryPlayer,
     type PlayerSource,
-    type PlayerUpNextItem,
 } from "@luminary-media-converter/player-web";
+import { LuminaryPlayer, type PlayerUpNextItem } from "@/media-player/player";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "@/components/images/LImage.vue";
 import { usePlayerMessages } from "@/media-player/usePlayerMessages";
