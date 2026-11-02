@@ -5,7 +5,7 @@ import type {
     SleepTimerOption,
     SleepTimerState,
     ThumbnailSpriteCue,
-} from "@luminary-media-converter/player-core";
+} from "@luminary-media-converter/player-web";
 import { formatSeconds, type PlayerMessages } from "../messages";
 import type { PlayerUpNextItem } from "../upNext";
 import BrowsePanel from "./BrowsePanel.vue";

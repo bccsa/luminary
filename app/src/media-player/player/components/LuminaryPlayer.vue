@@ -17,7 +17,7 @@ import {
     chapterIndexAt,
     chapterSegments,
     findPreferredTrack,
-} from "@luminary-media-converter/player-core";
+} from "@luminary-media-converter/player-web";
 import type {
     Chapter,
     PlayerControllerApi,
@@ -26,11 +26,11 @@ import type {
     PlayerSource,
     SleepTimerOption,
     ThumbnailSpriteCue,
-} from "@luminary-media-converter/player-core";
-import { HlsJsVideoAdapter } from "../adapter/HlsJsVideoAdapter";
-import type { HlsJsVideoElement } from "../adapter/hlsTypes";
-import { BlobServeStrategy } from "../serve/BlobServeStrategy";
-import { usePlayerState } from "../composables/usePlayerState";
+} from "@luminary-media-converter/player-web";
+import { HlsJsVideoAdapter } from "@luminary-media-converter/player-web";
+import type { HlsJsVideoElement } from "@luminary-media-converter/player-web";
+import { BlobServeStrategy } from "@luminary-media-converter/player-web";
+import { usePlayerState } from "@luminary-media-converter/player-web";
 import { mergeMessages, type PlayerMessages } from "../messages";
 import { mergeControls, type PlayerControlsOptions } from "../controls";
 import { createKeepAlive, SILENT_AUDIO_DATA_URI, type KeepAlive } from "../ui/keepAlive";
@@ -65,7 +65,7 @@ import NextUpThumb from "./NextUpThumb.vue";
 import AudioFullscreen from "./AudioFullscreen.vue";
 import BrowsePanel from "./BrowsePanel.vue";
 import { imageAttempts, toPlayerImage, type PlayerImageInput } from "../image";
-import { isYouTubeUrl } from "../youtube";
+import { isYouTubeUrl } from "@luminary-media-converter/player-web";
 import type { PlayerUpNextItem } from "../upNext";
 
 interface Props {
@@ -1947,7 +1947,7 @@ defineExpose({
                     @toggle-play="state.playing ? pause() : play()"
                     @seek="seek"
                     @open-browse="openBrowse"
-                    @seek-chapter="(chapter) => seek(chapter.startTime)"
+                    @seek-chapter="(chapter: Chapter) => seek(chapter.startTime)"
                     @rate="setRate"
                     @audio-track="setAudioTrack"
                     @sleep="setSleep"

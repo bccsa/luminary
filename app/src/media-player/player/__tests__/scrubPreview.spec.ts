@@ -9,7 +9,7 @@ import {
     rosterStep,
     rosterFineStep,
     rosterTiles,
-} from "../src/ui/scrubPreview";
+} from "../ui/scrubPreview";
 
 describe("pointerRatio", () => {
     const bar = { left: 100, width: 400 };

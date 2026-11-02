@@ -3,4 +3,4 @@ export {
     cuesToLyrics,
     lyricText,
     type LyricCue,
-} from "@luminary-media-converter/player-core";
+} from "@luminary-media-converter/player-web";

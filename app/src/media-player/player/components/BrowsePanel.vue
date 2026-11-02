@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from "vue";
-import type { Chapter, ThumbnailSpriteCue } from "@luminary-media-converter/player-core";
+import type { Chapter, ThumbnailSpriteCue } from "@luminary-media-converter/player-web";
 import type { PlayerMessages } from "../messages";
 import { formatClock } from "../ui/scrubPreview";
 import { withSectionHeadings, type PlayerUpNextItem } from "../upNext";

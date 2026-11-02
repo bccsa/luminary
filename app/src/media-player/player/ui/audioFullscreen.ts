@@ -1,4 +1,4 @@
-import type { Chapter, SleepTimerState } from "@luminary-media-converter/player-core";
+import type { Chapter, SleepTimerState } from "@luminary-media-converter/player-web";
 
 /** The speeds the fullscreen audio screen offers: a listener of speech wants a few steps either side of normal. */
 export const SPEED_OPTIONS = [0.75, 1, 1.25, 1.5, 1.75, 2] as const;

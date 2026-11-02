@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { ThumbnailSpriteCue } from "@luminary-media-converter/player-core";
+import type { ThumbnailSpriteCue } from "@luminary-media-converter/player-web";
 
 /**
  * One frame out of a sprite sheet, with its timecode under it.

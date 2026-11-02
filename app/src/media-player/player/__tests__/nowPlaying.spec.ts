@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { h, nextTick } from "vue";
-import AudioFullscreen from "../src/components/AudioFullscreen.vue";
-import NowPlayingLyrics from "../src/components/NowPlayingLyrics.vue";
-import { DEFAULT_MESSAGES } from "../src/messages";
-import { activeLyric, cuesToLyrics, lyricText } from "../src/ui/lyrics";
+import AudioFullscreen from "../components/AudioFullscreen.vue";
+import NowPlayingLyrics from "../components/NowPlayingLyrics.vue";
+import { DEFAULT_MESSAGES } from "../messages";
+import { activeLyric, cuesToLyrics, lyricText } from "../ui/lyrics";
 
 const lyrics = [
     { start: 10, end: 14, text: "Out of the depths of my heart, Lord, I pray!" },
@@ -81,12 +81,14 @@ describe("lyrics", () => {
     });
 
     describe("between the player's reports of the time", () => {
-        beforeEach(() =>
+        beforeEach(() => {
             vi.useFakeTimers({
                 toFake: ["requestAnimationFrame", "cancelAnimationFrame", "performance"],
-            }),
-        );
-        afterEach(() => vi.useRealTimers());
+            });
+        });
+        afterEach(() => {
+            vi.useRealTimers();
+        });
         const lit = (wrapper: ReturnType<typeof mount>) =>
             wrapper
                 .findAll("[data-lyric]")

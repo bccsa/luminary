@@ -6,7 +6,7 @@ import {
     controlLabel,
     tooltipFor,
     type Tooltip,
-} from "../src/ui/controlTooltip";
+} from "../ui/controlTooltip";
 
 describe("controlLabel", () => {
     it("is the label the control carries", () => {

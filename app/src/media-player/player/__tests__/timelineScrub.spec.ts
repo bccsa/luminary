@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { TimelineScrub, type TimelineScrubEffect } from "../src/ui/timelineScrub";
+import { TimelineScrub, type TimelineScrubEffect } from "../ui/timelineScrub";
 
 /** Mirrors the native players' TimelineScrub tests. */
 describe("TimelineScrub: two touches to scrub", () => {
@@ -11,7 +11,9 @@ describe("TimelineScrub: two touches to scrub", () => {
         effects = [];
         scrub = new TimelineScrub((effect) => effects.push(effect));
     });
-    afterEach(() => vi.useRealTimers());
+    afterEach(() => {
+        vi.useRealTimers();
+    });
 
     const open = (mode: "strip" | "bar") => ({ kind: "open", mode }) as const;
     const pause = { kind: "pause" } as const;

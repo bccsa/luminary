@@ -1,13 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AUTO_HIDE_MS, installAutoHide, type ControlsStore } from "../src/ui/autoHide";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { AUTO_HIDE_MS, installAutoHide, type ControlsStore } from "../ui/autoHide";
 
 function fakeStore() {
-    const releases: ReturnType<typeof vi.fn>[] = [];
+    const releases: Mock<[], void>[] = [];
     const calls: string[] = [];
     const store: ControlsStore = {
         requestControlsLock: vi.fn(() => {
             calls.push("lock");
-            const release = vi.fn(() => calls.push("release"));
+            const release = vi.fn((): void => {
+                calls.push("release");
+            });
             releases.push(release);
             return release;
         }),
@@ -26,7 +28,9 @@ beforeEach(() => {
     target = document.createElement("div");
 });
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+    vi.useRealTimers();
+});
 
 const move = () => target.dispatchEvent(new Event("pointermove"));
 

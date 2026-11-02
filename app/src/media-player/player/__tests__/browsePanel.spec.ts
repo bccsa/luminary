@@ -5,14 +5,17 @@ import {
     createInitialState,
     type PlayerControllerApi,
     type PlayerState,
-} from "@luminary-media-converter/player-core";
-import LuminaryPlayer from "../src/components/LuminaryPlayer.vue";
-import BrowsePanel from "../src/components/BrowsePanel.vue";
-import type { PlayerUpNextItem } from "../src/upNext";
-import { DEFAULT_MESSAGES } from "../src/messages";
+} from "@luminary-media-converter/player-web";
+import LuminaryPlayer from "../components/LuminaryPlayer.vue";
+import { installTextTrackListShim } from "./helpers";
+import BrowsePanel from "../components/BrowsePanel.vue";
+import type { PlayerUpNextItem } from "../upNext";
+import { DEFAULT_MESSAGES } from "../messages";
+
+installTextTrackListShim();
 
 // The Video.js elements need a real browser; as inert tags the panel, which is plain Vue, is what is tested.
-vi.mock("../src/ui/register", () => ({}));
+vi.mock("../ui/register", () => ({}));
 
 const CHAPTERS = [
     { startTime: 0, endTime: 60, title: "Intro" },

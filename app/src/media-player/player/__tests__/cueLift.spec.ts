@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { liftCues, liftLine, type LiftableCue } from "../src/ui/cueLift";
+import { liftCues, liftLine, type LiftableCue } from "../ui/cueLift";
 
 const cue = (line: LiftableCue["line"] = "auto", snapToLines = true): LiftableCue => ({
     line,

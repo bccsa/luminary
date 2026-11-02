@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { withSectionHeadings, type PlayerUpNextItem } from "../src/upNext";
+import { withSectionHeadings, type PlayerUpNextItem } from "../upNext";
 
 const item = (id: string, section?: string): PlayerUpNextItem => ({ id, title: id, section });
 

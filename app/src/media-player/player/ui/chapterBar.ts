@@ -1,4 +1,4 @@
-import type { ChapterSegment } from "@luminary-media-converter/player-core";
+import type { ChapterSegment } from "@luminary-media-converter/player-web";
 
 /** Half the gap between two chapters, in px at the player's normal scale; it follows `--lmpl-s` with everything else. */
 const HALF_GAP_PX = 1.5;

@@ -8,7 +8,7 @@
  * templates. Anything v10 adds to the DOM at runtime that neither contains is named in
  * `skin-css-safelist.json`, which a test fills from the live page.
  *
- * Writes `src/generated/skin.css`, which `LuminaryPlayer.vue` imports. Run before every build and before the
+ * Writes `src/media-player/player/generated/skin.css`, which `LuminaryPlayer.vue` imports. Run before every build and before the
  * demo; it is not committed.
  */
 import { build, transform } from "esbuild";
@@ -21,7 +21,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(HERE, "..");
+const ROOT = join(HERE, "../src/media-player/player");
 const require = createRequire(import.meta.url);
 
 const skinPath = require.resolve("@videojs/html/video/skin.css");
@@ -30,7 +30,7 @@ const skin = readFileSync(skinPath, "utf8");
 /** The controls as they render, with every option on, so no rule an option would need is dropped. */
 async function renderControls() {
     const bundled = await build({
-        entryPoints: [join(ROOT, "src/ui/controlsHtml.ts")],
+        entryPoints: [join(ROOT, "ui/controlsHtml.ts")],
         bundle: true,
         format: "esm",
         platform: "node",
@@ -104,7 +104,7 @@ function narrowToThisPlayer(css) {
     });
     return root.toString();
 }
-const safelist = JSON.parse(read("scripts/skin-css-safelist.json"));
+const safelist = JSON.parse(read("skin-css-safelist.json"));
 
 /**
  * Only the markup of a component, without its comments. PurgeCSS matches on every word it finds, so the
@@ -118,8 +118,8 @@ const templateOf = (rel) => {
 
 const content = [
     { raw: await renderControls(), extension: "html" },
-    { raw: templateOf("src/components/LuminaryPlayer.vue"), extension: "html" },
-    { raw: templateOf("src/components/ScrubThumbnail.vue"), extension: "html" },
+    { raw: templateOf("components/LuminaryPlayer.vue"), extension: "html" },
+    { raw: templateOf("components/ScrubThumbnail.vue"), extension: "html" },
     // What the browser and the elements add themselves.
     { raw: `<div class="${safelist.classes.join(" ")}"></div>`, extension: "html" },
 ];
@@ -135,8 +135,11 @@ const [purged] = await new PurgeCSS().purge({
 });
 
 const min = await transform(purged.css, { loader: "css", minify: true });
+// The app's Tailwind 3 claims `@layer base|components|utilities` as its own directives and rejects the
+// skin's native cascade layers of the same names, so the skin's layers are renamed.
+min.code = min.code.replace(/@layer\s+(base|components|utilities)\b/g, "@layer vjs-$1");
 
-const out = join(ROOT, "src/generated/skin.css");
+const out = join(ROOT, "generated/skin.css");
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, min.code);
 

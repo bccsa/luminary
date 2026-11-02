@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import type { ThumbnailSpriteCue } from "@luminary-media-converter/player-core";
+import type { ThumbnailSpriteCue } from "@luminary-media-converter/player-web";
 
 /**
  * The scrubbed frame filling a picture while the timeline is held. A crop of a sheet cannot be `cover`ed

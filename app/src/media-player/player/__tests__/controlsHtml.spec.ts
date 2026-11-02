@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildControlsHtml, type ControlsHtmlOptions } from "../src/ui/controlsHtml";
+import { buildControlsHtml, type ControlsHtmlOptions } from "../ui/controlsHtml";
 
 const ALL: ControlsHtmlOptions = {
     audioMenu: true,

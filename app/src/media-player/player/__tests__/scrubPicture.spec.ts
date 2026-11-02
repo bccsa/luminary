@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
-import ScrubPicture from "../src/components/ScrubPicture.vue";
+import ScrubPicture from "../components/ScrubPicture.vue";
 
 describe("ScrubPicture", () => {
     it("places a cropped sheet frame by its offset", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import AudioFullscreen from "../src/components/AudioFullscreen.vue";
-import { DEFAULT_MESSAGES } from "../src/messages";
+import AudioFullscreen from "../components/AudioFullscreen.vue";
+import { DEFAULT_MESSAGES } from "../messages";
 
 const chapters = Array.from({ length: 8 }, (_, i) => ({
     startTime: i * 60,
@@ -233,7 +233,7 @@ describe("AudioFullscreen — the transport", () => {
     it("with frames, a finger tap shows the host its strip instead of thickening the bar", async () => {
         const wrapper = mountScreen();
         await wrapper.setProps({
-            thumbnailAt: () => ({ url: "sheet.jpg", x: 0, y: 0, w: 160, h: 90 }),
+            thumbnailAt: (() => ({ url: "sheet.jpg", x: 0, y: 0, w: 160, h: 90 })) as never,
         });
         const bar = find(wrapper, "afsBar");
         bar.element.getBoundingClientRect = () => ({
@@ -260,7 +260,7 @@ describe("AudioFullscreen — the transport", () => {
         try {
             const wrapper = mountScreen({}, { roster: '<div data-test="hostStrip"></div>' });
             await wrapper.setProps({
-                thumbnailAt: () => ({ url: "sheet.jpg", x: 0, y: 0, w: 160, h: 90 }),
+                thumbnailAt: (() => ({ url: "sheet.jpg", x: 0, y: 0, w: 160, h: 90 })) as never,
             });
             const bar = find(wrapper, "afsBar");
             bar.element.getBoundingClientRect = () => ({

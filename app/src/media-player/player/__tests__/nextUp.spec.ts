@@ -4,12 +4,15 @@ import {
     createInitialState,
     type PlayerControllerApi,
     type PlayerState,
-} from "@luminary-media-converter/player-core";
-import LuminaryPlayer from "../src/components/LuminaryPlayer.vue";
-import type { PlayerUpNextItem } from "../src/upNext";
+} from "@luminary-media-converter/player-web";
+import LuminaryPlayer from "../components/LuminaryPlayer.vue";
+import { installTextTrackListShim } from "./helpers";
+import type { PlayerUpNextItem } from "../upNext";
+
+installTextTrackListShim();
 
 // The Video.js elements need a real browser; as inert tags the card, which is plain Vue, is what is tested.
-vi.mock("../src/ui/register", () => ({}));
+vi.mock("../ui/register", () => ({}));
 
 const NEXT: PlayerUpNextItem[] = [
     {
@@ -141,6 +144,8 @@ describe("LuminaryPlayer up next card", () => {
     it("sits at the edge with the controls hidden and rides above them when shown", async () => {
         await mountPlayer({ nextUp: NEXT });
         await setFullscreen(true);
+        // The app's jsdom lets Video.js show the controls on mount; this case starts from hidden.
+        await setControlsShown(false);
         expect(card()!.classList.contains("lmpl-nextup-raised")).toBe(false);
         await setControlsShown(true);
         expect(card()!.classList.contains("lmpl-nextup-raised")).toBe(true);
@@ -283,7 +288,7 @@ describe("LuminaryPlayer up next pictures", () => {
 describe("up next strip alignment", () => {
     it("right-aligns the cards with an auto margin, not a flex-end scroller", async () => {
         const { readFileSync } = await import("node:fs");
-        const css = readFileSync(`${process.cwd()}/src/styles.css`, "utf8");
+        const css = readFileSync(`${process.cwd()}/src/media-player/player/styles.css`, "utf8");
         expect(css).toMatch(/\.lmpl-nextup-item:first-child\s*{\s*margin-inline-start:\s*auto;/);
         const strip = css.match(/\.lmpl-nextup-strip\s*{[^}]*}/)![0];
         expect(strip).not.toMatch(/justify-content/);
@@ -303,7 +308,7 @@ describe("up next strip alignment", () => {
 
     it("takes its inset from the control bar, so the edges line up at every scale", async () => {
         const { readFileSync } = await import("node:fs");
-        const css = readFileSync(`${process.cwd()}/src/styles.css`, "utf8");
+        const css = readFileSync(`${process.cwd()}/src/media-player/player/styles.css`, "utf8");
         const nextup = css.match(/\.lmpl-root \.lmpl-nextup\s*{[^}]*position: absolute[^}]*}/)![0];
         expect(nextup).toContain("left: max(var(--lmpl-edge), env(safe-area-inset-left))");
         expect(nextup).toContain("right: max(var(--lmpl-edge), env(safe-area-inset-right))");

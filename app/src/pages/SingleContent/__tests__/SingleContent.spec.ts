@@ -132,6 +132,8 @@ vi.mock("vue-i18n", () => ({
         t: (key: string) => mockLanguageDtoEng.translations[key] || key,
     }),
 }));
+// The app's player UI re-exports the mocked engine's stand-ins.
+vi.mock("@/media-player/player", () => import("@luminary-media-converter/player-web"));
 
 vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({

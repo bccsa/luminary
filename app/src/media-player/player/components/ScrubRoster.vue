@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { ThumbnailSpriteCue } from "@luminary-media-converter/player-core";
+import type { ThumbnailSpriteCue } from "@luminary-media-converter/player-web";
 
 /**
  * The strip of frames shown under the timeline while it is held: the stretch of the video around the

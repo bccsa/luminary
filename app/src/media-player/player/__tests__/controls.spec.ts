@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergeControls, DEFAULT_CONTROLS } from "../src/controls";
+import { mergeControls, DEFAULT_CONTROLS } from "../controls";
 
 describe("mergeControls", () => {
     it("is the library default when nothing is overridden", () => {

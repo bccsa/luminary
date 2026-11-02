@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { chapterSegments, type Chapter } from "@luminary-media-converter/player-core";
-import {
-    DENSE_CHAPTERS,
-    MAX_CUT_CHAPTERS,
-    chapterMask,
-    formatChapterOf,
-} from "../src/ui/chapterBar";
+import { chapterSegments, type Chapter } from "@luminary-media-converter/player-web";
+import { DENSE_CHAPTERS, MAX_CUT_CHAPTERS, chapterMask, formatChapterOf } from "../ui/chapterBar";
 
 const chapter = (startTime: number, title = ""): Chapter => ({
     startTime,

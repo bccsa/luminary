@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { VOLUME_STEP, stepVolume } from "../src/ui/volume";
+import { VOLUME_STEP, stepVolume } from "../ui/volume";
 
 describe("stepVolume", () => {
     it("moves a tenth of the range", () => {
