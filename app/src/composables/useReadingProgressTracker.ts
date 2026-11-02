@@ -1,27 +1,24 @@
 import { computed, nextTick, onUnmounted, ref, watch, type Ref } from "vue";
-import { useEventListener, useIntersectionObserver, type MaybeElement } from "@vueuse/core";
+import { useEventListener, type MaybeElement } from "@vueuse/core";
 import { getReadingProgress, removeReadingProgress, setReadingProgress } from "@/contentProgress";
 import { isPrerender } from "@/ssg/isPrerender";
 import {
     READING_MIN_SCROLL_SAMPLE_MS,
-    computeBlockDwellMs,
-    computeMaxScrollWordsPerSec,
     computeScrollVelocityWordsPerSec,
     countWords,
-    estimateWordsPerPixel,
 } from "@/util/readingTime";
 import type { Uuid } from "luminary-shared";
 
 /**
  * Tracks article reading progress for the "Continue reading" homepage row.
  *
- * A segment is confirmed only when all gates pass:
- *  1. ≥50% visible in the scroll container
- *  1b. Segment bottom edge inside the viewport
- *  2. Scroll speed below skim cap (words/s, from rendered segment density)
- *  3. Dwell time reached (active segment only — topmost unread eligible segment)
+ as per these new changes progress is position-based. It is how far down the article body the bottom of the
+ * viewport has reached (0-100), and the saved value follows where the reader last stopped —
+ * up or down. It no longer depends on dwell time, skim detection or per-segment confirmation,
+ * so reaching the end of the last paragraph is always 100%.
  *
- * Long prose blocks are split into viewport-height segments so gate 1b can pass.
+ * The segment is still exported (and tested), but the composable itself
+ * no longer uses them.
  *
  * @see app/docs/reading-progress-tracker/README.md
  */
@@ -34,7 +31,7 @@ export const READING_INTERSECTION_RATIO = 0.5;
 /** Ignore velocity samples shorter than this (trackpad / layout jitter). */
 export { READING_MIN_SCROLL_SAMPLE_MS };
 
-/** Suppress velocity sampling and dwell while restoreScrollPosition runs. */
+/** Suppress progress updates while restoreScrollPosition runs. */
 export const READING_RESTORE_GUARD_MS = 400;
 
 /** Subpixel tolerance when comparing block bottom to viewport bottom. */
@@ -297,7 +294,7 @@ export function useReadingProgressTracker(options: {
     progressRoot?: Ref<HTMLElement | null>;
     scrollContainer: Ref<HTMLElement | Window>;
     enabled: Ref<boolean>;
-    /** Language averageReadingSpeed (words per minute); defaults to 200 when unset. */
+    /** Language averageReadingSpeed (words per minute). No longer used: progress is position-based. */
     averageReadingSpeed: Ref<number | undefined>;
     /**
      * Whether to disable saving progress to local storage (e.g. for short articles).
@@ -309,51 +306,29 @@ export function useReadingProgressTracker(options: {
      * that had an active session — i.e. on a real content change, `enabled` flipping to
      * false, or unmount. NOT called for a session that never produced any segments (empty
      * article) or that never had `trackedContentId` set (nothing was actively tracked).
-     * Receives the ending content id and its final depth as
-     * `confirmedSegments.size / segments.value.length * 100` (0-100, rounded) — read from
-     * live in-memory state, not the persisted store (which deletes its entry once progress
-     * reaches 100, so it cannot answer "what was the final depth" after a completed read).
+     * Receives the ending content id and its final depth as the furthest point of the article
+     * reached (0-100) — read from live in-memory state, not the persisted store (which
+     * deletes its entry once progress reaches 100, so it cannot answer "what was the final
+     * depth" after a completed read).
      */
     onSessionEnd?: (endedContentId: Uuid, finalDepthPercent: number) => void;
 }) {
+    // Kept for consumers of the composable; filled by collectSegments.
     const segments = ref<ReadingSegment[]>([]);
     const sourceElements = ref<MaybeElement[]>([]);
-    const confirmedSegments = new Set<string>();
-    const visibleSegments = new Set<string>();
-    const segmentWordsPerPixel = new Map<string, number>();
-    const dwellAccumulatedMs = new Map<string, number>();
-    // Raw (non-reactive) mirrors for the per-frame / per-scroll hot paths: iterating a
-    // Vue reactive array goes through Proxy traps per element access, which adds up at
-    // frame rate on low-end devices. `segments` stays the reactive, consumer-facing copy.
-    let segmentList: ReadingSegment[] = [];
-    const segmentsByElement = new Map<Element, ReadingSegment[]>();
-    // Word counts are precomputed at collect time so no hot path ever touches
-    // textContent / getBoundingClientRect again (dwell needs them every frame).
-    const segmentWordsById = new Map<string, number>();
-    // Elements the IntersectionObserver currently reports on-screen — the scroll
-    // handler refreshes only these instead of every block in the article.
-    const intersectingElements = new Set<Element>();
     let lastSavedProgress = -1;
-    let lastScrollY = 0;
-    let lastScrollTime = 0;
-    let skimScrollState: SkimScrollState = {
-        pendingScrollDeltaY: 0,
-        pendingScrollDeltaMs: 0,
-        isSkimming: false,
-    };
-    let scrollRafPending = false;
-    let visibilityRafPending = false;
-    let dwellRafId: number | null = null;
-    let lastDwellFrameTime = 0;
+    // Furthest point of the article reached (0-100). Only used for onSessionEnd.
+    let furthestPercent = 0;
+    // NEW: becomes true once the reader has reached the saved point during this visit. Until
+    // then a position BELOW the saved one is not saved, so stray scroll events when an article
+    // opens (page scroll reset, layout shifts) cannot overwrite the saved position before the
+    // reader has chosen "Continue".
+    let hasReachedSaved = false;
     let trackedContentId: Uuid | undefined;
     let resizeObserver: ResizeObserver | null = null;
     let resizeDebounceId: ReturnType<typeof setTimeout> | null = null;
 
     const isRestoring = ref(false);
-
-    const maxScrollWordsPerSec = computed(() =>
-        computeMaxScrollWordsPerSec(options.averageReadingSpeed.value),
-    );
 
     const savedProgressPercent = computed(() => {
         const id = options.contentId.value;
@@ -366,12 +341,12 @@ export function useReadingProgressTracker(options: {
         return p > 0 && p < 100;
     });
 
-    // Live reading progress for the top-bar pill: confirmed segments as a percentage, kept
+    // Live reading progress for the top-bar pill: the current position in the article, kept
     // even when saving is disabled for short articles, so the indicator always has a value.
     const readingProgressPercent = ref(0);
 
     // Scroll position within the article for the chapter pill's track. Deliberately separate
-    // from the dwell-gated reading progress above: this follows the viewport frame by frame.
+    // from the reading progress above: this follows the viewport frame by frame.
     const scrollProgressPercent = ref(0);
     let progressRafPending = false;
 
@@ -424,110 +399,7 @@ export function useReadingProgressTracker(options: {
         scrollProgressPercent.value = Math.min(100, Math.max(0, Math.round(percent)));
     }
 
-    function scheduleProgressUpdate() {
-        if (progressRafPending) return;
-        progressRafPending = true;
-        requestAnimationFrame(() => {
-            progressRafPending = false;
-            computeScrollProgress();
-        });
-    }
-
-    useEventListener(options.scrollContainer, "scroll", scheduleProgressUpdate, { passive: true });
-
-    const observerRoot = computed(() =>
-        options.scrollContainer.value === window
-            ? null
-            : (options.scrollContainer.value as HTMLElement),
-    );
-
-    function stopDwellLoop() {
-        if (dwellRafId != null) {
-            cancelAnimationFrame(dwellRafId);
-            dwellRafId = null;
-        }
-        lastDwellFrameTime = 0;
-    }
-
-    function clearDwellAccumulation() {
-        dwellAccumulatedMs.clear();
-    }
-
-    function emitSessionEnd() {
-        if (!trackedContentId || segments.value.length === 0) return;
-        const finalDepthPercent = Math.round(
-            (confirmedSegments.size / segments.value.length) * 100,
-        );
-        options.onSessionEnd?.(trackedContentId, finalDepthPercent);
-    }
-
-    function resetTrackingState() {
-        stopDwellLoop();
-        clearDwellAccumulation();
-        confirmedSegments.clear();
-        visibleSegments.clear();
-        segmentWordsPerPixel.clear();
-        lastSavedProgress = -1;
-        lastScrollY = 0;
-        lastScrollTime = 0;
-        skimScrollState = {
-            pendingScrollDeltaY: 0,
-            pendingScrollDeltaMs: 0,
-            isSkimming: false,
-        };
-        scrollRafPending = false;
-        visibilityRafPending = false;
-        isRestoring.value = false;
-    }
-
-    function collectSegments() {
-        segmentsByElement.clear();
-        segmentWordsById.clear();
-        segmentWordsPerPixel.clear();
-        intersectingElements.clear();
-
-        if (!options.articleRoot.value) {
-            segmentList = [];
-            segments.value = [];
-            sourceElements.value = [];
-            return;
-        }
-
-        const maxSegmentHeight = getMaxSegmentHeight(options.scrollContainer.value);
-        const elements = Array.from(
-            options.articleRoot.value.querySelectorAll(BLOCK_SELECTOR),
-        ).filter((el) => el.textContent?.trim()) as Element[];
-
-        // The one place layout (rect) and text (word count) are read: once per block,
-        // per collect. Every hot path below works from these precomputed maps.
-        const allSegments: ReadingSegment[] = [];
-        elements.forEach((el, index) => {
-            const height = el.getBoundingClientRect().height;
-            const elSegments = splitElementIntoSegments(el, maxSegmentHeight, index, height);
-            if (!elSegments.length) return;
-
-            for (const segment of elSegments) {
-                const words = segmentWordCount(segment, height);
-                const segmentHeight = segment.bottomPx - segment.topPx;
-                segmentWordsById.set(segment.id, words);
-                segmentWordsPerPixel.set(segment.id, estimateWordsPerPixel(words, segmentHeight));
-            }
-            segmentsByElement.set(el, elSegments);
-            allSegments.push(...elSegments);
-        });
-
-        segmentList = allSegments;
-        segments.value = allSegments;
-        sourceElements.value = elements as MaybeElement[];
-    }
-
-    function getViewportBounds(
-        entry?: Pick<IntersectionObserverEntry, "rootBounds">,
-    ): ViewportBounds {
-        if (entry?.rootBounds) {
-            return { top: entry.rootBounds.top, bottom: entry.rootBounds.bottom };
-        }
-
+    function getViewportBounds(): ViewportBounds {
         const container = options.scrollContainer.value;
         if (container === window) {
             return { top: 0, bottom: window.innerHeight };
@@ -537,118 +409,32 @@ export function useReadingProgressTracker(options: {
         return { top: rect.top, bottom: rect.bottom };
     }
 
-    function activeSegmentWordsPerPixel(): number {
-        const active = resolveActiveSegment(segmentList, visibleSegments, confirmedSegments);
-        if (!active) return 0;
-        return segmentWordsPerPixel.get(active.id) ?? 0;
-    }
+    /**
+     * How far down the article body the bottom of the viewport has reached (0-100).
+     * 100 exactly once the end of the last paragraph is on screen.
+     */
+    function computeReachedPercent(): number | null {
+        const el = options.articleRoot.value;
+        if (!el) return null;
 
-    function updateVisibilityForElement(
-        el: Element,
-        entry?: IntersectionObserverEntry,
-        viewportArg?: ViewportBounds,
-        atScrollEndArg?: boolean,
-    ) {
-        const elSegments = segmentsByElement.get(el);
-        if (!elSegments) return;
+        const rect = el.getBoundingClientRect();
+        if (rect.height <= 0) return null;
 
-        if (entry && !entry.isIntersecting) {
-            for (const segment of elSegments) {
-                visibleSegments.delete(segment.id);
-                cancelDwell(segment.id);
-            }
-            return;
-        }
-
-        const viewport = viewportArg ?? getViewportBounds(entry);
-        const atScrollEnd = atScrollEndArg ?? isScrollAtEnd(options.scrollContainer.value);
-        const rect = entry?.boundingClientRect ?? el.getBoundingClientRect();
-        let startedDwell = false;
-
-        for (const segment of elSegments) {
-            if (isSegmentEligible(segment, rect, viewport, atScrollEnd)) {
-                visibleSegments.add(segment.id);
-                startedDwell = true;
-            } else {
-                visibleSegments.delete(segment.id);
-                cancelDwell(segment.id);
-            }
-        }
-
-        // Unconditional on purpose: tickDwell self-suppresses (without accumulating)
-        // while restoring or skimming, and only IT can clear the skim flag once
-        // scrolling stops — gating the restart here would strand a parked loop with
-        // `isSkimming` stuck true (skim burst → stop scrolling → dwell never resumes).
-        if (startedDwell) {
-            ensureDwellLoop();
-        }
-    }
-
-    /** Full pass over every block — rare paths only (setup, restore, resize). */
-    function refreshAllSegmentVisibility() {
         const viewport = getViewportBounds();
-        const atScrollEnd = isScrollAtEnd(options.scrollContainer.value);
-        for (const el of segmentsByElement.keys()) {
-            updateVisibilityForElement(el, undefined, viewport, atScrollEnd);
-        }
+        if (rect.bottom <= viewport.bottom + READING_BLOCK_END_TOLERANCE_PX) return 100;
+
+        const percent = ((viewport.bottom - rect.top) / rect.height) * 100;
+        return Math.min(100, Math.max(0, Math.floor(percent)));
     }
 
     /**
-     * Scroll-path pass: only the blocks the IntersectionObserver reports on-screen
-     * (a handful) get a layout read, instead of every block in the article.
+     * saves the given position as-is (it used to keep only the highest value ever
+     * reached). 100 means finished and removes the entry; 0 means nothing to resume.
      */
-    function refreshIntersectingSegmentVisibility() {
-        if (intersectingElements.size === 0) return;
-        const viewport = getViewportBounds();
-        const atScrollEnd = isScrollAtEnd(options.scrollContainer.value);
-        for (const el of intersectingElements) {
-            updateVisibilityForElement(el, undefined, viewport, atScrollEnd);
-        }
-    }
-
-    /** Coalesce scroll-driven visibility work to at most one layout pass per frame. */
-    function scheduleVisibilityRefresh() {
-        if (visibilityRafPending) return;
-        visibilityRafPending = true;
-        requestAnimationFrame(() => {
-            visibilityRafPending = false;
-            refreshIntersectingSegmentVisibility();
-        });
-    }
-
-    /** Restore in-memory confirmed set from saved % so progress never drops on re-setup. */
-    function seedConfirmedFromSavedProgress() {
+    function persistProgress(progress: number) {
         const id = options.contentId.value;
-        if (!id || segments.value.length === 0) return;
+        if (!id) return;
 
-        const saved = getReadingProgress(id);
-        if (saved <= 0) return;
-
-        readingProgressPercent.value = saved;
-        confirmedSegments.clear();
-
-        if (saved >= 100) {
-            for (const segment of segments.value) {
-                confirmedSegments.add(segment.id);
-            }
-            lastSavedProgress = 100;
-            return;
-        }
-
-        const count = Math.round((saved / 100) * segments.value.length);
-        for (let i = 0; i < count && i < segments.value.length; i++) {
-            confirmedSegments.add(segments.value[i].id);
-        }
-        lastSavedProgress = saved;
-    }
-
-    function persistProgress() {
-        const id = options.contentId.value;
-        if (!id || segments.value.length === 0) return;
-
-        const computedProgress = Math.round((confirmedSegments.size / segments.value.length) * 100);
-        const existing = getReadingProgress(id);
-        const progress = Math.max(existing, computedProgress);
         readingProgressPercent.value = progress;
 
         if (progress === lastSavedProgress) return;
@@ -660,162 +446,94 @@ export function useReadingProgressTracker(options: {
             if (!options.disableSaving?.value) {
                 setReadingProgress(id, progress);
             }
-        }
-    }
-
-    function markSegmentRead(segmentId: string) {
-        if (confirmedSegments.has(segmentId)) return;
-        confirmedSegments.add(segmentId);
-        persistProgress();
-    }
-
-    // Pure math over the precomputed word count — safe to call every frame. (The words
-    // Map, not a dwell-ms cache, is the baseline so a reading-speed change needs no
-    // recompute pass.)
-    function segmentDwellMs(segment: ReadingSegment): number {
-        const words = segmentWordsById.get(segment.id) ?? 0;
-        return computeBlockDwellMs(words, options.averageReadingSpeed.value);
-    }
-
-    function cancelDwell(segmentId: string) {
-        dwellAccumulatedMs.delete(segmentId);
-    }
-
-    /** Gate 2: stationary reading after a skim burst should resume dwell. */
-    function clearSkimmingIfScrollStopped(now: number) {
-        if (
-            skimScrollState.isSkimming &&
-            lastScrollTime > 0 &&
-            now - lastScrollTime >= READING_MIN_SCROLL_SAMPLE_MS
-        ) {
-            skimScrollState = { ...skimScrollState, isSkimming: false };
-        }
-    }
-
-    function tickDwell(timestamp: number) {
-        const now = performance.now();
-        clearSkimmingIfScrollStopped(now);
-
-        if (!options.enabled.value || isRestoring.value || skimScrollState.isSkimming) {
-            // Transient suppression (restore guard / skim burst) — keep ticking so the
-            // skim flag can clear itself once scrolling stops.
-            dwellRafId = requestAnimationFrame(tickDwell);
-            lastDwellFrameTime = timestamp;
-            return;
-        }
-
-        const activeSegment = resolveActiveSegment(segmentList, visibleSegments, confirmedSegments);
-        if (!activeSegment) {
-            // Idle: nothing unconfirmed on screen. Park the loop instead of burning
-            // frames (and battery) — any visibility change restarts it via
-            // ensureDwellLoop.
-            dwellRafId = null;
-            lastDwellFrameTime = 0;
-            return;
-        }
-
-        dwellRafId = requestAnimationFrame(tickDwell);
-
-        if (lastDwellFrameTime === 0) {
-            lastDwellFrameTime = timestamp;
-            return;
-        }
-
-        const elapsed = timestamp - lastDwellFrameTime;
-        lastDwellFrameTime = timestamp;
-        if (elapsed <= 0) return;
-
-        const requiredMs = segmentDwellMs(activeSegment);
-        const accumulated = (dwellAccumulatedMs.get(activeSegment.id) ?? 0) + elapsed;
-
-        if (accumulated >= requiredMs) {
-            dwellAccumulatedMs.delete(activeSegment.id);
-            markSegmentRead(activeSegment.id);
         } else {
-            dwellAccumulatedMs.set(activeSegment.id, accumulated);
+            removeReadingProgress(id);
         }
     }
 
-    function ensureDwellLoop() {
-        if (dwellRafId == null && options.enabled.value) {
-            if (lastDwellFrameTime === 0) {
-                lastDwellFrameTime = performance.now();
-            }
-            dwellRafId = requestAnimationFrame(tickDwell);
-        }
-    }
-
-    function restartDwellForVisibleBlocksAfterSpeedChange() {
-        clearDwellAccumulation();
-        ensureDwellLoop();
-    }
-
-    function cancelDwellForVisibleSegments() {
-        for (const segmentId of visibleSegments) {
-            cancelDwell(segmentId);
-        }
-    }
-
-    function onSkimmingDetected() {
-        clearDwellAccumulation();
-        skimScrollState = { ...skimScrollState, isSkimming: true };
-    }
-
-    function onScroll() {
+    /** Called while the reader scrolls (at most once per frame). */
+    function updateReadingProgress() {
         if (!options.enabled.value || isRestoring.value) return;
 
-        const container = options.scrollContainer.value;
-        const scrollY = getScrollTop(container);
-        const now = performance.now();
+        const id = options.contentId.value;
+        if (!id) return;
 
-        if (lastScrollTime > 0) {
-            const wordsPerPixel = activeSegmentWordsPerPixel();
+        const reached = computeReachedPercent();
+        if (reached === null) return;
 
-            if (wordsPerPixel > 0) {
-                const { isSkimming, justStoppedSkimming, state } = applyScrollVelocitySample(
-                    skimScrollState,
-                    scrollY - lastScrollY,
-                    now - lastScrollTime,
-                    wordsPerPixel,
-                    maxScrollWordsPerSec.value,
-                );
-                skimScrollState = state;
+        furthestPercent = Math.max(furthestPercent, reached);
 
-                if (isSkimming) {
-                    onSkimmingDetected();
-                } else if (justStoppedSkimming) {
-                    if (!scrollRafPending) {
-                        scrollRafPending = true;
-                        requestAnimationFrame(() => {
-                            scrollRafPending = false;
-                            ensureDwellLoop();
-                        });
-                    }
-                }
-            }
+        // CHANGED: the saved position follows where the reader last stopped, up or down. The
+        // only exception is the start of a visit: positions below the saved one are ignored
+        // until the reader has reached the saved point (see hasReachedSaved).
+        if (!hasReachedSaved) {
+            if (reached < getReadingProgress(id)) return;
+            hasReachedSaved = true;
         }
 
-        lastScrollY = scrollY;
-        lastScrollTime = now;
-        scheduleVisibilityRefresh();
+        persistProgress(reached);
     }
 
-    function handleIntersection(entries: IntersectionObserverEntry[]) {
-        const atScrollEnd = isScrollAtEnd(options.scrollContainer.value);
-        for (const entry of entries) {
-            const el = entry.target as Element;
-            if (entry.isIntersecting) intersectingElements.add(el);
-            else intersectingElements.delete(el);
-            updateVisibilityForElement(el, entry, undefined, atScrollEnd);
+    function scheduleProgressUpdate() {
+        if (progressRafPending) return;
+        progressRafPending = true;
+        requestAnimationFrame(() => {
+            progressRafPending = false;
+            computeScrollProgress();
+            updateReadingProgress();
+        });
+    }
+
+    useEventListener(options.scrollContainer, "scroll", scheduleProgressUpdate, { passive: true });
+
+    function emitSessionEnd() {
+        if (!trackedContentId || segments.value.length === 0) return;
+        options.onSessionEnd?.(trackedContentId, furthestPercent);
+    }
+
+    function resetTrackingState() {
+        lastSavedProgress = -1;
+        furthestPercent = 0;
+        hasReachedSaved = false;
+        isRestoring.value = false;
+    }
+
+    function collectSegments() {
+        if (!options.articleRoot.value) {
+            segments.value = [];
+            sourceElements.value = [];
+            return;
         }
+
+        const maxSegmentHeight = getMaxSegmentHeight(options.scrollContainer.value);
+        const elements = Array.from(
+            options.articleRoot.value.querySelectorAll(BLOCK_SELECTOR),
+        ).filter((el) => el.textContent?.trim()) as Element[];
+
+        const allSegments: ReadingSegment[] = [];
+        elements.forEach((el, index) => {
+            const height = el.getBoundingClientRect().height;
+            const elSegments = splitElementIntoSegments(el, maxSegmentHeight, index, height);
+            if (!elSegments.length) return;
+            allSegments.push(...elSegments);
+        });
+
+        segments.value = allSegments;
+        sourceElements.value = elements as MaybeElement[];
     }
 
-    const { stop: stopObserver } = useIntersectionObserver(sourceElements, handleIntersection, {
-        root: observerRoot,
-        threshold: [0, READING_INTERSECTION_RATIO, 1],
-    });
+    /** Pick up the saved position when an article opens, so the pill and session depth start from it. */
+    function seedFromSavedProgress() {
+        const id = options.contentId.value;
+        if (!id) return;
 
-    useEventListener(options.scrollContainer, "scroll", onScroll, { passive: true });
+        const saved = getReadingProgress(id);
+        if (saved <= 0) return;
+
+        readingProgressPercent.value = saved;
+        furthestPercent = saved;
+        lastSavedProgress = saved;
+    }
 
     function teardownResizeObserver() {
         resizeObserver?.disconnect();
@@ -848,15 +566,8 @@ export function useReadingProgressTracker(options: {
             resizeDebounceId = setTimeout(() => {
                 resizeDebounceId = null;
                 if (!options.enabled.value) return;
-                const prevLength = segmentList.length;
                 collectSegments();
                 computeScrollProgress();
-                if (segmentList.length !== prevLength) {
-                    visibleSegments.clear();
-                    clearDwellAccumulation();
-                    seedConfirmedFromSavedProgress();
-                    refreshAllSegmentVisibility();
-                }
             }, READING_RESIZE_DEBOUNCE_MS);
         });
         resizeObserver.observe(target);
@@ -871,6 +582,9 @@ export function useReadingProgressTracker(options: {
 
         setTimeout(() => {
             const container = options.scrollContainer.value;
+            const article = options.articleRoot.value;
+            if (!article) return;
+
             const maxScroll =
                 container === window
                     ? document.documentElement.scrollHeight - window.innerHeight
@@ -879,10 +593,19 @@ export function useReadingProgressTracker(options: {
 
             if (maxScroll <= 0) return;
 
-            const targetY = Math.round((percent / 100) * maxScroll);
+            // Saved progress is a point inside the ARTICLE, not a share of the whole scroll
+            // container (which also holds the title, hero and related content). This is the
+            // inverse of computeReachedPercent: scroll so that point of the article sits at
+            // the bottom of the viewport.
+            const rect = article.getBoundingClientRect();
+            const viewport = getViewportBounds();
+            const pointY = rect.top + (percent / 100) * rect.height;
+            const targetY = Math.max(
+                0,
+                Math.round(getScrollTop(container) + pointY - viewport.bottom),
+            );
 
             isRestoring.value = true;
-            cancelDwellForVisibleSegments();
 
             if (container === window) {
                 window.scrollTo({ top: targetY });
@@ -897,14 +620,6 @@ export function useReadingProgressTracker(options: {
 
             setTimeout(() => {
                 isRestoring.value = false;
-                lastScrollTime = 0;
-                skimScrollState = {
-                    pendingScrollDeltaY: 0,
-                    pendingScrollDeltaMs: 0,
-                    isSkimming: false,
-                };
-                lastScrollY = getScrollTop(container);
-                refreshAllSegmentVisibility();
             }, READING_RESTORE_GUARD_MS);
         }, 300);
     }
@@ -918,17 +633,12 @@ export function useReadingProgressTracker(options: {
 
         if (contentChanged) {
             if (segments.value.length > 0) {
-                seedConfirmedFromSavedProgress();
+                seedFromSavedProgress();
             }
         }
 
         if (segments.value.length === 0) return;
     }
-
-    watch(options.averageReadingSpeed, () => {
-        if (!options.enabled.value) return;
-        restartDwellForVisibleBlocksAfterSpeedChange();
-    });
 
     watch(
         [options.enabled, options.contentId, options.articleRoot, options.scrollContainer],
@@ -936,10 +646,6 @@ export function useReadingProgressTracker(options: {
             if (!enabled) {
                 emitSessionEnd();
                 resetTrackingState();
-                segmentList = [];
-                segmentsByElement.clear();
-                segmentWordsById.clear();
-                intersectingElements.clear();
                 segments.value = [];
                 sourceElements.value = [];
                 teardownResizeObserver();
@@ -968,7 +674,6 @@ export function useReadingProgressTracker(options: {
     onUnmounted(() => {
         emitSessionEnd();
         resetTrackingState();
-        stopObserver();
         teardownResizeObserver();
     });
 
