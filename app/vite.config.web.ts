@@ -28,6 +28,7 @@ const VIDEOJS_PACKAGES = [
 import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 import { deferEntryUntilPainted } from "./vite-plugins/deferEntryUntilPainted";
 import { youtubeEmbedPage } from "./vite-plugins/youtubeEmbedPage";
+import { ssgConstructableStyleSheets } from "./vite-plugins/ssgConstructableStyleSheets";
 import { buildDeleteQueue } from "./src/ssg/deleteQueue";
 import {
     drainQuery,
@@ -630,6 +631,7 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         ssgBuildLock(),
         buildTargetVirtuals(),
         youtubeEmbedPage(),
+        ssgConstructableStyleSheets(),
         vue({ template: { compilerOptions: { isCustomElement: isVideoJsElement } } }),
         rewriteWebEntry(),
         deferEntryUntilPainted(),
