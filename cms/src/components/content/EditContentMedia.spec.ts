@@ -419,7 +419,9 @@ describe("EditContentMedia editing the existing video", () => {
 
         expect(button.attributes("disabled")).toBeDefined();
         expect(button.attributes("title")).toBe("Available once the encode has finished.");
-        expect(wrapper.find("[data-test='edit-media-hint']").text()).toContain("once the encode has finished");
+        expect(wrapper.find("[data-test='edit-media-hint']").text()).toContain(
+            "once the encode has finished",
+        );
     });
 
     it("cannot be used without permission to edit the document, or without the encoder", async () => {
