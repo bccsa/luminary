@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AUDIO_ONLY_ANGLE_ID } from '@luminary-media-converter/player-core';
+import { AUDIO_ONLY_ANGLE_ID } from "@luminary-media-converter/player-core";
 /**
  * Dev-only harness for the player (Video.js).
  *
@@ -17,17 +17,17 @@ import { AUDIO_ONLY_ANGLE_ID } from '@luminary-media-converter/player-core';
  *
  * Not shipped anywhere: served only by `npm -w player-web run demo`.
  */
-import { computed, onMounted, reactive, ref, shallowRef, watchEffect } from 'vue';
-import type { PlayerSource } from '@luminary-media-converter/player-core';
-import { isYouTubeUrl } from '../src/youtube';
-import LuminaryPlayer from '../src/components/LuminaryPlayer.vue';
-import type { PlayerImage } from '../src/image';
+import { computed, onMounted, reactive, ref, shallowRef, watchEffect } from "vue";
+import type { PlayerSource } from "@luminary-media-converter/player-core";
+import { isYouTubeUrl } from "../src/youtube";
+import LuminaryPlayer from "../src/components/LuminaryPlayer.vue";
+import type { PlayerImage } from "../src/image";
 
-const STORAGE_KEY = 'luminary-legacy-player-demo';
+const STORAGE_KEY = "luminary-legacy-player-demo";
 
 const saved = (() => {
     try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as {
             url?: string;
             keyHex?: string;
             poster?: string;
@@ -44,11 +44,11 @@ const saved = (() => {
 })();
 
 const form = reactive({
-    url: saved.url ?? '',
-    keyHex: saved.keyHex ?? '',
-    poster: saved.poster ?? '',
-    posterFallback: saved.posterFallback ?? '',
-    preferredLanguage: saved.preferredLanguage ?? '',
+    url: saved.url ?? "",
+    keyHex: saved.keyHex ?? "",
+    poster: saved.poster ?? "",
+    posterFallback: saved.posterFallback ?? "",
+    preferredLanguage: saved.preferredLanguage ?? "",
     // Default ON here: watching the warming work is half of what this
     // harness is for. The library default is off.
     prefetchDebug: saved.prefetchDebug ?? true,
@@ -63,34 +63,34 @@ const form = reactive({
 const source = shallowRef<PlayerSource | null>(null);
 
 // `?afs=light|dark` opens in audio mode with something to say about it, for the fullscreen audio screen; `?cover=URL` is its picture.
-const afs = new URLSearchParams(location.search).get('afs');
+const afs = new URLSearchParams(location.search).get("afs");
 const nowPlaying = afs
-    ? { title: 'Why we get thirsty', subtitle: 'Pastor Daniel', eyebrow: 'Sunday messages' }
+    ? { title: "Why we get thirsty", subtitle: "Pastor Daniel", eyebrow: "Sunday messages" }
     : undefined;
-const appearance = afs === 'light' ? 'light' : 'dark';
+const appearance = afs === "light" ? "light" : "dark";
 
 // `?master=…&key=…` fills the form and loads on open, so a link can point straight at a source.
 // Not `?url`: Vite reserves that query for asset imports and refuses the page request outright.
 const query = new URLSearchParams(location.search);
-if (query.has('master')) form.url = query.get('master') ?? '';
-if (query.has('key')) form.keyHex = query.get('key') ?? '';
-if (query.has('thumbs')) form.thumbs = query.get('thumbs') !== '0';
-if (query.has('chapters')) form.chapters = query.get('chapters') !== '0';
+if (query.has("master")) form.url = query.get("master") ?? "";
+if (query.has("key")) form.keyHex = query.get("key") ?? "";
+if (query.has("thumbs")) form.thumbs = query.get("thumbs") !== "0";
+if (query.has("chapters")) form.chapters = query.get("chapters") !== "0";
 // `?nextup=N` offers N videos near the end of full-screen, for looking at the strip.
-const nextUp = Array.from({ length: Number(query.get('nextup') ?? 0) || 0 }, (_, i) => ({
+const nextUp = Array.from({ length: Number(query.get("nextup") ?? 0) || 0 }, (_, i) => ({
     id: `next-${i}`,
     title: `Up next ${i + 1}: a title long enough to need a second line`,
-    section: i === 0 ? 'Next in this series' : 'Related',
+    section: i === 0 ? "Next in this series" : "Related",
 }));
 // `?embed` drops the form and the notes, for a side-by-side page that only wants the player.
-const embed = query.has('embed');
+const embed = query.has("embed");
 onMounted(() => {
-    if (query.has('master')) load();
+    if (query.has("master")) load();
 });
 const poster = shallowRef<PlayerImage | undefined>(undefined);
-const preferredLanguage = ref('');
+const preferredLanguage = ref("");
 const player = ref<InstanceType<typeof LuminaryPlayer> | null>(null);
-const formError = ref('');
+const formError = ref("");
 
 const controllerOptions = shallowRef<{ prefetch: { debug: boolean } }>({
     prefetch: { debug: form.prefetchDebug },
@@ -117,14 +117,14 @@ function load() {
     const url = form.url.trim();
     const keyHex = form.keyHex.trim().toLowerCase();
     if (!url) {
-        formError.value = 'A master playlist URL is required.';
+        formError.value = "A master playlist URL is required.";
         return;
     }
     if (keyHex && !/^[0-9a-f]{32}$/.test(keyHex)) {
-        formError.value = 'The key must be 32 hex characters (16-byte AES-128 key).';
+        formError.value = "The key must be 32 hex characters (16-byte AES-128 key).";
         return;
     }
-    formError.value = '';
+    formError.value = "";
     localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
@@ -155,7 +155,10 @@ function load() {
         controls.value = { windowedControls };
         playerKey.value++;
     }
-    poster.value = toImage(form.poster || new URLSearchParams(location.search).get('cover') || '', form.posterFallback);
+    poster.value = toImage(
+        form.poster || new URLSearchParams(location.search).get("cover") || "",
+        form.posterFallback,
+    );
     preferredLanguage.value = form.preferredLanguage.trim();
     source.value = {
         masterUrl: url,
@@ -164,8 +167,16 @@ function load() {
         ...(form.thumbs || form.chapters
             ? {
                   sidecars: {
-                      ...(form.thumbs ? { thumbnails: { url: new URL('thumbnails.vtt', url).href } } : {}),
-                      ...(form.chapters ? { chapters: [{ lang: 'en', url: new URL('chapters/en.vtt', url).href }] } : {}),
+                      ...(form.thumbs
+                          ? { thumbnails: { url: new URL("thumbnails.vtt", url).href } }
+                          : {}),
+                      ...(form.chapters
+                          ? {
+                                chapters: [
+                                    { lang: "en", url: new URL("chapters/en.vtt", url).href },
+                                ],
+                            }
+                          : {}),
                   },
               }
             : {}),
@@ -173,17 +184,17 @@ function load() {
 }
 
 const state = computed(() => player.value?.state ?? null);
-const youtubeMode = computed(() => isYouTubeUrl(source.value?.masterUrl ?? ''));
+const youtubeMode = computed(() => isYouTubeUrl(source.value?.masterUrl ?? ""));
 
 // Selector models kept in sync with the player's own idea of what is active.
-const angleModel = ref('');
-const qualityModel = ref('auto');
-const audioModel = ref('');
+const angleModel = ref("");
+const qualityModel = ref("auto");
+const audioModel = ref("");
 
 watchEffect(() => {
-    angleModel.value = state.value?.activeAngleId ?? '';
-    qualityModel.value = state.value?.activeQualityId ?? 'auto';
-    audioModel.value = state.value?.activeAudioTrackId ?? '';
+    angleModel.value = state.value?.activeAngleId ?? "";
+    qualityModel.value = state.value?.activeQualityId ?? "auto";
+    audioModel.value = state.value?.activeAudioTrackId ?? "";
 });
 
 function onAngle() {
@@ -203,10 +214,13 @@ const fmt = (n: number | undefined) => (n ?? 0).toFixed(1);
     <main class="demo">
         <h1 v-if="!embed">Luminary player (Video.js) — test harness</h1>
 
-        <form v-if="!embed" class="demo-form" @submit.prevent="load">
+        <form
+            v-if="!embed"
+            class="demo-form"
+            @submit.prevent="load"
+        >
             <label>
-                Master playlist URL — or a YouTube link, which switches the
-                player into YouTube mode
+                Master playlist URL — or a YouTube link, which switches the player into YouTube mode
                 <input
                     v-model="form.url"
                     type="text"
@@ -224,8 +238,8 @@ const fmt = (n: number | undefined) => (n ?? 0).toFixed(1);
                 />
             </label>
             <label>
-                Poster (optional) — a URL, or a srcset: "a-640.jpg 640w, a-1280.jpg 1280w".
-                Also what audio-only shows, under the glyph
+                Poster (optional) — a URL, or a srcset: "a-640.jpg 640w, a-1280.jpg 1280w". Also
+                what audio-only shows, under the glyph
                 <input
                     v-model="form.poster"
                     type="text"
@@ -252,24 +266,42 @@ const fmt = (n: number | undefined) => (n ?? 0).toFixed(1);
                 />
             </label>
             <label class="demo-check">
-                <input v-model="form.prefetchDebug" type="checkbox" />
+                <input
+                    v-model="form.prefetchDebug"
+                    type="checkbox"
+                />
                 Log chunk warming to the console (applies on Load)
             </label>
             <label class="demo-check">
-                <input v-model="form.bare" type="checkbox" />
-                Bare when windowed — no controls outside fullscreen; double-click
-                for fullscreen, as the encoder embeds it (applies on Load)
+                <input
+                    v-model="form.bare"
+                    type="checkbox"
+                />
+                Bare when windowed — no controls outside fullscreen; double-click for fullscreen, as
+                the encoder embeds it (applies on Load)
             </label>
             <label class="demo-check">
-                <input v-model="form.thumbs" type="checkbox" />
+                <input
+                    v-model="form.thumbs"
+                    type="checkbox"
+                />
                 Scrub thumbnails — a <code>thumbnails.vtt</code> beside the master (applies on Load)
             </label>
             <label class="demo-check">
-                <input v-model="form.chapters" type="checkbox" />
-                Chapters — a <code>chapters/en.vtt</code> beside the master: the timeline is cut at them (applies on Load)
+                <input
+                    v-model="form.chapters"
+                    type="checkbox"
+                />
+                Chapters — a <code>chapters/en.vtt</code> beside the master: the timeline is cut at
+                them (applies on Load)
             </label>
             <button type="submit">Load</button>
-            <p v-if="formError" class="demo-error">{{ formError }}</p>
+            <p
+                v-if="formError"
+                class="demo-error"
+            >
+                {{ formError }}
+            </p>
         </form>
 
         <template v-if="source">
@@ -286,42 +318,77 @@ const fmt = (n: number | undefined) => (n ?? 0).toFixed(1);
                 :next-up="nextUp.length ? nextUp : undefined"
             />
 
-            <p v-if="youtubeMode" class="demo-hint">
-                YouTube mode: the LMC pipeline is bypassed, so the exposed
-                controller is <code>null</code> and the state readout below stays
-                at its initial values. The chrome is fully functional.
+            <p
+                v-if="youtubeMode"
+                class="demo-hint"
+            >
+                YouTube mode: the LMC pipeline is bypassed, so the exposed controller is
+                <code>null</code> and the state readout below stays at its initial values. The
+                chrome is fully functional.
             </p>
 
-            <div v-if="state && !youtubeMode" class="demo-controls">
+            <div
+                v-if="state && !youtubeMode"
+                class="demo-controls"
+            >
                 <label v-if="(state.angles?.length ?? 0) > 1">
                     Angle
-                    <select v-model="angleModel" @change="onAngle">
-                        <option v-for="a in state.angles" :key="a.id" :value="a.id">
+                    <select
+                        v-model="angleModel"
+                        @change="onAngle"
+                    >
+                        <option
+                            v-for="a in state.angles"
+                            :key="a.id"
+                            :value="a.id"
+                        >
                             {{ a.name }}
                         </option>
                     </select>
                 </label>
                 <label v-if="(state.qualities?.length ?? 0) > 1">
                     Quality
-                    <select v-model="qualityModel" @change="onQuality">
+                    <select
+                        v-model="qualityModel"
+                        @change="onQuality"
+                    >
                         <option value="auto">auto</option>
-                        <option v-for="q in state.qualities" :key="q.id" :value="q.id">
+                        <option
+                            v-for="q in state.qualities"
+                            :key="q.id"
+                            :value="q.id"
+                        >
                             {{ q.label }}
                         </option>
                     </select>
                 </label>
                 <label v-if="(state.audioTracks?.length ?? 0) > 1">
                     Audio
-                    <select v-model="audioModel" @change="onAudio">
-                        <option v-for="t in state.audioTracks" :key="t.id" :value="t.id">
+                    <select
+                        v-model="audioModel"
+                        @change="onAudio"
+                    >
+                        <option
+                            v-for="t in state.audioTracks"
+                            :key="t.id"
+                            :value="t.id"
+                        >
                             {{ t.label || t.id }}
                         </option>
                     </select>
                 </label>
-                <button type="button" @click="player?.enterFullscreen()">Fullscreen</button>
+                <button
+                    type="button"
+                    @click="player?.enterFullscreen()"
+                >
+                    Fullscreen
+                </button>
             </div>
 
-            <dl v-if="state" class="demo-state">
+            <dl
+                v-if="state"
+                class="demo-state"
+            >
                 <div>
                     <dt>lifecycle</dt>
                     <dd>{{ state.lifecycle }}</dd>
@@ -344,13 +411,15 @@ const fmt = (n: number | undefined) => (n ?? 0).toFixed(1);
                 </div>
             </dl>
 
-            <p v-if="!embed" class="demo-hint">
-                Encrypted output should produce <em>no</em> request carrying the
-                key and no <code>luminary://</code> request at all — the key is
-                served to VHS from memory. Chunk warming shows up as a single
-                <code>Range: bytes=0-65535</code> request per
-                <code>media/…</code> chunk, fired as the buffer front nears the
-                previous chunk's end.
+            <p
+                v-if="!embed"
+                class="demo-hint"
+            >
+                Encrypted output should produce <em>no</em> request carrying the key and no
+                <code>luminary://</code> request at all — the key is served to VHS from memory.
+                Chunk warming shows up as a single <code>Range: bytes=0-65535</code> request per
+                <code>media/…</code> chunk, fired as the buffer front nears the previous chunk's
+                end.
             </p>
         </template>
     </main>
