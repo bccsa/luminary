@@ -992,4 +992,21 @@ describe("useReadingProgressTracker", () => {
 
         expect(onSessionEnd).not.toHaveBeenCalled();
     });
+
+    it("does not offer a resume prompt for progress created during the current session", async () => {
+        const { wrapper } = mountTracker(2);
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(50);
+        expect(getReadingProgress(TEST_CONTENT_ID)).not.toBe(0);
+
+        const trackerResult = wrapper.vm.trackerApi;
+        expect(trackerResult.hasResumableProgressOnOpen?.value ?? 0).toBe(0);
+        wrapper.unmount();
+    });
 });
