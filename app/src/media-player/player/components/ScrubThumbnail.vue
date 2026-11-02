@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { ThumbnailSpriteCue } from '@luminary-media-converter/player-core';
+import { computed } from "vue";
+import type { ThumbnailSpriteCue } from "@luminary-media-converter/player-core";
 
 /**
  * One frame out of a sprite sheet, with its timecode under it.
@@ -24,7 +24,7 @@ const props = withDefaults(
         /** The chapter the frame is in, drawn beside the timecode. */
         chapter?: string;
     }>(),
-    { width: 168 }
+    { width: 168 },
 );
 
 /** A cue with no `#xywh=` crop means the whole image is the frame. */
@@ -37,21 +37,21 @@ const frameStyle = computed(() => {
     if (isWholeImage.value) {
         return {
             width: `${props.width}px`,
-            aspectRatio: '16 / 9',
+            aspectRatio: "16 / 9",
             backgroundImage: `url("${cue.spriteUrl}")`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            backgroundSize: "cover",
+            backgroundPosition: "center",
         };
     }
     return {
         width: `${cue.w}px`,
         height: `${cue.h}px`,
         backgroundImage: `url("${cue.spriteUrl}")`,
-        backgroundSize: 'auto',
+        backgroundSize: "auto",
         backgroundPosition: `-${cue.x}px -${cue.y}px`,
-        backgroundRepeat: 'no-repeat',
+        backgroundRepeat: "no-repeat",
         transform: `scale(${scale.value})`,
-        transformOrigin: 'top left',
+        transformOrigin: "top left",
     };
 });
 
@@ -60,16 +60,33 @@ const boxStyle = computed(() => {
     const cue = props.cue;
     if (!cue) return {};
     if (isWholeImage.value) return { width: `${props.width}px` };
-    return { width: `${Math.round(cue.w * scale.value)}px`, height: `${Math.round(cue.h * scale.value)}px` };
+    return {
+        width: `${Math.round(cue.w * scale.value)}px`,
+        height: `${Math.round(cue.h * scale.value)}px`,
+    };
 });
 </script>
 
 <template>
-    <div class="lmpl-thumb" aria-hidden="true">
-        <div v-if="cue" class="lmpl-thumb-box" :style="boxStyle">
-            <div class="lmpl-thumb-frame" :style="frameStyle"></div>
+    <div
+        class="lmpl-thumb"
+        aria-hidden="true"
+    >
+        <div
+            v-if="cue"
+            class="lmpl-thumb-box"
+            :style="boxStyle"
+        >
+            <div
+                class="lmpl-thumb-frame"
+                :style="frameStyle"
+            ></div>
         </div>
         <span class="lmpl-thumb-time">{{ label }}</span>
-        <span v-if="chapter" class="lmpl-thumb-chapter">{{ chapter }}</span>
+        <span
+            v-if="chapter"
+            class="lmpl-thumb-chapter"
+            >{{ chapter }}</span
+        >
     </div>
 </template>

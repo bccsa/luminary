@@ -130,59 +130,60 @@ export interface PlayerMessages {
 
 /** Built-in English strings. Merged under any partial the host supplies. */
 export const DEFAULT_MESSAGES: PlayerMessages = {
-    comingSoon: 'Coming soon',
+    comingSoon: "Coming soon",
 
-    errorGeneric: 'This video could not be played.',
-    errorUnsupportedBrowser: 'This browser cannot play this video. Please update it or try another one.',
-    errorKeyRequired: 'This video is protected and no key was supplied.',
-    errorNetwork: 'The video could not be reached. Check your connection.',
-    errorMedia: 'Playback of this video failed.',
-    retry: 'Try again',
+    errorGeneric: "This video could not be played.",
+    errorUnsupportedBrowser:
+        "This browser cannot play this video. Please update it or try another one.",
+    errorKeyRequired: "This video is protected and no key was supplied.",
+    errorNetwork: "The video could not be reached. Check your connection.",
+    errorMedia: "Playback of this video failed.",
+    retry: "Try again",
 
-    play: 'Play',
-    pause: 'Pause',
-    scrubberLabel: 'Seek',
-    elapsedLabel: 'Elapsed time',
-    durationLabel: 'Total time',
-    skipBack: 'Skip back {seconds} seconds',
-    skipForward: 'Skip forward {seconds} seconds',
-    chapterOf: 'Chapter {index} of {count}',
+    play: "Play",
+    pause: "Pause",
+    scrubberLabel: "Seek",
+    elapsedLabel: "Elapsed time",
+    durationLabel: "Total time",
+    skipBack: "Skip back {seconds} seconds",
+    skipForward: "Skip forward {seconds} seconds",
+    chapterOf: "Chapter {index} of {count}",
 
-    exitFullscreen: 'Exit full screen',
-    enterFullscreen: 'Full screen',
-    pictureInPicture: 'Picture in picture',
-    lyrics: 'Lyrics',
-    lyricsLanguage: 'Lyrics language',
-    loading: 'Loading',
+    exitFullscreen: "Exit full screen",
+    enterFullscreen: "Full screen",
+    pictureInPicture: "Picture in picture",
+    lyrics: "Lyrics",
+    lyricsLanguage: "Lyrics language",
+    loading: "Loading",
 
-    audioMenuLabel: 'Audio',
-    qualityLabel: 'Quality',
-    qualityAuto: 'Auto',
-    languageLabel: 'Language',
-    captionsLabel: 'Captions',
-    volumeUp: 'Volume up',
-    volumeDown: 'Volume down',
-    subtitlesMenuLabel: 'Subtitles',
-    subtitlesOff: 'Off',
+    audioMenuLabel: "Audio",
+    qualityLabel: "Quality",
+    qualityAuto: "Auto",
+    languageLabel: "Language",
+    captionsLabel: "Captions",
+    volumeUp: "Volume up",
+    volumeDown: "Volume down",
+    subtitlesMenuLabel: "Subtitles",
+    subtitlesOff: "Off",
 
-    videoModeLabel: 'Play video',
-    audioModeLabel: 'Play audio only',
+    videoModeLabel: "Play video",
+    audioModeLabel: "Play audio only",
 
-    chapters: 'Chapters',
-    upNext: 'Up next',
-    browse: 'Chapters and up next',
-    closeBrowse: 'Close',
+    chapters: "Chapters",
+    upNext: "Up next",
+    browse: "Chapters and up next",
+    closeBrowse: "Close",
 
-    nextUp: 'Up next',
-    dismiss: 'Dismiss',
+    nextUp: "Up next",
+    dismiss: "Dismiss",
 
-    speedLabel: 'Speed',
-    live: 'Live',
-    sleepTimer: 'Sleep timer',
-    sleepOff: 'Off',
-    sleepMinutes: '{minutes} minutes',
-    sleepEndOfChapter: 'End of chapter',
-    sleepLeft: '{minutes} min left',
+    speedLabel: "Speed",
+    live: "Live",
+    sleepTimer: "Sleep timer",
+    sleepOff: "Off",
+    sleepMinutes: "{minutes} minutes",
+    sleepEndOfChapter: "End of chapter",
+    sleepLeft: "{minutes} min left",
 };
 
 /**
@@ -194,7 +195,7 @@ export const DEFAULT_MESSAGES: PlayerMessages = {
  * require.
  */
 export function formatSeconds(template: string, seconds: number): string {
-    return template.replace('{seconds}', String(seconds));
+    return template.replace("{seconds}", String(seconds));
 }
 
 /**
@@ -206,7 +207,7 @@ export function mergeMessages(partial?: Partial<PlayerMessages>): PlayerMessages
     const merged = { ...DEFAULT_MESSAGES };
     for (const key of Object.keys(DEFAULT_MESSAGES) as (keyof PlayerMessages)[]) {
         const value = partial[key];
-        if (typeof value === 'string') merged[key] = value;
+        if (typeof value === "string") merged[key] = value;
     }
     return merged;
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { ThumbnailSpriteCue } from '@luminary-media-converter/player-core';
+import { computed } from "vue";
+import type { ThumbnailSpriteCue } from "@luminary-media-converter/player-core";
 
 /**
  * The strip of frames shown under the timeline while it is held: the stretch of the video around the
@@ -34,11 +34,11 @@ function tileStyle(tile: { left: number }) {
 function frameStyle(cue: ThumbnailSpriteCue) {
     if (!cue.w || !cue.h) {
         return {
-            width: '100%',
-            height: '100%',
+            width: "100%",
+            height: "100%",
             backgroundImage: `url("${cue.spriteUrl}")`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            backgroundSize: "cover",
+            backgroundPosition: "center",
         };
     }
     return {
@@ -46,16 +46,16 @@ function frameStyle(cue: ThumbnailSpriteCue) {
         height: `${cue.h}px`,
         backgroundImage: `url("${cue.spriteUrl}")`,
         backgroundPosition: `-${cue.x}px -${cue.y}px`,
-        backgroundRepeat: 'no-repeat',
+        backgroundRepeat: "no-repeat",
         transform: `scale(${props.height / cue.h})`,
-        transformOrigin: 'top left',
+        transformOrigin: "top left",
     };
 }
 
 const rosterStyle = computed(() => ({
     bottom: `${props.bottom}px`,
     height: `${props.height}px`,
-    '--lmpl-marker': `${props.markerX}px`,
+    "--lmpl-marker": `${props.markerX}px`,
 }));
 
 const markerStyle = computed(() => ({ left: `${props.markerX}px` }));
@@ -68,10 +68,22 @@ const markerStyle = computed(() => ({ left: `${props.markerX}px` }));
         :style="rosterStyle"
         :aria-hidden="interactive ? undefined : 'true'"
     >
-        <div v-for="tile in tiles" :key="tile.key" class="lmpl-roster-tile" :style="tileStyle(tile)">
-            <div v-if="tile.cue" class="lmpl-roster-frame" :style="frameStyle(tile.cue)"></div>
+        <div
+            v-for="tile in tiles"
+            :key="tile.key"
+            class="lmpl-roster-tile"
+            :style="tileStyle(tile)"
+        >
+            <div
+                v-if="tile.cue"
+                class="lmpl-roster-frame"
+                :style="frameStyle(tile.cue)"
+            ></div>
         </div>
         <div class="lmpl-roster-vignette"></div>
-        <div class="lmpl-roster-marker" :style="markerStyle"></div>
+        <div
+            class="lmpl-roster-marker"
+            :style="markerStyle"
+        ></div>
     </div>
 </template>

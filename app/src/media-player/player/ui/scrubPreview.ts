@@ -11,7 +11,10 @@ export const SCRUB_SLOP_PX = 18;
 export const SCRUB_EDGE_PX = 8;
 
 /** Where `clientX` falls along `rect`, 0–1, or null when the bar has no width to measure against. */
-export function pointerRatio(clientX: number, rect: { left: number; width: number }): number | null {
+export function pointerRatio(
+    clientX: number,
+    rect: { left: number; width: number },
+): number | null {
     if (!(rect.width > 0)) return null;
     return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
 }
@@ -21,7 +24,7 @@ export function isOnBar(
     clientX: number,
     clientY: number,
     rect: { left: number; right: number; top: number; bottom: number },
-    slop = SCRUB_SLOP_PX
+    slop = SCRUB_SLOP_PX,
 ): boolean {
     return (
         rect.right > rect.left &&
@@ -61,8 +64,10 @@ export function formatClock(seconds: number, withHours: boolean): string {
     const h = Math.floor(total / 3600);
     const m = Math.floor(total / 60) % 60;
     const s = total % 60;
-    const ss = String(s).padStart(2, '0');
-    return withHours ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${Math.floor(total / 60)}:${ss}`;
+    const ss = String(s).padStart(2, "0");
+    return withHours
+        ? `${h}:${String(m).padStart(2, "0")}:${ss}`
+        : `${Math.floor(total / 60)}:${ss}`;
 }
 
 /**
@@ -104,7 +109,7 @@ export function rosterTiles(
     width: number,
     tileWidth: number,
     step: number,
-    duration: number
+    duration: number,
 ): RosterTile[] {
     if (!(width > 0) || !(tileWidth > 0) || !(step > 0) || !(duration > 0)) return [];
     const pxPerSecond = tileWidth / step;

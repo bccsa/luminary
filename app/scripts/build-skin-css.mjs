@@ -11,47 +11,47 @@
  * Writes `src/generated/skin.css`, which `LuminaryPlayer.vue` imports. Run before every build and before the
  * demo; it is not committed.
  */
-import { build, transform } from 'esbuild';
-import { PurgeCSS } from 'purgecss';
-import postcss from 'postcss';
-import selectorParser from 'postcss-selector-parser';
-import { createRequire } from 'node:module';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { build, transform } from "esbuild";
+import { PurgeCSS } from "purgecss";
+import postcss from "postcss";
+import selectorParser from "postcss-selector-parser";
+import { createRequire } from "node:module";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(HERE, '..');
+const ROOT = join(HERE, "..");
 const require = createRequire(import.meta.url);
 
-const skinPath = require.resolve('@videojs/html/video/skin.css');
-const skin = readFileSync(skinPath, 'utf8');
+const skinPath = require.resolve("@videojs/html/video/skin.css");
+const skin = readFileSync(skinPath, "utf8");
 
 /** The controls as they render, with every option on, so no rule an option would need is dropped. */
 async function renderControls() {
     const bundled = await build({
-        entryPoints: [join(ROOT, 'src/ui/controlsHtml.ts')],
+        entryPoints: [join(ROOT, "src/ui/controlsHtml.ts")],
         bundle: true,
-        format: 'esm',
-        platform: 'node',
+        format: "esm",
+        platform: "node",
         write: false,
     });
     const code = bundled.outputFiles[0].text;
-    const mod = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+    const mod = await import(`data:text/javascript;base64,${Buffer.from(code).toString("base64")}`);
     return mod.buildControlsHtml(
         { audioMenu: true, subtitlesMenu: true, skipBackSeconds: 10, skipForwardSeconds: 10 },
-        'skin'
+        "skin",
     );
 }
 
-const read = (rel) => readFileSync(join(ROOT, rel), 'utf8');
+const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
 
 /**
  * What this player is: the default theme, the video preset. The skin has rules for others, which PurgeCSS cannot
  * tell apart because they differ by attribute, and which this player can never match.
  */
-const THEME = 'default';
-const PRESET = 'video';
+const THEME = "default";
+const PRESET = "video";
 
 /**
  * Drops the selectors for any other theme or preset, and strips the two attributes this player always has
@@ -69,9 +69,9 @@ function narrowToThisPlayer(css) {
                 let foreign = false;
                 selector.walkAttributes((attr) => {
                     const name = attr.attribute.trim();
-                    const value = (attr.value ?? '').replace(/["']/g, '');
-                    if (name === 'data-theme' && value !== THEME) foreign = true;
-                    if (name === 'data-preset' && value !== PRESET) foreign = true;
+                    const value = (attr.value ?? "").replace(/["']/g, "");
+                    if (name === "data-theme" && value !== THEME) foreign = true;
+                    if (name === "data-preset" && value !== PRESET) foreign = true;
                 });
                 if (foreign) {
                     selector.remove();
@@ -79,22 +79,32 @@ function narrowToThisPlayer(css) {
                 }
                 selector.walkAttributes((attr) => {
                     const name = attr.attribute.trim();
-                    const value = (attr.value ?? '').replace(/["']/g, '');
-                    if ((name === 'data-theme' && value === THEME) || (name === 'data-preset' && value === PRESET)) attr.remove();
+                    const value = (attr.value ?? "").replace(/["']/g, "");
+                    if (
+                        (name === "data-theme" && value === THEME) ||
+                        (name === "data-preset" && value === PRESET)
+                    )
+                        attr.remove();
                 });
                 kept++;
             });
         });
         rule.selector = transformer.processSync(rule.selector);
-        if (kept === 0 || rule.selector.trim() === '') rule.remove();
+        if (kept === 0 || rule.selector.trim() === "") rule.remove();
     });
     // A block left with nothing in it.
     root.walkAtRules((at) => {
-        if (at.nodes && at.nodes.length === 0 && /^(media|container|supports|layer)$/.test(at.name) && at.params) at.remove();
+        if (
+            at.nodes &&
+            at.nodes.length === 0 &&
+            /^(media|container|supports|layer)$/.test(at.name) &&
+            at.params
+        )
+            at.remove();
     });
     return root.toString();
 }
-const safelist = JSON.parse(read('scripts/skin-css-safelist.json'));
+const safelist = JSON.parse(read("scripts/skin-css-safelist.json"));
 
 /**
  * Only the markup of a component, without its comments. PurgeCSS matches on every word it finds, so the
@@ -102,16 +112,16 @@ const safelist = JSON.parse(read('scripts/skin-css-safelist.json'));
  */
 const templateOf = (rel) => {
     const text = read(rel);
-    const body = text.slice(text.indexOf('<template>'), text.lastIndexOf('</template>'));
-    return body.replace(/<!--[\s\S]*?-->/g, '');
+    const body = text.slice(text.indexOf("<template>"), text.lastIndexOf("</template>"));
+    return body.replace(/<!--[\s\S]*?-->/g, "");
 };
 
 const content = [
-    { raw: await renderControls(), extension: 'html' },
-    { raw: templateOf('src/components/LuminaryPlayer.vue'), extension: 'html' },
-    { raw: templateOf('src/components/ScrubThumbnail.vue'), extension: 'html' },
+    { raw: await renderControls(), extension: "html" },
+    { raw: templateOf("src/components/LuminaryPlayer.vue"), extension: "html" },
+    { raw: templateOf("src/components/ScrubThumbnail.vue"), extension: "html" },
     // What the browser and the elements add themselves.
-    { raw: `<div class="${safelist.classes.join(' ')}"></div>`, extension: 'html' },
+    { raw: `<div class="${safelist.classes.join(" ")}"></div>`, extension: "html" },
 ];
 
 const [purged] = await new PurgeCSS().purge({
@@ -124,11 +134,13 @@ const [purged] = await new PurgeCSS().purge({
     variables: false,
 });
 
-const min = await transform(purged.css, { loader: 'css', minify: true });
+const min = await transform(purged.css, { loader: "css", minify: true });
 
-const out = join(ROOT, 'src/generated/skin.css');
+const out = join(ROOT, "src/generated/skin.css");
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, min.code);
 
 const kb = (n) => (n / 1024).toFixed(1);
-console.log(`skin.css: ${kb(skin.length)} kB -> ${kb(min.code.length)} kB (${Math.round((min.code.length / skin.length) * 100)}%)`);
+console.log(
+    `skin.css: ${kb(skin.length)} kB -> ${kb(min.code.length)} kB (${Math.round((min.code.length / skin.length) * 100)}%)`,
+);

@@ -1,10 +1,10 @@
 /** What of a `VTTCue` the lift reads and writes; a plain object stands in for one in tests. */
 export interface LiftableCue {
-    line: number | 'auto';
+    line: number | "auto";
     snapToLines: boolean;
 }
 
-type Placement = Pick<LiftableCue, 'line' | 'snapToLines'>;
+type Placement = Pick<LiftableCue, "line" | "snapToLines">;
 
 /**
  * The share of the picture's height one line of subtitles takes, at least. Browsers draw subtitles in a font of
@@ -30,7 +30,11 @@ export function liftLine(barHeight: number, frameHeight: number): number | null 
  * alike (Chrome ignores a cue's line alignment, which a percentage line depends on). Only cues left to the browser's
  * own placement move: one its author placed (at the top, say) stays.
  */
-export function liftCues(cues: Iterable<LiftableCue>, line: number | null, saved: WeakMap<LiftableCue, Placement>): void {
+export function liftCues(
+    cues: Iterable<LiftableCue>,
+    line: number | null,
+    saved: WeakMap<LiftableCue, Placement>,
+): void {
     for (const cue of cues) {
         const original = saved.get(cue);
         if (line === null) {
@@ -41,7 +45,7 @@ export function liftCues(cues: Iterable<LiftableCue>, line: number | null, saved
             continue;
         }
         if (!original) {
-            if (cue.line !== 'auto') continue;
+            if (cue.line !== "auto") continue;
             saved.set(cue, { line: cue.line, snapToLines: cue.snapToLines });
         }
         cue.snapToLines = true;

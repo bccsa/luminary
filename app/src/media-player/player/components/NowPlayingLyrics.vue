@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
-import { activeLyric, type LyricCue } from '../ui/lyrics';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { activeLyric, type LyricCue } from "../ui/lyrics";
 
 /**
  * The words of what plays, in the picture's place on the now-playing screen: the line being sung large and bright,
@@ -30,7 +30,7 @@ const MAX_BEHIND_S = 0.3;
 const clock = ref(props.currentTime);
 let reported = { time: props.currentTime, at: 0 };
 let frame = 0;
-const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+const now = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
 function tick(): void {
     frame = 0;
     if (!props.playing) return;
@@ -41,7 +41,8 @@ function tick(): void {
 function run(): void {
     if (frame) cancelAnimationFrame(frame);
     frame = 0;
-    if (props.playing && typeof requestAnimationFrame === 'function') frame = requestAnimationFrame(tick);
+    if (props.playing && typeof requestAnimationFrame === "function")
+        frame = requestAnimationFrame(tick);
 }
 watch(
     () => props.currentTime,
@@ -52,7 +53,7 @@ watch(
         reported = { time: start, at: now() };
         clock.value = start;
     },
-    { immediate: true }
+    { immediate: true },
 );
 watch(() => props.playing, run, { immediate: true });
 onBeforeUnmount(() => {
@@ -70,12 +71,13 @@ const touched = (): void => {
 
 function follow(smooth: boolean): void {
     const list = listEl.value;
-    const line = list?.querySelectorAll<HTMLElement>('[data-lyric]')[active.value];
+    const line = list?.querySelectorAll<HTMLElement>("[data-lyric]")[active.value];
     if (!list || !line) return;
     if (performance.now() - touchedAt < HANDS_OFF_MS) return;
-    const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduce =
+        typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
     const top = line.offsetTop - list.clientHeight / 2 + line.offsetHeight / 2;
-    list.scrollTo?.({ top: Math.max(0, top), behavior: smooth && !reduce ? 'smooth' : 'auto' });
+    list.scrollTo?.({ top: Math.max(0, top), behavior: smooth && !reduce ? "smooth" : "auto" });
 }
 
 watch(active, async () => {
@@ -84,12 +86,12 @@ watch(active, async () => {
 });
 // An equal list handed over again (a text track re-read on every cue change) leaves the scroll where it is.
 watch(
-    () => props.lines.map((line) => `${line.start}\u0000${line.text}`).join('\u0001'),
+    () => props.lines.map((line) => `${line.start}\u0000${line.text}`).join("\u0001"),
     async () => {
         await nextTick();
         follow(false);
     },
-    { immediate: true }
+    { immediate: true },
 );
 onBeforeUnmount(() => {
     touchedAt = -Infinity;
@@ -106,7 +108,10 @@ onBeforeUnmount(() => {
         @touchstart.passive="touched"
         @pointerdown="touched"
     >
-        <li v-for="(line, i) in lines" :key="`${line.start}-${i}`">
+        <li
+            v-for="(line, i) in lines"
+            :key="`${line.start}-${i}`"
+        >
             <button
                 type="button"
                 class="lmpl-afs-lyric"

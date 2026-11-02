@@ -94,21 +94,25 @@ export const DEFAULT_CONTROLS: PlayerControlsOptions = {
  * `NaN` would travel into `seek()` and strand the video, and seeking backwards
  * from the forward button is not a configuration anyone means.
  */
-export function mergeControls(
-    partial?: Partial<PlayerControlsOptions>
-): PlayerControlsOptions {
+export function mergeControls(partial?: Partial<PlayerControlsOptions>): PlayerControlsOptions {
     const merged = { ...DEFAULT_CONTROLS };
     if (!partial) return merged;
 
-    for (const key of ['audioMenu', 'subtitlesMenu', 'windowedControls', 'scrubRoster', 'scrubPicture'] as const) {
+    for (const key of [
+        "audioMenu",
+        "subtitlesMenu",
+        "windowedControls",
+        "scrubRoster",
+        "scrubPicture",
+    ] as const) {
         const value = partial[key];
-        if (typeof value === 'boolean') {
+        if (typeof value === "boolean") {
             merged[key] = value;
         }
     }
-    for (const key of ['skipBackSeconds', 'skipForwardSeconds'] as const) {
+    for (const key of ["skipBackSeconds", "skipForwardSeconds"] as const) {
         const value = partial[key];
-        if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+        if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
             merged[key] = value;
         }
     }

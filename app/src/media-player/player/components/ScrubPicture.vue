@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import type { ThumbnailSpriteCue } from '@luminary-media-converter/player-core';
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import type { ThumbnailSpriteCue } from "@luminary-media-converter/player-core";
 
 /**
  * The scrubbed frame filling a picture while the timeline is held. A crop of a sheet cannot be `cover`ed
@@ -21,7 +21,7 @@ function measure(): void {
 
 onMounted(() => {
     measure();
-    if (typeof ResizeObserver !== 'undefined' && root.value) {
+    if (typeof ResizeObserver !== "undefined" && root.value) {
         observer = new ResizeObserver(measure);
         observer.observe(root.value);
     }
@@ -32,12 +32,12 @@ const frameStyle = computed(() => {
     const cue = props.cue;
     if (!cue.w || !cue.h) {
         return {
-            width: '100%',
-            height: '100%',
+            width: "100%",
+            height: "100%",
             backgroundImage: `url("${cue.spriteUrl}")`,
-            backgroundSize: 'contain',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
+            backgroundSize: "contain",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
         };
     }
     const scale =
@@ -49,15 +49,21 @@ const frameStyle = computed(() => {
         height: `${cue.h}px`,
         backgroundImage: `url("${cue.spriteUrl}")`,
         backgroundPosition: `-${cue.x}px -${cue.y}px`,
-        backgroundRepeat: 'no-repeat',
+        backgroundRepeat: "no-repeat",
         transform: `scale(${scale})`,
-        transformOrigin: 'center',
+        transformOrigin: "center",
     };
 });
 </script>
 
 <template>
-    <div ref="root" class="lmpl-scrub-picture">
-        <div class="lmpl-scrub-picture-frame" :style="frameStyle"></div>
+    <div
+        ref="root"
+        class="lmpl-scrub-picture"
+    >
+        <div
+            class="lmpl-scrub-picture-frame"
+            :style="frameStyle"
+        ></div>
     </div>
 </template>

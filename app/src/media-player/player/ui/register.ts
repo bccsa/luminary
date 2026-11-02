@@ -8,43 +8,43 @@
  * Every tag `controlsHtml.ts` and `LuminaryPlayer.vue` write must be named here: an unregistered one is just an
  * inert tag, which is how the skip buttons once came to do nothing. A test walks the live page for exactly that.
  */
-import '@videojs/html/video/player';
-import '@videojs/html/media/hlsjs-video';
+import "@videojs/html/video/player";
+import "@videojs/html/media/hlsjs-video";
 
-import '@videojs/html/ui/container';
-import '@videojs/html/ui/controls';
-import '@videojs/html/ui/controls-backdrop';
-import '@videojs/html/ui/controls-content';
-import '@videojs/html/ui/gesture';
+import "@videojs/html/ui/container";
+import "@videojs/html/ui/controls";
+import "@videojs/html/ui/controls-backdrop";
+import "@videojs/html/ui/controls-content";
+import "@videojs/html/ui/gesture";
 
-import '@videojs/html/ui/play-button';
-import '@videojs/html/ui/seek-button';
-import '@videojs/html/ui/mute-button';
-import '@videojs/html/ui/fullscreen-button';
-import '@videojs/html/ui/pip-button';
-import '@videojs/html/ui/cast-button';
-import '@videojs/html/ui/airplay-button';
+import "@videojs/html/ui/play-button";
+import "@videojs/html/ui/seek-button";
+import "@videojs/html/ui/mute-button";
+import "@videojs/html/ui/fullscreen-button";
+import "@videojs/html/ui/pip-button";
+import "@videojs/html/ui/cast-button";
+import "@videojs/html/ui/airplay-button";
 
-import '@videojs/html/ui/time';
-import '@videojs/html/ui/time-slider';
-import '@videojs/html/ui/volume-slider';
-import '@videojs/html/ui/volume-popover';
-import '@videojs/html/ui/slider-track';
-import '@videojs/html/ui/slider-fill';
-import '@videojs/html/ui/slider-buffer';
-import '@videojs/html/ui/slider-preview';
-import '@videojs/html/ui/slider-value';
+import "@videojs/html/ui/time";
+import "@videojs/html/ui/time-slider";
+import "@videojs/html/ui/volume-slider";
+import "@videojs/html/ui/volume-popover";
+import "@videojs/html/ui/slider-track";
+import "@videojs/html/ui/slider-fill";
+import "@videojs/html/ui/slider-buffer";
+import "@videojs/html/ui/slider-preview";
+import "@videojs/html/ui/slider-value";
 
-import '@videojs/html/ui/menu';
-import '@videojs/html/ui/menu-content';
-import '@videojs/html/ui/menu-radio-item';
-import '@videojs/html/ui/menu-item-indicator';
-import '@videojs/html/ui/quality-radio-group';
-import '@videojs/html/ui/audio-track-radio-group';
-import '@videojs/html/ui/playback-rate-radio-group';
-import '@videojs/html/ui/captions-radio-group';
+import "@videojs/html/ui/menu";
+import "@videojs/html/ui/menu-content";
+import "@videojs/html/ui/menu-radio-item";
+import "@videojs/html/ui/menu-item-indicator";
+import "@videojs/html/ui/quality-radio-group";
+import "@videojs/html/ui/audio-track-radio-group";
+import "@videojs/html/ui/playback-rate-radio-group";
+import "@videojs/html/ui/captions-radio-group";
 
-import { captionsOffIcon, captionsOnIcon } from '@videojs/html/icons/compat';
+import { captionsOffIcon, captionsOnIcon } from "@videojs/html/icons/compat";
 import {
     airPlayEnterIcon,
     airPlayExitIcon,
@@ -64,7 +64,7 @@ import {
     volumeHighIcon,
     volumeLowIcon,
     volumeOffIcon,
-} from '@videojs/html/icons';
+} from "@videojs/html/icons";
 
 /**
  * The language that is heard: headphones. The language glyph read as a text tool to people who had not met it, so
@@ -75,34 +75,34 @@ const AUDIO_LANGUAGE_PATHS =
 const LANGUAGE_ICON =
     '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     AUDIO_LANGUAGE_PATHS +
-    '</svg>';
+    "</svg>";
 
 /** Leaving full screen: an X, which people find where a corners glyph was missed. */
 const CLOSE_ICON =
     '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l9 9M13.5 4.5l-9 9"/></svg>';
 
 /** The icon names `controlsHtml.ts` writes as `<media-icon name="…">`. */
-registerIcons('default', {
-    'airplay-enter': airPlayEnterIcon,
-    'airplay-exit': airPlayExitIcon,
+registerIcons("default", {
+    "airplay-enter": airPlayEnterIcon,
+    "airplay-exit": airPlayExitIcon,
     // "CC", as YouTube draws it: outlined while off, filled while a track is on.
-    'captions-off': captionsOffIcon,
-    'captions-on': captionsOnIcon,
+    "captions-off": captionsOffIcon,
+    "captions-on": captionsOnIcon,
     check: checkIcon,
     close: CLOSE_ICON,
-    'cast-enter': castEnterIcon,
-    'cast-exit': castExitIcon,
-    'fullscreen-enter': fullscreenEnterIcon,
-    'fullscreen-exit': fullscreenExitIcon,
+    "cast-enter": castEnterIcon,
+    "cast-exit": castExitIcon,
+    "fullscreen-enter": fullscreenEnterIcon,
+    "fullscreen-exit": fullscreenExitIcon,
     pause: pauseIcon,
-    'pip-enter': pipEnterIcon,
-    'pip-exit': pipExitIcon,
+    "pip-enter": pipEnterIcon,
+    "pip-exit": pipExitIcon,
     play: playIcon,
     restart: restartIcon,
     language: LANGUAGE_ICON,
     speed: speedIcon,
     switches: switchesIcon,
-    'volume-high': volumeHighIcon,
-    'volume-low': volumeLowIcon,
-    'volume-off': volumeOffIcon,
+    "volume-high": volumeHighIcon,
+    "volume-low": volumeLowIcon,
+    "volume-off": volumeOffIcon,
 });

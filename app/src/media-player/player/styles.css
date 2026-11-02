@@ -435,7 +435,7 @@
 /* The controls are white, so a bright picture needs something dark under them: a fade that rises
    from the bottom edge to above the timeline, drawn behind the controls and out of the pointer's way. */
 .lmpl-bottom::before {
-    content: '';
+    content: "";
     position: absolute;
     z-index: -1;
     left: 0;
@@ -797,7 +797,13 @@
             rgb(8 8 10 / 0.35) calc(var(--lmpl-marker) + 22%),
             rgb(8 8 10 / 0.78)
         ),
-        linear-gradient(to bottom, rgb(0 0 0 / 0.28), transparent 35%, transparent 70%, rgb(0 0 0 / 0.4));
+        linear-gradient(
+            to bottom,
+            rgb(0 0 0 / 0.28),
+            transparent 35%,
+            transparent 70%,
+            rgb(0 0 0 / 0.4)
+        );
 }
 
 .lmpl-roster-marker {
@@ -868,7 +874,7 @@
 }
 
 .lmpl-root.lmpl-scrub-bar .lmpl-time-slider::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 50%;
     left: calc(var(--lmpl-scrub-at, 0) * 100%);
@@ -917,7 +923,7 @@
 }
 
 .lmpl-scrub-picture::after {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
     background: repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.14) 0 1px, transparent 1px 3px);
@@ -1027,7 +1033,7 @@
     cursor: pointer;
 }
 
-.lmpl-root .lmpl-browse-tab[aria-selected='true'] {
+.lmpl-root .lmpl-browse-tab[aria-selected="true"] {
     border-bottom-color: #fff;
     color: #fff;
 }
@@ -1083,8 +1089,8 @@
     background: rgb(255 255 255 / 0.1);
 }
 
-.lmpl-chapter[aria-current='true'],
-.lmpl-upnext[aria-current='true'] {
+.lmpl-chapter[aria-current="true"],
+.lmpl-upnext[aria-current="true"] {
     background: rgb(255 255 255 / 0.14);
     font-weight: 700;
 }
@@ -1347,7 +1353,7 @@
 }
 
 .lmpl-afs-bg::after {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
     background: linear-gradient(to bottom, rgb(8 10 14 / 0.6), rgb(8 10 14 / 0.86));
@@ -1362,7 +1368,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+    padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 0
+        max(16px, env(safe-area-inset-left));
     flex: none;
 }
 
@@ -1396,7 +1403,7 @@
     cursor: pointer;
 }
 
-.lmpl-afs-iconbtn[aria-expanded='true'],
+.lmpl-afs-iconbtn[aria-expanded="true"],
 .lmpl-afs-iconbtn:active {
     background: rgb(255 255 255 / 0.14);
 }
@@ -1426,7 +1433,7 @@
     color: #fff;
 }
 .lmpl-afs-on::after {
-    content: '';
+    content: "";
     position: absolute;
     bottom: 6px;
     left: 50%;
@@ -1459,7 +1466,8 @@
     flex-direction: column;
     gap: 14px;
     min-height: 0;
-    padding: 8px max(24px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+    padding: 8px max(24px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom))
+        max(24px, env(safe-area-inset-left));
 }
 
 .lmpl-afs-art {
@@ -1653,7 +1661,7 @@
 /* The seek bar: thick and round, with no thumb, as the controls' own; cut at the chapters by the mask when wide. */
 /* A finger's height to press, past the bar's own: the layout keeps the bar's. */
 .lmpl-afs-bar::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: calc(-7px * var(--lmpl-s)) 0;
 }
@@ -1713,7 +1721,7 @@
 }
 
 .lmpl-afs-bar-open::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 50%;
     left: var(--lmpl-afs-at, 0%);
@@ -1771,7 +1779,7 @@
     height: 100%;
 }
 /* The triangle's weight sits left of its box: moved right so it looks centred in its disc, as the player's is. */
-.lmpl-afs-playbtn .media-button-icon[name='play'] {
+.lmpl-afs-playbtn .media-button-icon[name="play"] {
     translate: 8% 0;
 }
 
@@ -1862,8 +1870,8 @@
     }
 }
 
-.lmpl-afs-menuitem[aria-checked='true']::after {
-    content: '✓';
+.lmpl-afs-menuitem[aria-checked="true"]::after {
+    content: "✓";
     font-weight: 700;
 }
 
@@ -1945,7 +1953,9 @@
 /* The picture sits at the top of its place and the host's subtitles under it, in a band the size of two lines. */
 .lmpl-afs-captions .lmpl-afs-art {
     aspect-ratio: auto;
-    height: calc((100cqw - 2 * var(--lmpl-stage-gutter, 0px)) / var(--lmpl-stage-ar, 16 / 9) + 64px);
+    height: calc(
+        (100cqw - 2 * var(--lmpl-stage-gutter, 0px)) / var(--lmpl-stage-ar, 16 / 9) + 64px
+    );
 }
 .lmpl-afs-captions .lmpl-afs-art {
     background: transparent;
@@ -2025,7 +2035,6 @@
     height: 56px;
     touch-action: none;
 }
-
 
 /* Lyrics in the cover's place: the line being sung bright and large, the rest dim, fading out at both ends. */
 .lmpl-afs-art.lmpl-afs-art-lyrics {
@@ -2117,7 +2126,9 @@
     overflow-wrap: anywhere;
     opacity: 0.36;
     cursor: pointer;
-    transition: opacity 0.15s, transform 0.15s;
+    transition:
+        opacity 0.15s,
+        transform 0.15s;
     transform-origin: left center;
 }
 .lmpl-afs-lyric.lmpl-afs-lyric-now {
@@ -2235,7 +2246,7 @@
     }
 
     /* The sound's screen on its side has no switch to the picture at the top: turning the phone upright brings it back. */
-    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-topend [role='group'] {
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-topend [role="group"] {
         display: none;
     }
 

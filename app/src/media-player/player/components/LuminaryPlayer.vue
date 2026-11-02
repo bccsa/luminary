@@ -8,16 +8,16 @@
  * packaged skin's control set is fixed: it has no skip buttons, no way to leave a menu out and no
  * bare windowed frame. The default skin's stylesheet still draws the buttons, icons and menus.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 // The elements and icons the controls use, and no others; see the module for why not the packaged skin.
-import '../ui/register';
+import "../ui/register";
 import {
     AUDIO_ONLY_ANGLE_ID,
     PlayerController,
     chapterIndexAt,
     chapterSegments,
     findPreferredTrack,
-} from '@luminary-media-converter/player-core';
+} from "@luminary-media-converter/player-core";
 import type {
     Chapter,
     PlayerControllerApi,
@@ -26,21 +26,26 @@ import type {
     PlayerSource,
     SleepTimerOption,
     ThumbnailSpriteCue,
-} from '@luminary-media-converter/player-core';
-import { HlsJsVideoAdapter } from '../adapter/HlsJsVideoAdapter';
-import type { HlsJsVideoElement } from '../adapter/hlsTypes';
-import { BlobServeStrategy } from '../serve/BlobServeStrategy';
-import { usePlayerState } from '../composables/usePlayerState';
-import { mergeMessages, type PlayerMessages } from '../messages';
-import { mergeControls, type PlayerControlsOptions } from '../controls';
-import { createKeepAlive, SILENT_AUDIO_DATA_URI, type KeepAlive } from '../ui/keepAlive';
-import { buildControlsHtml } from '../ui/controlsHtml';
-import { installAutoHide, type ControlsStore } from '../ui/autoHide';
-import { stepVolume } from '../ui/volume';
-import { liftCues, liftLine, type LiftableCue } from '../ui/cueLift';
-import { cuesToLyrics, type LyricCue } from '../ui/lyrics';
-import { chapterMask, formatChapterOf } from '../ui/chapterBar';
-import { attachControlTooltips, clampTooltipLeft, showOnTop, type Tooltip } from '../ui/controlTooltip';
+} from "@luminary-media-converter/player-core";
+import { HlsJsVideoAdapter } from "../adapter/HlsJsVideoAdapter";
+import type { HlsJsVideoElement } from "../adapter/hlsTypes";
+import { BlobServeStrategy } from "../serve/BlobServeStrategy";
+import { usePlayerState } from "../composables/usePlayerState";
+import { mergeMessages, type PlayerMessages } from "../messages";
+import { mergeControls, type PlayerControlsOptions } from "../controls";
+import { createKeepAlive, SILENT_AUDIO_DATA_URI, type KeepAlive } from "../ui/keepAlive";
+import { buildControlsHtml } from "../ui/controlsHtml";
+import { installAutoHide, type ControlsStore } from "../ui/autoHide";
+import { stepVolume } from "../ui/volume";
+import { liftCues, liftLine, type LiftableCue } from "../ui/cueLift";
+import { cuesToLyrics, type LyricCue } from "../ui/lyrics";
+import { chapterMask, formatChapterOf } from "../ui/chapterBar";
+import {
+    attachControlTooltips,
+    clampTooltipLeft,
+    showOnTop,
+    type Tooltip,
+} from "../ui/controlTooltip";
 import {
     SCRUB_EDGE_PX,
     clampPreviewCentre,
@@ -51,17 +56,17 @@ import {
     rosterFineStep,
     rosterStep,
     rosterTiles,
-} from '../ui/scrubPreview';
-import { TimelineScrub } from '../ui/timelineScrub';
-import ScrubThumbnail from './ScrubThumbnail.vue';
-import ScrubRoster from './ScrubRoster.vue';
-import ScrubPicture from './ScrubPicture.vue';
-import NextUpThumb from './NextUpThumb.vue';
-import AudioFullscreen from './AudioFullscreen.vue';
-import BrowsePanel from './BrowsePanel.vue';
-import { imageAttempts, toPlayerImage, type PlayerImageInput } from '../image';
-import { isYouTubeUrl } from '../youtube';
-import type { PlayerUpNextItem } from '../upNext';
+} from "../ui/scrubPreview";
+import { TimelineScrub } from "../ui/timelineScrub";
+import ScrubThumbnail from "./ScrubThumbnail.vue";
+import ScrubRoster from "./ScrubRoster.vue";
+import ScrubPicture from "./ScrubPicture.vue";
+import NextUpThumb from "./NextUpThumb.vue";
+import AudioFullscreen from "./AudioFullscreen.vue";
+import BrowsePanel from "./BrowsePanel.vue";
+import { imageAttempts, toPlayerImage, type PlayerImageInput } from "../image";
+import { isYouTubeUrl } from "../youtube";
+import type { PlayerUpNextItem } from "../upNext";
 
 interface Props {
     /** What to play. Assigning a new object reloads the player. */
@@ -78,7 +83,7 @@ interface Props {
      * this says — it is what fullscreen is for, and a cropped picture there would lose the edges of a screen-shaped
      * view. Set on the element's own `<video>`, which lives in its shadow DOM and so cannot be reached by a host's CSS.
      */
-    windowedFit?: 'contain' | 'cover';
+    windowedFit?: "contain" | "cover";
     /**
      * Keeps the browser from drawing the subtitles on the picture while it is windowed, for a host that shows the words
      * itself (see `subtitleCues`). Fullscreen draws them as usual, since the host's own place for them is out of view.
@@ -101,7 +106,7 @@ interface Props {
      */
     nowPlaying?: { title: string; subtitle?: string; eyebrow?: string; artwork?: PlayerImageInput };
     /** The host's theme, for the fullscreen audio screen: `light` takes the picture's colour over the whole screen, `dark` stays plain with a glow behind the picture. */
-    appearance?: 'light' | 'dark';
+    appearance?: "light" | "dark";
     /** Audio language to select automatically; a viewer's own choice outranks it. */
     preferredLanguage?: string;
     /** Options handed to the default `PlayerController`. */
@@ -154,17 +159,22 @@ const instanceId = `lmpl-${Math.random().toString(36).slice(2, 9)}`;
 /** The preview frame at a time, for the chapters' pictures. */
 const chapterThumbnailAt = (seconds: number) => controller.value?.thumbnailAt(seconds) ?? null;
 const controlsHtml = computed(() =>
-    buildControlsHtml(mergedControls.value, instanceId, {
-        browse: msg.value.browse,
-        quality: msg.value.qualityLabel,
-        audio: msg.value.languageLabel,
-        speed: msg.value.speedLabel,
-        captions: msg.value.captionsLabel,
-        volumeUp: msg.value.volumeUp,
-        volumeDown: msg.value.volumeDown,
-    },
-    props.nowPlaying?.title ? { title: props.nowPlaying.title, subtitle: props.nowPlaying.subtitle } : undefined
-    )
+    buildControlsHtml(
+        mergedControls.value,
+        instanceId,
+        {
+            browse: msg.value.browse,
+            quality: msg.value.qualityLabel,
+            audio: msg.value.languageLabel,
+            speed: msg.value.speedLabel,
+            captions: msg.value.captionsLabel,
+            volumeUp: msg.value.volumeUp,
+            volumeDown: msg.value.volumeDown,
+        },
+        props.nowPlaying?.title
+            ? { title: props.nowPlaying.title, subtitle: props.nowPlaying.subtitle }
+            : undefined,
+    ),
 );
 
 /**
@@ -172,12 +182,14 @@ const controlsHtml = computed(() =>
  * answers neither: the host's own interface is the transport, and a frame that also answered clicks
  * would be a second one. Fullscreen has no other transport, so it answers both.
  */
-const gesturesOn = computed(() => (mergedControls.value.windowedControls || isFullscreen.value) && !audioFullscreen.value);
+const gesturesOn = computed(
+    () => (mergedControls.value.windowedControls || isFullscreen.value) && !audioFullscreen.value,
+);
 
 const UNSUPPORTED_YOUTUBE: PlayerError = {
-    code: 'media',
+    code: "media",
     fatal: true,
-    message: 'YouTube sources are not supported by the Video.js 10 player yet',
+    message: "YouTube sources are not supported by the Video.js 10 player yet",
 };
 const sourceError = shallowRef<PlayerError | null>(null);
 
@@ -254,7 +266,7 @@ watch(
         if (!preferred || id === autoAppliedTrackId) return;
         if (id === findPreferredTrack(tracks, preferred)) return;
         preferredSuspended = true;
-    }
+    },
 );
 
 watch([() => state.value.audioTracks, () => props.preferredLanguage], applyPreferredLanguage);
@@ -291,13 +303,15 @@ function onEngineTextTrackChange(): void {
     const tracks = mediaEl.value?.textTracks;
     if (isYouTube.value || !instance || !tracks) return;
     // The sound alone hands the engine no subtitles: their absence is not the viewer turning them off (the lyrics keep theirs).
-    if (!Array.from(tracks).some((track) => track.kind === 'subtitles')) return;
+    if (!Array.from(tracks).some((track) => track.kind === "subtitles")) return;
     let showing: string | null = null;
     for (const track of tracks) {
-        if (track.kind === 'subtitles' && track.mode === 'showing') {
+        if (track.kind === "subtitles" && track.mode === "showing") {
             // A track of the master is named as the controller names it, so a host's menu marks the same one.
             const named = state.value.subtitleTracks.find(
-                (t) => t.source === 'master' && (t.label === track.label || (!!t.lang && t.lang === track.language))
+                (t) =>
+                    t.source === "master" &&
+                    (t.label === track.label || (!!t.lang && t.lang === track.language)),
             );
             showing = named?.id ?? (track.id || null);
             break;
@@ -319,17 +333,17 @@ let textTrackList: EventTarget | undefined;
  * controller, and the player's state would go on saying English.
  */
 function bindTrackLists(): void {
-    audioTrackList?.removeEventListener('change', onEngineAudioTrackChange);
-    textTrackList?.removeEventListener('change', onEngineTextTrackChange);
-    textTrackList?.removeEventListener('change', placeCues);
-    textTrackList?.removeEventListener('addtrack', placeCues);
+    audioTrackList?.removeEventListener("change", onEngineAudioTrackChange);
+    textTrackList?.removeEventListener("change", onEngineTextTrackChange);
+    textTrackList?.removeEventListener("change", placeCues);
+    textTrackList?.removeEventListener("addtrack", placeCues);
     const media = mediaEl.value;
     audioTrackList = media?.audioTracks as unknown as EventTarget | undefined;
     textTrackList = media?.textTracks as unknown as EventTarget | undefined;
-    audioTrackList?.addEventListener('change', onEngineAudioTrackChange);
-    textTrackList?.addEventListener('change', onEngineTextTrackChange);
-    textTrackList?.addEventListener('change', placeCues);
-    textTrackList?.addEventListener('addtrack', placeCues);
+    audioTrackList?.addEventListener("change", onEngineAudioTrackChange);
+    textTrackList?.addEventListener("change", onEngineTextTrackChange);
+    textTrackList?.addEventListener("change", placeCues);
+    textTrackList?.addEventListener("addtrack", placeCues);
 }
 
 /** The name of the control the pointer rests on, or that the keyboard has reached; see ui/controlTooltip.ts. */
@@ -350,11 +364,12 @@ watch(
         el.style.left = `${frame.left + clampTooltipLeft(tip.centre, el.offsetWidth, container.clientWidth)}px`;
         el.style.bottom = `${document.documentElement.clientHeight - frame.bottom + tip.bottom}px`;
     },
-    { flush: 'post' }
+    { flush: "post" },
 );
 
 onMounted(() => {
-    if (containerEl.value) removeTooltips = attachControlTooltips(containerEl.value, (tip) => (tooltip.value = tip));
+    if (containerEl.value)
+        removeTooltips = attachControlTooltips(containerEl.value, (tip) => (tooltip.value = tip));
     const media = mediaEl.value;
     if (!media) return;
 
@@ -362,59 +377,66 @@ onMounted(() => {
         media.addEventListener(type, handler);
         mediaListeners.push([type, handler]);
     };
-    on('play', () => {
+    on("play", () => {
         keepAlive?.sync(true);
         // Played some other way (a key, the lock screen): the scrub has nothing left to hold still.
         if (timelineScrub.isOpen) timelineScrub.reset();
     });
-    on('playing', () => {
+    on("playing", () => {
         keepAlive?.sync(true);
         mediaWaiting.value = false;
     });
-    on('waiting', () => (mediaWaiting.value = true));
-    on('canplay', () => (mediaWaiting.value = false));
-    on('pause', () => keepAlive?.sync(false));
-    on('ended', () => {
+    on("waiting", () => (mediaWaiting.value = true));
+    on("canplay", () => (mediaWaiting.value = false));
+    on("pause", () => keepAlive?.sync(false));
+    on("ended", () => {
         keepAlive?.sync(false);
         // First, so a host sees the advance coming before it reacts to the end (e.g. leaving fullscreen).
         if (props.nextUp?.length && isFullscreen.value && !nextUpClosed.value) selectNextUp();
-        emit('ended');
+        emit("ended");
     });
-    on('timeupdate', () => emit('timeupdate', media.currentTime || 0, media.duration || 0));
-    on('loadedmetadata', () => {
+    on("timeupdate", () => emit("timeupdate", media.currentTime || 0, media.duration || 0));
+    on("loadedmetadata", () => {
         readPictureInPicture();
-        emit('loadedmetadata');
+        emit("loadedmetadata");
     });
-    on('loadeddata', applyPreferredLanguage);
+    on("loadeddata", applyPreferredLanguage);
 
     keepAlive = createKeepAlive(keepAliveEl.value);
 
-    on('loadstart', bindTrackLists);
+    on("loadstart", bindTrackLists);
     bindTrackLists();
     applyFit();
-    on('loadstart', applyFit);
+    on("loadstart", applyFit);
 
     const frame = playerEl.value;
-    if (frame && typeof ResizeObserver !== 'undefined') {
+    if (frame && typeof ResizeObserver !== "undefined") {
         frameObserver = new ResizeObserver(([entry]) => {
             if (entry) frameWidth.value = entry.contentRect.width;
         });
         frameObserver.observe(frame);
     }
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
     if (containerEl.value) {
         removeAutoHide = installAutoHide(
             containerEl.value,
             store,
             undefined,
-            () => pin.value !== null || browseOpen.value || nextUpHasFocus()
+            () => pin.value !== null || browseOpen.value || nextUpHasFocus(),
         );
         controlsObserver = new MutationObserver(readControlsShown);
-        controlsObserver.observe(containerEl.value, { attributes: true, attributeFilter: [CONTROLS_VISIBLE_ATTR] });
+        controlsObserver.observe(containerEl.value, {
+            attributes: true,
+            attributeFilter: [CONTROLS_VISIBLE_ATTR],
+        });
         readControlsShown();
         castObserver = new MutationObserver(readCastAvailable);
-        castObserver.observe(containerEl.value, { attributes: true, subtree: true, attributeFilter: ['data-availability'] });
+        castObserver.observe(containerEl.value, {
+            attributes: true,
+            subtree: true,
+            attributeFilter: ["data-availability"],
+        });
         readCastAvailable();
     }
     void loadSource(props.source);
@@ -425,13 +447,13 @@ watch(
     (lifecycle) => {
         // A fatal error is not a transport event: `pause` never fires, and the silence would
         // loop on holding an audio session open for playback that has stopped existing.
-        if (lifecycle === 'error') keepAlive?.sync(false);
-    }
+        if (lifecycle === "error") keepAlive?.sync(false);
+    },
 );
 
 watch(
     () => props.source,
-    (next) => void loadSource(next)
+    (next) => void loadSource(next),
 );
 
 onBeforeUnmount(() => {
@@ -439,12 +461,12 @@ onBeforeUnmount(() => {
     removeTooltips = null;
     for (const [type, handler] of mediaListeners) mediaEl.value?.removeEventListener(type, handler);
     mediaListeners.length = 0;
-    audioTrackList?.removeEventListener('change', onEngineAudioTrackChange);
-    textTrackList?.removeEventListener('change', onEngineTextTrackChange);
-    textTrackList?.removeEventListener('change', placeCues);
-    textTrackList?.removeEventListener('addtrack', placeCues);
-    document.removeEventListener('fullscreenchange', onFullscreenChange);
-    document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
+    audioTrackList?.removeEventListener("change", onEngineAudioTrackChange);
+    textTrackList?.removeEventListener("change", onEngineTextTrackChange);
+    textTrackList?.removeEventListener("change", placeCues);
+    textTrackList?.removeEventListener("addtrack", placeCues);
+    document.removeEventListener("fullscreenchange", onFullscreenChange);
+    document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
     removeAutoHide?.();
     removeAutoHide = null;
     controlsObserver?.disconnect();
@@ -461,11 +483,11 @@ onBeforeUnmount(() => {
 
 // --- error surface --------------------------------------------------------
 
-const ERROR_MESSAGE_KEYS: Partial<Record<PlayerError['code'], keyof PlayerMessages>> = {
-    'unsupported-browser': 'errorUnsupportedBrowser',
-    'key-required': 'errorKeyRequired',
-    network: 'errorNetwork',
-    media: 'errorMedia',
+const ERROR_MESSAGE_KEYS: Partial<Record<PlayerError["code"], keyof PlayerMessages>> = {
+    "unsupported-browser": "errorUnsupportedBrowser",
+    "key-required": "errorKeyRequired",
+    network: "errorNetwork",
+    media: "errorMedia",
 };
 
 const displayedError = computed(() => sourceError.value ?? state.value.error);
@@ -491,37 +513,46 @@ interface PlayerStore extends ControlsStore {
     setMuted(muted: boolean): boolean;
 }
 
-const store = (): PlayerStore | undefined => (playerEl.value as unknown as { store?: PlayerStore } | null)?.store;
+const store = (): PlayerStore | undefined =>
+    (playerEl.value as unknown as { store?: PlayerStore } | null)?.store;
 
 /** The `<video>` the element renders into; see {@link HlsJsVideoAdapter}'s own lookup for why it is found this way. */
 function innerVideo(): HTMLVideoElement | null {
-    const el = mediaEl.value as unknown as { target?: HTMLVideoElement | null; shadowRoot?: ShadowRoot | null } | null;
-    return el?.target ?? el?.shadowRoot?.querySelector('video') ?? null;
+    const el = mediaEl.value as unknown as {
+        target?: HTMLVideoElement | null;
+        shadowRoot?: ShadowRoot | null;
+    } | null;
+    return el?.target ?? el?.shadowRoot?.querySelector("video") ?? null;
 }
 
 function applyFit(): void {
     const video = innerVideo();
-    if (video) video.style.objectFit = isFullscreen.value ? 'contain' : (props.windowedFit ?? 'contain');
+    if (video)
+        video.style.objectFit = isFullscreen.value ? "contain" : (props.windowedFit ?? "contain");
 }
 
 watch([isFullscreen, () => props.windowedFit], applyFit);
 
 /** The browser's own subtitle drawing sits in the `<video>`'s shadow DOM too, so the rule that hides it goes there. */
-const CUES_HIDDEN_CLASS = 'lmpl-cues-hidden';
+const CUES_HIDDEN_CLASS = "lmpl-cues-hidden";
 function applyCaptionsHidden(): void {
     const video = innerVideo();
     if (!video) return;
     const root = video.getRootNode();
     const holder = root instanceof ShadowRoot ? root : document.head;
-    if (!holder.querySelector('style[data-lmpl-cues]')) {
-        const style = document.createElement('style');
-        style.dataset.lmplCues = '';
+    if (!holder.querySelector("style[data-lmpl-cues]")) {
+        const style = document.createElement("style");
+        style.dataset.lmplCues = "";
         style.textContent = `video.${CUES_HIDDEN_CLASS}::cue { opacity: 0; }`;
         holder.appendChild(style);
     }
     video.classList.toggle(CUES_HIDDEN_CLASS, !!props.captionsHidden && !isFullscreen.value);
 }
-watch([isFullscreen, () => props.captionsHidden, () => state.value.subtitleTracks.length], applyCaptionsHidden, { flush: 'post' });
+watch(
+    [isFullscreen, () => props.captionsHidden, () => state.value.subtitleTracks.length],
+    applyCaptionsHidden,
+    { flush: "post" },
+);
 
 function onFullscreenChange(): void {
     const doc = document as Document & { webkitFullscreenElement?: Element | null };
@@ -530,12 +561,20 @@ function onFullscreenChange(): void {
     const fullscreenElement = doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
     isFullscreen.value =
         fullscreenElement !== null &&
-        !(fullscreenElement instanceof Element && fullscreenElement.closest('[data-lmpl-host-screen]'));
+        !(
+            fullscreenElement instanceof Element &&
+            fullscreenElement.closest("[data-lmpl-host-screen]")
+        );
     // Fullscreen is always landscape: portrait is the host app's own page. A guarded no-op where the
     // browser cannot lock (iOS Safari), and the lock is let go when fullscreen ends.
-    const orientation = (screen as Screen & { orientation?: { lock?: (type: string) => Promise<void>; unlock?: () => void } }).orientation;
+    const orientation = (
+        screen as Screen & {
+            orientation?: { lock?: (type: string) => Promise<void>; unlock?: () => void };
+        }
+    ).orientation;
     // Sound alone has no picture to turn: the fullscreen audio screen has a portrait layout of its own.
-    if (isFullscreen.value && !isAudioOnly.value) void orientation?.lock?.('landscape')?.catch(() => {});
+    if (isFullscreen.value && !isAudioOnly.value)
+        void orientation?.lock?.("landscape")?.catch(() => {});
     else if (!isFullscreen.value) orientation?.unlock?.();
     // A control clicked in fullscreen keeps focus once the bare frame hides it again, and a focused
     // control swallows every key but Tab: the host's shortcuts would stay dead until something else
@@ -551,16 +590,19 @@ function onFullscreenChange(): void {
  * Raising the volume of a muted player unmutes it, which is what pressing plus means.
  */
 function onControlsClick(event: MouseEvent): void {
-    if (event.target instanceof Element && event.target.closest('[data-browse-toggle]')) {
+    if (event.target instanceof Element && event.target.closest("[data-browse-toggle]")) {
         toggleBrowse();
         return;
     }
-    const target = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-volume-step]') : null;
+    const target =
+        event.target instanceof Element
+            ? event.target.closest<HTMLElement>("[data-volume-step]")
+            : null;
     const player = store();
     if (!target || !player) return;
     const media = mediaEl.value;
     if (!media) return;
-    const direction = target.dataset.volumeStep === '-1' ? -1 : 1;
+    const direction = target.dataset.volumeStep === "-1" ? -1 : 1;
     // Read and written on the element, which is the truth: the store follows it a moment later, and a
     // press in that moment would step from a volume that is already out of date, or ask the store to unmute
     // a player it believes is not muted.
@@ -575,7 +617,7 @@ function onControlsClick(event: MouseEvent): void {
  */
 function onFrameDoubleClick(event: MouseEvent): void {
     const target = event.target instanceof Element ? event.target : null;
-    if (target?.closest('.lmpl-cluster, .lmpl-bottom, .media-popup, .lmpl-roster')) return;
+    if (target?.closest(".lmpl-cluster, .lmpl-bottom, .media-popup, .lmpl-roster")) return;
     if (isFullscreen.value) exitFullscreen();
     else void enterFullscreen();
 }
@@ -630,11 +672,13 @@ function pause(): void {
 const isAudioOnly = computed(
     () =>
         controller.value !== null &&
-        (state.value.isAudioOnly || state.value.activeAngleId === AUDIO_ONLY_ANGLE_ID)
+        (state.value.isAudioOnly || state.value.activeAngleId === AUDIO_ONLY_ANGLE_ID),
 );
 
 /** Fullscreen with only sound playing, and something to say about it: the now-playing screen takes over. */
-const audioFullscreen = computed(() => isFullscreen.value && isAudioOnly.value && !!props.nowPlaying?.title);
+const audioFullscreen = computed(
+    () => isFullscreen.value && isAudioOnly.value && !!props.nowPlaying?.title,
+);
 
 // --- scrub preview ----------------------------------------------------------
 
@@ -674,30 +718,32 @@ const scrub = shallowRef<ScrubState | null>(null);
 function chapterTitleAt(time: number): string {
     const chapters = state.value.chapters;
     const index = chapterIndexAt(chapters, time);
-    return index < 0 ? '' : (chapters[index]?.title ?? '');
+    return index < 0 ? "" : (chapters[index]?.title ?? "");
 }
 
 /** The timeline cut at the chapter starts; one plain bar when there are fewer than two chapters. */
-const chapterBarMask = computed(() => chapterMask(chapterSegments(state.value.chapters, state.value.duration)));
+const chapterBarMask = computed(() =>
+    chapterMask(chapterSegments(state.value.chapters, state.value.duration)),
+);
 
 /** "Chapter 4 of 7" above the timeline, for the chapter the playhead is in; nothing without chapters. */
 const chapterNowText = computed(() => {
     const chapters = state.value.chapters;
-    if (chapters.length < 2) return '';
+    if (chapters.length < 2) return "";
     const index = chapterIndexAt(chapters, state.value.currentTime);
-    if (index < 0) return '';
-    const title = chapters[index]?.title ?? '';
-    return `${formatChapterOf(msg.value.chapterOf, index + 1, chapters.length)}${title ? ` · ${title}` : ''}`;
+    if (index < 0) return "";
+    const title = chapters[index]?.title ?? "";
+    return `${formatChapterOf(msg.value.chapterOf, index + 1, chapters.length)}${title ? ` · ${title}` : ""}`;
 });
 watch(
     chapterNowText,
     (text) => {
-        const el = containerEl.value?.querySelector<HTMLElement>('.lmpl-chapter-now');
+        const el = containerEl.value?.querySelector<HTMLElement>(".lmpl-chapter-now");
         if (!el) return;
         el.textContent = text;
         el.hidden = !text;
     },
-    { flush: 'post' }
+    { flush: "post" },
 );
 
 /**
@@ -767,8 +813,13 @@ function endScrub(event?: PointerEvent): void {
     resumeFromScrub();
     // A press that opened the roster leaves it open: the viewer lifted a finger to look, not to be done.
     const roster = scrub.value?.roster;
-    if (roster && event?.type === 'pointerup') {
-        pin.value = { bottom: roster.bottom, labelBottom: roster.labelBottom, gap: roster.gap, markerX: roster.markerX };
+    if (roster && event?.type === "pointerup") {
+        pin.value = {
+            bottom: roster.bottom,
+            labelBottom: roster.labelBottom,
+            gap: roster.gap,
+            markerX: roster.markerX,
+        };
         pinAnchor.value = scrub.value?.time ?? null;
         armAnchorTimeout();
     }
@@ -785,22 +836,22 @@ function endScrub(event?: PointerEvent): void {
 const timelineScrub = new TimelineScrub((effect) => {
     const media = mediaEl.value;
     switch (effect.kind) {
-        case 'open':
-            if (effect.mode === 'strip') openPinAtPlayhead();
+        case "open":
+            if (effect.mode === "strip") openPinAtPlayhead();
             else barScrub.value = true;
             break;
-        case 'close':
+        case "close":
             putAwayPin();
             barScrub.value = false;
             barDragAt.value = null;
             break;
-        case 'pause':
+        case "pause":
             media?.pause();
             break;
-        case 'play':
+        case "play":
             void media?.play();
             break;
-        case 'seek':
+        case "seek":
             pinAnchor.value = effect.time;
             armAnchorTimeout();
             seek(effect.time);
@@ -821,12 +872,17 @@ const TOUCH_DRAG_SLOP_PX = 8;
 let touchPress: { id: number; x: number; y: number; dragging: boolean } | null = null;
 
 function isTouch(event: PointerEvent): boolean {
-    return event.pointerType === 'touch' || event.pointerType === 'pen';
+    return event.pointerType === "touch" || event.pointerType === "pen";
 }
 
 function framesReady(): boolean {
     const duration = mediaEl.value?.duration ?? NaN;
-    return state.value.thumbnailsReady && mergedControls.value.scrubRoster && Number.isFinite(duration) && duration > 0;
+    return (
+        state.value.thumbnailsReady &&
+        mergedControls.value.scrubRoster &&
+        Number.isFinite(duration) &&
+        duration > 0
+    );
 }
 
 function isPlaying(): boolean {
@@ -847,9 +903,9 @@ const scrubAt = computed(() => {
  */
 function followTouch(event: PointerEvent): boolean {
     const container = containerEl.value;
-    const slider = container?.querySelector<HTMLElement>('.lmpl-time-slider');
+    const slider = container?.querySelector<HTMLElement>(".lmpl-time-slider");
     if (!container || !slider) return false;
-    if (event.type === 'pointerdown') {
+    if (event.type === "pointerdown") {
         const onBar = isOnBar(event.clientX, event.clientY, slider.getBoundingClientRect());
         if (isTouch(event) && onBar) {
             const duration = mediaEl.value?.duration ?? NaN;
@@ -858,13 +914,18 @@ function followTouch(event: PointerEvent): boolean {
             event.stopPropagation();
             event.preventDefault();
             container.setPointerCapture?.(event.pointerId);
-            touchPress = { id: event.pointerId, x: event.clientX, y: event.clientY, dragging: false };
+            touchPress = {
+                id: event.pointerId,
+                x: event.clientX,
+                y: event.clientY,
+                dragging: false,
+            };
             timelineScrub.touchBegan();
             return true;
         }
         if (timelineScrub.isOpen && !onBar) {
             // Play, which shows beside the thick bar, closes it and plays; anywhere else closes it and plays on.
-            if (event.target instanceof Element && event.target.closest('.lmpl-play')) {
+            if (event.target instanceof Element && event.target.closest(".lmpl-play")) {
                 event.stopPropagation();
                 event.preventDefault();
                 timelineScrub.playPressed();
@@ -875,13 +936,16 @@ function followTouch(event: PointerEvent): boolean {
         return false;
     }
     if (!touchPress || event.pointerId !== touchPress.id) return false;
-    if (!touchPress.dragging && Math.hypot(event.clientX - touchPress.x, event.clientY - touchPress.y) > TOUCH_DRAG_SLOP_PX) {
+    if (
+        !touchPress.dragging &&
+        Math.hypot(event.clientX - touchPress.x, event.clientY - touchPress.y) > TOUCH_DRAG_SLOP_PX
+    ) {
         touchPress.dragging = true;
         timelineScrub.dragBegan(framesReady(), isPlaying());
         scrubbing = true;
     }
     if (!touchPress.dragging) return true;
-    if (timelineScrub.mode === 'bar') {
+    if (timelineScrub.mode === "bar") {
         barDragAt.value = pointerRatio(event.clientX, slider.getBoundingClientRect());
         return true;
     }
@@ -893,10 +957,10 @@ function endTouch(event: PointerEvent): boolean {
     const press = touchPress;
     if (!press || event.pointerId !== press.id) return false;
     touchPress = null;
-    const slider = containerEl.value?.querySelector<HTMLElement>('.lmpl-time-slider');
+    const slider = containerEl.value?.querySelector<HTMLElement>(".lmpl-time-slider");
     const duration = mediaEl.value?.duration ?? NaN;
     if (!press.dragging) {
-        if (event.type === 'pointerup') timelineScrub.tapped(framesReady(), isPlaying());
+        if (event.type === "pointerup") timelineScrub.tapped(framesReady(), isPlaying());
         return true;
     }
     scrubbing = false;
@@ -907,7 +971,7 @@ function endTouch(event: PointerEvent): boolean {
     if (roster && pin.value) pin.value = { ...pin.value, markerX: roster.markerX };
     hideScrub();
     barDragAt.value = null;
-    if (event.type === 'pointerup' && ratio !== null && Number.isFinite(duration) && duration > 0) {
+    if (event.type === "pointerup" && ratio !== null && Number.isFinite(duration) && duration > 0) {
         timelineScrub.dragEnded(Math.min(ratio * duration, Math.max(0, duration - 0.001)));
     } else {
         timelineScrub.dragCancelled();
@@ -918,7 +982,7 @@ function endTouch(event: PointerEvent): boolean {
 /** The strip opened by a tap: its marker over the playhead, where the bar's fill ends. */
 function openPinAtPlayhead(): void {
     const container = containerEl.value;
-    const slider = container?.querySelector<HTMLElement>('.lmpl-time-slider');
+    const slider = container?.querySelector<HTMLElement>(".lmpl-time-slider");
     const media = mediaEl.value;
     if (!container || !slider || !media || !(media.duration > 0)) return;
     const bar = slider.getBoundingClientRect();
@@ -930,7 +994,10 @@ function openPinAtPlayhead(): void {
         bottom: 0,
         gap: frame.bottom - bar.bottom,
         markerX: bar.left - frame.left + ratio * bar.width,
-        labelBottom: frame.bottom - (bar.top - (rosterHeight.value - TRACK_INSET_PX * controlsScale(slider))) + LABEL_GAP_PX,
+        labelBottom:
+            frame.bottom -
+            (bar.top - (rosterHeight.value - TRACK_INSET_PX * controlsScale(slider))) +
+            LABEL_GAP_PX,
     };
     pinAnchor.value = null;
 }
@@ -945,13 +1012,14 @@ function openPinAtPlayhead(): void {
  */
 function updateScrub(event: PointerEvent): void {
     // The pinned roster is dragged by its own handlers; what happens on it is not a press on the timeline.
-    if (event.target instanceof Element && event.target.closest('.lmpl-roster')) return;
+    if (event.target instanceof Element && event.target.closest(".lmpl-roster")) return;
     if (followTouch(event)) return;
     const container = containerEl.value;
-    const slider = container?.querySelector<HTMLElement>('.lmpl-time-slider');
+    const slider = container?.querySelector<HTMLElement>(".lmpl-time-slider");
     const media = mediaEl.value;
     const instance = controller.value;
-    if (!container || !slider || !media || !instance || !state.value.thumbnailsReady) return hideScrub();
+    if (!container || !slider || !media || !instance || !state.value.thumbnailsReady)
+        return hideScrub();
 
     // Live has no length to scrub across.
     const duration = media.duration;
@@ -960,19 +1028,19 @@ function updateScrub(event: PointerEvent): void {
     const bar = slider.getBoundingClientRect();
     const onBar = isOnBar(event.clientX, event.clientY, bar);
     // A press anywhere but the roster and the timeline (the fast way, which the roster is there to refine) closes a pinned roster.
-    if (event.type === 'pointerdown' && pin.value && !onBar) closePin();
-    if (event.type === 'pointerdown' && onBar) {
+    if (event.type === "pointerdown" && pin.value && !onBar) closePin();
+    if (event.type === "pointerdown" && onBar) {
         scrubbing = true;
         pauseForScrub();
     }
-    if (!scrubbing && !slider.hasAttribute('data-dragging') && !onBar) return hideScrub();
+    if (!scrubbing && !slider.hasAttribute("data-dragging") && !onBar) return hideScrub();
 
     const ratio = pointerRatio(event.clientX, bar);
     if (ratio === null) return hideScrub();
     const { time, lookup } = previewTimes(ratio, duration);
 
     const frame = container.getBoundingClientRect();
-    const held = scrubbing || slider.hasAttribute('data-dragging');
+    const held = scrubbing || slider.hasAttribute("data-dragging");
     // With a roster pinned, hovering the bar has nothing to add: it is already showing the frames.
     if (pin.value && !held) return hideScrub();
     // The timeline slides up out of the way while held, so its resting position is read only when it is at rest.
@@ -985,7 +1053,15 @@ function updateScrub(event: PointerEvent): void {
     else heldGap ??= frame.bottom - restBarBottom;
     const roster =
         held && mergedControls.value.scrubRoster
-            ? buildRoster(instance, time, event.clientX - frame.left, frame.width, duration, rosterStep(duration), heldGap!)
+            ? buildRoster(
+                  instance,
+                  time,
+                  event.clientX - frame.left,
+                  frame.width,
+                  duration,
+                  rosterStep(duration),
+                  heldGap!,
+              )
             : null;
     scrub.value = {
         // A lookup that lands in a gap in the cues keeps the frame already on show: a preview that blanks
@@ -995,7 +1071,12 @@ function updateScrub(event: PointerEvent): void {
         chapter: chapterTitleAt(time),
         time,
         held,
-        left: clampPreviewCentre(event.clientX - frame.left, scrubWidth.value, SCRUB_EDGE_PX, frame.width - SCRUB_EDGE_PX),
+        left: clampPreviewCentre(
+            event.clientX - frame.left,
+            scrubWidth.value,
+            SCRUB_EDGE_PX,
+            frame.width - SCRUB_EDGE_PX,
+        ),
         bottom: frame.bottom - bar.top + SCRUB_GAP_PX,
         roster: roster && {
             tiles: roster.tiles,
@@ -1021,7 +1102,7 @@ const pictureCue = computed(() => {
 
 /** The controls' current scale, which grows with the player's width. */
 function controlsScale(el: Element): number {
-    return parseFloat(getComputedStyle(el).getPropertyValue('--lmpl-s')) || 1;
+    return parseFloat(getComputedStyle(el).getPropertyValue("--lmpl-s")) || 1;
 }
 
 /** Where the timeline's top and bottom edges sat before it made way for the roster. */
@@ -1041,7 +1122,7 @@ function buildRoster(
     width: number,
     duration: number,
     step: number,
-    gap: number
+    gap: number,
 ): {
     tiles: { key: string; left: number; cue: ThumbnailSpriteCue | null }[];
     markerX: number;
@@ -1064,7 +1145,6 @@ function buildRoster(
     return { tiles, markerX, tileWidth, height, step };
 }
 
-
 // --- pinned roster ------------------------------------------------------------
 
 /**
@@ -1073,7 +1153,12 @@ function buildRoster(
  * the picture shows the frame it is passing, and the video goes there when the finger comes up. A tap on a
  * frame goes to that frame. It stays until closed — a press outside it, a new source, or a change of layout.
  */
-const pin = shallowRef<{ bottom: number; labelBottom: number; gap: number; markerX: number } | null>(null);
+const pin = shallowRef<{
+    bottom: number;
+    labelBottom: number;
+    gap: number;
+    markerX: number;
+} | null>(null);
 
 /** How far a finger may wander and still be tapping a frame rather than dragging the strip: a fingertip is not a pin. */
 const PIN_TAP_SLOP_PX = 10;
@@ -1101,7 +1186,7 @@ watch(
     (open) => {
         cancelAnimationFrame(pinFrame);
         if (open) trackPlayhead();
-    }
+    },
 );
 onBeforeUnmount(() => cancelAnimationFrame(pinFrame));
 
@@ -1193,13 +1278,16 @@ function onPinUp(event: PointerEvent): void {
     const view = pinnedView.value;
     pinDrag.value = null;
     const touch = isTouch(event);
-    if (!drag || !view || event.type !== 'pointerup') return touch ? timelineScrub.dragCancelled() : resumeFromScrub();
+    if (!drag || !view || event.type !== "pointerup")
+        return touch ? timelineScrub.dragCancelled() : resumeFromScrub();
     let target = drag.time;
     if (!drag.moved) {
         // A tap: the frame under the finger, read off the strip's own scale.
         const frame = containerEl.value?.getBoundingClientRect();
         const duration = state.value.duration;
-        target = view.time + (event.clientX - (frame?.left ?? 0) - view.markerX) / (view.tileWidth / view.step);
+        target =
+            view.time +
+            (event.clientX - (frame?.left ?? 0) - view.markerX) / (view.tileWidth / view.step);
         target = Math.min(Math.max(0, target), Math.max(0, duration - 0.001));
     }
     if (touch) return timelineScrub.dragEnded(target);
@@ -1219,12 +1307,12 @@ watch(
         if (!ready) return;
         const first = controller.value?.thumbnailAt(0);
         if (first) new Image().src = first.spriteUrl;
-    }
+    },
 );
 
 watch(
     () => props.source,
-    () => hideScrub()
+    () => hideScrub(),
 );
 
 // --- chapters and up next ---------------------------------------------------
@@ -1243,7 +1331,7 @@ const currentChapter = computed(() => {
 });
 
 function toggleButton(): HTMLElement | null {
-    return containerEl.value?.querySelector<HTMLElement>('[data-browse-toggle]') ?? null;
+    return containerEl.value?.querySelector<HTMLElement>("[data-browse-toggle]") ?? null;
 }
 
 function openBrowse(): void {
@@ -1271,7 +1359,7 @@ function pickChapter(chapter: Chapter): void {
 
 function pickUpNext(id: string): void {
     startSwitching();
-    emit('upnextselect', id);
+    emit("upnextselect", id);
     closeBrowse();
 }
 
@@ -1285,7 +1373,7 @@ const mediaWaiting = ref(false);
  */
 const SWITCHING_LIMIT_MS = 15_000;
 const switching = ref(false);
-let switchingFrom = '';
+let switchingFrom = "";
 let switchingLimit: ReturnType<typeof setTimeout> | undefined;
 function startSwitching(): void {
     switching.value = true;
@@ -1296,11 +1384,11 @@ function startSwitching(): void {
 watch(
     () => [props.source.masterUrl, state.value.playing, state.value.lifecycle] as const,
     ([url, playing, lifecycle]) => {
-        if (switching.value && url !== switchingFrom && (playing || lifecycle === 'error')) {
+        if (switching.value && url !== switchingFrom && (playing || lifecycle === "error")) {
             switching.value = false;
             clearTimeout(switchingLimit);
         }
-    }
+    },
 );
 onBeforeUnmount(() => clearTimeout(switchingLimit));
 /**
@@ -1316,8 +1404,8 @@ const showsBusy = computed(
     () =>
         busy.value &&
         !audioFullscreen.value &&
-        state.value.lifecycle !== 'error' &&
-        (mergedControls.value.windowedControls || isFullscreen.value)
+        state.value.lifecycle !== "error" &&
+        (mergedControls.value.windowedControls || isFullscreen.value),
 );
 /**
  * A finite video whose length is not known yet: skipping, speed and the timeline wait for it, so a source that turns
@@ -1335,15 +1423,15 @@ watch([isFullscreen, hasBrowse, () => props.source], ([full, any]) => {
 watch(
     [browseOpen, controlsHtml],
     () => {
-        toggleButton()?.setAttribute('aria-expanded', String(browseOpen.value));
+        toggleButton()?.setAttribute("aria-expanded", String(browseOpen.value));
     },
-    { flush: 'post' }
+    { flush: "post" },
 );
 
 // --- up next card ------------------------------------------------------------
 
 /** Set by the container while its controls are up; the card rides above them, and sits at the edge without. */
-const CONTROLS_VISIBLE_ATTR = 'data-controls-visible';
+const CONTROLS_VISIBLE_ATTR = "data-controls-visible";
 const controlsShown = ref(false);
 let controlsObserver: MutationObserver | null = null;
 
@@ -1352,7 +1440,11 @@ let controlsObserver: MutationObserver | null = null;
 const castAvailable = ref(false);
 let castObserver: MutationObserver | null = null;
 const castButtons = (): HTMLElement[] =>
-    Array.from(containerEl.value?.querySelectorAll<HTMLElement>('media-cast-button, media-airplay-button') ?? []);
+    Array.from(
+        containerEl.value?.querySelectorAll<HTMLElement>(
+            "media-cast-button, media-airplay-button",
+        ) ?? [],
+    );
 // Picture in picture, asked of the browser for the element's own <video>: the skin's button reads it of the custom
 // element, which has no such method, and so says unavailable where the browser can.
 const canPictureInPicture = ref(false);
@@ -1366,21 +1458,26 @@ function readPictureInPicture(): void {
         !!video &&
         !isAudioOnly.value &&
         ((document.pictureInPictureEnabled && !video.disablePictureInPicture) ||
-            video.webkitSupportsPresentationMode?.('picture-in-picture') === true);
+            video.webkitSupportsPresentationMode?.("picture-in-picture") === true);
 }
 // A switch to sound alone, or back to the picture, changes the answer.
 watch(isAudioOnly, readPictureInPicture);
 function readCastAvailable(): void {
-    castAvailable.value = castButtons().some((button) => button.getAttribute('data-availability') === 'available');
+    castAvailable.value = castButtons().some(
+        (button) => button.getAttribute("data-availability") === "available",
+    );
 }
 function showCastPicker(): void {
-    castButtons().find((button) => button.getAttribute('data-availability') === 'available')?.click();
+    castButtons()
+        .find((button) => button.getAttribute("data-availability") === "available")
+        ?.click();
 }
 function startPictureInPicture(): void {
     const video = innerVideo() as PresentableVideo | null;
     if (!video) return;
-    if (document.pictureInPictureEnabled && !video.disablePictureInPicture) void video.requestPictureInPicture().catch(() => {});
-    else video.webkitSetPresentationMode?.('picture-in-picture');
+    if (document.pictureInPictureEnabled && !video.disablePictureInPicture)
+        void video.requestPictureInPicture().catch(() => {});
+    else video.webkitSetPresentationMode?.("picture-in-picture");
 }
 
 function readControlsShown(): void {
@@ -1392,7 +1489,8 @@ const nextUpClosed = ref(false);
 const nextUpEl = ref<HTMLElement | null>(null);
 
 const nextUpVisible = computed(() => {
-    if (!props.nextUp?.length || !isFullscreen.value || nextUpClosed.value || browseOpen.value) return false;
+    if (!props.nextUp?.length || !isFullscreen.value || nextUpClosed.value || browseOpen.value)
+        return false;
     const { duration, currentTime } = state.value;
     // Live and not-yet-known lengths have no end to count down to.
     if (!Number.isFinite(duration) || !(duration > 0)) return false;
@@ -1408,7 +1506,10 @@ const NEXT_UP_GAP_PX = 8;
  * picture, which it then keeps to the right of. Measured, not assumed, because what is under it depends on the
  * player's size and on whether a chapter line is showing.
  */
-const nextUpLayout = shallowRef<{ bottom: number | null; max: number | null }>({ bottom: null, max: null });
+const nextUpLayout = shallowRef<{ bottom: number | null; max: number | null }>({
+    bottom: null,
+    max: null,
+});
 
 function layoutNextUp(): void {
     const container = containerEl.value;
@@ -1416,18 +1517,31 @@ function layoutNextUp(): void {
     if (!container || !strip) return;
     const frame = container.getBoundingClientRect();
     const gap = NEXT_UP_GAP_PX * controlsScale(container);
-    const bar = container.querySelector<HTMLElement>('.lmpl-bottom');
+    const bar = container.querySelector<HTMLElement>(".lmpl-bottom");
     // Without the controls the strip rests on the bottom edge, where the stylesheet puts it.
-    const bottom = controlsShown.value && bar ? Math.max(0, frame.bottom - bar.getBoundingClientRect().top) + gap : null;
+    const bottom =
+        controlsShown.value && bar
+            ? Math.max(0, frame.bottom - bar.getBoundingClientRect().top) + gap
+            : null;
     const above = bottom ?? 2 * gap;
     const top = frame.bottom - above - strip.offsetHeight;
     // The cluster's box spans the picture; what must stay clear is its buttons.
     const buttons = controlsShown.value
-        ? [...container.querySelectorAll<HTMLElement>('.lmpl-cluster-centre > *')].map((el) => el.getBoundingClientRect()).filter((r) => r.width > 0)
+        ? [...container.querySelectorAll<HTMLElement>(".lmpl-cluster-centre > *")]
+              .map((el) => el.getBoundingClientRect())
+              .filter((r) => r.width > 0)
         : [];
-    const centre = buttons.length ? { bottom: Math.max(...buttons.map((r) => r.bottom)), right: Math.max(...buttons.map((r) => r.right)) } : undefined;
+    const centre = buttons.length
+        ? {
+              bottom: Math.max(...buttons.map((r) => r.bottom)),
+              right: Math.max(...buttons.map((r) => r.right)),
+          }
+        : undefined;
     // The strip is held to the right edge, so what is left of the buttons' right side is the room it may take.
-    const max = centre && top < centre.bottom + gap ? Math.max(0, strip.getBoundingClientRect().right - (centre.right + gap)) : null;
+    const max =
+        centre && top < centre.bottom + gap
+            ? Math.max(0, strip.getBoundingClientRect().right - (centre.right + gap))
+            : null;
     const next = { bottom, max };
     const now = nextUpLayout.value;
     if (now.bottom !== next.bottom || now.max !== next.max) nextUpLayout.value = next;
@@ -1440,37 +1554,42 @@ watch(
         await nextTick();
         layoutNextUp();
         nextUpObserver?.disconnect();
-        if (!nextUpEl.value || typeof ResizeObserver === 'undefined') return;
+        if (!nextUpEl.value || typeof ResizeObserver === "undefined") return;
         nextUpObserver ??= new ResizeObserver(layoutNextUp);
         nextUpObserver.observe(nextUpEl.value);
-        const bar = containerEl.value?.querySelector('.lmpl-bottom');
+        const bar = containerEl.value?.querySelector(".lmpl-bottom");
         if (bar) nextUpObserver.observe(bar);
         if (containerEl.value) nextUpObserver.observe(containerEl.value);
     },
-    { flush: 'post' }
+    { flush: "post" },
 );
 onBeforeUnmount(() => nextUpObserver?.disconnect());
 
 // --- subtitles clear of the controls ---------------------------------------
 
 /** Where each lifted cue sat before, to put it back; see ui/cueLift.ts. */
-const liftedCues = new WeakMap<LiftableCue, Pick<LiftableCue, 'line' | 'snapToLines'>>();
+const liftedCues = new WeakMap<LiftableCue, Pick<LiftableCue, "line" | "snapToLines">>();
 const cueTracks = new WeakSet<TextTrack>();
 let cueLine: number | null = null;
 
 /** While the bar is up, the subtitles rest on it rather than under it. */
 function placeCues(): void {
     const video = innerVideo();
-    const bar = controlsShown.value ? containerEl.value?.querySelector<HTMLElement>('.lmpl-bottom') : null;
+    const bar = controlsShown.value
+        ? containerEl.value?.querySelector<HTMLElement>(".lmpl-bottom")
+        : null;
     const frame = video?.getBoundingClientRect();
-    cueLine = bar && frame ? liftLine(frame.bottom - bar.getBoundingClientRect().top, frame.height) : null;
+    cueLine =
+        bar && frame
+            ? liftLine(frame.bottom - bar.getBoundingClientRect().top, frame.height)
+            : null;
     for (const track of Array.from(video?.textTracks ?? [])) {
         if (!cueTracks.has(track)) {
             cueTracks.add(track);
-            track.addEventListener('cuechange', onCueChange);
+            track.addEventListener("cuechange", onCueChange);
         }
         // A track that is not showing keeps nothing lifted, so it shows as authored when it is turned back on.
-        const line = track.mode === 'showing' ? cueLine : null;
+        const line = track.mode === "showing" ? cueLine : null;
         liftCues(Array.from(track.cues ?? []) as unknown as LiftableCue[], line, liftedCues);
     }
     readSubtitleCues();
@@ -1482,10 +1601,21 @@ function placeCues(): void {
  */
 const subtitleCues = shallowRef<LyricCue[]>([]);
 function readSubtitleCues(): void {
-    const track = Array.from(innerVideo()?.textTracks ?? []).find((t) => t.kind === 'subtitles' && t.mode !== 'disabled');
-    const next = cuesToLyrics(track?.cues as unknown as ArrayLike<{ startTime: number; endTime: number; text: string }> | null);
+    const track = Array.from(innerVideo()?.textTracks ?? []).find(
+        (t) => t.kind === "subtitles" && t.mode !== "disabled",
+    );
+    const next = cuesToLyrics(
+        track?.cues as unknown as ArrayLike<{
+            startTime: number;
+            endTime: number;
+            text: string;
+        }> | null,
+    );
     const now = subtitleCues.value;
-    if (next.length !== now.length || next.some((line, i) => line.start !== now[i]?.start || line.text !== now[i]?.text)) {
+    if (
+        next.length !== now.length ||
+        next.some((line, i) => line.start !== now[i]?.start || line.text !== now[i]?.text)
+    ) {
         subtitleCues.value = next;
     }
 }
@@ -1496,23 +1626,27 @@ function readSubtitleCues(): void {
  * the engine's.
  */
 const streamCues = shallowRef<readonly LyricCue[]>([]);
-watch([controller, () => state.value.subtitleTracks, () => state.value.activeSubtitleTrackId], ([owner, , id]) => {
-    streamCues.value = [];
-    if (!owner || !id) return;
-    void owner.readSubtitleCues(id).then((lines) => {
-        if (controller.value === owner && state.value.activeSubtitleTrackId === id) streamCues.value = lines;
-    });
-});
+watch(
+    [controller, () => state.value.subtitleTracks, () => state.value.activeSubtitleTrackId],
+    ([owner, , id]) => {
+        streamCues.value = [];
+        if (!owner || !id) return;
+        void owner.readSubtitleCues(id).then((lines) => {
+            if (controller.value === owner && state.value.activeSubtitleTrackId === id)
+                streamCues.value = lines;
+        });
+    },
+);
 
 /** hls.js adds a stream's cues as the video plays, after a lift: each one is placed as it comes up. */
 function onCueChange(event: Event): void {
     const track = event.target as TextTrack;
     readSubtitleCues();
-    if (cueLine === null || track.mode !== 'showing') return;
+    if (cueLine === null || track.mode !== "showing") return;
     liftCues(Array.from(track.activeCues ?? []) as unknown as LiftableCue[], cueLine, liftedCues);
 }
 
-watch([controlsShown, isFullscreen, frameWidth], placeCues, { flush: 'post' });
+watch([controlsShown, isFullscreen, frameWidth], placeCues, { flush: "post" });
 
 /** The card holds the controls up while the viewer is working it by keyboard. */
 function nextUpHasFocus(): boolean {
@@ -1525,7 +1659,7 @@ function selectNextUp(id?: string): void {
     if (!next || nextUpClosed.value) return;
     nextUpClosed.value = true;
     startSwitching();
-    emit('nextupselect', next);
+    emit("nextupselect", next);
 }
 
 /** Room for this many cards in the strip. */
@@ -1534,30 +1668,34 @@ const nextUpItems = computed(() => (props.nextUp ?? []).slice(0, NEXT_UP_MAX));
 function dismissNextUp(): void {
     if (nextUpClosed.value) return;
     nextUpClosed.value = true;
-    emit('nextupdismiss');
+    emit("nextupdismiss");
 }
 
 function onNextUpKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape') {
+    if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
         dismissNextUp();
         return;
     }
-    const cards = [...(nextUpEl.value?.querySelectorAll<HTMLElement>('.lmpl-nextup-card') ?? [])];
+    const cards = [...(nextUpEl.value?.querySelectorAll<HTMLElement>(".lmpl-nextup-card") ?? [])];
     const index = cards.findIndex((card) => card === document.activeElement);
     if (index < 0) return;
     const target =
-        event.key === 'ArrowRight' ? Math.min(cards.length - 1, index + 1)
-        : event.key === 'ArrowLeft' ? Math.max(0, index - 1)
-        : event.key === 'Home' ? 0
-        : event.key === 'End' ? cards.length - 1
-        : -1;
+        event.key === "ArrowRight"
+            ? Math.min(cards.length - 1, index + 1)
+            : event.key === "ArrowLeft"
+              ? Math.max(0, index - 1)
+              : event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? cards.length - 1
+                  : -1;
     if (target < 0) return;
     event.preventDefault();
     event.stopPropagation();
     cards[target]!.focus();
-    cards[target]!.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    cards[target]!.scrollIntoView?.({ block: "nearest", inline: "nearest" });
 }
 
 /** A vertical wheel scrolls the strip sideways, which a mouse has no other way to do. */
@@ -1572,7 +1710,7 @@ function onNextUpWheel(event: WheelEvent): void {
 watch(nextUpVisible, async (shown) => {
     if (!shown) return;
     await nextTick();
-    nextUpEl.value?.querySelector<HTMLElement>('.lmpl-nextup-strip')?.scrollTo?.({ left: 0 });
+    nextUpEl.value?.querySelector<HTMLElement>(".lmpl-nextup-strip")?.scrollTo?.({ left: 0 });
 });
 
 // A new video is a new offer; fullscreen itself is kept across the change.
@@ -1580,7 +1718,7 @@ watch(
     () => props.source,
     () => {
         nextUpClosed.value = false;
-    }
+    },
 );
 
 // --- artwork ----------------------------------------------------------------
@@ -1593,7 +1731,7 @@ watch(
     () => JSON.stringify(artworkAttempts.value),
     () => {
         artworkAttemptIndex.value = 0;
-    }
+    },
 );
 
 const artworkAttempt = computed(() => artworkAttempts.value[artworkAttemptIndex.value] ?? null);
@@ -1606,19 +1744,23 @@ function onArtworkError(): void {
 const artworkSizes = computed(() => {
     const given = artworkImage.value?.sizes;
     if (given) return given;
-    if (isFullscreen.value || frameWidth.value <= 0) return '100vw';
+    if (isFullscreen.value || frameWidth.value <= 0) return "100vw";
     return `${Math.round(frameWidth.value)}px`;
 });
 
 const showArtworkLayer = computed(() => isAudioOnly.value || artworkAttempt.value !== null);
 
 /** What the fullscreen audio screen draws as the cover: the picture that is showing now, fallbacks included. */
-const nowPlayingAttempt = computed(() => imageAttempts(toPlayerImage(props.nowPlaying?.artwork))[0] ?? null);
+const nowPlayingAttempt = computed(
+    () => imageAttempts(toPlayerImage(props.nowPlaying?.artwork))[0] ?? null,
+);
 const audioArtwork = computed(() => {
     const shown = artworkAttempt.value ?? nowPlayingAttempt.value;
     return shown ? { src: shown.src, srcset: shown.srcset } : null;
 });
-const audioChapterIndex = computed(() => chapterIndexAt(state.value.chapters, state.value.currentTime));
+const audioChapterIndex = computed(() =>
+    chapterIndexAt(state.value.chapters, state.value.currentTime),
+);
 
 // Volume and mute for a host that draws its own controls and keys: read off the element, which is the
 // truth (see onControlsClick), and set through the store, as the player's own controls do.
@@ -1679,7 +1821,11 @@ defineExpose({
             '--lmpl-scrub-at': barScrub ? String(scrubAt) : undefined,
         }"
     >
-        <video-player ref="playerEl" class="lmpl-video-player" :lang="lang">
+        <video-player
+            ref="playerEl"
+            class="lmpl-video-player"
+            :lang="lang"
+        >
             <media-container
                 ref="containerEl"
                 class="media-skin media-container lmpl-container"
@@ -1727,16 +1873,51 @@ defineExpose({
                         />
                     </svg>
                 </div>
-                <hlsjs-video ref="mediaEl" class="lmpl-media" playsinline preload="auto"></hlsjs-video>
+                <hlsjs-video
+                    ref="mediaEl"
+                    class="lmpl-media"
+                    playsinline
+                    preload="auto"
+                ></hlsjs-video>
 
-                <media-gesture v-if="gesturesOn" type="tap" action="togglePaused" pointer="mouse" region="center"></media-gesture>
-                <media-gesture v-if="gesturesOn" type="tap" action="toggleControls" pointer="touch"></media-gesture>
+                <media-gesture
+                    v-if="gesturesOn"
+                    type="tap"
+                    action="togglePaused"
+                    pointer="mouse"
+                    region="center"
+                ></media-gesture>
+                <media-gesture
+                    v-if="gesturesOn"
+                    type="tap"
+                    action="toggleControls"
+                    pointer="touch"
+                ></media-gesture>
 
-                <media-controls class="lmpl-controls" v-html="controlsHtml"></media-controls>
+                <media-controls
+                    class="lmpl-controls"
+                    v-html="controlsHtml"
+                ></media-controls>
 
                 <!-- Inside the container, so it goes fullscreen with the picture, in the play button's place. -->
-                <div v-if="showsBusy" class="lmpl-busy" role="status" :aria-label="msg.loading" data-test="lmplBusy">
-                    <svg class="lmpl-afs-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9" /></svg>
+                <div
+                    v-if="showsBusy"
+                    class="lmpl-busy"
+                    role="status"
+                    :aria-label="msg.loading"
+                    data-test="lmplBusy"
+                >
+                    <svg
+                        class="lmpl-afs-spinner"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.4"
+                        stroke-linecap="round"
+                        aria-hidden="true"
+                    >
+                        <path d="M12 3a9 9 0 1 1-9 9" />
+                    </svg>
                 </div>
 
                 <!-- Fullscreen with sound alone: a now-playing screen, over the controls it hides. -->
@@ -1772,26 +1953,51 @@ defineExpose({
                     @sleep="setSleep"
                 >
                     <template #cast>
-                        <media-cast-button class="media-button lmpl-icon-btn media-cast-button lmpl-afs-iconbtn">
-                            <media-icon name="cast-enter" class="media-button-icon media-cast-button-enter-icon"></media-icon>
-                            <media-icon name="cast-exit" class="media-button-icon media-cast-button-exit-icon"></media-icon>
+                        <media-cast-button
+                            class="media-button lmpl-icon-btn media-cast-button lmpl-afs-iconbtn"
+                        >
+                            <media-icon
+                                name="cast-enter"
+                                class="media-button-icon media-cast-button-enter-icon"
+                            ></media-icon>
+                            <media-icon
+                                name="cast-exit"
+                                class="media-button-icon media-cast-button-exit-icon"
+                            ></media-icon>
                         </media-cast-button>
-                        <media-airplay-button class="media-button lmpl-icon-btn media-airplay-button lmpl-afs-iconbtn">
-                            <media-icon name="airplay-enter" class="media-button-icon media-airplay-button-enter-icon"></media-icon>
-                            <media-icon name="airplay-exit" class="media-button-icon media-airplay-button-exit-icon"></media-icon>
+                        <media-airplay-button
+                            class="media-button lmpl-icon-btn media-airplay-button lmpl-afs-iconbtn"
+                        >
+                            <media-icon
+                                name="airplay-enter"
+                                class="media-button-icon media-airplay-button-enter-icon"
+                            ></media-icon>
+                            <media-icon
+                                name="airplay-exit"
+                                class="media-button-icon media-airplay-button-exit-icon"
+                            ></media-icon>
                         </media-airplay-button>
                     </template>
                 </AudioFullscreen>
 
                 <!-- While held, the frame being scrubbed over the picture: a fast-forward, VHS style. -->
-                <ScrubPicture v-if="pictureCue" :cue="pictureCue" aria-hidden="true" />
+                <ScrubPicture
+                    v-if="pictureCue"
+                    :cue="pictureCue"
+                    aria-hidden="true"
+                />
 
                 <div
                     v-if="scrub && !scrub.roster"
                     class="lmpl-scrub-preview"
                     :style="{ left: `${scrub.left}px`, bottom: `${scrub.bottom}px` }"
                 >
-                    <ScrubThumbnail :cue="scrub.cue" :label="scrub.label" :chapter="scrub.chapter" :width="scrubWidth" />
+                    <ScrubThumbnail
+                        :cue="scrub.cue"
+                        :label="scrub.label"
+                        :chapter="scrub.chapter"
+                        :width="scrubWidth"
+                    />
                 </div>
                 <template v-if="pinnedView">
                     <ScrubRoster
@@ -1809,10 +2015,18 @@ defineExpose({
                     />
                     <div
                         class="lmpl-scrub-preview lmpl-scrub-label"
-                        :style="{ left: `${pinnedView.markerX}px`, bottom: `${pinnedView.labelBottom}px` }"
+                        :style="{
+                            left: `${pinnedView.markerX}px`,
+                            bottom: `${pinnedView.labelBottom}px`,
+                        }"
                     >
                         <span class="lmpl-thumb-time"
-                            >{{ pinnedView.label }}<span v-if="pinnedView.chapter" class="lmpl-thumb-chapter">{{ pinnedView.chapter }}</span></span
+                            >{{ pinnedView.label
+                            }}<span
+                                v-if="pinnedView.chapter"
+                                class="lmpl-thumb-chapter"
+                                >{{ pinnedView.chapter }}</span
+                            ></span
                         >
                     </div>
                 </template>
@@ -1826,10 +2040,18 @@ defineExpose({
                     />
                     <div
                         class="lmpl-scrub-preview lmpl-scrub-label"
-                        :style="{ left: `${scrub.left}px`, bottom: `${scrub.roster.labelBottom}px` }"
+                        :style="{
+                            left: `${scrub.left}px`,
+                            bottom: `${scrub.roster.labelBottom}px`,
+                        }"
                     >
                         <span class="lmpl-thumb-time"
-                            >{{ scrub.label }}<span v-if="scrub.chapter" class="lmpl-thumb-chapter">{{ scrub.chapter }}</span></span
+                            >{{ scrub.label
+                            }}<span
+                                v-if="scrub.chapter"
+                                class="lmpl-thumb-chapter"
+                                >{{ scrub.chapter }}</span
+                            ></span
                         >
                     </div>
                 </template>
@@ -1865,8 +2087,12 @@ defineExpose({
                     class="lmpl-nextup"
                     :class="{ 'lmpl-nextup-raised': controlsShown }"
                     :style="{
-                        ...(nextUpLayout.bottom !== null ? { '--lmpl-nextup-bottom': `${nextUpLayout.bottom}px` } : {}),
-                        ...(nextUpLayout.max !== null ? { '--lmpl-nextup-max': `${nextUpLayout.max}px` } : {}),
+                        ...(nextUpLayout.bottom !== null
+                            ? { '--lmpl-nextup-bottom': `${nextUpLayout.bottom}px` }
+                            : {}),
+                        ...(nextUpLayout.max !== null
+                            ? { '--lmpl-nextup-max': `${nextUpLayout.max}px` }
+                            : {}),
                     }"
                     role="region"
                     :aria-label="msg.nextUp"
@@ -1884,13 +2110,29 @@ defineExpose({
                             :aria-label="msg.dismiss"
                             @click="dismissNextUp"
                         >
-                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                            <svg
+                                viewBox="0 0 24 24"
+                                width="24"
+                                height="24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2.2"
+                                stroke-linecap="round"
+                                aria-hidden="true"
+                            >
                                 <path d="M6 6l12 12M18 6L6 18" />
                             </svg>
                         </button>
                     </div>
-                    <ul class="lmpl-nextup-strip" @wheel="onNextUpWheel">
-                        <li v-for="item in nextUpItems" :key="item.id" class="lmpl-nextup-item">
+                    <ul
+                        class="lmpl-nextup-strip"
+                        @wheel="onNextUpWheel"
+                    >
+                        <li
+                            v-for="item in nextUpItems"
+                            :key="item.id"
+                            class="lmpl-nextup-item"
+                        >
                             <button
                                 type="button"
                                 class="lmpl-nextup-card"
@@ -1899,7 +2141,11 @@ defineExpose({
                                 <span class="lmpl-nextup-thumb">
                                     <NextUpThumb :item="item" />
                                 </span>
-                                <span v-if="item.section" class="lmpl-nextup-section">{{ item.section }}</span>
+                                <span
+                                    v-if="item.section"
+                                    class="lmpl-nextup-section"
+                                    >{{ item.section }}</span
+                                >
                                 <span class="lmpl-nextup-title">{{ item.title }}</span>
                             </button>
                         </li>
@@ -1919,11 +2165,17 @@ defineExpose({
         ></audio>
 
         <div class="lmpl-slot">
-            <slot :state="state" :controller="controller"></slot>
+            <slot
+                :state="state"
+                :controller="controller"
+            ></slot>
         </div>
 
         <template v-if="state.lifecycle === 'waiting-for-master'">
-            <slot name="coming-soon" :state="state">
+            <slot
+                name="coming-soon"
+                :state="state"
+            >
                 <div class="lmpl-panel lmpl-coming-soon">
                     <p class="lmpl-panel-text">{{ msg.comingSoon }}</p>
                 </div>
@@ -1931,10 +2183,19 @@ defineExpose({
         </template>
 
         <template v-else-if="state.lifecycle === 'error' || sourceError">
-            <slot name="error" :state="state" :error="displayedError" :retry="retry">
+            <slot
+                name="error"
+                :state="state"
+                :error="displayedError"
+                :retry="retry"
+            >
                 <div class="lmpl-panel lmpl-error">
                     <p class="lmpl-panel-text">{{ errorText }}</p>
-                    <button type="button" class="lmpl-btn lmpl-retry" @click="retry">
+                    <button
+                        type="button"
+                        class="lmpl-btn lmpl-retry"
+                        @click="retry"
+                    >
                         {{ msg.retry }}
                     </button>
                 </div>
@@ -1950,6 +2211,6 @@ defineExpose({
  * TypeScript preserves a side-effect `import` in the emitted `.d.ts`, where a consumer type-checking
  * with `skipLibCheck: false` then fails to resolve `.css`.
  */
-@import '../generated/skin.css';
-@import '../styles.css';
+@import "../generated/skin.css";
+@import "../styles.css";
 </style>

@@ -18,7 +18,7 @@ export interface ControlsStore {
 }
 
 /** Pointer events that count as the viewer being there. */
-const ACTIVITY = ['pointermove', 'pointerdown', 'pointerup'] as const;
+const ACTIVITY = ["pointermove", "pointerdown", "pointerup"] as const;
 
 /**
  * Starts hiding the controls 3 s after the last pointer activity on `target`. Returns the uninstall
@@ -29,7 +29,7 @@ export function installAutoHide(
     target: HTMLElement,
     getStore: () => ControlsStore | undefined,
     delayMs = AUTO_HIDE_MS,
-    shouldHold: () => boolean = () => false
+    shouldHold: () => boolean = () => false,
 ): () => void {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let release: (() => void) | undefined;

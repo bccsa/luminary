@@ -11,7 +11,7 @@
  */
 
 /** The controls that get a name: the icon buttons and the middle cluster, but not the volume card's plus and minus. */
-export const TOOLTIP_TARGETS = '.lmpl-icon-btn:not(.lmpl-vstep), .lmpl-play, .lmpl-seek';
+export const TOOLTIP_TARGETS = ".lmpl-icon-btn:not(.lmpl-vstep), .lmpl-play, .lmpl-seek";
 
 /** A pause before the name appears, so one passing over the row does not flash a name at every control. */
 export const TOOLTIP_DELAY_MS = 350;
@@ -34,15 +34,15 @@ export interface Tooltip {
 
 /** What a control is called: its label, else the name its button keeps for a screen reader. Empty when it has neither. */
 export function controlLabel(control: Element): string {
-    const label = control.getAttribute('aria-label')?.trim();
+    const label = control.getAttribute("aria-label")?.trim();
     if (label) return label;
-    return control.querySelector('.media-settings-menu-trigger-label')?.textContent?.trim() ?? '';
+    return control.querySelector(".media-settings-menu-trigger-label")?.textContent?.trim() ?? "";
 }
 
 /** Puts a name in the top layer, where the cards a control opens are; where there is none, it stays as drawn. */
 export function showOnTop(el: HTMLElement): void {
     try {
-        if (!el.matches(':popover-open')) el.showPopover();
+        if (!el.matches(":popover-open")) el.showPopover();
     } catch {
         // No popover API: the name is drawn in place instead.
     }
@@ -50,11 +50,11 @@ export function showOnTop(el: HTMLElement): void {
 
 /** The top of the card a control has open, in px from the viewport's top; null when it has none. */
 function openCardTop(control: Element): number | null {
-    const id = control.getAttribute('commandfor');
+    const id = control.getAttribute("commandfor");
     if (!id) return null;
     const card = (control.getRootNode() as Document | ShadowRoot).getElementById?.(id);
     try {
-        return card?.matches(':popover-open') ? card.getBoundingClientRect().top : null;
+        return card?.matches(":popover-open") ? card.getBoundingClientRect().top : null;
     } catch {
         // Engines without the popover API have no such cards.
         return null;
@@ -63,9 +63,9 @@ function openCardTop(control: Element): number | null {
 
 /** Where a name goes: centred above its control, as far as the container's edges let it. */
 export function tooltipFor(
-    control: Pick<DOMRect, 'left' | 'width' | 'top'>,
-    container: Pick<DOMRect, 'left' | 'bottom'>,
-    text: string
+    control: Pick<DOMRect, "left" | "width" | "top">,
+    container: Pick<DOMRect, "left" | "bottom">,
+    text: string,
 ): Tooltip {
     return {
         text,
@@ -91,7 +91,7 @@ export function clampTooltipLeft(centre: number, width: number, containerWidth: 
 export function attachControlTooltips(
     container: HTMLElement,
     onChange: (tip: Tooltip | null) => void,
-    delayMs: number = TOOLTIP_DELAY_MS
+    delayMs: number = TOOLTIP_DELAY_MS,
 ): () => void {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let shownFor: Element | null = null;
@@ -115,10 +115,14 @@ export function attachControlTooltips(
         const cardTop = openCardTop(control);
         onChange(
             tooltipFor(
-                { left: rect.left, width: rect.width, top: cardTop === null ? rect.top : Math.min(rect.top, cardTop) },
+                {
+                    left: rect.left,
+                    width: rect.width,
+                    top: cardTop === null ? rect.top : Math.min(rect.top, cardTop),
+                },
                 container.getBoundingClientRect(),
-                text
-            )
+                text,
+            ),
         );
     };
 
@@ -126,7 +130,7 @@ export function attachControlTooltips(
         event.target instanceof Element ? event.target.closest(TOOLTIP_TARGETS) : null;
 
     const onOver = (event: Event): void => {
-        if ((event as PointerEvent).pointerType === 'touch') return;
+        if ((event as PointerEvent).pointerType === "touch") return;
         const control = targetOf(event);
         if (!control) return hide();
         if (control === shownFor) return;
@@ -142,31 +146,31 @@ export function attachControlTooltips(
     };
     const onFocusIn = (event: Event): void => {
         const control = targetOf(event);
-        if (!control || !(control as HTMLElement).matches(':focus-visible')) return;
+        if (!control || !(control as HTMLElement).matches(":focus-visible")) return;
         hide();
         show(control);
     };
     const onKeydown = (event: Event): void => {
-        if ((event as KeyboardEvent).key === 'Escape') hide();
+        if ((event as KeyboardEvent).key === "Escape") hide();
     };
 
-    container.addEventListener('pointerover', onOver);
-    container.addEventListener('pointerout', onOut);
-    container.addEventListener('focusin', onFocusIn);
-    container.addEventListener('focusout', hide);
-    container.addEventListener('pointerdown', hide);
-    container.addEventListener('click', hide, true);
-    container.addEventListener('keydown', onKeydown);
-    container.addEventListener('pointerleave', hide);
+    container.addEventListener("pointerover", onOver);
+    container.addEventListener("pointerout", onOut);
+    container.addEventListener("focusin", onFocusIn);
+    container.addEventListener("focusout", hide);
+    container.addEventListener("pointerdown", hide);
+    container.addEventListener("click", hide, true);
+    container.addEventListener("keydown", onKeydown);
+    container.addEventListener("pointerleave", hide);
     return () => {
         hide();
-        container.removeEventListener('pointerover', onOver);
-        container.removeEventListener('pointerout', onOut);
-        container.removeEventListener('focusin', onFocusIn);
-        container.removeEventListener('focusout', hide);
-        container.removeEventListener('pointerdown', hide);
-        container.removeEventListener('click', hide, true);
-        container.removeEventListener('keydown', onKeydown);
-        container.removeEventListener('pointerleave', hide);
+        container.removeEventListener("pointerover", onOver);
+        container.removeEventListener("pointerout", onOut);
+        container.removeEventListener("focusin", onFocusIn);
+        container.removeEventListener("focusout", hide);
+        container.removeEventListener("pointerdown", hide);
+        container.removeEventListener("click", hide, true);
+        container.removeEventListener("keydown", onKeydown);
+        container.removeEventListener("pointerleave", hide);
     };
 }

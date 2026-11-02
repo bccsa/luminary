@@ -1,1 +1,6 @@
-export { activeLyric, cuesToLyrics, lyricText, type LyricCue } from '@luminary-media-converter/player-core';
+export {
+    activeLyric,
+    cuesToLyrics,
+    lyricText,
+    type LyricCue,
+} from "@luminary-media-converter/player-core";

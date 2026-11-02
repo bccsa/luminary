@@ -21,7 +21,7 @@ export type PlayerUpNextItem = {
 
 /** The items with the heading to draw above each: a section's name shows once, over its first item. */
 export function withSectionHeadings(
-    items: readonly PlayerUpNextItem[]
+    items: readonly PlayerUpNextItem[],
 ): { item: PlayerUpNextItem; heading: string | null }[] {
     return items.map((item, i) => ({
         item,

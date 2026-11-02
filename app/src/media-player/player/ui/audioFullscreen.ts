@@ -1,4 +1,4 @@
-import type { Chapter, SleepTimerState } from '@luminary-media-converter/player-core';
+import type { Chapter, SleepTimerState } from "@luminary-media-converter/player-core";
 
 /** The speeds the fullscreen audio screen offers: a listener of speech wants a few steps either side of normal. */
 export const SPEED_OPTIONS = [0.75, 1, 1.25, 1.5, 1.75, 2] as const;
@@ -16,7 +16,7 @@ export const CHAPTER_WINDOW = 4;
 export function chapterWindow(
     chapters: readonly Chapter[],
     current: number,
-    size: number = CHAPTER_WINDOW
+    size: number = CHAPTER_WINDOW,
 ): { chapter: Chapter; index: number }[] {
     const all = chapters.map((chapter, index) => ({ chapter, index }));
     if (all.length <= size) return all;
@@ -29,13 +29,13 @@ export function chapterWindow(
  * Null for no timer or a chapter timer.
  */
 export function sleepMinutesLeft(state: SleepTimerState | null, now: number): number | null {
-    if (state?.kind !== 'minutes') return null;
+    if (state?.kind !== "minutes") return null;
     return Math.max(1, Math.ceil((state.endsAt - now) / 60_000));
 }
 
 /** Fills `{minutes}` in a message that carries a count of minutes. */
 export function formatMinutes(template: string, minutes: number): string {
-    return template.replace('{minutes}', String(minutes));
+    return template.replace("{minutes}", String(minutes));
 }
 
 /** The held bar's moment, and where the frames go: `markerX` and `width` in px from the screen's left, `bottom` above its bottom. */

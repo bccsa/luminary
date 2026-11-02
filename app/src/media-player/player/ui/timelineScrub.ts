@@ -6,21 +6,21 @@
  */
 
 /** What a touch on the timeline has opened. */
-export type TimelineScrubMode = 'closed' | 'strip' | 'bar';
+export type TimelineScrubMode = "closed" | "strip" | "bar";
 
 /** What the player has to do about it. */
 export type TimelineScrubEffect =
-    | { kind: 'open'; mode: 'strip' | 'bar' }
-    | { kind: 'close' }
-    | { kind: 'pause' }
-    | { kind: 'play' }
-    | { kind: 'seek'; time: number };
+    | { kind: "open"; mode: "strip" | "bar" }
+    | { kind: "close" }
+    | { kind: "pause" }
+    | { kind: "play" }
+    | { kind: "seek"; time: number };
 
 /** How long after the last touch it closes on its own. */
 export const TIMELINE_SCRUB_IDLE_MS = 5000;
 
 export class TimelineScrub {
-    private current: TimelineScrubMode = 'closed';
+    private current: TimelineScrubMode = "closed";
     private resumeOnClose = false;
     private idle: ReturnType<typeof setTimeout> | undefined;
 
@@ -31,7 +31,7 @@ export class TimelineScrub {
     }
 
     get isOpen(): boolean {
-        return this.current !== 'closed';
+        return this.current !== "closed";
     }
 
     /** A finger came down on the timeline or the strip: nothing closes under it. */
@@ -53,7 +53,7 @@ export class TimelineScrub {
 
     /** The drag let go at `time`: the one place the video moves. */
     dragEnded(time: number): void {
-        this.onEffect({ kind: 'seek', time });
+        this.onEffect({ kind: "seek", time });
         this.armIdle();
     }
 
@@ -80,11 +80,11 @@ export class TimelineScrub {
     }
 
     private openIfClosed(framesReady: boolean, playing: boolean): void {
-        if (this.current !== 'closed') return;
+        if (this.current !== "closed") return;
         this.resumeOnClose = playing;
-        this.current = framesReady ? 'strip' : 'bar';
-        this.onEffect({ kind: 'open', mode: this.current });
-        if (playing) this.onEffect({ kind: 'pause' });
+        this.current = framesReady ? "strip" : "bar";
+        this.onEffect({ kind: "open", mode: this.current });
+        if (playing) this.onEffect({ kind: "pause" });
     }
 
     private armIdle(): void {
@@ -100,9 +100,9 @@ export class TimelineScrub {
     private close(resume: boolean): void {
         this.cancelIdle();
         if (!this.isOpen) return;
-        this.current = 'closed';
-        this.onEffect({ kind: 'close' });
-        if (resume && this.resumeOnClose) this.onEffect({ kind: 'play' });
+        this.current = "closed";
+        this.onEffect({ kind: "close" });
+        if (resume && this.resumeOnClose) this.onEffect({ kind: "play" });
         this.resumeOnClose = false;
     }
 }

@@ -42,7 +42,7 @@ export type PlayerImageInput = string | PlayerImage;
 /** The input as a `PlayerImage`, or null when it names nothing to draw. */
 export function toPlayerImage(input: PlayerImageInput | null | undefined): PlayerImage | null {
     if (!input) return null;
-    const image = typeof input === 'string' ? { src: input } : input;
+    const image = typeof input === "string" ? { src: input } : input;
     return image.srcset || image.src || image.fallback ? image : null;
 }
 
