@@ -165,7 +165,7 @@ test.describe('with a finger', () => {
         return cdp;
     }
 
-    test('a finger dragged on the timeline holds the video, the roster meets the track, and it plays on once left alone', async ({ page }) => {
+    test('a finger dragged on the timeline holds the video while it is down, the roster meets the track, and it plays on once let go', async ({ page }) => {
         await open(page);
         await page.locator('.lmpl-play').tap();
         await expect.poll(() => state(page).then((s) => s.paused)).toBe(false);
@@ -177,15 +177,14 @@ test.describe('with a finger', () => {
         const roster = (await page.locator('.lmpl-roster').boundingBox())!;
         expect(track.y + track.height - roster.y).toBeLessThanOrEqual(0.5);
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-        // The strip stays open, the video still held, until five seconds go by without a touch.
-        await page.waitForTimeout(500);
-        expect((await state(page)).paused).toBe(true);
+        // Let go, the video plays on at once; the strip stays open until five seconds go by without a touch.
+        await expect.poll(() => state(page).then((s) => s.paused)).toBe(false);
         await expect(page.locator('.lmpl-roster')).toBeVisible();
-        await expect.poll(() => state(page).then((s) => s.paused), { timeout: 8000 }).toBe(false);
-        await expect(page.locator('.lmpl-roster')).toHaveCount(0);
+        await expect(page.locator('.lmpl-roster')).toHaveCount(0, { timeout: 8000 });
+        expect((await state(page)).paused).toBe(false);
     });
 
-    test('a tap on the timeline opens the strip and holds the video without moving it', async ({ page }) => {
+    test('a tap on the timeline opens the strip without holding or moving the video', async ({ page }) => {
         await open(page);
         await page.locator('.lmpl-play').tap();
         await expect.poll(() => state(page).then((s) => s.paused)).toBe(false);
@@ -193,7 +192,7 @@ test.describe('with a finger', () => {
         const before = (await state(page)).t;
         await touch(page, [{ x: bar.x + bar.width * 0.8, y: bar.y + bar.height / 2 }]);
         await expect(page.locator('.lmpl-roster')).toBeVisible();
-        expect((await state(page)).paused).toBe(true);
+        expect((await state(page)).paused).toBe(false);
         expect(Math.abs((await state(page)).t - before)).toBeLessThan(1.5);
     });
 
@@ -219,7 +218,7 @@ test.describe('with a finger', () => {
         const before = (await state(page)).t;
         await touch(page, [{ x: bar.x + bar.width * 0.8, y: bar.y + bar.height / 2 }]);
         await expect(page.locator('.lmpl-root.lmpl-scrub-bar')).toHaveCount(1);
-        expect((await state(page)).paused).toBe(true);
+        expect((await state(page)).paused).toBe(false);
         expect(Math.abs((await state(page)).t - before)).toBeLessThan(1.5);
         await expect(page.locator('.lmpl-root.lmpl-scrub-bar')).toHaveCount(0, { timeout: 8000 });
         await expect.poll(() => state(page).then((s) => s.paused)).toBe(false);
