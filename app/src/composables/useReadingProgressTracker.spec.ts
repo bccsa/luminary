@@ -1006,7 +1006,7 @@ describe("useReadingProgressTracker", () => {
         expect(getReadingProgress(TEST_CONTENT_ID)).not.toBe(0);
 
         const trackerResult = wrapper.vm.trackerApi;
-        expect(trackerResult.hasResumableProgressOnOpen?.value ?? 0).toBe(0);
+        expect(trackerResult.hasResumableProgressOnOpen?.value).toBe(false);
         wrapper.unmount();
     });
 });
