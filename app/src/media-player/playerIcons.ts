@@ -1,8 +1,7 @@
 // The Video.js 10 default skin's icons: SVG path data on an 18-unit grid, y downwards, in layers (some
-// are half-opaque, and a few are outlines). The same data native full-screen draws, taken from
-// luminary-media-convert/player-native/android/.../V10Icons.kt, which that repo writes from
-// @videojs/html. Regenerate it from there rather than editing it. `language` is the exception: it is
-// SettingIcons.kt's, the Heroicons glyph the app uses for choosing a language.
+// are half-opaque, and a few are outlines). Native full-screen draws the same data from its own copy,
+// generated from @videojs/html, so the two change together: regenerate rather than edit. `language` is
+// the exception: the Heroicons glyph the app uses for choosing a language.
 
 export type IconLayer = { path: string; alpha: number; strokeWidth: number };
 
