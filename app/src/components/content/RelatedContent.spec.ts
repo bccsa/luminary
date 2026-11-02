@@ -17,6 +17,8 @@ vi.mock("vue-router", async (importOriginal) => {
         useRouter: vi.fn().mockImplementation(() => ({
             currentRoute: ref({ params: { slug: mockEnglishContentDto.slug } }),
         })),
+        // The prerender branch of useContentQuery reads the route being rendered.
+        useRoute: () => ({ path: "/related-test" }),
     };
 });
 
@@ -46,6 +48,9 @@ vi.mock("@/recommendation/seenStore", async () => {
     };
 });
 
+const prerenderMock = vi.hoisted(() => ({ value: false }));
+vi.mock("@/ssg/isPrerender", () => ({ isPrerender: () => prerenderMock.value }));
+
 describe("RelatedContent", () => {
     beforeEach(async () => {
         await db.docs.bulkPut([
@@ -63,6 +68,91 @@ describe("RelatedContent", () => {
 
     afterEach(async () => {
         await db.docs.clear();
+        localStorage.clear();
+        prerenderMock.value = false;
+    });
+
+    describe("ghost placeholders", () => {
+        const seedPost = () =>
+            db.docs.bulkPut([
+                {
+                    ...mockEnglishContentDto,
+                    parentId: "post-ghostA",
+                    _id: "content-ghostA-eng",
+                    title: "Ghost A",
+                    parentTags: [mockTopicContentDto.parentId],
+                } as ContentDto,
+            ]);
+        const props = {
+            tags: [{ ...mockTopicContentDto, parentTaggedDocs: ["post-ghostA"] }],
+            selectedContent: {
+                ...mockEnglishContentDto,
+                _id: "content-other-eng",
+                title: "Other",
+            } as ContentDto,
+        };
+
+        it("shows ghosts instead of a partial list until the query settles, then the cards", async () => {
+            await seedPost();
+            const wrapper = mount(RelatedContent, { props });
+
+            expect(wrapper.find("[data-test='read-more-ghost']").exists()).toBe(true);
+            expect(wrapper.findComponent(ReadMore).exists()).toBe(false);
+
+            await waitForExpect(() => {
+                expect(wrapper.find("[data-test='read-more-ghost']").exists()).toBe(false);
+                expect(wrapper.html()).toContain("Ghost A");
+            });
+        });
+
+        it("skips ghosts when a cached list paints the first render", async () => {
+            await seedPost();
+            const first = mount(RelatedContent, { props });
+            await waitForExpect(() => expect(first.html()).toContain("Ghost A"));
+            first.unmount();
+
+            const second = mount(RelatedContent, { props });
+            expect(second.find("[data-test='read-more-ghost']").exists()).toBe(false);
+            expect(second.html()).toContain("Ghost A");
+        });
+
+        it("never renders ghosts during the SSG prerender", () => {
+            prerenderMock.value = true;
+            const wrapper = mount(RelatedContent, { props });
+            expect(wrapper.find("[data-test='read-more-ghost']").exists()).toBe(false);
+        });
+    });
+
+    // Regression (#2409): with no response cache, a remount painted the IndexedDB subset first
+    // and then the larger merged list once the API tail arrived — Read more visibly loaded twice.
+    it("paints the previous full list on the first render of a remount", async () => {
+        const posts = ["post-seedA", "post-seedB", "post-seedC"].map((parentId) => ({
+            ...mockEnglishContentDto,
+            parentId,
+            _id: `content-${parentId}-eng`,
+            title: `Seed ${parentId}`,
+            parentTags: [mockTopicContentDto.parentId],
+        })) as ContentDto[];
+        await db.docs.bulkPut(posts);
+        const props = {
+            tags: [{ ...mockTopicContentDto, parentTaggedDocs: posts.map((p) => p.parentId) }],
+            selectedContent: {
+                ...mockEnglishContentDto,
+                _id: "content-other-eng",
+                title: "Other",
+            } as ContentDto,
+        };
+
+        const first = mount(RelatedContent, { props });
+        await waitForExpect(() => {
+            expect(first.findComponent(ReadMore).props("items")).toHaveLength(3);
+        });
+        first.unmount();
+
+        // Only the first render matters: do not await before asserting.
+        const second = mount(RelatedContent, { props });
+        expect(second.findComponent(ReadMore).exists()).toBe(true);
+        expect(second.findComponent(ReadMore).props("items")).toHaveLength(3);
     });
 
     it("doesn't display the current post in the related topic", async () => {
