@@ -971,7 +971,7 @@ function endTouch(event: PointerEvent): boolean {
     const slider = containerEl.value?.querySelector<HTMLElement>(".lmpl-time-slider");
     const duration = mediaEl.value?.duration ?? NaN;
     if (!press.dragging) {
-        if (event.type === "pointerup") timelineScrub.tapped(framesReady(), isPlaying());
+        if (event.type === "pointerup") timelineScrub.tapped(framesReady());
         return true;
     }
     scrubbing = false;

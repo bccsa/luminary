@@ -378,7 +378,7 @@ function onBarUp(event?: PointerEvent): void {
     if (press && event && event.pointerId === press.id) {
         touchPress = null;
         if (!press.dragging) {
-            if (event.type === "pointerup") timelineScrub.tapped(framesReady(), props.playing);
+            if (event.type === "pointerup") timelineScrub.tapped(framesReady());
             return;
         }
         const time = dragTime.value;

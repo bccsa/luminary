@@ -1,8 +1,8 @@
 /**
  * The timeline under a finger: a tap does not move the video, it opens the way to scrub it. With frames that is the
- * strip of them; without, a thicker bar with a handle. Only a drag moves the playhead. The video holds still while
- * either is open, and they put themselves away a few seconds after the last touch, on a tap elsewhere or on play,
- * the video carrying on only if it was playing when they opened. The Android and iOS players keep the same rules.
+ * strip of them; without, a thicker bar with a handle. Only a drag moves the playhead, and only a drag holds the
+ * video: it carries on from where the finger let go if it was playing when the drag began. They put themselves away
+ * a few seconds after the last touch, on a tap elsewhere or on play. The Android and iOS players keep the same rules.
  */
 
 /** What a touch on the timeline has opened. */
@@ -21,7 +21,8 @@ export const TIMELINE_SCRUB_IDLE_MS = 5000;
 
 export class TimelineScrub {
     private current: TimelineScrubMode = "closed";
-    private resumeOnClose = false;
+    private dragging = false;
+    private resumeAfterDrag = false;
     private idle: ReturnType<typeof setTimeout> | undefined;
 
     constructor(private readonly onEffect: (effect: TimelineScrubEffect) => void) {}
@@ -40,25 +41,31 @@ export class TimelineScrub {
     }
 
     /** A tap on the timeline, which never moves the video. */
-    tapped(framesReady: boolean, playing: boolean): void {
-        this.openIfClosed(framesReady, playing);
+    tapped(framesReady: boolean): void {
+        this.openIfClosed(framesReady);
         this.armIdle();
     }
 
-    /** A drag on the timeline or the strip started. */
+    /** A drag on the timeline or the strip started: the video holds still under the finger. */
     dragBegan(framesReady: boolean, playing: boolean): void {
-        this.openIfClosed(framesReady, playing);
+        this.openIfClosed(framesReady);
         this.cancelIdle();
+        if (this.dragging) return;
+        this.dragging = true;
+        this.resumeAfterDrag = playing;
+        if (playing) this.onEffect({ kind: "pause" });
     }
 
     /** The drag let go at `time`: the one place the video moves. */
     dragEnded(time: number): void {
         this.onEffect({ kind: "seek", time });
+        this.endDrag(true);
         this.armIdle();
     }
 
     /** The drag was taken away from the finger without a decision: nothing moves. */
     dragCancelled(): void {
+        this.endDrag(true);
         this.armIdle();
     }
 
@@ -70,8 +77,8 @@ export class TimelineScrub {
     /** Play was asked for while open: it closes, and the video plays whether or not it was before. */
     playPressed(): void {
         if (!this.isOpen) return;
-        this.resumeOnClose = true;
-        this.close(true);
+        this.close(false);
+        this.onEffect({ kind: "play" });
     }
 
     /** A new video, a change of layout, or the player going away: put away without touching playback. */
@@ -79,12 +86,17 @@ export class TimelineScrub {
         this.close(false);
     }
 
-    private openIfClosed(framesReady: boolean, playing: boolean): void {
+    private openIfClosed(framesReady: boolean): void {
         if (this.current !== "closed") return;
-        this.resumeOnClose = playing;
         this.current = framesReady ? "strip" : "bar";
         this.onEffect({ kind: "open", mode: this.current });
-        if (playing) this.onEffect({ kind: "pause" });
+    }
+
+    private endDrag(resume: boolean): void {
+        if (!this.dragging) return;
+        this.dragging = false;
+        if (resume && this.resumeAfterDrag) this.onEffect({ kind: "play" });
+        this.resumeAfterDrag = false;
     }
 
     private armIdle(): void {
@@ -102,7 +114,6 @@ export class TimelineScrub {
         if (!this.isOpen) return;
         this.current = "closed";
         this.onEffect({ kind: "close" });
-        if (resume && this.resumeOnClose) this.onEffect({ kind: "play" });
-        this.resumeOnClose = false;
+        this.endDrag(resume);
     }
 }

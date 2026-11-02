@@ -208,7 +208,7 @@ describe("AudioFullscreen — the transport", () => {
         expect(find(wrapper, "afsElapsed").text()).toBe("6:02");
     });
 
-    it("opens for scrubbing on a finger tap instead of seeking, and holds the sound", async () => {
+    it("opens for scrubbing on a finger tap instead of seeking, and the sound plays on", async () => {
         const wrapper = mountScreen();
         await wrapper.setProps({ playing: true });
         const bar = find(wrapper, "afsBar");
@@ -226,7 +226,7 @@ describe("AudioFullscreen — the transport", () => {
         await bar.trigger("pointerdown", { clientX: 250, pointerId: 2, pointerType: "touch" });
         await bar.trigger("pointerup", { clientX: 250, pointerId: 2, pointerType: "touch" });
         expect(wrapper.emitted("seek")).toBeUndefined();
-        expect(wrapper.emitted("toggle-play")).toHaveLength(1);
+        expect(wrapper.emitted("toggle-play")).toBeUndefined();
         expect(bar.classes()).toContain("lmpl-afs-bar-open");
     });
 
