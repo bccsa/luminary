@@ -13,13 +13,12 @@
  */
 import { build, transform } from "esbuild";
 import { PurgeCSS } from "purgecss";
-import postcss from "postcss";
-import selectorParser from "postcss-selector-parser";
 import { Buffer } from "node:buffer";
 import { createRequire } from "node:module";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { narrowToThisPlayer } from "./narrow-skin.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "../src/media-player/player");
@@ -47,64 +46,6 @@ async function renderControls() {
 
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
 
-/**
- * What this player is: the default theme, the video preset. The skin has rules for others, which PurgeCSS cannot
- * tell apart because they differ by attribute, and which this player can never match.
- */
-const THEME = "default";
-const PRESET = "video";
-
-/**
- * Drops the selectors for any other theme or preset, and strips the two attributes this player always has
- * from the ones that remain. Nearly every selector in the skin opens with
- * `:where(.media-skin[data-theme="default"][data-preset="video"])`; with the attributes gone it is
- * `:where(.media-skin)`, which has the same specificity (none, inside `:where`) and so cannot change which
- * rule wins. Hundreds of repetitions of the longer form were a fifth of the file.
- */
-function narrowToThisPlayer(css) {
-    const root = postcss.parse(css);
-    root.walkRules((rule) => {
-        let kept = 0;
-        const transformer = selectorParser((selectors) => {
-            selectors.each((selector) => {
-                let foreign = false;
-                selector.walkAttributes((attr) => {
-                    const name = attr.attribute.trim();
-                    const value = (attr.value ?? "").replace(/["']/g, "");
-                    if (name === "data-theme" && value !== THEME) foreign = true;
-                    if (name === "data-preset" && value !== PRESET) foreign = true;
-                });
-                if (foreign) {
-                    selector.remove();
-                    return;
-                }
-                selector.walkAttributes((attr) => {
-                    const name = attr.attribute.trim();
-                    const value = (attr.value ?? "").replace(/["']/g, "");
-                    if (
-                        (name === "data-theme" && value === THEME) ||
-                        (name === "data-preset" && value === PRESET)
-                    )
-                        attr.remove();
-                });
-                kept++;
-            });
-        });
-        rule.selector = transformer.processSync(rule.selector);
-        if (kept === 0 || rule.selector.trim() === "") rule.remove();
-    });
-    // A block left with nothing in it.
-    root.walkAtRules((at) => {
-        if (
-            at.nodes &&
-            at.nodes.length === 0 &&
-            /^(media|container|supports|layer)$/.test(at.name) &&
-            at.params
-        )
-            at.remove();
-    });
-    return root.toString();
-}
 const safelist = JSON.parse(read("skin-css-safelist.json"));
 
 /**

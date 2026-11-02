@@ -2450,9 +2450,15 @@
     }
 }
 
-/* Captions ride above the control bar while it shows (the skin lifts them by this much, sized for its own, shorter bar). */
-.lmpl-root {
+/* Captions ride above the control bar while it shows (the skin lifts them by this much, sized for its own, shorter bar).
+   Set on the skin's element, where the skin sets its own value. */
+.lmpl-root .media-skin {
     --media-caption-controls-y: -132px;
+}
+
+/* The fade under the controls is `.lmpl-bottom::before`; the skin's backdrop would darken the picture a second time. */
+.lmpl-root .media-skin {
+    --media-controls-gradient: none;
 }
 
 @container media-root (min-width: 900px) {
