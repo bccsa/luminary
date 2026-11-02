@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Video.js 8 vs 10</title>
+        <style>
+            :root {
+                color-scheme: dark;
+            }
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+                padding: 16px;
+                font: 14px/1.4 system-ui, sans-serif;
+                background: #111;
+                color: #eee;
+            }
+            h1 {
+                margin: 0 0 12px;
+                font-size: 16px;
+                font-weight: 600;
+            }
+            form {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+            input {
+                flex: 1 1 320px;
+                padding: 6px 8px;
+                border: 1px solid #444;
+                border-radius: 4px;
+                background: #1c1c1c;
+                color: inherit;
+                font: inherit;
+            }
+            input.key {
+                flex: 0 1 280px;
+            }
+            button {
+                padding: 6px 12px;
+                border: 1px solid #555;
+                border-radius: 4px;
+                background: #2a2a2a;
+                color: inherit;
+                font: inherit;
+                cursor: pointer;
+            }
+            button:hover {
+                background: #363636;
+            }
+            .presets {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                margin-bottom: 12px;
+            }
+            .presets span {
+                align-self: center;
+                color: #999;
+            }
+            .grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+            }
+            @media (max-width: 900px) {
+                .grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+            .pane h2 {
+                margin: 0 0 6px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            .pane h2 small {
+                color: #999;
+                font-weight: 400;
+            }
+            iframe {
+                display: block;
+                width: 100%;
+                height: 560px;
+                border: 1px solid #333;
+                border-radius: 6px;
+                background: #000;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Video.js 8 vs Video.js 10</h1>
+
+        <form id="form">
+            <input id="master" placeholder="Master playlist URL" />
+            <input id="key" class="key" placeholder="Session key (32 hex, optional)" />
+            <button type="submit">Load in both</button>
+        </form>
+
+        <div class="presets" id="presets">
+            <span>Test streams:</span>
+        </div>
+
+        <div class="grid">
+            <section class="pane">
+                <h2>Video.js 8 <small>retired · VHS · :5183</small></h2>
+                <iframe id="v8" allow="fullscreen; autoplay; picture-in-picture" title="Video.js 8"></iframe>
+            </section>
+            <section class="pane">
+                <h2>Video.js 10 <small>main · hls.js · :5182</small></h2>
+                <iframe id="v10" allow="fullscreen; autoplay; picture-in-picture" title="Video.js 10"></iframe>
+            </section>
+        </div>
+
+        <script>
+            const FIXTURES = 'http://127.0.0.1:5190';
+            const KEY = '00112233445566778899aabbccddeeff';
+            const PRESETS = [
+                ['Encrypted (key + LMCENC)', `${FIXTURES}/encrypted/master.m3u8`, KEY],
+                ['Clear', `${FIXTURES}/clear/master.m3u8`, ''],
+                ['Byte-range', `${FIXTURES}/byterange/master.m3u8`, ''],
+                ['4 languages + 2 angles (native sample)', `${FIXTURES}/native/master.m3u8`, '6c756d696e6172792d737069a4e2c0de'],
+                ['Two languages (synthetic)', `${FIXTURES}/multiaudio/master.m3u8`, ''],
+                ['Live (simulated)', `${FIXTURES}/live/master.m3u8`, ''],
+            ];
+
+            const $ = (id) => document.getElementById(id);
+
+            function load(master, key) {
+                if (!master) return;
+                const query = `?master=${encodeURIComponent(master)}${key ? `&key=${encodeURIComponent(key)}` : ''}`;
+                const embedded = `${query}&embed=1`;
+                const embeddedV10 = `${embedded}&thumbs=1`;
+                $('v8').src = `http://127.0.0.1:5183/${embedded}`;
+                $('v10').src = `http://127.0.0.1:5182/${embeddedV10}`;
+                history.replaceState(null, '', `?${query.slice(1)}`);
+            }
+
+            for (const [label, master, key] of PRESETS) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = label;
+                button.addEventListener('click', () => {
+                    $('master').value = master;
+                    $('key').value = key;
+                    // The simulated live stream restarts at three segments each time it is picked.
+                    if (label.startsWith('Live')) fetch(`${FIXTURES}/__live-reset`).catch(() => {});
+                    load(master, key);
+                });
+                $('presets').appendChild(button);
+            }
+
+            $('form').addEventListener('submit', (event) => {
+                event.preventDefault();
+                load($('master').value.trim(), $('key').value.trim().toLowerCase());
+            });
+
+            const initial = new URLSearchParams(location.search);
+            if (initial.has('master')) {
+                $('master').value = initial.get('master');
+                $('key').value = initial.get('key') ?? '';
+                load($('master').value, $('key').value);
+            }
+        </script>
+    </body>
+</html>
