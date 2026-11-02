@@ -56,8 +56,13 @@ createServer((req, res) => {
         return void res.end(JSON.stringify(log));
     }
     if (url.pathname === '/__fault') {
-        if (url.searchParams.has('clear')) faults.length = 0;
-        else faults.push({ match: url.searchParams.get('match') ?? '', ms: Math.min(Math.max(Number(url.searchParams.get('ms')) || 0, 0), MAX_FAULT_MS), status: Number(url.searchParams.get('status') ?? 0), times: Number(url.searchParams.get('times') ?? 1) });
+        if (url.searchParams.has('clear')) {
+            faults.length = 0;
+            return void res.writeHead(204).end();
+        }
+        const ms = Number(url.searchParams.get('ms') ?? 0);
+        if (!(ms >= 0 && ms <= MAX_FAULT_MS)) return void res.writeHead(400).end();
+        faults.push({ match: url.searchParams.get('match') ?? '', ms, status: Number(url.searchParams.get('status') ?? 0), times: Number(url.searchParams.get('times') ?? 1) });
         return void res.writeHead(204).end();
     }
     if (url.pathname === '/__live-reset') {
