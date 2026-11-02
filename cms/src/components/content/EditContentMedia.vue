@@ -68,6 +68,7 @@ const {
     outdated,
     busy,
     status,
+    encoding,
     progress,
     pipelineProgress,
     error,
@@ -156,6 +157,7 @@ const editDisabledReason = computed(() => {
     if (props.disabled) return "You do not have permission to edit this document.";
     if (availability.value != "available") return "Luminary Media Convert is not running.";
     if (busy.value) return "Opening Luminary Media Convert…";
+    if (encoding.value) return "Available once the encode has finished.";
     return "";
 });
 
@@ -300,6 +302,15 @@ watch(
                     <span class="text-xs">Delete</span>
                 </LButton>
             </div>
+
+            <!-- Said under the buttons, not only on hover: a disabled button gives no other clue, and touch has no hover. -->
+            <p
+                v-if="encoding && existingVideoUrl && effectiveBucketId"
+                class="text-xs text-zinc-500 dark:text-zinc-400"
+                data-test="edit-media-hint"
+            >
+                You can edit the chapters and audio tracks once the encode has finished.
+            </p>
 
             <p v-if="showHelp" class="text-xs dark:text-zinc-200">
                 Video and audio are produced by Luminary Media Convert. Use Encode to open it, pick

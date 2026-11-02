@@ -58,6 +58,8 @@ export function useMediaEncoder() {
     const progress = ref<number>();
     const pipelineProgress = ref<EncoderPipelineProgress>();
     const error = ref<string>();
+    /** An encode of this document is running. Edit sessions are not followed, so the status is always an encode's. */
+    const encoding = computed(() => status.value != undefined && !isFinished(status.value));
     const sessionId = ref<string>();
 
     let unsubscribe: (() => void) | undefined;
@@ -411,6 +413,7 @@ export function useMediaEncoder() {
         outdated,
         busy,
         status,
+        encoding,
         progress,
         pipelineProgress,
         error,

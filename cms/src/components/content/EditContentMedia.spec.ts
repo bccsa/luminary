@@ -10,6 +10,7 @@ const encoder = {
     encoderVersion: ref<string | undefined>("0.0.1"),
     busy: ref(false),
     status: ref<string | undefined>(undefined),
+    encoding: ref(false),
     progress: ref<number | undefined>(undefined),
     error: ref<string | undefined>(undefined),
     sessionId: ref<string | undefined>(undefined),
@@ -66,6 +67,7 @@ beforeEach(() => {
     encoder.availability.value = "available";
     encoder.busy.value = false;
     encoder.status.value = undefined;
+    encoder.encoding.value = false;
     encoder.error.value = undefined;
 });
 
@@ -393,6 +395,7 @@ describe("EditContentMedia editing the existing video", () => {
         const wrapper = mountSection({ parent: { ...parent(), media: undefined } });
         await settle();
         expect(wrapper.find("[data-test='edit-media-button']").exists()).toBe(false);
+        expect(wrapper.find("[data-test='edit-media-hint']").exists()).toBe(false);
     });
 
     it("opens the video it has, at its absolute address", async () => {
@@ -406,6 +409,17 @@ describe("EditContentMedia editing the existing video", () => {
             mediaBucketId: "bucket-1",
             hlsUrl: "https://cdn.example.com/media/posts/p1/s1/master.m3u8",
         });
+    });
+
+    it("waits for a running encode to finish, saying why", async () => {
+        encoder.encoding.value = true;
+        const wrapper = mountSection({ parent: withVideo() });
+        await settle();
+        const button = wrapper.find("[data-test='edit-media-button']");
+
+        expect(button.attributes("disabled")).toBeDefined();
+        expect(button.attributes("title")).toBe("Available once the encode has finished.");
+        expect(wrapper.find("[data-test='edit-media-hint']").text()).toContain("once the encode has finished");
     });
 
     it("cannot be used without permission to edit the document, or without the encoder", async () => {
