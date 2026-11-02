@@ -134,7 +134,7 @@ Schema upgrades can be safely removed when:
 ### Current Baseline
 
 
-**Current Schema Version**: 22 (as of 2026-09-04)
+**Current Schema Version**: 23 (as of 2026-10-29)
 
 All production databases are expected to be at version 10 or higher. Historical upgrades v1-v9 have been removed as they are no longer needed.
 
@@ -194,5 +194,9 @@ Moves the legacy per-language `ContentDto.video` URL onto the parent's `media.hl
 ### v22 — Share ACL backfill (2026-09-04)
 
 Backfills the new `Share` ACL permission on `group-public-content`'s Post/Tag ACL entries that already hold `View`, mirroring the seed default — sharing is enabled for public content only, for now. `Share` is assignable on Post and Tag only (`changeRequests/aclValidation.ts` and its CMS mirror `cms/src/components/groups/permissions.ts`). Idempotent (only pushes `Share` where missing), safe to re-run including on fresh DBs and via `npm run seed` — the seeded `group-public-content` fixture already carries `Share`, making it a no-op there. Uses `insertDoc` to preserve `updatedTimeUtc`: the granted access takes effect via the server-recomputed AccessMap delivered on connect.
+
+### v23 — Tagged documents cache rebuild (2026-10-29)
+
+Rebuilds every Tag's `taggedDocs` and its content's `parentTaggedDocs` from the `tags` of the stored Post/Tag documents (the `tags` design-doc view). Saving a Tag used to persist the CMS's copy of `taggedDocs`, which dates from when the editor loaded it, so posts tagged in the meantime dropped out of that category on the app's Home and Watch pages (#2366). The API now rebuilds the cache on every save, which stops new damage; this upgrade repairs what was already lost. Idempotent (only writes documents whose cache differs), DB-only and safe on fresh DBs. Uses `upsertDoc`, bumping `updatedTimeUtc` so the repaired documents re-sync to clients.
 
 The CMS-managed "default affinity" recommendation feature (`DocType.DefaultAffinity`) followed the same ACL-administration path instead of an upgrade script: `group-super-admins`/`group-public-content` get the `DefaultAffinity` ACL entries directly in their seed fixtures (fresh DBs only — existing deployed DBs need it granted via ACL administration), and the singleton doc (`api/src/util/defaultAffinity.ts`) is created lazily by the CMS on first save rather than backfilled (`cms/src/composables/useDefaultAffinity.ts`'s `saveDoc`).

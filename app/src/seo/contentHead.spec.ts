@@ -40,9 +40,9 @@ describe("primaryArticleImage", () => {
     });
 
     it("picks the size closest to the OG/Twitter target width, not the largest", () => {
-        // Real processed presets: [180, 360, 640, 1280, 2560] — 1280 is closest to 1200.
+        // Real processed presets: [180, 360, 640, 960, 1280, 2560] — 1280 is closest to 1200.
         const image = primaryArticleImage(
-            contentWithWidths([180, 360, 640, 1280, 2560]),
+            contentWithWidths([180, 360, 640, 960, 1280, 2560]),
             "https://cdn.example.com/bucket",
         );
         expect(image?.width).toBe(1280);

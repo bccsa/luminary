@@ -80,7 +80,7 @@ export type ValidationConfig = {
      * When set to true, query template validation will log warnings instead of throwing exceptions.
      * This is useful during development for testing queries without strict validation.
      * Environment variable: BYPASS_TEMPLATE_VALIDATION=true
-     * WARNING: Never enable this in production!
+     * Ignored when NODE_ENV=production, so a copied dev `.env` cannot disable validation there.
      */
     bypassTemplateValidation: boolean;
 };
@@ -120,6 +120,15 @@ export type AudioS3Config = {
     audioBucket: string;
 };
 
+export type ChangeRequestConfig = {
+    /**
+     * Per-identity cap on POST /changerequest. Defaults ON with a generous burst/rate so normal
+     * editing and offline-queue replay are unaffected. Environment variable:
+     * CHANGEREQUEST_RATE_LIMIT_ENABLED (and the other CHANGEREQUEST_RATE_LIMIT_* settings).
+     */
+    rateLimit: RateLimiterConfig;
+};
+
 export type SocketIoConfig = {
     maxHttpBufferSize: number;
 };
@@ -131,6 +140,7 @@ export type Configuration = {
     sync?: SyncConfig;
     query?: QueryConfig;
     sidecar?: SidecarConfig;
+    changeRequest?: ChangeRequestConfig;
     imageProcessing?: ImageProcessingConfig;
     socketIo?: SocketIoConfig;
     validation?: ValidationConfig;
@@ -198,6 +208,16 @@ export default () =>
                 }),
             },
         } as SidecarConfig,
+        changeRequest: {
+            // Burst of 500 then ~10/s sustained: a blocked sync queue shows users an error, so stay generous
+            rateLimit: rateLimitFromEnv("CHANGEREQUEST_RATE_LIMIT", {
+                enabled: true,
+                freeStrikes: 500,
+                baseBackoffMs: 1000,
+                maxBackoffMs: 30000,
+                strikeDecayMs: 100,
+            }),
+        } as ChangeRequestConfig,
         imageProcessing: {
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
         } as ImageProcessingConfig,
@@ -213,7 +233,9 @@ export default () =>
             maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
         } as SocketIoConfig,
         validation: {
-            bypassTemplateValidation: process.env.BYPASS_TEMPLATE_VALIDATION === "true",
+            bypassTemplateValidation:
+                process.env.BYPASS_TEMPLATE_VALIDATION === "true" &&
+                process.env.NODE_ENV !== "production",
         } as ValidationConfig,
         auth: {
             allowInsecureProviderDomain: process.env.AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN === "true",

@@ -264,10 +264,18 @@ const decodeThumbHash = (base64?: string): string | undefined => {
 // A decode encodes a PNG in JS, wasted on a cached image that paints over the preview unseen, so
 // decode only while the image is still loading. onMounted runs before first paint: no blank frame.
 const imageElement1 = ref<HTMLImageElement>();
+const imageElement2 = ref<HTMLImageElement>();
 const showThumbHash = ref(isPrerender());
 onMounted(() => {
     const img = imageElement1.value;
     showThumbHash.value = !(img?.complete && img.naturalWidth > 0);
+
+    // Hydration keeps the prerendered (reduced, uninflated) `sizes` because Vue doesn't patch plain
+    // attributes, and nothing re-renders it afterwards — so correct it once on mount.
+    const el = img ?? imageElement2.value;
+    if (el && sizesAttr.value && el.getAttribute("sizes") !== sizesAttr.value) {
+        el.setAttribute("sizes", sizesAttr.value);
+    }
 });
 const thumbHashDataUrl = computed(() =>
     showThumbHash.value ? decodeThumbHash(displayCollection.value?.thumbHash) : undefined,
@@ -457,6 +465,7 @@ const modalSrcset = computed(() => {
     <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
     <img
         v-else-if="showImageElement2 && srcset2"
+        ref="imageElement2"
         :srcset="srcset2"
         :sizes="sizesAttr"
         :class="[

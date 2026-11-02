@@ -230,6 +230,43 @@ describe("UnpinnedVideo", () => {
         });
     });
 
+    // Since #1910 the CMS writes the video to the parent's media only; such posts were
+    // missing from the Watch page while it filtered on the legacy `video` field (#2366).
+    it("displays content whose only video is the parent's encoded media", async () => {
+        const mediaOnlyContent: ContentDto = {
+            ...mockVideoContent1,
+            _id: "content-mediaonly-eng",
+            title: "Media Only Video",
+            parentMedia: { hlsUrl: "media-only/master.m3u8" } as ContentDto["parentMedia"],
+        };
+        delete mediaOnlyContent.video;
+        await db.docs.bulkPut([mockUnpinnedCategoryContent, mediaOnlyContent]);
+
+        const wrapper = mountWithSuspense();
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Media Only Video");
+        });
+    });
+
+    it("does not display content whose parent media has no URL and no video", async () => {
+        const emptyMediaContent: ContentDto = {
+            ...mockVideoContent1,
+            _id: "content-emptymedia-eng",
+            title: "Empty Media Content",
+            parentMedia: { hlsUrl: "" } as ContentDto["parentMedia"],
+        };
+        delete emptyMediaContent.video;
+        await db.docs.bulkPut([mockUnpinnedCategoryContent, mockVideoContent1, emptyMediaContent]);
+
+        const wrapper = mountWithSuspense();
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Video One");
+            expect(wrapper.text()).not.toContain("Empty Media Content");
+        });
+    });
+
     it("filters out content with parentPostType Page", async () => {
         const pageContent: ContentDto = {
             ...mockVideoContent1,
