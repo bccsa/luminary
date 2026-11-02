@@ -9,6 +9,7 @@ import { groupByActivityDate } from "./activityGroups";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
 import { openHighlight } from "@/util/openHighlight";
+import { highlightExcerpts } from "@/util/highlightExcerpt";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -34,7 +35,12 @@ const translations = useContentQuery(() => [{ _id: { $in: highlightedIds.value }
     keepPreviousResult: true,
 });
 
-type Entry = { row: UserActivityEntry; content: ContentDto; range?: HighlightRange };
+type Entry = {
+    row: UserActivityEntry;
+    content: ContentDto;
+    range?: HighlightRange;
+    excerpt?: string;
+};
 
 /**
  * One card per activity, in the order the table returned — so the same post appears once
@@ -48,7 +54,9 @@ const entries = computed<Entry[]>(() =>
             : posts.value.find((c) => c.parentId === row.parentId);
         if (!content) return [];
         if (row.type !== "highlighted") return [{ row, content }];
-        return (row.payload?.ranges ?? []).map((range) => ({ row, content, range }));
+        const ranges = row.payload?.ranges ?? [];
+        const excerpts = highlightExcerpts(content.text, ranges);
+        return ranges.map((range, i) => ({ row, content, range, excerpt: excerpts[i] }));
     }),
 );
 
@@ -68,7 +76,7 @@ const sections = computed(() => groupByActivityDate(entries.value, (e) => e.row.
                     :key="`${entry.row._id}-${entry.range?.start ?? ''}`"
                     :content="entry.content"
                     :type="entry.row.type"
-                    :excerpt="entry.range?.text"
+                    :excerpt="entry.excerpt"
                     :excerpt-color="entry.range?.color"
                     :opens-passage="!!entry.range"
                     @open="entry.range && openHighlight(router, entry.content.slug, entry.range)"
