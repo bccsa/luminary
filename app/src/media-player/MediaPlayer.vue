@@ -569,7 +569,13 @@ function buildRoster(time: number, markerX: number, step: number, width = pictur
     if (!sample || !sample.w || !sample.h) return null;
     const height = rosterHeightFor(width);
     const tileWidth = Math.max(24, Math.round((height * sample.w) / sample.h));
-    const tiles = rosterTiles(time, markerX, width, tileWidth, step, duration.value).map(
+    // Near either end the marker follows the playhead to the edge, so the strip fills the width instead of leaving an empty gap beyond the video.
+    const pxPerSecond = tileWidth / step;
+    const stripMarkerX = Math.min(
+        time * pxPerSecond,
+        Math.max(width - (duration.value - time) * pxPerSecond, markerX),
+    );
+    const tiles = rosterTiles(time, stripMarkerX, width, tileWidth, step, duration.value).map(
         (tile) => ({
             // A different step makes the same index a different slot, so the step is part of the identity.
             key: `${step}:${tile.index}`,
@@ -578,7 +584,7 @@ function buildRoster(time: number, markerX: number, step: number, width = pictur
             cue: instance.thumbnailAt(tile.time),
         }),
     );
-    return { tiles, tileWidth, height, markerX, time, step };
+    return { tiles, tileWidth, height, markerX: stripMarkerX, time, step };
 }
 
 /** The now-playing screen's held bar, which has no picture element to measure; null when it is let go. */
