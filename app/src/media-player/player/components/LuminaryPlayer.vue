@@ -302,12 +302,21 @@ function onEngineAudioTrackChange(): void {
 /** Mirrors a selection made in the skin's captions menu back into the controller. */
 function onEngineTextTrackChange(): void {
     const instance = controller.value;
-    const tracks = mediaEl.value?.textTracks;
+    const tracks = mediaEl.value?.textTracks as
+        | ArrayLike<{
+              kind?: string;
+              mode?: string;
+              label?: string;
+              language?: string;
+              id?: string;
+          }>
+        | undefined;
     if (isYouTube.value || !instance || !tracks) return;
+    const trackList = Array.from(tracks);
     // The sound alone hands the engine no subtitles: their absence is not the viewer turning them off (the lyrics keep theirs).
-    if (!Array.from(tracks).some((track) => track.kind === "subtitles")) return;
+    if (!trackList.some((track) => track.kind === "subtitles")) return;
     let showing: string | null = null;
-    for (const track of tracks) {
+    for (const track of trackList) {
         if (track.kind === "subtitles" && track.mode === "showing") {
             // A track of the master is named as the controller names it, so a host's menu marks the same one.
             const named = state.value.subtitleTracks.find(
