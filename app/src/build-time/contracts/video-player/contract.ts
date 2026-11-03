@@ -76,7 +76,8 @@ export type VideoPlayerHandle = {
     showAirPlayPicker?(): void;
     play(): Promise<void> | undefined;
     pause(): void;
-    seek(seconds: number): void;
+    /** `exact: false` may land on the nearest keyframe, which a player can show at once; for skips, not for scrubbing. */
+    seek(seconds: number, options?: { exact?: boolean }): void;
     enterFullscreen(): Promise<void>;
     exitFullscreen(): Promise<void>;
 };
