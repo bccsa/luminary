@@ -361,8 +361,13 @@ export function useReadingProgressTracker(options: {
         return getReadingProgress(id);
     });
 
+    const initialSavedProgressPercent = ref(0);
     const hasResumableProgress = computed(() => {
         const p = savedProgressPercent.value;
+        return p > 0 && p < 100;
+    });
+    const hasResumableProgressOnOpen = computed(() => {
+        const p = initialSavedProgressPercent.value;
         return p > 0 && p < 100;
     });
 
@@ -386,6 +391,7 @@ export function useReadingProgressTracker(options: {
             isRestoring,
             savedProgressPercent,
             hasResumableProgress,
+            hasResumableProgressOnOpen,
             readingProgressPercent,
             scrollProgressPercent,
             restoreScrollPosition,
@@ -478,6 +484,7 @@ export function useReadingProgressTracker(options: {
         scrollRafPending = false;
         visibilityRafPending = false;
         isRestoring.value = false;
+        initialSavedProgressPercent.value = 0;
     }
 
     function collectSegments() {
@@ -917,6 +924,8 @@ export function useReadingProgressTracker(options: {
         if (!options.enabled.value) return;
 
         if (contentChanged) {
+            const id = options.contentId.value;
+            initialSavedProgressPercent.value = id ? getReadingProgress(id) : 0;
             if (segments.value.length > 0) {
                 seedConfirmedFromSavedProgress();
             }
@@ -978,6 +987,7 @@ export function useReadingProgressTracker(options: {
         isRestoring,
         savedProgressPercent,
         hasResumableProgress,
+        hasResumableProgressOnOpen,
         readingProgressPercent,
         scrollProgressPercent,
         restoreScrollPosition,
