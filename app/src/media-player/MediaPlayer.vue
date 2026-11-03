@@ -28,18 +28,23 @@ import {
 } from "@heroicons/vue/20/solid";
 import { AUDIO_ONLY_ANGLE_ID } from "@luminary-media-converter/player-web";
 import {
+    AUDIO_ONLY_ANGLE_ID,
+    chapterIndexAt,
+    chapterSegments,
+    type ThumbnailSpriteCue,
+    type Chapter,
+} from "@luminary-media-converter/player-web";
+import {
     AudioFullscreen,
     ScrubPicture,
     ScrubRoster,
-    chapterIndexAt,
     chapterMask,
-    chapterSegments,
     mergeMessages,
     rosterFineStep,
     rosterStep,
     rosterTiles,
-} from "./playerWebCompat";
-import type { Chapter, ScrubPosition, ThumbnailSpriteCue } from "./playerCompat";
+    type ScrubPosition,
+} from "@/media-player/player";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
 import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";
@@ -1776,7 +1781,7 @@ function onKeydown(event: KeyboardEvent) {
                     @exit="minimiseMediaPlayer"
                     @toggle-play="togglePlay"
                     @seek="(time) => handle?.seek(time)"
-                    @seek-chapter="(chapter) => handle?.seek(chapter.startTime)"
+                    @seek-chapter="(chapter: Chapter) => handle?.seek(chapter.startTime)"
                     @upnextselect="
                         (id) => {
                             const next = browseContents.find((doc) => doc._id === id);
@@ -1784,10 +1789,10 @@ function onKeydown(event: KeyboardEvent) {
                         }
                     "
                     @rate="(rate) => controller?.setPlaybackRate(rate)"
-                    @audio-track="(id) => controller?.setAudioTrack(id)"
+                    @audio-track="(id: string) => controller?.setAudioTrack(id)"
                     @quality="(id) => controller?.setQuality(id)"
-                    @sleep="(option) => (controller as any)?.setSleepTimer?.(option)"
-                    @subtitle-track="(id) => controller?.setSubtitleTrack(id)"
+                    @sleep="(option) => controller?.setSleepTimer(option)"
+                    @subtitle-track="(id: string | null) => controller?.setSubtitleTrack(id)"
                     @picture-in-picture="handle?.startPictureInPicture?.()"
                     @fullscreen="
                         !audioMode
@@ -2731,7 +2736,7 @@ function onKeydown(event: KeyboardEvent) {
                 @exit="audioFullscreen = false"
                 @toggle-play="togglePlay"
                 @seek="(time) => controller?.seek(time)"
-                @seek-chapter="(chapter) => controller?.seek(chapter.startTime)"
+                @seek-chapter="(chapter: Chapter) => controller?.seek(chapter.startTime)"
                 @upnextselect="
                     (id) => {
                         const next = browseContents.find((doc) => doc._id === id);
@@ -2739,9 +2744,9 @@ function onKeydown(event: KeyboardEvent) {
                     }
                 "
                 @rate="(rate) => controller?.setPlaybackRate(rate)"
-                @audio-track="(id) => (controller as any)?.setAudioTrack?.(id)"
-                @sleep="(option) => (controller as any)?.setSleepTimer?.(option)"
-                @subtitle-track="(id) => (controller as any)?.setSubtitleTrack?.(id)"
+                @audio-track="(id: string) => controller?.setAudioTrack(id)"
+                @sleep="(option) => controller?.setSleepTimer(option)"
+                @subtitle-track="(id: string | null) => controller?.setSubtitleTrack(id)"
             >
                 <template #audio-tool>
                     <MediaPlayerVolume

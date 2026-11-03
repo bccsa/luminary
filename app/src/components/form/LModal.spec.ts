@@ -16,6 +16,24 @@ describe("LModal", () => {
         });
     });
 
+    describe("close button", () => {
+        it("emits close when the close button is clicked", async () => {
+            const wrapper = mount(LModal, {
+                props: { heading: "H", isVisible: true, closeButton: true },
+            });
+
+            await wrapper.find("[data-test='modal-close']").trigger("click");
+
+            expect(wrapper.emitted("close")).toBeTruthy();
+        });
+
+        it("hides the close button by default", () => {
+            const wrapper = mount(LModal, { props: { heading: "H", isVisible: true } });
+
+            expect(wrapper.find("[data-test='modal-close']").exists()).toBe(false);
+        });
+    });
+
     describe("closing behavior", () => {
         it("emits close when mousedown directly on container", async () => {
             const wrapper = mount(LModal, {

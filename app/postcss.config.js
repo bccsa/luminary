@@ -26,6 +26,17 @@ export default {
             ],
             onFeatureUsage: (usageInfo) => {
                 const title = usageInfo.featureData.title.toLowerCase();
+                // The media player's own stylesheet and the Video.js 10 skin it builds on are exempt:
+                // they use container queries and their units, :fullscreen, color() and
+                // overflow-anchor, which this list flags. Only those two files are.
+                const file = usageInfo.usage?.source?.input?.file ?? "";
+                if (
+                    /[\\/]src[\\/]media-player[\\/]player[\\/](styles\.css|generated[\\/]skin\.css)$/.test(
+                        file,
+                    )
+                ) {
+                    return;
+                }
 
                 if (
                     title.includes("font-family") ||

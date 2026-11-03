@@ -15,7 +15,9 @@
         "test:cms:headed": "playwright test --project=cms --headed",
         "report": "playwright show-report",
         "codegen:app": "playwright codegen $APP_BASE_URL",
-        "codegen:cms": "playwright codegen $CMS_BASE_URL"
+        "codegen:cms": "playwright codegen $CMS_BASE_URL",
+        "test:player": "playwright test -c player/playwright.config.ts",
+        "fixtures:player": "node player/fixtures/build.mjs && python3 player/fixtures/make-sample-stream.py"
     },
     "devDependencies": {
         "@playwright/test": "^1.56.0",

@@ -20,10 +20,10 @@ import {
 } from "vue";
 import {
     AUDIO_ONLY_ANGLE_ID,
-    LuminaryPlayer,
+    isYouTubeUrl,
     type PlayerSource,
 } from "@luminary-media-converter/player-web";
-import type { PlayerUpNextItem } from "./playerCompat";
+import { LuminaryPlayer, type PlayerUpNextItem } from "@/media-player/player";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "@/components/images/LImage.vue";
 import { usePlayerMessages } from "@/media-player/usePlayerMessages";

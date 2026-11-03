@@ -1,3 +1,4 @@
+import { normalizeDocTypes } from "./util/normalizeDocTypes";
 import {
     WebSocketGateway,
     SubscribeMessage,
@@ -289,12 +290,11 @@ export class Socketio implements OnGatewayInit {
         socket.data.cms = reqData.cms === true;
 
         // Determine which doc types to get
-        const docTypes: Array<any> = [];
-        reqData.docTypes.forEach((docType) => {
-            if (!docTypes.includes(docType.type)) docTypes.push(docType.type);
-        });
+        const requested = Array.isArray(reqData?.docTypes)
+            ? reqData.docTypes.map((docType) => docType?.type)
+            : [];
 
-        this.joinDocTypeRooms(socket, docTypes);
+        this.joinDocTypeRooms(socket, normalizeDocTypes(requested));
     }
 
     /**
@@ -318,7 +318,7 @@ export class Socketio implements OnGatewayInit {
      */
     @SubscribeMessage("joinRooms")
     joinRooms(@MessageBody() reqData: ClientRoomReq, @ConnectedSocket() socket: ClientSocket) {
-        this.joinDocTypeRooms(socket, reqData?.docTypes ?? []);
+        this.joinDocTypeRooms(socket, normalizeDocTypes(reqData?.docTypes));
     }
 
     /**
@@ -330,7 +330,7 @@ export class Socketio implements OnGatewayInit {
      */
     @SubscribeMessage("leaveRooms")
     leaveRooms(@MessageBody() reqData: ClientRoomReq, @ConnectedSocket() socket: ClientSocket) {
-        const docTypes = reqData?.docTypes ?? [];
+        const docTypes = normalizeDocTypes(reqData?.docTypes);
         if (!docTypes.length) return;
 
         const { permission, suffix } = this.roomConfig(socket);

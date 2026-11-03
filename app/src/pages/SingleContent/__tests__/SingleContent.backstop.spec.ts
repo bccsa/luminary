@@ -89,6 +89,8 @@ vi.mock("@luminary-media-converter/player-web", async () => {
         }),
     };
 });
+// The app's player UI re-exports the mocked engine's stand-ins.
+vi.mock("@/media-player/player", () => import("@luminary-media-converter/player-web"));
 
 describe("SingleContent cold-start backstop", () => {
     beforeEach(async () => {

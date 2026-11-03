@@ -85,6 +85,8 @@ vi.mock("@luminary-media-converter/player-web", async () => {
 vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({ bucketBaseUrl: computed(() => "https://bucket.example.com") }),
 }));
+// The app's player UI re-exports the mocked engine's stand-ins.
+vi.mock("@/media-player/player", () => import("@luminary-media-converter/player-web"));
 
 vi.mock("luminary-shared", async (importOriginal) => ({
     ...(await importOriginal<typeof import("luminary-shared")>()),

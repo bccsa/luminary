@@ -80,6 +80,7 @@ vi.mock("@/composables/useTranslationSwitcher", () => ({
 vi.mock("@/composables/useReadingProgressTracker", () => ({
     useReadingProgressTracker: () => ({
         hasResumableProgress: ref(false),
+        hasResumableProgressOnOpen: ref(false),
         savedProgressPercent: ref(0),
         readingProgressPercent: ref(0),
         scrollProgressPercent: ref(0),
