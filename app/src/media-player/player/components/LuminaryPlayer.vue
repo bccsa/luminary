@@ -1495,6 +1495,11 @@ function readControlsShown(): void {
     controlsShown.value = containerEl.value?.hasAttribute(CONTROLS_VISIBLE_ATTR) ?? false;
 }
 
+// A cursor resting on the timeline sends no more pointer events, so the hover preview would outlive the controls it belongs to.
+watch(controlsShown, (shown) => {
+    if (!shown && !scrub.value?.held) hideScrub();
+});
+
 /** Dismissed or already chosen: either way the card has done its job for this video. */
 const nextUpClosed = ref(false);
 const nextUpEl = ref<HTMLElement | null>(null);
