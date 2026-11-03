@@ -708,9 +708,10 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                     >
                         {{ caption }}
                     </p>
-                    <!-- A drag along the picture's foot scrubs like the bar, for a thumb that lands short of it. -->
+                    <!-- A drag along the picture's foot scrubs like the bar, for a thumb that lands short of it. Not
+                         when the picture fills the window: the player's own control row sits there. -->
                     <div
-                        v-if="isVideo && knownDuration && !isLive"
+                        v-if="isVideo && knownDuration && !isLive && !fill"
                         class="lmpl-afs-scrubzone"
                         data-test="afsScrubZone"
                         @pointerdown="onBarDown"
