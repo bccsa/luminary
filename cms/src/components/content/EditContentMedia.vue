@@ -309,7 +309,7 @@ watch(
                 class="text-xs text-zinc-500 dark:text-zinc-400"
                 data-test="edit-media-hint"
             >
-                You can edit the chapters and audio tracks once the encode has finished.
+                You can edit the chapters and audio tracks once the video has finished encoding
             </p>
 
             <p v-if="showHelp" class="text-xs dark:text-zinc-200">
