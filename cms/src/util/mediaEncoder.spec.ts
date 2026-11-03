@@ -112,6 +112,26 @@ describe("createEncoderSession", () => {
             }),
         ).rejects.toThrow(/Accept the prompt/);
     });
+    it("shows the encoder's own message when it refuses an edit of a post still encoding", async () => {
+        const message = "This post is still being encoded.";
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue({
+                ok: false,
+                status: 409,
+                text: async () => JSON.stringify({ message, error: "Conflict", statusCode: 409 }),
+            }),
+        );
+
+        await expect(
+            createEncoderSession({
+                documentId: "post-1",
+                title: "t",
+                s3: { endPoint: "e", bucket: "b", accessKey: "a", secretKey: "s" },
+                publicBaseUrl: "https://cdn.example.com",
+            }),
+        ).rejects.toThrow(new Error(message));
+    });
 });
 
 describe("fetchEncoderSessionKey", () => {
