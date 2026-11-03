@@ -75,7 +75,7 @@ vi.mock("@/globalConfig", () => ({
     cmsDefaultLanguage: computed(() => mockLanguageDtoEng),
     queryParams: { get: vi.fn() },
     cmsUrl: ref(""),
-    userPreferencesAsRef: ref({ bookmarks: [] }),
+    userPreferencesAsRef: ref({ likes: [] }),
     appLanguageIdsAsRef: ref(["lang-eng"]),
     appLanguageAsRef: ref(undefined),
     initLanguage: vi.fn(),
@@ -93,6 +93,7 @@ vi.mock("@/composables/useTranslationSwitcher", () => ({
 vi.mock("@/composables/useReadingProgressTracker", () => ({
     useReadingProgressTracker: () => ({
         hasResumableProgress: ref(false),
+        hasResumableProgressOnOpen: ref(false),
         savedProgressPercent: ref(0),
         readingProgressPercent: ref(0),
         scrollProgressPercent: ref(0),

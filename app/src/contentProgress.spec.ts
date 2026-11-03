@@ -6,6 +6,7 @@ import {
     getMediaProgress,
     removeMediaProgress,
     getReadingProgress,
+    hasContentProgress,
     contentProgressAsRef,
     removeReadingProgress,
     setReadingProgress,
@@ -156,6 +157,20 @@ describe("contentProgress.ts", () => {
             ).toEqual({ progress: 72 });
 
             stop();
+        });
+
+        it("reports whether a content has any progress at all", () => {
+            expect(hasContentProgress("nothing-here")).toBe(false);
+
+            setReadingProgress("read-me", 30);
+            expect(hasContentProgress("read-me")).toBe(true);
+
+            setMediaProgress("media-1", "watch-me", 30, 300);
+            expect(hasContentProgress("watch-me")).toBe(true);
+
+            // The entry goes with its last part, so the content has nothing recorded again.
+            removeReadingProgress("read-me");
+            expect(hasContentProgress("read-me")).toBe(false);
         });
 
         it("migrates legacy readingProgress and mediaProgress keys on first load", () => {

@@ -31,6 +31,13 @@ describe("Router", () => {
             expect(searchRoute?.meta.prerender).toBe(true);
         });
 
+        it("should have activity route configured correctly", () => {
+            const activityRoute = router.getRoutes().find((route) => route.name === "activity");
+            expect(activityRoute).toBeDefined();
+            expect(activityRoute?.path).toBe("/activity");
+            expect(activityRoute?.meta.title).toBe("activity.title");
+        });
+
         it("should have 404 route as catch-all", () => {
             const notFoundRoute = router.getRoutes().find((route) => route.name === "404");
             expect(notFoundRoute).toBeDefined();

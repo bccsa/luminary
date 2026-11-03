@@ -5,7 +5,7 @@ import {
     UserIcon,
     ArrowRightEndOnRectangleIcon,
     ArrowLeftEndOnRectangleIcon,
-    BookmarkIcon as FilledBookmarkIcon,
+    HeartIcon as FilledHeartIcon,
     Cog6ToothIcon as FilledCog6ToothIcon,
 } from "@heroicons/vue/20/solid";
 import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
@@ -15,7 +15,7 @@ import { computed, onMounted, ref, type ComputedRef } from "vue";
 import {
     ArrowDownTrayIcon,
     ShieldCheckIcon,
-    BookmarkIcon,
+    HeartIcon,
     Bars3Icon,
     Cog6ToothIcon,
     LanguageIcon,
@@ -33,7 +33,7 @@ import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
 import LToggle from "../form/LToggle.vue";
-import MobileSidebar from "../common/MobileSidebar.vue";
+import LSidePanel from "../common/LSidePanel.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
@@ -156,20 +156,18 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
             },
         },
         {
-            name: t("profile_menu.bookmarks"),
-            icon: BookmarkIcon,
-            action: () => router.push({ name: "bookmarks" }),
+            name: t("profile_menu.activity"),
+            icon: HeartIcon,
+            action: () => router.push({ name: "activity" }),
         },
     ];
 });
 
-const privacyPolicyNavigationItem = computed(
-    (): NavigationItems => ({
-        name: t("profile_menu.privacy_policy"),
-        icon: ShieldCheckIcon,
-        action: () => (showPrivacyPolicyModal.value = true),
-    }),
-);
+const privacyPolicyNavigationItem = computed((): NavigationItems => ({
+    name: t("profile_menu.privacy_policy"),
+    icon: ShieldCheckIcon,
+    action: () => (showPrivacyPolicyModal.value = true),
+}));
 
 const userNavigation = computed(() => {
     const authItem = isAuthenticated.value
@@ -208,7 +206,7 @@ const userNavigation = computed(() => {
 const sidebarNavigation = computed(() =>
     userNavigation.value.filter(
         (item) =>
-            item.name !== t("profile_menu.settings") && item.name !== t("profile_menu.bookmarks"),
+            item.name !== t("profile_menu.settings") && item.name !== t("profile_menu.activity"),
     ),
 );
 </script>
@@ -222,7 +220,6 @@ const sidebarNavigation = computed(() =>
         aria-label="Open user menu"
         class="-m-1.5 flex items-center gap-1 rounded-md px-2 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-600"
         @click="menuOpen = !menuOpen"
-
     >
         <img
             v-if="isAuthenticated && user?.picture"
@@ -341,7 +338,7 @@ const sidebarNavigation = computed(() =>
     </button>
 
     <!-- Shared slide-in panel (avatar + bars triggers only) -->
-    <MobileSidebar
+    <LSidePanel
         v-if="trigger !== 'sidebar'"
         v-model:open="menuOpen"
     >
@@ -417,9 +414,9 @@ const sidebarNavigation = computed(() =>
                     <span class="text-sm font-medium">{{ t("menu.search") }}</span>
                 </span>
 
-                <!-- Bookmarks -->
+                <!-- My Activity -->
                 <RouterLink
-                    :to="{ name: 'bookmarks' }"
+                    :to="{ name: 'activity' }"
                     v-slot="{ isActive, navigate }"
                     custom
                 >
@@ -436,11 +433,11 @@ const sidebarNavigation = computed(() =>
                         "
                     >
                         <component
-                            :is="isActive ? FilledBookmarkIcon : BookmarkIcon"
+                            :is="isActive ? FilledHeartIcon : HeartIcon"
                             class="h-5 w-5 flex-shrink-0"
                             aria-hidden="true"
                         />
-                        <span class="text-sm font-medium">{{ t("profile_menu.bookmarks") }}</span>
+                        <span class="text-sm font-medium">{{ t("profile_menu.activity") }}</span>
                     </span>
                 </RouterLink>
 
@@ -459,7 +456,9 @@ const sidebarNavigation = computed(() =>
                             class="h-5 w-5 flex-shrink-0"
                             aria-hidden="true"
                         />
-                        <span class="text-sm font-medium">{{ t("profile_menu.update_available") }}</span>
+                        <span class="text-sm font-medium">{{
+                            t("profile_menu.update_available")
+                        }}</span>
                     </span>
 
                     <!-- Theme -->
@@ -490,11 +489,14 @@ const sidebarNavigation = computed(() =>
                             aria-hidden="true"
                         />
                         <div class="flex flex-col leading-none">
-                            <span class="text-sm font-medium">{{ t("profile_menu.language") }}</span>
+                            <span class="text-sm font-medium">{{
+                                t("profile_menu.language")
+                            }}</span>
                             <span
                                 v-if="appLanguageAsRef?.name"
                                 class="mt-0.5 text-xs text-zinc-500 dark:text-slate-300"
-                            >{{ appLanguageAsRef.name }}</span>
+                                >{{ appLanguageAsRef.name }}</span
+                            >
                         </div>
                     </span>
 
@@ -521,7 +523,9 @@ const sidebarNavigation = computed(() =>
                                 class="h-5 w-5 flex-shrink-0"
                                 aria-hidden="true"
                             />
-                            <span class="text-sm font-medium">{{ t("profile_menu.settings") }}</span>
+                            <span class="text-sm font-medium">{{
+                                t("profile_menu.settings")
+                            }}</span>
                         </span>
                     </RouterLink>
                 </div>
@@ -556,7 +560,11 @@ const sidebarNavigation = computed(() =>
                     "
                 >
                     <component
-                        :is="isAuthenticated ? ArrowRightEndOnRectangleIcon : ArrowLeftEndOnRectangleIcon"
+                        :is="
+                            isAuthenticated
+                                ? ArrowRightEndOnRectangleIcon
+                                : ArrowLeftEndOnRectangleIcon
+                        "
                         class="h-5 w-5 flex-shrink-0"
                         aria-hidden="true"
                     />
@@ -582,13 +590,15 @@ const sidebarNavigation = computed(() =>
                     >
                         <UserIcon class="h-5 w-5 text-zinc-600 dark:text-slate-100" />
                     </div>
-                    <span class="flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100">
+                    <span
+                        class="flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100"
+                    >
                         {{ user?.name || user?.email }}
                     </span>
                 </div>
             </div>
         </template>
-    </MobileSidebar>
+    </LSidePanel>
 
     <template v-if="isMounted">
         <LanguageModal

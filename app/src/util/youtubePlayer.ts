@@ -2,7 +2,7 @@ import { reactive } from "vue";
 import type { PlayerState } from "@luminary-media-converter/player-web";
 
 /**
- * A video hosted by YouTube, driven from the page. `public/youtube-embed.html` runs YouTube's IFrame Player
+ * A video hosted by YouTube, driven from the page. The app's `/youtube-embed/` page runs YouTube's IFrame Player
  * API with its controls off and reports over `postMessage`; this turns those reports into the state the
  * media player already reads from any other player, and turns its buttons into commands back, so the
  * controls look and work the same on a YouTube video as on one of ours.

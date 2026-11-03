@@ -83,7 +83,7 @@ describe("ProfileMenu", () => {
         const wrapper = mount(ProfileMenu);
 
         // Open the slide-in menu, then click the "Language" item.
-        // Language is rendered as a <span>, not a <button>, in the MobileSidebar body.
+        // Language is rendered as a <span>, not a <button>, in the LSidePanel body.
         await wrapper.find("button").trigger("click");
 
         const languageItem = wrapper

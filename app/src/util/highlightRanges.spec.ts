@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import type { HighlightRange } from "luminary-shared";
 import {
     addHighlight,
     anchorHighlights,
@@ -9,7 +10,6 @@ import {
     removeHighlights,
     snapToWords,
     textOffset,
-    type HighlightRange,
 } from "./highlightRanges";
 
 const TEXT = "The quick brown fox jumps over the lazy dog.";

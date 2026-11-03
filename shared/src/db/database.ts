@@ -12,6 +12,7 @@ import {
     PublishStatus,
     TagDto,
     TagType,
+    UserActivityEntry,
     Uuid,
 } from "../types";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
@@ -26,6 +27,7 @@ import { config, getDeleteExpiredIntervalMs } from "../config";
 import { isConnected } from "../socket/socketio";
 import { changeReqErrors, changeReqInfo, changeReqWarnings } from "../config";
 import { cloneDeep } from "lodash-es";
+import { retryOnTransientIndexedDbError } from "./transientRetry";
 
 const dbName: string = "luminary-db";
 
@@ -62,6 +64,7 @@ type dbIndex = {
     localChanges: string;
     luminaryInternals: string;
     retention: string;
+    userActivity: string;
 };
 
 export type QueryOptions = {
@@ -128,6 +131,7 @@ class Database extends Dexie {
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     luminaryInternals!: Table<LuminaryInternals>;
     retention!: Table<RetentionEntry>;
+    userActivity!: Table<UserActivityEntry>;
 
     // In-memory (not persisted) acknowledgements for callers awaiting the real server ack
     // of a queued local change — see `upsert` and `waitForLocalChangeAck`.
@@ -201,6 +205,8 @@ class Database extends Dexie {
             localChanges: "++id, reqId, docId, status",
             luminaryInternals: "id",
             retention: "docId, retainUntil",
+            userActivity:
+                "_id, type, parentId, contentId, updatedTimeUtc, [type+updatedTimeUtc]",
         };
 
         const version: number = bumpDBVersion(
@@ -276,7 +282,13 @@ class Database extends Dexie {
     /**
      * Bulk insert documents into the database, and delete documents that are marked for deletion.
      */
-    async bulkPut(docs: BaseDocumentDto[]) {
+    bulkPut(docs: BaseDocumentDto[]) {
+        // Idempotent, so safe to retry whole after a transient WebKit IndexedDB abort.
+        return retryOnTransientIndexedDbError(() => this.bulkPutOnce(docs));
+    }
+
+    // Must stay idempotent: `bulkPut` may run it twice after a transient IndexedDB error.
+    private async bulkPutOnce(docs: BaseDocumentDto[]) {
         const candidateDeleteCmds = docs.filter(
             (doc) =>
                 doc.type === DocType.DeleteCmd && this.validateDeleteCommand(doc as DeleteCmdDto),
@@ -879,7 +891,8 @@ class Database extends Dexie {
     }
 
     /**
-     * Purge the local database
+     * Purge the local database. `userActivity` is left alone: it is not a cache of server
+     * documents, so clearing the cache or signing out must not erase what the user did.
      */
     async purge() {
         for (const entry of Array.from(this.localChangeAcks.values())) {

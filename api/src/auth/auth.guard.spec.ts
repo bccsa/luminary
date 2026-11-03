@@ -1,10 +1,11 @@
 import { AuthGuard } from "./auth.guard";
-import { AuthIdentityService } from "./authIdentity.service";
+import { IdentityCacheService } from "./identityCache.service";
 import type { IdentityResult } from "./authIdentity.service";
 
 describe("AuthGuard", () => {
     let guard: AuthGuard;
-    let authIdentityService: Partial<AuthIdentityService>;
+    // The guard resolves through IdentityCacheService; the mock exposes its resolveOrDefault.
+    let authIdentityService: Partial<IdentityCacheService>;
 
     const defaultUserDetails = {
         groups: ["group-public-users"],
@@ -15,7 +16,7 @@ describe("AuthGuard", () => {
         authIdentityService = {
             resolveOrDefault: jest.fn(),
         };
-        guard = new AuthGuard(authIdentityService as AuthIdentityService);
+        guard = new AuthGuard(authIdentityService as IdentityCacheService);
     });
 
     function createMockContext(authHeader?: string, providerId?: string) {

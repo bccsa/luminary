@@ -185,6 +185,15 @@ export function watchContentProgressStorage(): () => void {
     return () => window.removeEventListener("storage", onStorage);
 }
 /**
+ * Whether anything is recorded for a content — reading or playback, finished or not.
+ * Reads through the ref so a caller inside a computed re-evaluates as progress lands.
+ */
+export const hasContentProgress = (contentId: Uuid): boolean => {
+    const entry = findTrackedContentProgressEntry(contentId);
+    return !!entry && (entry.reading !== undefined || entry.watching !== undefined);
+};
+
+/**
  * Get the playback progress of a media item.
  * @param mediaId - The media unique identifier
  * @param contentId - The content document ID.

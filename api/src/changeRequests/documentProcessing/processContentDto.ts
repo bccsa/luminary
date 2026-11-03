@@ -64,6 +64,7 @@ export default async function processContentDto(
         doc.parentImageData = parentDoc.imageData;
         doc.parentImageBucketId = parentDoc.imageBucketId;
         doc.parentMedia = parentDoc.media;
+        doc.parentMediaBucketId = parentDoc.mediaBucketId;
 
         if (parentDoc.type == DocType.Post) {
             doc.parentPostType = (parentDoc as PostDto).postType;

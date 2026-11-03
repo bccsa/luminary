@@ -81,7 +81,7 @@ describe("YouTubeWrapper", () => {
         await wrapper.get("[data-test='youtubePlay']").trigger("click");
 
         const src = wrapper.get("[data-test='youtubeFrame']").attributes("src");
-        expect(src).toContain("/youtube-embed.html?v=dQw4w9WgXcQ&api=1");
+        expect(src).toContain("/youtube-embed/?v=dQw4w9WgXcQ&api=1");
         expect(src).not.toContain("://www.youtube.com");
         expect(wrapper.find("[data-test='youtubeNotice']").exists()).toBe(false);
         // Pressing Play once does not allow the next video.
@@ -166,7 +166,7 @@ describe("YouTubeWrapper", () => {
             await wrapper.get("[data-test='youtubePlay']").trigger("click");
 
             expect(wrapper.get("[data-test='youtubeFrame']").attributes("src")).toBe(
-                "https://app.example.org/youtube-embed.html?v=dQw4w9WgXcQ&api=1",
+                "https://app.example.org/youtube-embed/?v=dQw4w9WgXcQ&api=1",
             );
         });
 
@@ -289,11 +289,17 @@ describe("YouTubeWrapper", () => {
             const { wrapper } = await playing();
             const frame = wrapper.get("[data-test='youtubeFrame']").element;
 
-            Object.defineProperty(document, "fullscreenElement", { value: frame, configurable: true });
+            Object.defineProperty(document, "fullscreenElement", {
+                value: frame,
+                configurable: true,
+            });
             document.dispatchEvent(new Event("fullscreenchange"));
             expect(lockLandscape).toHaveBeenLastCalledWith(true);
 
-            Object.defineProperty(document, "fullscreenElement", { value: null, configurable: true });
+            Object.defineProperty(document, "fullscreenElement", {
+                value: null,
+                configurable: true,
+            });
             document.dispatchEvent(new Event("fullscreenchange"));
             expect(lockLandscape).toHaveBeenLastCalledWith(false);
             expect(lockLandscape).toHaveBeenCalledTimes(2);
