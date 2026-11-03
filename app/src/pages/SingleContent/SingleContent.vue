@@ -630,6 +630,7 @@ const readingTime = computed<number>(() =>
 
 const {
     hasResumableProgress,
+    hasResumableProgressOnOpen,
     readingProgressPercent,
     scrollProgressPercent,
     restoreScrollPosition,
@@ -651,7 +652,9 @@ const {
 
 /** Hide the resume offer for this visit after the user continues, dismisses, or scrolls. */
 const continuePromptHandled = ref(false);
-const resumeOffered = computed(() => hasResumableProgress.value && !continuePromptHandled.value);
+const resumeOffered = computed(
+    () => hasResumableProgressOnOpen.value && !continuePromptHandled.value,
+);
 
 watch(contentId, () => {
     continuePromptHandled.value = false;
@@ -1134,6 +1137,7 @@ watch([isLoading, content, is404], async () => {
         :isVisible="showCategoryModal"
         @close="showCategoryModal = false"
         :heading="selectedCategory?.title || ''"
+        closeButton
     >
         <div class="max-h-[calc(80%)] overflow-y-auto">
             <div class="">

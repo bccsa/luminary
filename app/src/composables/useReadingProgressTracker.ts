@@ -336,8 +336,13 @@ export function useReadingProgressTracker(options: {
         return getReadingProgress(id);
     });
 
+    const initialSavedProgressPercent = ref(0);
     const hasResumableProgress = computed(() => {
         const p = savedProgressPercent.value;
+        return p > 0 && p < 100;
+    });
+    const hasResumableProgressOnOpen = computed(() => {
+        const p = initialSavedProgressPercent.value;
         return p > 0 && p < 100;
     });
 
@@ -361,6 +366,7 @@ export function useReadingProgressTracker(options: {
             isRestoring,
             savedProgressPercent,
             hasResumableProgress,
+            hasResumableProgressOnOpen,
             readingProgressPercent,
             scrollProgressPercent,
             restoreScrollPosition,
@@ -399,7 +405,111 @@ export function useReadingProgressTracker(options: {
         scrollProgressPercent.value = Math.min(100, Math.max(0, Math.round(percent)));
     }
 
-    function getViewportBounds(): ViewportBounds {
+    function scheduleProgressUpdate() {
+        if (progressRafPending) return;
+        progressRafPending = true;
+        requestAnimationFrame(() => {
+            progressRafPending = false;
+            computeScrollProgress();
+        });
+    }
+
+    useEventListener(options.scrollContainer, "scroll", scheduleProgressUpdate, { passive: true });
+
+    const observerRoot = computed(() =>
+        options.scrollContainer.value === window
+            ? null
+            : (options.scrollContainer.value as HTMLElement),
+    );
+
+    function stopDwellLoop() {
+        if (dwellRafId != null) {
+            cancelAnimationFrame(dwellRafId);
+            dwellRafId = null;
+        }
+        lastDwellFrameTime = 0;
+    }
+
+    function clearDwellAccumulation() {
+        dwellAccumulatedMs.clear();
+    }
+
+    function emitSessionEnd() {
+        if (!trackedContentId || segments.value.length === 0) return;
+        const finalDepthPercent = Math.round(
+            (confirmedSegments.size / segments.value.length) * 100,
+        );
+        options.onSessionEnd?.(trackedContentId, finalDepthPercent);
+    }
+
+    function resetTrackingState() {
+        stopDwellLoop();
+        clearDwellAccumulation();
+        confirmedSegments.clear();
+        visibleSegments.clear();
+        segmentWordsPerPixel.clear();
+        lastSavedProgress = -1;
+        lastScrollY = 0;
+        lastScrollTime = 0;
+        skimScrollState = {
+            pendingScrollDeltaY: 0,
+            pendingScrollDeltaMs: 0,
+            isSkimming: false,
+        };
+        scrollRafPending = false;
+        visibilityRafPending = false;
+        isRestoring.value = false;
+        initialSavedProgressPercent.value = 0;
+    }
+
+    function collectSegments() {
+        segmentsByElement.clear();
+        segmentWordsById.clear();
+        segmentWordsPerPixel.clear();
+        intersectingElements.clear();
+
+        if (!options.articleRoot.value) {
+            segmentList = [];
+            segments.value = [];
+            sourceElements.value = [];
+            return;
+        }
+
+        const maxSegmentHeight = getMaxSegmentHeight(options.scrollContainer.value);
+        const elements = Array.from(
+            options.articleRoot.value.querySelectorAll(BLOCK_SELECTOR),
+        ).filter((el) => el.textContent?.trim()) as Element[];
+
+        // The one place layout (rect) and text (word count) are read: once per block,
+        // per collect. Every hot path below works from these precomputed maps.
+        const allSegments: ReadingSegment[] = [];
+        elements.forEach((el, index) => {
+            const height = el.getBoundingClientRect().height;
+            const elSegments = splitElementIntoSegments(el, maxSegmentHeight, index, height);
+            if (!elSegments.length) return;
+
+            for (const segment of elSegments) {
+                const words = segmentWordCount(segment, height);
+                const segmentHeight = segment.bottomPx - segment.topPx;
+                segmentWordsById.set(segment.id, words);
+                segmentWordsPerPixel.set(segment.id, estimateWordsPerPixel(words, segmentHeight));
+            }
+            segmentsByElement.set(el, elSegments);
+            allSegments.push(...elSegments);
+        });
+
+        segmentList = allSegments;
+        segments.value = allSegments;
+        sourceElements.value = elements as MaybeElement[];
+    }
+
+    function getViewportBounds(
+        entry?: Pick<IntersectionObserverEntry, "rootBounds">,
+    ): ViewportBounds {
+        if (entry?.rootBounds) {
+            return { top: entry.rootBounds.top, bottom: entry.rootBounds.bottom };
+        }
+
         const container = options.scrollContainer.value;
         if (container === window) {
             return { top: 0, bottom: window.innerHeight };
@@ -632,6 +742,8 @@ export function useReadingProgressTracker(options: {
         if (!options.enabled.value) return;
 
         if (contentChanged) {
+            const id = options.contentId.value;
+            initialSavedProgressPercent.value = id ? getReadingProgress(id) : 0;
             if (segments.value.length > 0) {
                 seedFromSavedProgress();
             }
@@ -683,6 +795,7 @@ export function useReadingProgressTracker(options: {
         isRestoring,
         savedProgressPercent,
         hasResumableProgress,
+        hasResumableProgressOnOpen,
         readingProgressPercent,
         scrollProgressPercent,
         restoreScrollPosition,
