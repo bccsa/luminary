@@ -606,6 +606,7 @@ export function useReadingProgressTracker(options: {
         furthestPercent = 0;
         hasReachedSaved = false;
         isRestoring.value = false;
+        initialSavedProgressPercent.value = 0;
     }
 
     function collectSegments() {
