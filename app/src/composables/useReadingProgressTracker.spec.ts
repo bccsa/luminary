@@ -993,6 +993,55 @@ describe("useReadingProgressTracker", () => {
         expect(onSessionEnd).not.toHaveBeenCalled();
     });
 
+    it("keeps a prior saved progress snapshot true after the opener is dismissed and the reader keeps moving", async () => {
+        setReadingProgress(TEST_CONTENT_ID, 40);
+
+        const { wrapper } = mountTracker(2);
+        await flushPromises();
+        await nextTick();
+
+        const trackerResult = wrapper.vm.trackerApi;
+        expect(trackerResult.hasResumableProgressOnOpen.value).toBe(true);
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBeGreaterThanOrEqual(40);
+        expect(trackerResult.hasResumableProgressOnOpen.value).toBe(true);
+        wrapper.unmount();
+    });
+
+    it("does not retake the open snapshot when the same content re-renders for a layout change", async () => {
+        const { wrapper } = mountTracker(2);
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(50);
+        expect(wrapper.vm.trackerApi.hasResumableProgressOnOpen.value).toBe(false);
+
+        const nextRoot = document.createElement("div");
+        nextRoot.innerHTML = "<p>Block 1</p><p>Block 2</p>";
+        document.body.appendChild(nextRoot);
+
+        const nextContainer = document.createElement("div");
+        nextContainer.style.height = "200px";
+        nextContainer.style.overflowY = "auto";
+        nextContainer.appendChild(nextRoot);
+        document.body.appendChild(nextContainer);
+
+        wrapper.vm.articleRoot = nextRoot;
+        wrapper.vm.scrollContainer = nextContainer;
+        await nextTick();
+
+        expect(wrapper.vm.trackerApi.hasResumableProgressOnOpen.value).toBe(false);
+        wrapper.unmount();
+    });
+
     it("does not offer a resume prompt for progress created during the current session", async () => {
         const { wrapper } = mountTracker(2);
         await flushPromises();
@@ -1003,10 +1052,7 @@ describe("useReadingProgressTracker", () => {
         advanceDwellMs(BLOCK_ONE_DWELL_MS);
 
         expect(getReadingProgress(TEST_CONTENT_ID)).toBe(50);
-        expect(getReadingProgress(TEST_CONTENT_ID)).not.toBe(0);
-
-        const trackerResult = wrapper.vm.trackerApi;
-        expect(trackerResult.hasResumableProgressOnOpen?.value).toBe(false);
+        expect(wrapper.vm.trackerApi.hasResumableProgressOnOpen.value).toBe(false);
         wrapper.unmount();
     });
 });

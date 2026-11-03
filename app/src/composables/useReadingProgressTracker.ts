@@ -923,14 +923,9 @@ export function useReadingProgressTracker(options: {
 
         if (!options.enabled.value) return;
 
-        const id = options.contentId.value;
-        if (id) {
-            initialSavedProgressPercent.value = getReadingProgress(id);
-        } else {
-            initialSavedProgressPercent.value = 0;
-        }
-
         if (contentChanged) {
+            const id = options.contentId.value;
+            initialSavedProgressPercent.value = id ? getReadingProgress(id) : 0;
             if (segments.value.length > 0) {
                 seedConfirmedFromSavedProgress();
             }
