@@ -25,7 +25,7 @@ const isLocalChanges = computed(() => props.hasLocalChanges(props.languagesDoc._
             @click="$router.push({ name: 'language', params: { id: languagesDoc._id } })"
         >
             <template #content>
-                <div class="flex justify-between py-2 min-[1500px]:pt-2">
+                <div class="flex justify-between py-2 dark:hover:bg-slate-700 min-[1500px]:pt-2">
                     <div>
                         <span>
                             <span class="font-medium dark:text-zinc-100">
