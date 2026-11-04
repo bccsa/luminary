@@ -21,7 +21,7 @@ const isLocalChanges = computed(() => props.hasLocalChanges(props.languagesDoc._
         <DisplayCard
             title=""
             :updatedTimeUtc="0"
-            class="!divide-y-0 !py-0"
+            class="!divide-y-0 !py-0 transition-colors dark:hover:bg-slate-700"
             @click="$router.push({ name: 'language', params: { id: languagesDoc._id } })"
         >
             <template #content>
