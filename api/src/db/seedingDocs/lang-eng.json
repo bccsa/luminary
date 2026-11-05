@@ -247,7 +247,7 @@
         "media_player.read": "Read the article",
         "media_player.unmute": "Unmute",
         "media_player.volume": "Volume",
-        "media_player.up_next": "More videos",
+        "media_player.more": "More",
         "media_player.chapters": "Chapters",
         "media_player.chapter_now": "Now",
         "media_player.chapter_minutes": "{minutes} min",

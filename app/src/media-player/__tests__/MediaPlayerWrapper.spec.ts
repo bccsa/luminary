@@ -784,7 +784,7 @@ describe("MediaPlayerWrapper", () => {
             const wrapper = await mountPlayer({}, { nextUp: NEXT });
             const messages = stub(wrapper).props("messages") as Record<string, string>;
             expect(messages).toMatchObject({
-                nextUp: "media_player.up_next",
+                nextUp: "media_player.more",
                 dismiss: "video_player.dismiss_next_up",
             });
         });
