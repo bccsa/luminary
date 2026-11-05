@@ -48,25 +48,25 @@ describe("Router", () => {
     describe("Router scroll behavior", () => {
         const scrollBehavior = router.options.scrollBehavior!;
 
-        it("should return savedPosition if available", () => {
-            const savedPosition = { top: 100, left: 0 };
+        // Pages scroll inside their own <main>, so the window is left alone (see useScrollMemory).
+        it("should not scroll the window when a savedPosition is available", () => {
             const result = scrollBehavior(
                 { path: "/target" } as any,
                 { path: "/source" } as any,
-                savedPosition,
+                { top: 100, left: 0 },
             );
 
-            expect(result).toBe(savedPosition);
+            expect(result).toBe(false);
         });
 
-        it("should return top: 0 if no savedPosition", () => {
+        it("should not scroll the window when there is no savedPosition", () => {
             const result = scrollBehavior(
                 { path: "/target" } as any,
                 { path: "/source" } as any,
                 null,
             );
 
-            expect(result).toEqual({ top: 0 });
+            expect(result).toBe(false);
         });
     });
 
