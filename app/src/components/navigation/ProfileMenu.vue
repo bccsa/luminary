@@ -10,6 +10,7 @@ import {
 } from "@heroicons/vue/20/solid";
 import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
+import ReaderSettingsModal from "./ReaderSettingsModal.vue";
 import { useRouter } from "vue-router";
 import { computed, onMounted, ref, type ComputedRef } from "vue";
 import {
@@ -20,6 +21,7 @@ import {
     Cog6ToothIcon,
     LanguageIcon,
     SunIcon,
+    DocumentTextIcon,
     ChevronRightIcon,
 } from "@heroicons/vue/24/outline";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
@@ -52,6 +54,7 @@ const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyP
 const router = useRouter();
 
 const showThemeSelector = ref(false);
+const showReaderSettings = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
 const forceReauthOnNextLogin = ref(true);
@@ -146,6 +149,11 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
             name: t("profile_menu.theme"),
             icon: SunIcon,
             action: () => (showThemeSelector.value = true),
+        },
+        {
+            name: t("profile_menu.reader_settings"),
+            icon: DocumentTextIcon,
+            action: () => (showReaderSettings.value = true),
         },
         {
             name: t("profile_menu.language"),
@@ -476,6 +484,24 @@ const sidebarNavigation = computed(() =>
                         <span class="text-sm font-medium">{{ t("profile_menu.theme") }}</span>
                     </span>
 
+                    <!-- Text & font -->
+                    <span
+                        class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                        data-test="menu-reader-settings"
+                        @click="
+                            showReaderSettings = true;
+                            close();
+                        "
+                    >
+                        <DocumentTextIcon
+                            class="h-5 w-5 flex-shrink-0"
+                            aria-hidden="true"
+                        />
+                        <span class="text-sm font-medium">{{
+                            t("profile_menu.reader_settings")
+                        }}</span>
+                    </span>
+
                     <!-- Language -->
                     <span
                         class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
@@ -608,6 +634,10 @@ const sidebarNavigation = computed(() =>
         <ThemeSelectorModal
             :isVisible="showThemeSelector"
             @close="showThemeSelector = false"
+        />
+        <ReaderSettingsModal
+            :isVisible="showReaderSettings"
+            @close="showReaderSettings = false"
         />
 
         <LDialog

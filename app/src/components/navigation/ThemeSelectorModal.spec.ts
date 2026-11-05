@@ -97,6 +97,16 @@ describe("ThemeSelectorModal.vue", () => {
         expect(localStorage.getItem("theme")).toBe("dark");
     });
 
+    it("leaves the reader settings to their own modal", () => {
+        const wrapper = mount(ThemeSelectorModal, {
+            props: {
+                isVisible: true,
+            },
+        });
+
+        expect(wrapper.find("[data-test='readerPreview']").exists()).toBe(false);
+    });
+
     it("emits close event when close button is clicked", async () => {
         const wrapper = mount(ThemeSelectorModal, {
             props: {
