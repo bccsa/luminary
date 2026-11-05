@@ -1601,10 +1601,11 @@
     opacity: 0.75;
 }
 
+/* The gap is the bar's inset under its track, so the times have the same room above and below them. */
 .lmpl-afs-controls {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: calc(11px * var(--lmpl-s));
     margin-top: auto;
 }
 
@@ -1645,10 +1646,11 @@
     text-align: end;
 }
 
+/* No gap of its own: the tools' inset around their glyphs already spaces them from the transport. */
 .lmpl-afs-bottomrow {
     display: flex;
     flex-direction: column;
-    row-gap: 22px;
+    row-gap: 0;
 }
 
 .lmpl-afs-transport {
@@ -1783,11 +1785,12 @@
     translate: 8% 0;
 }
 
+/* No gap: the inset around each glyph sets them as far apart as the transport's. */
 .lmpl-afs-tools {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 0;
 }
 
 /* A tool with a menu shrinks like the bare buttons beside it, so a crowded row stays evenly spaced. */
