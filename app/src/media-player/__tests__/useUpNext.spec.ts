@@ -1,7 +1,10 @@
+import "fake-indexeddb/auto";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ref } from "vue";
 import type { ContentDto } from "luminary-shared";
+import { db } from "luminary-shared";
 import { mockEnglishContentDto } from "@/tests/mockdata";
+import { recordUserActivity } from "@/userActivity/store";
 
 const upNextDocs = vi.hoisted(() => ({ value: [] as any[] }));
 const categoryDocs = vi.hoisted(() => ({ value: [] as any[] }));
@@ -21,7 +24,12 @@ vi.mock("@/composables/useContentQuery", async () => {
 
 import { useUpNext } from "../useUpNext";
 
-const doc = (id: string, publishDate: number, parentTags: string[], video = "https://cdn.example.com/x.m3u8") =>
+const doc = (
+    id: string,
+    publishDate: number,
+    parentTags: string[],
+    video = "https://cdn.example.com/x.m3u8",
+) =>
     ({
         ...mockEnglishContentDto,
         _id: id,
@@ -50,7 +58,8 @@ function playingFriday(tags = ["conf", "topic"]) {
     return playing;
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+    await db.userActivity.clear();
     upNextDocs.value = [];
     categoryDocs.value = [];
     tagDocs.value = [];
@@ -75,9 +84,29 @@ describe("useUpNext", () => {
         expect(related.map((d) => d._id)).toEqual(["other-topic"]);
     });
 
+    it("lists related posts the viewer has not viewed before the ones they have", async () => {
+        await recordUserActivity({ type: "viewed", parentId: "topic-a-parent" });
+        const playing = doc("playing", 100, ["topic"]);
+        tagDocs.value = [tag("topic", "Topic")];
+        upNextDocs.value = [
+            playing,
+            doc("topic-a", 300, ["topic"]),
+            doc("topic-b", 200, ["topic"]),
+        ];
+
+        const result = useUpNext(ref(playing));
+
+        await vi.waitFor(() =>
+            expect(result.value.related.map((d) => d._id)).toEqual(["topic-b", "topic-a"]),
+        );
+    });
+
     it("leaves out posts that have no media", () => {
         const playing = playingFriday();
-        const silent = { ...doc("silent", 250, ["conf"], ""), parentMedia: undefined } as unknown as ContentDto;
+        const silent = {
+            ...doc("silent", 250, ["conf"], ""),
+            parentMedia: undefined,
+        } as unknown as ContentDto;
         upNextDocs.value = [...upNextDocs.value, silent];
         const { series } = useUpNext(ref(playing)).value;
         expect(series.map((d) => d._id)).not.toContain("silent");
@@ -115,13 +144,22 @@ describe("useUpNext", () => {
     it("narrows to a series: its whole run, and nothing from other tags", () => {
         const playing = playingFriday();
         const result = useUpNext(ref(playing), ref("conf")).value;
-        expect(result.series.map((d) => d._id)).toEqual(["thursday", "friday", "saturday", "sunday"]);
+        expect(result.series.map((d) => d._id)).toEqual([
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        ]);
         expect(result.related.map((d) => d._id)).not.toContain("other-topic");
     });
 
     it("narrows to a topic: no series and no next, only what has the topic", () => {
         const playing = playingFriday();
-        upNextDocs.value = [playing, doc("other-topic", 400, ["topic"]), doc("outside", 10, ["conf"])];
+        upNextDocs.value = [
+            playing,
+            doc("other-topic", 400, ["topic"]),
+            doc("outside", 10, ["conf"]),
+        ];
         const result = useUpNext(ref(playing), ref("topic")).value;
         expect(result.series).toEqual([]);
         expect(result.next).toEqual([]);

@@ -1,6 +1,7 @@
 /**
  * One-time move of activity that predates this database: likes from `userPreferences`
- * (localStorage) and highlights from the shared `luminaryInternals` store.
+ * (localStorage), highlights from the shared `luminaryInternals` store and the seen ids
+ * recommendations used to keep in localStorage.
  *
  * Neither pass ever overwrites a row already present here: a recorded activity is the more
  * recent truth, so a stale source entry must not revive something the user has since removed.
@@ -114,6 +115,45 @@ function updatedAtOf(value: unknown): number {
         if (typeof updatedAt === "number" && Number.isFinite(updatedAt)) return updatedAt;
     }
     return 0;
+}
+
+/** Key the recommendations' seen ids were stored under before they moved to `viewed` rows. */
+const LEGACY_SEEN_KEY = "seenArticleIds";
+
+/**
+ * Seen ids are per translation, `viewed` rows per post, so each id is matched to its Content
+ * document for the post. An id whose document is not local is dropped: the key is removed after
+ * the first run, which is what makes this a one-time move. Rows are dated 0 because the source
+ * has no timestamps, which keeps them below real history and first in line for the `viewed` cap.
+ */
+export async function migrateSeenToUserActivity(): Promise<number> {
+    let ids: unknown;
+    try {
+        ids = JSON.parse(localStorage.getItem(LEGACY_SEEN_KEY) ?? "null");
+    } catch {
+        ids = null;
+    }
+    if (!Array.isArray(ids)) {
+        localStorage.removeItem(LEGACY_SEEN_KEY);
+        return 0;
+    }
+
+    const contentIds = ids.filter((id): id is Uuid => typeof id === "string" && !!id);
+    const docs = (await db.docs.bulkGet(contentIds)) as (BaseDocumentDto | undefined)[];
+
+    const parentIds = new Set(docs.flatMap((doc) => (doc?.parentId ? [doc.parentId] : [])));
+
+    const added = await addMissing(
+        [...parentIds].map((parentId) => ({
+            _id: userActivityId({ type: "viewed", parentId }),
+            type: "viewed" as const,
+            parentId,
+            updatedTimeUtc: 0,
+        })),
+    );
+
+    localStorage.removeItem(LEGACY_SEEN_KEY);
+    return added;
 }
 
 /** Both passes, for the app to run once. */
