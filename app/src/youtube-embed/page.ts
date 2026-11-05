@@ -235,6 +235,11 @@ function driven(): void {
         settle(target);
         show(true);
     });
+    // iOS WebKit applies no `:active` to a touch, so the bar thickens under a held finger by this class instead.
+    seek.addEventListener("pointerdown", () => seek.classList.add("held"));
+    for (const end of ["pointerup", "pointercancel"]) {
+        window.addEventListener(end, () => seek.classList.remove("held"));
+    }
     byId("exit").addEventListener("click", () => send({ type: "exit" }));
     // A tap on the picture shows or hides the controls.
     ui.addEventListener("click", (event) => {
