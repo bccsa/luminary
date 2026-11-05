@@ -2695,7 +2695,7 @@ function onKeydown(event: KeyboardEvent) {
                  reading), under the picture too. -->
             <div
                 v-if="!live"
-                class="pointer-events-none absolute inset-x-0 z-10 h-[3px] bg-white/25 transition-[left] duration-150 lg:bottom-0 lg:left-0 lg:top-auto lg:group-focus-within:left-7 lg:group-hover:left-7"
+                class="pointer-events-none absolute inset-x-0 z-10 h-[3px] bg-white/25 lg:bottom-0 lg:left-7 lg:top-auto"
                 :class="floatingCard ? 'bottom-0' : 'top-0'"
                 aria-hidden="true"
             >
@@ -2708,7 +2708,7 @@ function onKeydown(event: KeyboardEvent) {
             <!-- The way up has a box of its own at the bar's left end, so nothing sits over the picture. -->
             <button
                 type="button"
-                class="-mr-0.5 flex h-[calc(100%-3px)] w-7 flex-none items-center justify-center self-start bg-black/30 [transition:width_150ms,transform_700ms_cubic-bezier(0.32,0.72,0,1)] active:bg-black/45 lg:w-0 lg:overflow-hidden lg:focus-visible:w-7 lg:group-focus-within:mr-0 lg:group-focus-within:w-7 lg:group-hover:mr-0 lg:group-hover:w-7 [@media(hover:hover)]:hover:bg-black/45"
+                class="-mr-0.5 flex h-[calc(100%-3px)] w-7 flex-none items-center justify-center self-start bg-black/30 [transition:transform_700ms_cubic-bezier(0.32,0.72,0,1)] active:bg-black/45 lg:mr-0 [@media(hover:hover)]:hover:bg-black/45"
                 :aria-label="t('media_player.expand')"
                 data-test="mediaPlayerBarExpandBadge"
                 :class="lineAtFoot ? '' : 'translate-y-[3px]'"
