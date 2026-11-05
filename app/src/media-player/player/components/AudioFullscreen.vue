@@ -14,6 +14,12 @@ import { activeLyric, type LyricCue } from "../ui/lyrics";
 import { skipIcon } from "../ui/controlsHtml";
 import type { ScrubPosition } from "../ui/audioFullscreen";
 import { formatChapterOf } from "../ui/chapterBar";
+import {
+    chapterIcon,
+    hasChapterSkip,
+    nextChapterTime,
+    previousChapterTime,
+} from "../ui/chapterSkip";
 import { TimelineScrub } from "../ui/timelineScrub";
 import {
     SLEEP_MINUTES,
@@ -418,6 +424,17 @@ const skip = (seconds: number): void =>
     seekTo(Math.min(knownDuration.value || Infinity, Math.max(0, shownTime.value + seconds)), {
         exact: false,
     });
+
+/** As the full-screen controls: only with chapters to move between, and "next" dimmed in the last one. */
+const chapterSkipShown = computed(
+    () => hasChapterSkip(props.chapters) && !isLive.value && knownDuration.value > 0,
+);
+const nextChapter = computed(() => nextChapterTime(props.chapters, shownTime.value));
+function skipChapter(step: -1 | 1): void {
+    const target =
+        step === 1 ? nextChapter.value : previousChapterTime(props.chapters, shownTime.value);
+    if (target !== null) seekTo(target);
+}
 
 const browseOpen = ref(false);
 watch([menu, browseOpen], ([open, panel]) => emit("covered", open !== null || panel));
@@ -933,7 +950,20 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                     </div>
 
                     <div class="lmpl-afs-bottomrow">
-                        <div class="lmpl-afs-transport">
+                        <div
+                            class="lmpl-afs-transport"
+                            :class="{ 'lmpl-afs-has-chapter-skip': chapterSkipShown }"
+                        >
+                            <button
+                                v-if="chapterSkipShown"
+                                type="button"
+                                class="lmpl-afs-chapter"
+                                :aria-label="messages.previousChapter"
+                                data-test="afsPreviousChapter"
+                                data-lmpl-press
+                                @click="skipChapter(-1)"
+                                v-html="chapterIcon(false)"
+                            ></button>
                             <button
                                 v-if="skipBackSeconds > 0 && !isLive"
                                 type="button"
@@ -999,6 +1029,17 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                 data-lmpl-press
                                 @click="skip(skipForwardSeconds)"
                                 v-html="skipIcon(skipForwardSeconds, true)"
+                            ></button>
+                            <button
+                                v-if="chapterSkipShown"
+                                type="button"
+                                class="lmpl-afs-chapter"
+                                :aria-label="messages.nextChapter"
+                                :disabled="nextChapter === null"
+                                data-test="afsNextChapter"
+                                data-lmpl-press
+                                @click="skipChapter(1)"
+                                v-html="chapterIcon(true)"
                             ></button>
                         </div>
 

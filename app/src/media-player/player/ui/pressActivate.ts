@@ -18,7 +18,7 @@ type PressKind = "any" | "play" | "activation";
 const PRESS_BUTTONS: readonly (readonly [string, PressKind])[] = [
     ['media-fullscreen-button, media-pip-button, [data-lmpl-press="activation"]', "activation"],
     ['media-play-button, [data-lmpl-press="play"]', "play"],
-    ['media-seek-button, [data-volume-step], [data-lmpl-press=""]', "any"],
+    ['media-seek-button, [data-volume-step], [data-chapter-step], [data-lmpl-press=""]', "any"],
 ];
 
 const PRESS_SELECTOR = PRESS_BUTTONS.map(([selector]) => selector).join(", ");

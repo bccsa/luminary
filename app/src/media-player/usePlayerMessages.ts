@@ -24,6 +24,8 @@ export function usePlayerMessages() {
         skipBack: t("media_player.skip_back", { seconds: "{seconds}" }),
         skipForward: t("media_player.skip_forward", { seconds: "{seconds}" }),
         chapterOf: t("video_player.chapter_of", { index: "{index}", count: "{count}" }),
+        previousChapter: t("media_player.previous_chapter"),
+        nextChapter: t("media_player.next_chapter"),
         exitFullscreen: t("video_player.exit_fullscreen"),
         enterFullscreen: t("media_player.fullscreen"),
         lyrics: t("media_player.lyrics"),

@@ -5,6 +5,12 @@ export type { ScrubPosition } from "./ui/audioFullscreen";
 export { default as NowPlayingLyrics } from "./components/NowPlayingLyrics.vue";
 export { activeLyric, cuesToLyrics, lyricText, type LyricCue } from "./ui/lyrics";
 export { chapterMask } from "./ui/chapterBar";
+export {
+    CHAPTER_GLYPHS,
+    hasChapterSkip,
+    nextChapterTime,
+    previousChapterTime,
+} from "./ui/chapterSkip";
 export type { PlayerImage, PlayerImageInput } from "./image";
 export { withSectionHeadings, type PlayerUpNextItem } from "./upNext";
 export { DEFAULT_MESSAGES, formatSeconds, mergeMessages, type PlayerMessages } from "./messages";

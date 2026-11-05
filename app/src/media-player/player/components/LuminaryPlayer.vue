@@ -41,6 +41,7 @@ import { stepVolume } from "../ui/volume";
 import { liftCues, liftLine, type LiftableCue } from "../ui/cueLift";
 import { cuesToLyrics, type LyricCue } from "../ui/lyrics";
 import { chapterMask, formatChapterOf } from "../ui/chapterBar";
+import { hasChapterSkip, nextChapterTime, previousChapterTime } from "../ui/chapterSkip";
 import {
     attachControlTooltips,
     clampTooltipLeft,
@@ -172,6 +173,8 @@ const controlsHtml = computed(() =>
             captions: msg.value.captionsLabel,
             volumeUp: msg.value.volumeUp,
             volumeDown: msg.value.volumeDown,
+            previousChapter: msg.value.previousChapter,
+            nextChapter: msg.value.nextChapter,
         },
         props.nowPlaying?.title
             ? { title: props.nowPlaying.title, subtitle: props.nowPlaying.subtitle }
@@ -603,6 +606,14 @@ function onFullscreenChange(): void {
 function onControlsClick(event: MouseEvent): void {
     if (event.target instanceof Element && event.target.closest("[data-browse-toggle]")) {
         toggleBrowse();
+        return;
+    }
+    const chapterStep =
+        event.target instanceof Element
+            ? event.target.closest<HTMLButtonElement>("[data-chapter-step]")
+            : null;
+    if (chapterStep) {
+        if (!chapterStep.disabled) skipChapter(chapterStep.dataset.chapterStep === "1" ? 1 : -1);
         return;
     }
     const target =
@@ -1363,6 +1374,33 @@ function toggleBrowse(): void {
     else void openBrowse();
 }
 
+/** Shown with a chapter boundary to skip to; a live stream has no chapters to move between. */
+const chapterSkipShown = computed(() => hasChapterSkip(chapters.value) && !state.value.live);
+/** In the last chapter "next" has nowhere to go. */
+const nextChapterDisabled = computed(
+    () => nextChapterTime(chapters.value, state.value.currentTime) === null,
+);
+
+/** Read from the element, which has the seek at once: presses in a row step chapter by chapter. */
+function skipChapter(step: -1 | 1): void {
+    const now = mediaEl.value?.currentTime ?? state.value.currentTime;
+    const target =
+        step === 1
+            ? nextChapterTime(chapters.value, now)
+            : previousChapterTime(chapters.value, now);
+    if (target !== null) seek(target);
+}
+
+/** The controls are markup the component does not render, so "next" is disabled by hand. */
+watch(
+    [nextChapterDisabled, controlsHtml, chapterSkipShown, containerEl],
+    ([disabled]) => {
+        const next = containerEl.value?.querySelector<HTMLButtonElement>('[data-chapter-step="1"]');
+        if (next) next.disabled = disabled;
+    },
+    { flush: "post", immediate: true },
+);
+
 function pickChapter(chapter: Chapter): void {
     seek(chapter.startTime);
     closeBrowse();
@@ -1822,6 +1860,7 @@ defineExpose({
             'lmpl-captions-on': !!state.activeSubtitleTrackId,
             'lmpl-has-thumbs': state.thumbnailsReady,
             'lmpl-has-browse': hasBrowse,
+            'lmpl-has-chapter-skip': chapterSkipShown,
             'lmpl-has-heading': !!nowPlaying?.title,
             'lmpl-audio-fs': audioFullscreen,
             'lmpl-scrubbing': rosterShown,
