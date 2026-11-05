@@ -77,9 +77,12 @@ const LANGUAGE_ICON =
     AUDIO_LANGUAGE_PATHS +
     "</svg>";
 
-/** Leaving full screen: an X, which people find where a corners glyph was missed. */
+/**
+ * Leaving full screen: an X, which people find where a corners glyph was missed. As heavy as the pause bars,
+ * so it reads as one of the skin's solid icons rather than a thin line beside them.
+ */
 const CLOSE_ICON =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l9 9M13.5 4.5l-9 9"/></svg>';
+    '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M4.75 4.75l8.5 8.5M13.25 4.75l-8.5 8.5"/></svg>';
 
 /** The icon names `controlsHtml.ts` writes as `<media-icon name="…">`. */
 registerIcons("default", {

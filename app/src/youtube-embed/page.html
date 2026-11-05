@@ -23,6 +23,8 @@
         -webkit-tap-highlight-color: transparent;
         user-select: none;
         -webkit-user-select: none;
+        /* The media player's own inset from the screen's sides. */
+        --edge: clamp(20px, 5%, 64px);
       }
       #ui[hidden] { display: none; }
       /* Dark behind the bar and the exit, so they read on a bright picture as on a dark one. */
@@ -30,17 +32,17 @@
         position: absolute;
         inset: auto 0 0 0;
         height: 48%;
-        background: linear-gradient(to top, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.55) 55%, transparent);
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.4) 55%, transparent);
         pointer-events: none;
       }
       #ui .fade-top {
         position: absolute;
         inset: 0 0 auto 0;
         height: 30%;
-        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent);
+        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.2) 50%, transparent);
         pointer-events: none;
       }
-      #ui span { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); }
+      #ui span { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
       #ui .ctl { transition: opacity 0.25s; }
       #ui.idle .ctl { opacity: 0; pointer-events: none; }
       #ui button {
@@ -50,8 +52,8 @@
         border: 0;
         padding: 0;
         color: #fff;
-        background: rgba(24, 24, 27, 0.74);
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+        background: rgba(24, 24, 27, 0.58);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 10px 30px rgba(0, 0, 0, 0.4);
         border-radius: 50%;
         cursor: pointer;
         touch-action: manipulation;
@@ -61,12 +63,18 @@
       /* The skip glyph is an outline: an arc and an arrowhead, with the seconds filled. */
       #ui svg.skip { fill: none; }
       #ui svg.skip text { fill: currentColor; stroke: none; }
-      #exit {
+      /* A bare icon, as the media player's own exit is; the glyph's padding lines it up with the bar's end. */
+      #ui #exit {
         position: absolute;
         top: calc(env(safe-area-inset-top, 0px) + 12px);
-        right: calc(env(safe-area-inset-right, 0px) + 12px);
-        width: 44px;
-        height: 44px;
+        right: calc(max(var(--edge), env(safe-area-inset-right, 0px)) - 8px);
+        width: 40px;
+        height: 40px;
+        background: transparent;
+        box-shadow: none;
+      }
+      @media (hover: hover) {
+        #ui #exit:hover { background: rgba(255, 255, 255, 0.16); }
       }
       /* Upright, the status bar and the notch draw over the top of the frame, whose own safe area reads as
          zero: the app says how big the notch is (`--notch`), and the exit sits just under it, on the line of the
@@ -87,55 +95,56 @@
       #back, #fwd { width: 56px; height: 56px; }
       #bar {
         position: absolute;
-        left: calc(env(safe-area-inset-left, 0px) + 20px);
-        right: calc(env(safe-area-inset-right, 0px) + 20px);
+        left: max(var(--edge), env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+        right: max(var(--edge), env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
         bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
         display: flex;
         align-items: center;
         gap: 12px;
       }
-      #bar span { min-width: 3.2em; }
+      #bar span { min-width: 3.2em; font-size: 13px; font-weight: 600; }
       #bar #rem { text-align: right; }
+      /* The media player's timeline: thick and round, no thumb (the fill is the playhead), the buffered part lighter. */
       #seek {
         flex: 1;
-        height: 44px;
+        height: 30px;
         margin: 0;
         background: transparent;
         -webkit-appearance: none;
         appearance: none;
         touch-action: none;
+        --track: 12px;
       }
+      #seek:active { --track: 16px; }
       #seek::-webkit-slider-runnable-track {
-        height: 5px;
-        border-radius: 3px;
-        background: linear-gradient(to right, #eab308 var(--p, 0%), rgba(255, 255, 255, 0.45) var(--p, 0%));
-        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+        height: var(--track);
+        border-radius: 9999px;
+        background: linear-gradient(
+          to right,
+          #fff var(--p, 0%),
+          rgba(255, 255, 255, 0.4) var(--p, 0%),
+          rgba(255, 255, 255, 0.4) var(--b, 0%),
+          rgba(255, 255, 255, 0.26) var(--b, 0%)
+        );
+        transition: height 0.15s ease;
       }
       #seek::-webkit-slider-thumb {
         -webkit-appearance: none;
-        width: 18px;
-        height: 18px;
-        margin-top: -6.5px;
-        border-radius: 50%;
-        border: 0;
-        background: #fff;
-        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 4px rgba(0, 0, 0, 0.6);
+        width: 1px;
+        height: var(--track);
+        opacity: 0;
       }
       #seek::-moz-range-track {
-        height: 5px;
-        border-radius: 3px;
-        background: rgba(255, 255, 255, 0.45);
-        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+        height: var(--track);
+        border-radius: 9999px;
+        background: linear-gradient(
+          to right,
+          rgba(255, 255, 255, 0.4) var(--b, 0%),
+          rgba(255, 255, 255, 0.26) var(--b, 0%)
+        );
       }
-      #seek::-moz-range-progress { height: 5px; border-radius: 3px; background: #eab308; }
-      #seek::-moz-range-thumb {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        border: 0;
-        background: #fff;
-        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 4px rgba(0, 0, 0, 0.6);
-      }
+      #seek::-moz-range-progress { height: var(--track); border-radius: 9999px; background: #fff; }
+      #seek::-moz-range-thumb { width: 1px; height: var(--track); border: 0; opacity: 0; }
       iframe,
       #p {
         position: absolute;
