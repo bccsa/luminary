@@ -140,27 +140,24 @@ const summaryText = computed(() => props.content.summary?.trim() ?? "");
                     size="thumbnailCompact"
                     :rounded="false"
                 >
-                    <template #imageOverlay>
-                        <div
-                            v-if="isComingSoon"
-                            class="absolute inset-0 z-20 flex items-center justify-center bg-black/50"
-                        >
-                            <span
-                                class="rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-semibold text-white shadow"
-                            >
-                                {{ t("content.coming_soon") }}
-                            </span>
-                        </div>
-                        <div
-                            v-else-if="hasVideo"
-                            class="absolute inset-0 z-20 flex items-center justify-center"
-                        >
-                            <span class="rounded-full bg-black/50 p-1.5">
-                                <PlayIcon class="h-5 w-5 text-white" />
-                            </span>
-                        </div>
-                    </template>
                 </LImage>
+                <div
+                    v-if="isComingSoon"
+                    class="absolute inset-0 z-20 flex items-center justify-center bg-black/50"
+                >
+                    <span
+                        class="rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-semibold text-white shadow"
+                    >
+                        {{ t("content.coming_soon") }}
+                    </span>
+                </div>
+                <div
+                    v-else-if="hasVideo"
+                    class="absolute inset-0 z-20 flex items-center justify-center"
+                >
+                    <PlayIcon class="absolute h-9 w-9 text-white blur-sm" />
+                    <PlayIcon class="relative h-9 w-9 text-white" />
+                </div>
             </div>
 
             <div
