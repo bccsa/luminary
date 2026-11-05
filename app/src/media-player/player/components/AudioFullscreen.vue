@@ -11,7 +11,7 @@ import type { PlayerUpNextItem } from "../upNext";
 import BrowsePanel from "./BrowsePanel.vue";
 import NowPlayingLyrics from "./NowPlayingLyrics.vue";
 import { activeLyric, type LyricCue } from "../ui/lyrics";
-import { skipIcon } from "../ui/controlsHtml";
+import { CAMERA_ICON, skipIcon } from "../ui/controlsHtml";
 import type { ScrubPosition } from "../ui/audioFullscreen";
 import { formatChapterOf } from "../ui/chapterBar";
 import { TimelineScrub } from "../ui/timelineScrub";
@@ -63,6 +63,10 @@ const props = defineProps<{
     /** The chapter the playhead is in; -1 for none. */
     chapterIndex: number;
     playbackRate: number;
+    /** The video's camera angles, for the camera menu; none or one and the menu is not offered. */
+    cameras?: readonly { id: string; label: string }[];
+    /** The camera playing; null while none is, as when only the sound plays. */
+    activeCameraId?: string | null;
     /** The video's renditions, for the quality menu; none or one and the menu is not offered. */
     qualities?: readonly { id: string; label: string }[];
     /** The rendition held, or `auto` while the player chooses. */
@@ -125,6 +129,7 @@ const emit = defineEmits<{
     rate: [rate: number];
     "audio-track": [id: string];
     quality: [id: string];
+    camera: [id: string];
     sleep: [option: SleepTimerOption | null];
     "subtitle-track": [id: string | null];
     "picture-in-picture": [];
@@ -159,7 +164,7 @@ const cueLine = computed(
 // In the cover's place, in a window of any shape, as on a phone.
 const lyricsInStage = showLyrics;
 
-type MenuId = "speed" | "language" | "sleep" | "subtitles" | "quality";
+type MenuId = "camera" | "speed" | "language" | "sleep" | "subtitles" | "quality";
 const menu = ref<MenuId | null>(null);
 const rootEl = ref<HTMLElement | null>(null);
 
@@ -490,6 +495,10 @@ function chooseSleep(option: SleepTimerOption | null): void {
 }
 function chooseRate(rate: number): void {
     emit("rate", rate);
+    closeMenu();
+}
+function chooseCamera(id: string): void {
+    if (id !== props.activeCameraId) emit("camera", id);
     closeMenu();
 }
 function chooseQuality(id: string): void {
@@ -1006,6 +1015,40 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                             class="lmpl-afs-tools"
                             data-afs-tools
                         >
+                            <div
+                                v-if="isVideo && (cameras?.length ?? 0) > 1"
+                                class="lmpl-afs-tool"
+                            >
+                                <button
+                                    type="button"
+                                    class="lmpl-afs-iconbtn"
+                                    :aria-label="messages.cameraLabel"
+                                    :aria-expanded="menu === 'camera'"
+                                    aria-haspopup="menu"
+                                    data-test="afsCamera"
+                                    @click="toggleMenu('camera')"
+                                    v-html="CAMERA_ICON"
+                                ></button>
+                                <div
+                                    v-if="menu === 'camera'"
+                                    class="lmpl-afs-menu"
+                                    role="menu"
+                                    :aria-label="messages.cameraLabel"
+                                >
+                                    <button
+                                        v-for="camera in cameras"
+                                        :key="camera.id"
+                                        type="button"
+                                        role="menuitemradio"
+                                        :aria-checked="camera.id === activeCameraId"
+                                        class="lmpl-afs-menuitem"
+                                        @click="chooseCamera(camera.id)"
+                                    >
+                                        {{ camera.label }}
+                                    </button>
+                                </div>
+                            </div>
+
                             <div class="lmpl-afs-tool">
                                 <button
                                     type="button"

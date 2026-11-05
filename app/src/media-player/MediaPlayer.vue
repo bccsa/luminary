@@ -1041,12 +1041,21 @@ function onRosterUp(event: PointerEvent) {
     resumeFromScrub();
 }
 
-const openMenu = ref<"speed" | "language" | "subtitles" | "sleep" | null>(null);
-function toggleMenu(menu: "speed" | "language" | "subtitles" | "sleep") {
+const openMenu = ref<"camera" | "speed" | "language" | "subtitles" | "sleep" | null>(null);
+function toggleMenu(menu: "camera" | "speed" | "language" | "subtitles" | "sleep") {
     openMenu.value = openMenu.value === menu ? null : menu;
 }
 function pickRate(rate: number) {
     controller.value?.setPlaybackRate(rate);
+    openMenu.value = null;
+}
+/** The now-playing screen's camera menu, in its own words. */
+const screenCameras = computed(() => videoAngles.value.map((angle) => ({ id: angle.id, label: angle.name })));
+
+/** A camera to choose between, while the picture plays: sound alone has no camera. */
+const showsCameraMenu = computed(() => videoAngles.value.length > 1 && !audioMode.value);
+function pickCamera(id: string) {
+    if (id !== state.value?.activeAngleId) void controller.value?.setAngle(id);
     openMenu.value = null;
 }
 function pickTrack(id: string) {
@@ -1650,6 +1659,8 @@ function onKeydown(event: KeyboardEvent) {
                     :live="live"
                     :chapter-index="screenChapterIndex"
                     :playback-rate="state?.playbackRate ?? 1"
+                    :cameras="screenCameras"
+                    :active-camera-id="state?.activeAngleId ?? null"
                     :qualities="screenQualities"
                     :active-quality-id="state?.activeQualityId ?? 'auto'"
                     :audio-tracks="screenTracks"
@@ -1682,6 +1693,7 @@ function onKeydown(event: KeyboardEvent) {
                     @rate="(rate) => controller?.setPlaybackRate(rate)"
                     @audio-track="(id: string) => controller?.setAudioTrack(id)"
                     @quality="(id) => controller?.setQuality(id)"
+                    @camera="(id: string) => void controller?.setAngle(id)"
                     @sleep="(option) => controller?.setSleepTimer(option)"
                     @subtitle-track="(id: string | null) => controller?.setSubtitleTrack(id)"
                     @picture-in-picture="handle?.startPictureInPicture?.()"
@@ -2060,6 +2072,30 @@ function onKeydown(event: KeyboardEvent) {
                             handle?.airPlayAvailable ? 'gap-1 md:gap-2' : 'gap-2 md:gap-3',
                         ]"
                     >
+                        <div v-if="showsCameraMenu" class="relative flex-shrink-0">
+                            <button
+                                type="button"
+                                class="relative flex h-10 w-10 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] dark:text-slate-300 min-[420px]:h-11 min-[420px]:w-11 min-[420px]:after:inset-0 md:h-12 md:w-12"
+                                :aria-label="t('video_player.camera_menu')"
+                                :aria-expanded="openMenu === 'camera'"
+                                data-test="mediaPlayerCamera"
+                                @click="toggleMenu('camera')"
+                            >
+                                <PlayerIcon name="camera" class="h-5 w-5 md:h-6 md:w-6" />
+                            </button>
+                            <MediaPlayerMenu
+                                v-if="openMenu === 'camera'"
+                                :title="t('video_player.camera_menu')"
+                            >
+                                <MediaPlayerMenuItem
+                                    v-for="angle in videoAngles"
+                                    :key="angle.id"
+                                    :label="angle.name"
+                                    :selected="angle.id === state.activeAngleId"
+                                    @pick="pickCamera(angle.id)"
+                                />
+                            </MediaPlayerMenu>
+                        </div>
                         <div
                             v-if="state.audioTracks.length > 1"
                             class="relative flex-shrink-0"
