@@ -87,6 +87,8 @@ export function useUpNext(
             limit: 50,
             // Choosing another tag asks again: the lists stay as they were until the answer is in.
             keepPreviousResult: true,
+            // Up Next is ranked, so the API tail would reorder the visible list.
+            waitForRemote: true,
         },
     );
 

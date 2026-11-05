@@ -160,7 +160,8 @@ export function useRecommendations({
         // painted while the new candidate pool loads. No response cache: its key is a
         // structural fingerprint that drops selector values, so every tag set would share one
         // entry and seed first paint with another tag set's documents.
-        { limit: retrievalLimit, keepPreviousResult: true },
+        // `waitForRemote`: the pool is ranked, so the API tail would reorder the visible row.
+        { limit: retrievalLimit, keepPreviousResult: true, waitForRemote: true },
     );
 
     // Which of the candidates' `parentTags` are actually TagType.Topic (categories and
