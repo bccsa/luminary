@@ -19,7 +19,6 @@ import {
     HIGHLIGHT_COLORS,
     addHighlight,
     anchorHighlights,
-    extendToPunctuation,
     overlaps,
     paintHighlights,
     rangesFromLegacyHtml,
@@ -186,26 +185,10 @@ function selectionBounds(): { start: number; end: number; text: string } | undef
     };
 }
 
-const BLOCKS = "p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, td, th, dd, dt, figcaption";
-
-/** What a new highlight would cover: whole words, running on to the end of the phrase. */
+/** What a new highlight would cover: the words the selection touches, widened to whole words. */
 function selectedWords() {
     const bounds = selectionBounds();
-    const snapped = bounds && snapToWords(bounds.text, bounds.start, bounds.end);
-    if (!snapped || !prose.value) return snapped;
-
-    // The phrase can't run past the paragraph the selection ends in.
-    const range = window.getSelection()!.getRangeAt(0);
-    const endEl =
-        range.endContainer instanceof Element
-            ? range.endContainer
-            : range.endContainer.parentElement;
-    const block = endEl?.closest(BLOCKS);
-    const limit =
-        block && prose.value.contains(block)
-            ? textOffset(prose.value, block, block.childNodes.length)
-            : bounds.text.length;
-    return { start: snapped.start, end: extendToPunctuation(bounds.text, snapped.end, limit) };
+    return bounds && snapToWords(bounds.text, bounds.start, bounds.end);
 }
 
 /** Highlights the raw selection touches — unsnapped, so a stray mark on punctuation can still be removed. */

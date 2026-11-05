@@ -9,6 +9,7 @@ import { groupByActivityDate } from "./activityGroups";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
 import { openHighlight } from "@/util/openHighlight";
+import { highlightExcerpts } from "@/util/highlightExcerpt";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -28,20 +29,27 @@ const content = useContentQuery(() => [{ _id: { $in: contentIds.value } }], {
     keepPreviousResult: true,
 });
 
-type Entry = { content: ContentDto; range: HighlightRange; updatedTimeUtc: number };
+type Entry = {
+    content: ContentDto;
+    range: HighlightRange;
+    excerpt: string;
+    updatedTimeUtc: number;
+};
 
 /** One entry per saved passage, so each can be filtered by colour and opened on its own. */
 const entries = computed<Entry[]>(() =>
     highlighted.value
         .flatMap((row) => {
             const translation = content.value.find((c) => c._id === row.contentId);
-            return translation
-                ? (row.payload?.ranges ?? []).map((range) => ({
-                      content: translation,
-                      range,
-                      updatedTimeUtc: row.updatedTimeUtc,
-                  }))
-                : [];
+            if (!translation) return [];
+            const ranges = row.payload?.ranges ?? [];
+            const excerpts = highlightExcerpts(translation.text, ranges);
+            return ranges.map((range, i) => ({
+                content: translation,
+                range,
+                excerpt: excerpts[i],
+                updatedTimeUtc: row.updatedTimeUtc,
+            }));
         })
         .filter((entry) => !props.colour || entry.range.color === props.colour),
 );
@@ -62,6 +70,7 @@ const sections = computed(() => groupByActivityDate(entries.value, (e) => e.upda
                     :key="`${entry.content._id}-${entry.range.start}`"
                     :content="entry.content"
                     :range="entry.range"
+                    :excerpt="entry.excerpt"
                     @open="openHighlight(router, entry.content.slug, entry.range)"
                 />
             </div>
