@@ -38,6 +38,7 @@ import { buildControlsHtml } from "../ui/controlsHtml";
 import { installAutoHide, type ControlsStore } from "../ui/autoHide";
 import { attachPressActivation } from "../ui/pressActivate";
 import { stepVolume } from "../ui/volume";
+import { spriteSheetsByDistance, warmSpriteSheets } from "../ui/spriteWarm";
 import { liftCues, liftLine, type LiftableCue } from "../ui/cueLift";
 import { cuesToLyrics, type LyricCue } from "../ui/lyrics";
 import { chapterMask, formatChapterOf } from "../ui/chapterBar";
@@ -1309,17 +1310,24 @@ function onPinUp(event: PointerEvent): void {
 }
 
 /**
- * Fetches the first sprite sheet the moment there is one, so the first hover is not a blank frame
- * waiting on an image. Later sheets load as the pointer reaches them.
+ * Fetches every sprite sheet once the thumbnails are in, nearest the playhead first. A sheet fetched only
+ * when the pointer reaches it queues behind the video's segment downloads, and the scrub shows blank frames.
  */
+let spriteWarm: { stop: () => void } | undefined;
 watch(
-    () => state.value.thumbnailsReady,
+    () => (state.value.thumbnailsReady && state.value.duration > 0 ? props.source.masterUrl : null),
     (ready) => {
-        if (!ready) return;
-        const first = controller.value?.thumbnailAt(0);
-        if (first) new Image().src = first.spriteUrl;
+        spriteWarm?.stop();
+        spriteWarm = undefined;
+        const instance = controller.value;
+        if (!ready || !instance) return;
+        const { duration, currentTime } = state.value;
+        spriteWarm = warmSpriteSheets(
+            spriteSheetsByDistance((t) => instance.thumbnailAt(t), duration, currentTime),
+        );
     },
 );
+onBeforeUnmount(() => spriteWarm?.stop());
 
 watch(
     () => props.source,
