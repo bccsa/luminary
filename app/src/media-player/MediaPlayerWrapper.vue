@@ -147,6 +147,8 @@ const controllerOptions = {
 };
 const playerExtras = computed(() => ({
     controllerOptions,
+    // Saving data, or starting as sound, the scrub frames are fetched as they are reached rather than all up front.
+    lazyThumbnails: userDataSaverEnabled.value || isDataSaverEnabled() || props.startAudio,
     ...(videoPlayer.acceptsNowPlaying
         ? { nowPlaying: nowPlaying.value }
         : { nowPlaying: webNowPlaying.value, appearance: isDarkTheme.value ? "dark" : "light" }),

@@ -112,6 +112,8 @@ interface Props {
     appearance?: "light" | "dark";
     /** Audio language to select automatically; a viewer's own choice outranks it. */
     preferredLanguage?: string;
+    /** Fetch scrub sprite sheets only as the pointer reaches them, to save data; the first is still fetched up front. */
+    lazyThumbnails?: boolean;
     /** Options handed to the default `PlayerController`. */
     controllerOptions?: Partial<PlayerControllerOptions>;
     /** @internal Test seam — substitutes controller construction. */
@@ -1312,19 +1314,28 @@ function onPinUp(event: PointerEvent): void {
 /**
  * Fetches every sprite sheet once the thumbnails are in, nearest the playhead first. A sheet fetched only
  * when the pointer reaches it queues behind the video's segment downloads, and the scrub shows blank frames.
+ * Saving data, or with only sound playing, just the first is fetched so the first hover is not blank.
  */
 let spriteWarm: { stop: () => void } | undefined;
 watch(
-    () => (state.value.thumbnailsReady && state.value.duration > 0 ? props.source.masterUrl : null),
+    () =>
+        state.value.thumbnailsReady && state.value.duration > 0
+            ? `${props.lazyThumbnails || isAudioOnly.value}|${props.source.masterUrl}`
+            : null,
     (ready) => {
         spriteWarm?.stop();
         spriteWarm = undefined;
         const instance = controller.value;
         if (!ready || !instance) return;
         const { duration, currentTime } = state.value;
-        spriteWarm = warmSpriteSheets(
-            spriteSheetsByDistance((t) => instance.thumbnailAt(t), duration, currentTime),
+        const sheets = spriteSheetsByDistance(
+            (t) => instance.thumbnailAt(t),
+            duration,
+            currentTime,
         );
+        const first = instance.thumbnailAt(0)?.spriteUrl;
+        const lazy = props.lazyThumbnails || isAudioOnly.value;
+        spriteWarm = warmSpriteSheets(lazy ? (first ? [first] : []) : sheets);
     },
 );
 onBeforeUnmount(() => spriteWarm?.stop());
