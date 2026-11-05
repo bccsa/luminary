@@ -539,3 +539,17 @@ describe("AudioFullscreen — the menus", () => {
         expect(wrapper.find("[role=menu]").attributes("aria-label")).toBe("Sleep timer");
     });
 });
+
+describe("the picture filling the window", () => {
+    it("leaves the picture's foot to the player's own control row, rather than covering it with the scrub band", () => {
+        const stage = { stage: "<div />" };
+        expect(
+            mountScreen({ stage: "video" }, stage).find('[data-test="afsScrubZone"]').exists(),
+        ).toBe(true);
+        expect(
+            mountScreen({ stage: "video", fill: true }, stage)
+                .find('[data-test="afsScrubZone"]')
+                .exists(),
+        ).toBe(false);
+    });
+});
