@@ -291,7 +291,7 @@ watch(isFullscreen, () => {
                 >
                     <div class="flex w-max flex-nowrap items-start gap-2 sm:ml-auto">
                         <div
-                            class="pointer-events-auto flex h-9 shrink-0 divide-x divide-zinc-500 overflow-hidden rounded-md border-zinc-600 shadow-sm"
+                            class="pointer-events-auto flex h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-zinc-300 dark:divide-zinc-500 dark:border-zinc-600"
                         >
                             <LButton
                                 size="lg"
@@ -313,7 +313,7 @@ watch(isFullscreen, () => {
                             </LButton>
                         </div>
                         <div
-                            class="pointer-events-auto hidden h-9 shrink-0 divide-x divide-zinc-500 overflow-hidden rounded-md shadow-sm dark:ring-0 sm:flex"
+                            class="pointer-events-auto hidden h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-zinc-300 dark:divide-zinc-500 dark:ring-0 sm:flex"
                         >
                             <LButton
                                 size="lg"
@@ -333,7 +333,7 @@ watch(isFullscreen, () => {
                             </LButton>
                         </div>
                         <div
-                            class="pointer-events-auto hidden h-9 shrink-0 items-center gap-2 rounded-md px-3 text-xs shadow-sm dark:bg-slate-700 dark:text-zinc-200 dark:ring-0 sm:flex"
+                            class="pointer-events-auto hidden h-9 shrink-0 items-center gap-2 rounded-md bg-white px-3 text-xs text-zinc-600 shadow-sm ring-zinc-300 dark:bg-slate-700 dark:text-zinc-200 dark:ring-0 sm:flex"
                         >
                             <label for="group-graph-columns-desktop" class="font-medium">
                                 Columns
@@ -345,7 +345,7 @@ watch(isFullscreen, () => {
                                 :max="TREE_MAX_COLUMNS"
                                 step="1"
                                 :value="treeColumnCount"
-                                class="h-2 w-28 cursor-pointer appearance-none rounded-lg bg-zinc-200 dark:accent-zinc-300"
+                                class="h-2 w-28 cursor-pointer appearance-none rounded-lg bg-zinc-200 accent-zinc-700 dark:accent-zinc-300"
                                 @input="updateTreeColumnCount"
                             />
                             <span class="w-3 text-right font-medium text-zinc-700">
@@ -425,7 +425,7 @@ watch(isFullscreen, () => {
 
             <div
                 v-if="contextMenu"
-                class="absolute z-20 min-w-44 max-w-[calc(100vw-2rem)] overflow-hidden rounded-md border border-zinc-400 bg-white py-1 text-sm shadow-lg"
+                class="absolute z-20 min-w-44 max-w-[calc(100vw-2rem)] overflow-hidden rounded-md border border-zinc-200 bg-white py-1 text-sm shadow-lg dark:border-zinc-400"
                 :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
                 @click.stop
                 @contextmenu.prevent
