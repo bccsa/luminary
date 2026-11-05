@@ -51,8 +51,8 @@ describe("MobileMenu.vue", () => {
         const wrapper = mount(MobileMenu);
 
         // The profile menu's side panel also renders here in tests; tabs are the children with a label.
-        const tabs = Array.from(wrapper.element.children).filter((el) =>
-            el.querySelector(":scope > span"),
+        const tabs = Array.from(wrapper.element.children as HTMLCollectionOf<HTMLElement>).filter(
+            (el) => el.querySelector(":scope > span"),
         );
         expect(tabs).toHaveLength(5);
         for (const tab of tabs) {
