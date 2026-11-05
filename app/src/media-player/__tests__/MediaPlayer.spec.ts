@@ -1190,14 +1190,14 @@ describe("MediaPlayer", () => {
             const wrapper = await playing();
             const view = screen(wrapper);
             view.vm.$emit("toggle-play");
-            view.vm.$emit("seek", 42);
+            view.vm.$emit("seek", 42, { exact: false });
             view.vm.$emit("subtitle-track", "sub-fr");
             view.vm.$emit("picture-in-picture");
             view.vm.$emit("fullscreen");
             view.vm.$emit("rate", 1.5);
             await flushPromises();
             expect(engine.handle.pause).toHaveBeenCalled();
-            expect(engine.handle.seek).toHaveBeenCalledWith(42);
+            expect(engine.handle.seek).toHaveBeenCalledWith(42, { exact: false });
             expect(engine.controller.setSubtitleTrack).toHaveBeenCalledWith("sub-fr");
             expect(engine.handle.startPictureInPicture).toHaveBeenCalled();
             expect(engine.handle.enterFullscreen).toHaveBeenCalled();

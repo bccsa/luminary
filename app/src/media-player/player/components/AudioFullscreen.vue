@@ -117,7 +117,8 @@ const emit = defineEmits<{
     /** A menu or the chapters panel is over the screen, or is not any more. */
     covered: [open: boolean];
     "toggle-play": [];
-    seek: [time: number];
+    /** `exact: false` for skips: the player may land on the nearest keyframe, which shows at once. */
+    seek: [time: number, options?: { exact?: boolean }];
     "open-browse": [];
     "seek-chapter": [chapter: Chapter];
     upnextselect: [id: string];
@@ -407,13 +408,16 @@ function onBarKey(event: KeyboardEvent): void {
     event.preventDefault();
     seekTo(Math.min(knownDuration.value, Math.max(0, shownTime.value + step)));
 }
-function seekTo(time: number): void {
+function seekTo(time: number, options?: { exact?: boolean }): void {
     holdSeek(time);
-    emit("seek", time);
+    if (options) emit("seek", time, options);
+    else emit("seek", time);
 }
 // From where the bar shows, so presses in a row add up before the player has caught up with the first.
 const skip = (seconds: number): void =>
-    seekTo(Math.min(knownDuration.value || Infinity, Math.max(0, shownTime.value + seconds)));
+    seekTo(Math.min(knownDuration.value || Infinity, Math.max(0, shownTime.value + seconds)), {
+        exact: false,
+    });
 
 const browseOpen = ref(false);
 watch([menu, browseOpen], ([open, panel]) => emit("covered", open !== null || panel));

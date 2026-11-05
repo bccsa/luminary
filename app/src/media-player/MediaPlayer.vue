@@ -926,9 +926,11 @@ function togglePlay() {
     else void handle.value?.play();
 }
 
+// From where the bar shows, so presses in a row add up before playback has caught up with the first.
 function skip(seconds: number) {
-    const target = Math.min(Math.max(currentTime.value + seconds, 0), duration.value || Infinity);
-    handle.value?.seek(target);
+    const target = Math.min(Math.max(shownTime.value + seconds, 0), duration.value || Infinity);
+    handle.value?.seek(target, { exact: false });
+    holdScrubAt(target);
 }
 
 /** Held until playback arrives (or a while has passed), so the dot does not fall back meanwhile. */
@@ -1766,7 +1768,7 @@ function onKeydown(event: KeyboardEvent) {
                     :lyrics="lyrics"
                     @exit="minimiseMediaPlayer"
                     @toggle-play="togglePlay"
-                    @seek="(time) => handle?.seek(time)"
+                    @seek="(time, options) => handle?.seek(time, options)"
                     @seek-chapter="(chapter: Chapter) => handle?.seek(chapter.startTime)"
                     @upnextselect="
                         (id) => {

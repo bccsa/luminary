@@ -171,7 +171,11 @@ describe("AudioFullscreen — the transport", () => {
         await find(wrapper, "afsSkipBack").trigger("click");
         await find(wrapper, "afsSkipForward").trigger("click");
         await find(wrapper, "afsSkipForward").trigger("click");
-        expect(wrapper.emitted("seek")).toEqual([[0], [10], [20]]);
+        expect(wrapper.emitted("seek")).toEqual([
+            [0, { exact: false }],
+            [10, { exact: false }],
+            [20, { exact: false }],
+        ]);
     });
 
     it("seeks with the arrow keys, five seconds at a time", async () => {
