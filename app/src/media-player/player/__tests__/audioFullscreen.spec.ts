@@ -557,3 +557,21 @@ describe("the picture filling the window", () => {
         ).toBe(false);
     });
 });
+
+describe("the picture's place with a band for subtitles", () => {
+    it("is a 16:9 picture plus the band when the video's shape is not known", async () => {
+        const { readFileSync } = await import("node:fs");
+        const css = readFileSync(`${process.cwd()}/src/media-player/player/styles.css`, "utf8");
+        const rule = css.match(
+            /\.lmpl-afs-captions \.lmpl-afs-art\s*{[^}]*height:\s*calc\(([^;]*)\);/,
+        )!;
+        // A custom property's fallback is pasted in as text, as the browser does: no `--lmpl-stage-ar` is set.
+        const expression = rule[1]
+            .replace(/var\(--lmpl-stage-gutter, 0px\)/g, "0px")
+            .replace(/var\(--lmpl-stage-ar, ([^)]*)\)/g, "$1")
+            .replace(/100cqw/g, "384px")
+            .replace(/px/g, "");
+        const height = Function(`return (${expression})`)() as number;
+        expect(height).toBeCloseTo(384 / (16 / 9) + 64);
+    });
+});

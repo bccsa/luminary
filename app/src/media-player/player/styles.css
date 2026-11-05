@@ -1954,10 +1954,11 @@
     background: #000;
 }
 /* The picture sits at the top of its place and the host's subtitles under it, in a band the size of two lines. */
+/* The ratio is bracketed: its 16 / 9 fallback is pasted in as text, and unbracketed it would divide by 16, then by 9. */
 .lmpl-afs-captions .lmpl-afs-art {
     aspect-ratio: auto;
     height: calc(
-        (100cqw - 2 * var(--lmpl-stage-gutter, 0px)) / var(--lmpl-stage-ar, 16 / 9) + 64px
+        (100cqw - 2 * var(--lmpl-stage-gutter, 0px)) / (var(--lmpl-stage-ar, 16 / 9)) + 64px
     );
 }
 .lmpl-afs-captions .lmpl-afs-art {
