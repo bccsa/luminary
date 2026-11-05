@@ -69,7 +69,7 @@ const PAUSE = [
 ];
 /** Leaving full screen: an X, as on the player's own full screen. */
 const CLOSE =
-    '<svg viewBox="0 0 18 18" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4.5 4.5l9 9M13.5 4.5l-9 9"/></svg>';
+    '<svg viewBox="0 0 18 18" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M4.75 4.75l8.5 8.5M13.25 4.75l-8.5 8.5"/></svg>';
 
 function svg(paths: string[], size: number, nudge = false): string {
     const style = nudge ? ' style="transform:translateX(8%)"' : "";
@@ -155,6 +155,7 @@ function driven(): void {
             seek.value = String(Math.round(((last.currentTime || 0) / total) * 1000));
             seek.style.setProperty("--p", `${Number(seek.value) / 10}%`);
         }
+        seek.style.setProperty("--b", `${Math.min(Math.max(last.loaded || 0, 0), 1) * 100}%`);
     }
 
     function setFullscreen(on: boolean): void {
