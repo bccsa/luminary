@@ -1469,6 +1469,29 @@ describe("MediaPlayer", () => {
             expect(bar.attributes("style")).toContain("linear-gradient");
         });
 
+        it("keeps the ThumbHash's proportions across the bar instead of squashing it", async () => {
+            const rgba = new Uint8Array(8 * 8 * 4);
+            for (let i = 0; i < 64; i++) rgba.set([i * 4, 100, 200 - i * 3, 255], i * 4);
+            const thumbHash = btoa(String.fromCharCode(...rgbaToThumbHash(8, 8, rgba)));
+            openMediaPlayer(
+                {
+                    ...mockEnglishContentDto,
+                    parentImageData: {
+                        fileCollections: [{ aspectRatio: 1, imageFiles: [], thumbHash }],
+                    },
+                } as unknown as ContentDto,
+                "en",
+            );
+            const wrapper = await mountPlayer();
+            minimiseMediaPlayer();
+            await flushPromises();
+            const style = find(wrapper, "mediaPlayerBar").attributes("style") ?? "";
+
+            expect(style).toContain("data:image/png");
+            expect(style).toContain("background-size: cover");
+            expect(style).toContain("background-position: center");
+        });
+
         it("marks the way up on the picture", async () => {
             const wrapper = await playing();
             minimiseMediaPlayer();
