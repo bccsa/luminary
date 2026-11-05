@@ -158,7 +158,7 @@ const tabs = computed<{ id: SheetTab; label: string }[]>(() => [
     upNext.value.related.length ||
     upNextTag.value ||
     hadUpNext.value
-        ? [{ id: "upnext" as const, label: t("media_player.up_next") }]
+        ? [{ id: "upnext" as const, label: t("media_player.more") }]
         : []),
 ]);
 const sheetLabel = computed(() =>
