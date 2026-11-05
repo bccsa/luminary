@@ -47,6 +47,22 @@ describe("MobileMenu.vue", () => {
         );
     });
 
+    it("gives every tab an equal share of the bar, whatever its label's length", () => {
+        const wrapper = mount(MobileMenu);
+
+        // The profile menu's side panel also renders here in tests; tabs are the children with a label.
+        const tabs = Array.from(wrapper.element.children).filter((el) =>
+            el.querySelector(":scope > span"),
+        );
+        expect(tabs).toHaveLength(5);
+        for (const tab of tabs) {
+            expect(tab.classList).toContain("flex-1");
+            expect(tab.classList).toContain("basis-0");
+            expect(tab.classList).toContain("min-w-0");
+            expect(tab.querySelector("span")?.classList).toContain("truncate");
+        }
+    });
+
     describe("its published height", () => {
         let observed: { box?: ResizeObserverBoxOptions } | undefined;
         let height = 90;
@@ -64,9 +80,9 @@ describe("MobileMenu.vue", () => {
                     disconnect() {}
                 },
             );
-            measured = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
-                () => ({ height }) as DOMRect,
-            );
+            measured = vi
+                .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+                .mockImplementation(() => ({ height }) as DOMRect);
         });
         afterEach(() => {
             vi.unstubAllGlobals();

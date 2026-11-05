@@ -313,7 +313,7 @@ const sidebarNavigation = computed(() =>
         type="button"
         name="profile-menu-btn"
         aria-label="Open user menu"
-        class="flex flex-col items-center rounded-md px-2 py-1"
+        class="flex min-w-0 flex-1 basis-0 flex-col items-center rounded-md px-1 py-1"
         @click="menuOpen = !menuOpen"
     >
         <component
@@ -327,7 +327,7 @@ const sidebarNavigation = computed(() =>
         />
         <span
             :class="[
-                'text-sm font-medium',
+                'max-w-full truncate text-sm font-medium',
                 menuOpen
                     ? 'text-yellow-700 dark:text-yellow-400'
                     : 'text-zinc-600 dark:text-slate-100',
