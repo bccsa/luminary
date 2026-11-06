@@ -220,6 +220,7 @@ const hasAnyContent = computed(() => editable.value.length > 0);
             <LButton
                 v-if="canCreateGroup && hasAnyContent && isSmallScreen"
                 variant="primary"
+                class="bg-zinc-100 hover:bg-zinc-300 hover:text-zinc-700 text-zinc-500"
                 :icon="PlusIcon"
                 @click="createGroup"
                 data-test="createGroupButton"
