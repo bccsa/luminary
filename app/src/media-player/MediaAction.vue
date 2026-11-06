@@ -42,12 +42,7 @@ const mediaProgress = computed(() => {
     <button
         v-if="corner"
         type="button"
-        class="absolute -bottom-[34px] right-3.5 flex h-[68px] w-[68px] items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-500 motion-safe:transition-transform lg:-bottom-[42px] lg:right-6 lg:h-[84px] lg:w-[84px]"
-        :class="
-            pressed
-                ? 'motion-safe:scale-[0.92] motion-safe:duration-75 motion-safe:ease-out'
-                : 'motion-safe:duration-[120ms] motion-safe:ease-out'
-        "
+        class="absolute -bottom-[34px] right-3.5 flex h-[68px] w-[68px] items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-500 lg:-bottom-[42px] lg:right-6 lg:h-[84px] lg:w-[84px]"
         :aria-label="t('media_player.play')"
         data-test="mediaPlay"
         @pointerdown="pressed = true"
@@ -57,10 +52,10 @@ const mediaProgress = computed(() => {
         @click.stop="open"
     >
         <!-- The ring shows before the video is started too. It lies on a photo of any brightness, so it is light
-             with a dark halo in both themes. -->
+             with a halo: soft on the light page, where a strong one reads as a black band, and strong in dark. -->
         <svg
             viewBox="0 0 68 68"
-            class="absolute inset-0 h-full w-full -rotate-90 drop-shadow-[0_0_1.5px_rgba(0,0,0,0.6)]"
+            class="absolute inset-0 h-full w-full -rotate-90 drop-shadow-[0_0_1.5px_rgba(0,0,0,0.25)] dark:drop-shadow-[0_0_1.5px_rgba(0,0,0,0.6)]"
             aria-hidden="true"
             data-test="mediaPlayProgress"
         >
@@ -70,7 +65,7 @@ const mediaProgress = computed(() => {
                 r="31"
                 fill="none"
                 stroke-width="5"
-                class="stroke-white/80"
+                class="stroke-white/80 dark:stroke-slate-600"
             />
             <!-- A round-capped dash of length 0 still draws a dot. -->
             <circle
@@ -83,11 +78,17 @@ const mediaProgress = computed(() => {
                 stroke-linecap="round"
                 pathLength="100"
                 :stroke-dasharray="`${mediaProgress} 100`"
-                class="stroke-yellow-500"
+                class="stroke-yellow-500 dark:stroke-yellow-300"
             />
         </svg>
         <span
-            class="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-yellow-500 text-zinc-900 lg:h-16 lg:w-16"
+            class="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-yellow-500 text-zinc-900 shadow-[0_2px_6px_rgba(0,0,0,0.3)] ring-[3px] ring-zinc-900 motion-safe:transition-transform lg:h-16 lg:w-16"
+            :class="
+                pressed
+                    ? 'motion-safe:scale-[0.92] motion-safe:duration-75 motion-safe:ease-out'
+                    : 'motion-safe:duration-[120ms] motion-safe:ease-out'
+            "
+            data-test="mediaPlayDisc"
         >
             <!-- The triangle's weight sits left of its box: moved right so it looks centred. -->
             <PlayerIcon

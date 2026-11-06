@@ -67,25 +67,36 @@ describe("MediaAction", () => {
         expect(ring.findAll("circle")).toHaveLength(1);
     });
 
-    it("draws the ring the same in both themes, with a halo so it reads over any photo", () => {
+    it("gives the ring a halo in both themes, soft in light so it shows no dark band", () => {
         const ring = mountAction(true).find("[data-test='mediaPlayProgress']");
-        expect(ring.classes().some((c) => c.startsWith("drop-shadow-"))).toBe(true);
-        expect(ring.find("circle").classes().some((c) => c.startsWith("dark:"))).toBe(false);
+        const halos = ring.classes().filter((c) => c.includes("drop-shadow-"));
+        expect(halos).toContain("drop-shadow-[0_0_1.5px_rgba(0,0,0,0.25)]");
+        expect(halos).toContain("dark:drop-shadow-[0_0_1.5px_rgba(0,0,0,0.6)]");
     });
 
-    it("scales down while pressed and back on release, unless motion is reduced", async () => {
-        const play = mountAction(true).find("[data-test='mediaPlay']");
-        expect(play.classes()).not.toContain("motion-safe:scale-[0.92]");
+    it("draws the progress in its own colour per theme", () => {
+        setMediaProgress(videoUrl, mockEnglishContentDto._id, 300, 1200);
+        const progress = mountAction(true).findAll("[data-test='mediaPlayProgress'] circle")[1];
+        expect(progress.classes()).toContain("stroke-yellow-500");
+        expect(progress.classes()).toContain("dark:stroke-yellow-300");
+    });
+
+    it("squishes the yellow disc while pressed, not the ring, unless motion is reduced", async () => {
+        const wrapper = mountAction(true);
+        const play = wrapper.find("[data-test='mediaPlay']");
+        const disc = () => wrapper.find("[data-test='mediaPlayDisc']");
+        expect(disc().classes()).not.toContain("motion-safe:scale-[0.92]");
 
         await play.trigger("pointerdown");
-        expect(play.classes()).toContain("motion-safe:scale-[0.92]");
+        expect(disc().classes()).toContain("motion-safe:scale-[0.92]");
+        expect(play.classes()).not.toContain("motion-safe:scale-[0.92]");
 
         await play.trigger("pointerup");
-        expect(play.classes()).not.toContain("motion-safe:scale-[0.92]");
+        expect(disc().classes()).not.toContain("motion-safe:scale-[0.92]");
 
         await play.trigger("pointerdown");
         await play.trigger("pointercancel");
-        expect(play.classes()).not.toContain("motion-safe:scale-[0.92]");
+        expect(disc().classes()).not.toContain("motion-safe:scale-[0.92]");
     });
 
     it("rings the button with how far the video was watched", async () => {
