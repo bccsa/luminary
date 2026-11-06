@@ -2716,10 +2716,11 @@ function onKeydown(event: KeyboardEvent) {
             >
                 <ChevronUpIcon class="h-5 w-5" />
             </button>
-            <!-- The picture fills the bar's left end, edge to edge; on a video the platform's picture is drawn there. -->
+            <!-- The cover is the sound screen's in small, a rounded tile, for sound and video alike; centred in the
+                 bar less its progress line. -->
             <button
                 type="button"
-                class="relative flex h-full flex-none text-left"
+                class="relative flex h-full flex-none items-center pl-2 text-left"
                 :aria-label="t('media_player.expand')"
                 data-test="mediaPlayerBarPicture"
                 @click="expandMediaPlayer"
@@ -2728,16 +2729,18 @@ function onKeydown(event: KeyboardEvent) {
                     v-if="barCover"
                     :src="barCover"
                     alt=""
-                    class="h-[61px] w-[61px] flex-none self-start object-cover transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
-                    :class="lineAtFoot ? '' : 'translate-y-[3px]'"
+                    class="h-12 w-12 flex-none rounded-lg object-cover shadow-md shadow-black/40 ring-1 ring-white/10 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                    :class="lineAtFoot ? '-translate-y-[1.5px]' : 'translate-y-[1.5px]'"
                     draggable="false"
+                    data-test="mediaPlayerBarCover"
                     @error="barCoverFailed = true"
                 />
                 <span
                     v-else
-                    class="flex h-[61px] w-[61px] flex-none items-center justify-center self-start bg-white/10 text-white/70 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
-                    :class="lineAtFoot ? '' : 'translate-y-[3px]'"
+                    class="flex h-12 w-12 flex-none items-center justify-center rounded-lg bg-white/10 text-white/70 shadow-md shadow-black/40 ring-1 ring-white/10 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                    :class="lineAtFoot ? '-translate-y-[1.5px]' : 'translate-y-[1.5px]'"
                     aria-hidden="true"
+                    data-test="mediaPlayerBarCover"
                 >
                     <MusicalNoteIcon class="h-6 w-6" />
                 </span>

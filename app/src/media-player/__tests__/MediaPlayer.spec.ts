@@ -1427,6 +1427,24 @@ describe("MediaPlayer", () => {
             expect(engine.props.inline).toBe(true);
         });
 
+        it.each([
+            ["video", false],
+            ["sound", true],
+        ])("shows the cover as the same rounded tile for %s", async (_mode, sound) => {
+            const wrapper = await playing();
+            if (sound) {
+                await find(wrapper, "mediaPlayerAudio").trigger("click");
+                await flushPromises();
+            }
+            minimiseMediaPlayer();
+            await flushPromises();
+
+            const cover = find(wrapper, "mediaPlayerBarCover");
+            expect(cover.classes()).toEqual(
+                expect.arrayContaining(["h-12", "w-12", "rounded-lg", "object-cover"]),
+            );
+        });
+
         it("is the plain dark bar, with nothing blurred, when the post has no ThumbHash", async () => {
             const wrapper = await playing();
             minimiseMediaPlayer();
