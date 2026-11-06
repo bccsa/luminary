@@ -30,8 +30,13 @@ export function spriteSheetsByDistance(
             time += 1;
             continue;
         }
+        // The playhead's own sheet first, ahead of one that merely ends where it stands.
         const distance =
-            around < cue.startTime ? cue.startTime - around : Math.max(0, around - cue.endTime);
+            around < cue.startTime
+                ? cue.startTime - around
+                : around < cue.endTime
+                  ? -1
+                  : around - cue.endTime;
         const known = nearest.get(cue.spriteUrl);
         if (known === undefined || distance < known) nearest.set(cue.spriteUrl, distance);
         time = cue.endTime;
