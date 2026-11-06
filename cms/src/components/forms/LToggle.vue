@@ -35,15 +35,6 @@ const toggled = computed({
             'relative inline-flex h-4 w-8 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2',
             {
                 'cursor-pointer': !disabled,
-
-                // Dark mode
-                'focus:ring-slate-400 focus:ring-offset-slate-950': dark,
-                'bg-white': dark && disabled && toggled,
-                'bg-slate-800': dark && disabled && !toggled,
-                'bg-slate-700': dark && !disabled && toggled,
-                'bg-slate-500/40': dark && !disabled && !toggled,
-
-                // Light mode
                 'focus:ring-zinc-950 focus:ring-offset-white': !dark,
                 'bg-zinc-400': disabled && toggled,
                 'bg-zinc-100': disabled && !toggled,
