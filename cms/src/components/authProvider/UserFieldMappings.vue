@@ -34,7 +34,9 @@ function setMapping(key: "externalUserId" | "email" | "name", value: string) {
 </script>
 
 <template>
-    <div class="rounded-md border p-2 dark:border-slate-700 dark:bg-slate-800">
+    <div
+        class="rounded-md border border-zinc-200 bg-white p-2 text-zinc-700 dark:border-slate-700 dark:bg-slate-800"
+    >
         <h3 class="mb-2 text-sm font-medium dark:text-zinc-100">User field names</h3>
         <p class="mb-2 text-[11px] dark:text-zinc-200">
             Override the JWT claim paths used to identify users. Leave blank to use standard OIDC
@@ -42,7 +44,7 @@ function setMapping(key: "externalUserId" | "email" | "name", value: string) {
         </p>
         <div class="space-y-2">
             <div>
-                <label for="ufm-userId" class="mb-1 block text-xs font-medium dark:text-zinc-100"
+                <label for="ufm-userId" class="mb-1 block text-xs font-medium dark:text-zinc-100 text-zinc-700"
                     >User ID claim</label
                 >
                 <LInput
@@ -56,7 +58,7 @@ function setMapping(key: "externalUserId" | "email" | "name", value: string) {
                 />
             </div>
             <div>
-                <label for="ufm-email" class="mb-1 block text-xs font-medium dark:text-zinc-100"
+                <label for="ufm-email" class="mb-1 block text-xs font-medium dark:text-zinc-100 text-zinc-700"
                     >Email claim</label
                 >
                 <LInput
@@ -70,7 +72,7 @@ function setMapping(key: "externalUserId" | "email" | "name", value: string) {
                 />
             </div>
             <div>
-                <label for="ufm-name" class="mb-1 block text-xs font-medium dark:text-zinc-100"
+                <label for="ufm-name" class="mb-1 block text-xs font-medium dark:text-zinc-100 text-zinc-700"
                     >Name claim</label
                 >
                 <LInput
