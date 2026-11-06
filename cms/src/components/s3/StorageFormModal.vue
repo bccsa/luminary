@@ -171,7 +171,7 @@ function handleDelete() {
                         class="mb-1 flex items-center gap-2"
                     >
                         <XCircleIcon class="h-4 w-4 flex-shrink-0 text-red-400" />
-                        <p class="text-xs dark:text-zinc-100">{{ error }}</p>
+                        <p class="text-xs dark:text-zinc-100 text-zinc-700">{{ error }}</p>
                     </div>
                 </div>
 
@@ -183,7 +183,7 @@ function handleDelete() {
                         class="mb-1 flex items-center gap-2"
                     >
                         <XCircleIcon class="h-4 w-4 flex-shrink-0 text-red-400" />
-                        <p class="text-xs dark:text-zinc-100">{{ validation.message }}</p>
+                        <p class="text-xs dark:text-zinc-100 text-zinc-700">{{ validation.message }}</p>
                     </div>
                 </div>
             </div>
@@ -192,7 +192,7 @@ function handleDelete() {
                 <div>
                     <label
                         for="bucket-name"
-                        class="mb-1 block text-xs font-medium dark:text-zinc-100"
+                        class="mb-1 block text-xs font-medium dark:text-zinc-100 text-zinc-700"
                         >Name</label
                     >
                     <LInput
@@ -228,7 +228,7 @@ function handleDelete() {
                 <div>
                     <label
                         for="bucket-path"
-                        class="mb-1 block text-xs font-medium dark:text-zinc-100"
+                        class="mb-1 block text-xs font-medium dark:text-zinc-100 text-zinc-700"
                         >Public URL</label
                     >
                     <LInput
@@ -258,7 +258,7 @@ function handleDelete() {
                             }
                         "
                     />
-                    <p v-if="!isEditing" class="mt-0.5 text-[11px] dark:text-zinc-200">
+                    <p v-if="!isEditing" class="mt-0.5 text-[11px] dark:text-zinc-200 text-zinc-500">
                         Must be set manually including "http://" or "https://"
                     </p>
                 </div>
@@ -327,7 +327,7 @@ function handleDelete() {
 
                 <!-- Allowed File Types -->
                 <div>
-                    <label class="mb-1 block text-xs font-medium dark:text-zinc-100">
+                    <label class="mb-1 block text-xs font-medium dark:text-zinc-100 text-zinc-700">
                         Allowed File Types
                     </label>
                     <div class="space-y-1.5">
@@ -369,7 +369,7 @@ function handleDelete() {
                             </LButton>
                         </div>
                     </div>
-                    <p class="mt-0.5 text-[11px] dark:text-zinc-100">
+                    <p class="mt-0.5 text-[11px] dark:text-zinc-100 text-zinc-500">
                         e.g., "image/*", "video/mp4", "application/pdf"
                     </p>
                 </div>
@@ -434,7 +434,7 @@ function handleDelete() {
                 <!-- S3 Credentials -->
                 <div v-if="shouldShowCredentialsSection" class="border-t pt-2">
                     <div class="mb-2 flex items-center justify-between">
-                        <h3 class="text-sm font-medium dark:text-zinc-100">
+                        <h3 class="text-sm font-medium dark:text-zinc-100 text-zinc-900">
                             S3 Credentials
                             <span v-if="!isEditing" class="text-red-500">*</span>
                         </h3>
@@ -490,7 +490,7 @@ function handleDelete() {
                         <div>
                             <label
                                 for="endpoint"
-                                class="mb-1 block text-xs font-medium dark:text-zinc-100"
+                                class="mb-1 block text-xs font-medium dark:text-zinc-100 text-zinc-700"
                             >
                                 S3 Endpoint
                                 <span v-if="!isEditing" class="text-red-500">*</span>
@@ -540,7 +540,7 @@ function handleDelete() {
                         <div>
                             <label
                                 for="bucketName"
-                                class="mb-1 block text-xs font-medium dark:text-zinc-100"
+                                class="mb-1 block text-xs font-medium dark:text-zinc-100 text-zinc-700"
                             >
                                 Bucket Name
                                 <span v-if="!isEditing" class="text-red-500">*</span>
@@ -573,7 +573,7 @@ function handleDelete() {
                         <div>
                             <label
                                 for="accessKey"
-                                class="mb-1 block text-xs font-medium dark:text-zinc-100"
+                                class="mb-1 block text-xs font-medium dark:text-zinc-100 text-zinc-700"
                             >
                                 Access Key
                                 <span v-if="!isEditing" class="text-red-500">*</span>
@@ -603,7 +603,7 @@ function handleDelete() {
                         <div>
                             <label
                                 for="secretKey"
-                                class="mb-1 block text-xs font-medium dark:text-zinc-100"
+                                class="mb-1 block text-xs font-medium dark:text-zinc-100 text-zinc-700"
                             >
                                 Secret Key
                                 <span v-if="!isEditing" class="text-red-500">*</span>
