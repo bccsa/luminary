@@ -147,6 +147,9 @@ const controllerOptions = {
 };
 const playerExtras = computed(() => ({
     controllerOptions,
+    // Saving data, the scrub frames are fetched as they are reached rather than ahead; the player itself
+    // holds back while only sound plays.
+    lazyThumbnails: userDataSaverEnabled.value || isDataSaverEnabled(),
     ...(videoPlayer.acceptsNowPlaying
         ? { nowPlaying: nowPlaying.value }
         : { nowPlaying: webNowPlaying.value, appearance: isDarkTheme.value ? "dark" : "light" }),

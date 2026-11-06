@@ -38,6 +38,7 @@ import { buildControlsHtml } from "../ui/controlsHtml";
 import { installAutoHide, type ControlsStore } from "../ui/autoHide";
 import { attachPressActivation } from "../ui/pressActivate";
 import { stepVolume } from "../ui/volume";
+import { SpriteWarmer, spriteSheetsByDistance, spriteWarmLimit } from "../ui/spriteWarm";
 import { liftCues, liftLine, type LiftableCue } from "../ui/cueLift";
 import { cuesToLyrics, type LyricCue } from "../ui/lyrics";
 import { chapterMask, formatChapterOf } from "../ui/chapterBar";
@@ -111,6 +112,8 @@ interface Props {
     appearance?: "light" | "dark";
     /** Audio language to select automatically; a viewer's own choice outranks it. */
     preferredLanguage?: string;
+    /** Saves data on scrub sprite sheets: only the playhead's own is fetched ahead, once playback is under way; the rest as the pointer reaches them. */
+    lazyThumbnails?: boolean;
     /** Options handed to the default `PlayerController`. */
     controllerOptions?: Partial<PlayerControllerOptions>;
     /** @internal Test seam — substitutes controller construction. */
@@ -1309,17 +1312,46 @@ function onPinUp(event: PointerEvent): void {
 }
 
 /**
- * Fetches the first sprite sheet the moment there is one, so the first hover is not a blank frame
- * waiting on an image. Later sheets load as the pointer reaches them.
+ * Fetches the sprite sheets ahead of a scrub, nearest the playhead first, once playback is under way
+ * (`spriteWarmLimit`). A sheet fetched only when the pointer reaches it queues behind the segment downloads,
+ * and the scrub shows blank frames. Saving data, or with only sound playing, only the playhead's sheet is.
  */
+const spriteWarm = shallowRef<SpriteWarmer>();
+const warmStarted = ref(false);
 watch(
-    () => state.value.thumbnailsReady,
-    (ready) => {
-        if (!ready) return;
-        const first = controller.value?.thumbnailAt(0);
-        if (first) new Image().src = first.spriteUrl;
+    () => props.source.masterUrl,
+    () => (warmStarted.value = false),
+);
+watch(
+    () => state.value.playing,
+    (playing) => {
+        if (playing) warmStarted.value = true;
     },
 );
+watch(
+    () => (state.value.thumbnailsReady && state.value.duration > 0 ? props.source.masterUrl : null),
+    (ready) => {
+        spriteWarm.value?.stop();
+        spriteWarm.value = ready ? new SpriteWarmer() : undefined;
+    },
+);
+const playheadSheet = computed(() =>
+    state.value.thumbnailsReady
+        ? controller.value?.thumbnailAt(state.value.currentTime)?.spriteUrl
+        : undefined,
+);
+watch([spriteWarm, playheadSheet], ([warm]) => {
+    const instance = controller.value;
+    if (!warm || !instance) return;
+    const { duration, currentTime } = state.value;
+    warm.setSheets(spriteSheetsByDistance((t) => instance.thumbnailAt(t), duration, currentTime));
+});
+const spriteLimit = computed(() => {
+    const limit = spriteWarmLimit({ ...state.value, started: warmStarted.value });
+    return props.lazyThumbnails || isAudioOnly.value ? Math.min(limit, 1) : limit;
+});
+watch([spriteWarm, spriteLimit], ([warm, limit]) => warm?.setLimit(limit));
+onBeforeUnmount(() => spriteWarm.value?.stop());
 
 watch(
     () => props.source,
