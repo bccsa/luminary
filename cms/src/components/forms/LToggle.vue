@@ -45,10 +45,10 @@ const toggled = computed({
 
                 // Light mode
                 'focus:ring-zinc-950 focus:ring-offset-white': !dark,
-                'bg-zinc-400': !dark && disabled && toggled,
-                'bg-zinc-100': !dark && disabled && !toggled,
-                'bg-zinc-500': !dark && !disabled && toggled,
-                'bg-slate-600': !dark && !disabled && !toggled,
+                'bg-zinc-400': disabled && toggled,
+                'bg-zinc-100': disabled && !toggled,
+                'bg-zinc-500': !disabled && toggled,
+                'bg-zinc-200': !disabled && !toggled,
             },
         ]"
     >
