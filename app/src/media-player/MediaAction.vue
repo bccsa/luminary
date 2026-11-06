@@ -65,7 +65,7 @@ const mediaProgress = computed(() => {
                 r="31"
                 fill="none"
                 stroke-width="5"
-                class="stroke-white/80 dark:stroke-slate-600"
+                class="stroke-zinc-200 dark:stroke-slate-600"
             />
             <!-- A round-capped dash of length 0 still draws a dot. -->
             <circle
@@ -82,7 +82,7 @@ const mediaProgress = computed(() => {
             />
         </svg>
         <span
-            class="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-yellow-500 text-zinc-900 shadow-[0_2px_6px_rgba(0,0,0,0.3)] ring-[3px] ring-zinc-900 motion-safe:transition-transform lg:h-16 lg:w-16"
+            class="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-yellow-500 text-zinc-900 shadow-[0_2px_6px_rgba(0,0,0,0.3)] ring-[3px] ring-zinc-900/70 dark:ring-black/35 motion-safe:transition-transform lg:h-16 lg:w-16"
             :class="
                 pressed
                     ? 'motion-safe:scale-[0.92] motion-safe:duration-75 motion-safe:ease-out'
