@@ -1380,6 +1380,19 @@ describe("MediaPlayer", () => {
             expect(find(wrapper, "mediaPlayerBar").exists()).toBe(true);
             expect(wrapper.find("[data-test='mediaPlayerMiniVideo']").exists()).toBe(false);
         });
+
+        it("always shows the way up on the card, not only on hover", async () => {
+            const wrapper = await playing();
+            minimiseMediaPlayer();
+            await flushPromises();
+            await flushPromises();
+            const classes = find(wrapper, "mediaPlayerBarExpandBadge").classes();
+            expect(classes).toContain("w-7");
+            expect(classes).not.toContain("lg:w-0");
+            expect(
+                classes.filter((c) => c.includes("group-hover") || c.includes("group-focus")),
+            ).toEqual([]);
+        });
     });
 
     describe("video drawn behind the page", () => {
