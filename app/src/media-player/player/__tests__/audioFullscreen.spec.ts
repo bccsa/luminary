@@ -576,6 +576,15 @@ describe("the picture's place with a band for subtitles", () => {
     });
 });
 
+describe("the rows under the timeline", () => {
+    it("keeps the tools a gap apart from the transport when they stack", async () => {
+        const { readFileSync } = await import("node:fs");
+        const css = readFileSync(`${process.cwd()}/src/media-player/player/styles.css`, "utf8");
+        const rule = css.match(/^\.lmpl-afs-bottomrow\s*{[^}]*row-gap:\s*([^;]*);/m)!;
+        expect(rule[1]).toBe("calc(12px * var(--lmpl-s))");
+    });
+});
+
 describe("AudioFullscreen — chapter skips", () => {
     it("goes to the next chapter's start, and back to this one's when well into it", async () => {
         const wrapper = mountScreen();
