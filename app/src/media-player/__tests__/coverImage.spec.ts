@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { rgbaToThumbHash } from "thumbhash";
 import type { ContentDto } from "luminary-shared";
-import { thumbHashTint, thumbHashWash } from "../coverImage";
+import { coverArtwork, thumbHashTint, thumbHashWash } from "../coverImage";
+import { imageSizes } from "@/components/images/LImageProvider.vue";
 
 /** A real ThumbHash of a small two-colour picture, base64 as the API stores it. */
 function hashOf(width: number, height: number): string {
@@ -66,5 +67,42 @@ describe("thumbHashTint", () => {
         expect(thumbHashTint(undefined)).toBeUndefined();
         expect(thumbHashTint(withCollections([{ aspectRatio: 1, imageFiles: [] }]))).toBeUndefined();
         expect(thumbHashTint(withCollections([{ aspectRatio: 1, imageFiles: [], thumbHash: "%%%" }]))).toBeUndefined();
+    });
+});
+
+describe("coverArtwork", () => {
+    const wide = hashOf(16, 8);
+    const content = withCollections([
+        {
+            aspectRatio: 2,
+            thumbHash: wide,
+            imageFiles: [
+                { width: 1280, height: 640, filename: "c.webp" },
+                { width: 180, height: 90, filename: "a.webp" },
+                { width: 640, height: 320, filename: "b.webp" },
+            ],
+        },
+    ]);
+
+    it("offers every width with the post page picture's sizes, so the file that page loaded is reused", () => {
+        const artwork = coverArtwork(content, "https://img.example", "/stand-in.webp")!;
+        expect(artwork.srcset).toBe(
+            "https://img.example/a.webp 180w, https://img.example/b.webp 640w, https://img.example/c.webp 1280w",
+        );
+        expect(artwork.sizes).toBe(imageSizes("post", "video", 2));
+        expect(artwork.src).toBe("https://img.example/b.webp");
+        expect(artwork.fallback).toBe("/stand-in.webp");
+    });
+
+    it("carries the ThumbHash to show until the picture is drawn", () => {
+        expect(coverArtwork(content, "https://img.example")!.placeholder).toBe(thumbHashWash(content));
+    });
+
+    it("is the stand-in alone while the post has no image or its bucket is not known, and nothing without either", () => {
+        expect(coverArtwork(content, undefined, "/stand-in.webp")).toEqual({ src: "/stand-in.webp" });
+        expect(coverArtwork(withCollections([]), "https://img.example", "/stand-in.webp")).toEqual({
+            src: "/stand-in.webp",
+        });
+        expect(coverArtwork(withCollections([]), "https://img.example")).toBeNull();
     });
 });

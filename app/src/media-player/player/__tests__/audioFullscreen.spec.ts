@@ -54,6 +54,21 @@ describe("AudioFullscreen — what it shows", () => {
         expect(wrapper.text()).toContain("Sunday messages");
     });
 
+    it("shows the cover's ThumbHash behind it until the picture is drawn", async () => {
+        const wrapper = mountScreen({
+            artwork: {
+                src: "https://cdn.example.com/cover.jpg",
+                placeholder: "data:image/png;base64,AAAA",
+            },
+        });
+        expect(find(wrapper, "afsCover").attributes("style")).toContain(
+            "data:image/png;base64,AAAA",
+        );
+
+        await find(wrapper, "afsCover").trigger("load");
+        expect(find(wrapper, "afsCover").attributes("style") ?? "").not.toContain("data:image");
+    });
+
     it("shows the fallback in place of a cover that does not load, and the placeholder when there is none", async () => {
         const wrapper = mountScreen({
             artwork: { src: "https://cdn.example.com/broken.jpg", fallback: "/fallback.jpg" },
