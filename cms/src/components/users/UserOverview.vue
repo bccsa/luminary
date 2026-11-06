@@ -167,6 +167,7 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
             <LButton
                 v-if="canCreateNew && isConnected && hasAnyContent && isSmallScreen"
                 variant="primary"
+                class="bg-zinc-100 hover:bg-zinc-300 hover:text-zinc-700 text-zinc-500"
                 :icon="PlusIcon"
                 @click="openCreateUserModal"
                 name="createUserBtn"
@@ -183,7 +184,7 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
                 submit-search
             />
         </template>
-        <div class="flex flex-col gap-[8px]">
+        <div class="flex flex-col gap-[8px] text-zinc-500">
             <p v-if="hasAnyContent" class="mb-2 px-2 py-1 dark:text-zinc-100">
                 Users only need to be created when they require special permissions that are not
                 already automatically granted. It's possible to add multiple user objects with the
