@@ -57,6 +57,7 @@ const createNew = () => {
             <LButton
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
                 variant="primary"
+                class="bg-zinc-100 hover:bg-zinc-300 hover:text-zinc-700 text-zinc-500"
                 :icon="PlusIcon"
                 @click="createNew"
                 name="createLanguageBtn"
