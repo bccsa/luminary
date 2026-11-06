@@ -28,12 +28,10 @@ const open = () => openMediaPlayer(props.content, props.language);
 /** Set from pointer events because iOS WebKit gives a touch no `:active` without a touch listener. */
 const pressed = ref(false);
 
-/** The ring's colours, neutral on either theme so the progress stands out from the yellow and the track. */
-const ringTrackClass = "stroke-black/[0.12] dark:stroke-white/20";
-const ringProgressFromClass =
-    "[stop-color:theme(colors.slate.700)] dark:[stop-color:theme(colors.white)]";
-const ringProgressToClass =
-    "[stop-color:theme(colors.yellow.600)] dark:[stop-color:theme(colors.yellow.300)]";
+/** The ring's colours: tones of the icon's dark on the yellow, the same on either theme. */
+const ringTrackClass = "stroke-zinc-900/[0.12]";
+const ringProgressFromClass = "[stop-color:theme(colors.zinc.900)] [stop-opacity:0.45]";
+const ringProgressToClass = "[stop-color:theme(colors.zinc.900)] [stop-opacity:0.8]";
 const ringGradientId = `media-play-ring-${useId()}`;
 
 /** How far the media was played, 0–100; 0 until it has been started. */
@@ -50,7 +48,7 @@ const mediaProgress = computed(() => {
     <button
         v-if="corner"
         type="button"
-        class="absolute -bottom-[34px] right-3.5 flex h-[68px] w-[68px] items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-500 motion-safe:transition-transform lg:-bottom-[42px] lg:right-6 lg:h-[84px] lg:w-[84px]"
+        class="absolute -bottom-[34px] right-3.5 flex h-[68px] w-[68px] items-center justify-center rounded-full shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-500 motion-safe:transition-transform lg:-bottom-[42px] lg:right-6 lg:h-[84px] lg:w-[84px]"
         :class="
             pressed
                 ? 'motion-safe:scale-[0.92] motion-safe:duration-75 motion-safe:ease-out'
@@ -94,11 +92,11 @@ const mediaProgress = computed(() => {
                     />
                 </linearGradient>
             </defs>
-            <!-- A small gap inside the track, so the ring does not read as a border. -->
+            <!-- The ring lies on the disc, inset from its edge, so it never reads as a border. -->
             <circle
                 cx="34"
                 cy="34"
-                r="29.5"
+                r="34"
                 class="fill-yellow-500"
                 data-test="mediaPlayDisc"
             />
@@ -106,7 +104,7 @@ const mediaProgress = computed(() => {
             <circle
                 cx="34"
                 cy="34"
-                r="32.5"
+                r="30.5"
                 fill="none"
                 stroke-width="3"
                 :class="ringTrackClass"
@@ -117,7 +115,7 @@ const mediaProgress = computed(() => {
                 v-if="mediaProgress > 0"
                 cx="34"
                 cy="34"
-                r="32.5"
+                r="30.5"
                 fill="none"
                 stroke-width="3"
                 stroke-linecap="round"
