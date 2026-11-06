@@ -1122,8 +1122,8 @@ const lineAtFoot = computed(() => isDesktop.value || floatingCard.value);
 /** The bar's fill: the post image's colour, or the plain dark bar when it has none. */
 const barTint = computed(() => thumbHashTint(content.value));
 /**
- * The bar wears the post image's ThumbHash, stretched along it so its colours run from end to end, under a scrim
- * that keeps the white text readable; its average colour shows until the picture is drawn.
+ * The bar wears the post image's ThumbHash under a scrim that keeps the white text readable; its average colour
+ * shows until the picture is drawn. Covered, not stretched: a square hash pulled to the bar's width looks squashed.
  */
 const barFill = computed(() => {
     const tint = barTint.value;
@@ -1134,7 +1134,8 @@ const barFill = computed(() => {
         ...(hash
             ? {
                   backgroundImage: `linear-gradient(rgb(8 10 14 / 0.55), rgb(8 10 14 / 0.55)), url("${hash}")`,
-                  backgroundSize: "100% 100%",
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
               }
             : {}),
     };
