@@ -95,11 +95,11 @@ vi.mock("luminary-shared", async (importOriginal) => ({
 
 const setMediaProgressMock = vi.hoisted(() => vi.fn());
 const getMediaProgressMock = vi.hoisted(() => vi.fn(() => 0));
-const removeMediaProgressMock = vi.hoisted(() => vi.fn());
+const isMediaFinishedMock = vi.hoisted(() => vi.fn(() => false));
 vi.mock("@/contentProgress", () => ({
     setMediaProgress: setMediaProgressMock,
     getMediaProgress: getMediaProgressMock,
-    removeMediaProgress: removeMediaProgressMock,
+    isMediaFinished: isMediaFinishedMock,
 }));
 
 const recordAffinityMock = vi.hoisted(() => vi.fn());
@@ -140,6 +140,7 @@ const stub = (wrapper: any) => wrapper.findComponent({ name: "LuminaryPlayer" })
 beforeEach(() => {
     vi.clearAllMocks();
     getMediaProgressMock.mockReturnValue(0);
+    isMediaFinishedMock.mockReturnValue(false);
     fetchHlsKeyMock.mockResolvedValue(undefined);
 });
 
@@ -508,6 +509,26 @@ describe("MediaPlayerWrapper", () => {
             expect(seekMock).toHaveBeenCalledWith(270);
         });
 
+        it("starts a finished media over instead of resuming it", async () => {
+            getMediaProgressMock.mockReturnValue(590);
+            isMediaFinishedMock.mockReturnValue(true);
+            const wrapper = await mountPlayer();
+
+            stub(wrapper).vm.$emit("loadedmetadata");
+
+            expect(seekMock).not.toHaveBeenCalled();
+        });
+
+        it("does not record media that ends before the resume threshold", async () => {
+            const wrapper = await mountPlayer();
+            stub(wrapper).vm.$emit("loadedmetadata");
+            stub(wrapper).vm.$emit("timeupdate", 20, 30);
+
+            stub(wrapper).vm.$emit("ended");
+
+            expect(setMediaProgressMock).not.toHaveBeenCalled();
+        });
+
         it("starts and restores the position on the first load only, not on a switch of mode", async () => {
             getMediaProgressMock.mockReturnValue(300);
             const wrapper = await mountPlayer({}, { autoplay: true });
@@ -692,14 +713,18 @@ describe("MediaPlayerWrapper", () => {
     });
 
     describe("finishing a video", () => {
-        it("clears the resume point and records the engagement", async () => {
+        it("keeps the media as fully played and records the engagement", async () => {
             const wrapper = await mountPlayer();
+            stub(wrapper).vm.$emit("loadedmetadata");
+            stub(wrapper).vm.$emit("timeupdate", 90, 600);
 
             stub(wrapper).vm.$emit("ended");
 
-            expect(removeMediaProgressMock).toHaveBeenCalledWith(
+            expect(setMediaProgressMock).toHaveBeenLastCalledWith(
                 RELATIVE,
                 mockEnglishContentDto._id,
+                600,
+                600,
             );
             expect(recordAffinityMock).toHaveBeenCalledWith(mockEnglishContentDto.parentTags, 5);
             expect(markSeenMock).toHaveBeenCalledWith(mockEnglishContentDto._id);
@@ -791,12 +816,16 @@ describe("MediaPlayerWrapper", () => {
 
         it("passes on the pick, after booking the video it leaves as finished and pausing it", async () => {
             const wrapper = await mountPlayer({}, { nextUp: NEXT });
+            stub(wrapper).vm.$emit("loadedmetadata");
+            stub(wrapper).vm.$emit("timeupdate", 90, 600);
             stub(wrapper).vm.$emit("nextupselect", "n1");
 
             expect(wrapper.emitted("nextupselect")).toEqual([["n1"]]);
-            expect(removeMediaProgressMock).toHaveBeenCalledWith(
+            expect(setMediaProgressMock).toHaveBeenLastCalledWith(
                 RELATIVE,
                 mockEnglishContentDto._id,
+                600,
+                600,
             );
             expect(markSeenMock).toHaveBeenCalledWith(mockEnglishContentDto._id);
             expect(pauseMock).toHaveBeenCalled();
@@ -945,12 +974,15 @@ describe("MediaPlayerWrapper", () => {
                 await wrapper.setProps({ content: other() });
                 await new Promise((resolve) => setTimeout(resolve, 0));
                 stub(wrapper).vm.$emit("loadedmetadata");
+                stub(wrapper).vm.$emit("timeupdate", 90, 600);
                 stub(wrapper).vm.$emit("ended");
 
                 expect(exitFullscreenMock).not.toHaveBeenCalled();
-                expect(removeMediaProgressMock).toHaveBeenCalledWith(
+                expect(setMediaProgressMock).toHaveBeenLastCalledWith(
                     OTHER_RELATIVE,
                     "content-other",
+                    600,
+                    600,
                 );
             });
         });

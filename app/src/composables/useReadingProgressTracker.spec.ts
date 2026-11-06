@@ -783,6 +783,21 @@ describe("useReadingProgressTracker", () => {
         wrapper.unmount();
     });
 
+    it("reads a finished article again from the start", async () => {
+        setReadingProgress(TEST_CONTENT_ID, 100);
+
+        const { wrapper } = mountTracker(4);
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(25);
+        wrapper.unmount();
+    });
+
     it("seeds confirmed blocks using the same rounding as saved progress", async () => {
         setReadingProgress(TEST_CONTENT_ID, 33);
 
@@ -831,7 +846,7 @@ describe("useReadingProgressTracker", () => {
         wrapper.unmount();
     });
 
-    it("removes local storage entry when progress reaches 100%", async () => {
+    it("keeps the entry at 100% so the article stays recorded as read", async () => {
         const { wrapper } = mountTracker(1);
         await flushPromises();
         await nextTick();
@@ -840,8 +855,7 @@ describe("useReadingProgressTracker", () => {
         observer.trigger(observer.elements[0], true);
         advanceDwellMs(BLOCK_ONE_DWELL_MS);
 
-        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(0);
-        expect(localStorage.getItem("contentProgress")).toBe(null);
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(100);
         wrapper.unmount();
     });
 
@@ -898,7 +912,7 @@ describe("useReadingProgressTracker", () => {
         wrapper.unmount();
     });
 
-    it("reports a completed read from live state after persisted progress is removed", async () => {
+    it("reports a completed read at full depth when the session ends", async () => {
         const onSessionEnd = vi.fn();
         const { wrapper } = mountTracker(
             1,
@@ -914,7 +928,7 @@ describe("useReadingProgressTracker", () => {
         const observer = latestObserver();
         observer.trigger(observer.elements[0], true);
         advanceDwellMs(BLOCK_ONE_DWELL_MS);
-        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(0);
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(100);
 
         (wrapper.vm as { contentId: string }).contentId = "next-content-id";
         await nextTick();
