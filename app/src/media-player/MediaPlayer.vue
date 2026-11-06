@@ -55,7 +55,7 @@ import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { isMac } from "@/globalConfig";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { fallbackImageFor } from "@/util/fallbackArtwork";
-import { coverImageUrl, thumbHashTint, thumbHashWash } from "./coverImage";
+import { coverImageUrl, thumbHashAverage, thumbHashTint, thumbHashWash } from "./coverImage";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
 import { subtitlePreference, subtitlesOnVideo } from "@/globalConfig";
@@ -1253,6 +1253,7 @@ const sleepTimer = computed(() => state.value?.sleepTimer ?? null);
 // --- the now-playing screen on a phone -----------------------------------------------------------
 
 const nowPlayingWash = computed(() => thumbHashWash(content.value));
+const nowPlayingWashTint = computed(() => thumbHashAverage(content.value));
 
 const platformChrome = inject(PlatformChromeKey, null);
 const soundScreen = computed(() => nowPlaying.value && expanded.value && audioMode.value);
@@ -1651,6 +1652,7 @@ function onKeydown(event: KeyboardEvent) {
                     :subtitle="nowPlayingSubtitle"
                     :artwork="screenArtwork"
                     :wash="nowPlayingWash"
+                    :wash-tint="nowPlayingWashTint"
                     appearance="dark"
                     :stage="audioMode ? 'cover' : 'video'"
                     :fill="webFill"
@@ -2645,6 +2647,7 @@ function onKeydown(event: KeyboardEvent) {
                 :subtitle="nowPlayingSubtitle"
                 :artwork="screenArtwork"
                 :wash="nowPlayingWash"
+                :wash-tint="nowPlayingWashTint"
                 appearance="dark"
                 :chapters="chapters"
                 :current-time="currentTime"

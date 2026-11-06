@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rgbaToThumbHash } from "thumbhash";
 import type { ContentDto } from "luminary-shared";
-import { thumbHashTint, thumbHashWash } from "../coverImage";
+import { thumbHashAverage, thumbHashTint, thumbHashWash } from "../coverImage";
 
 /** A real ThumbHash of a small two-colour picture, base64 as the API stores it. */
 function hashOf(width: number, height: number): string {
@@ -66,5 +66,24 @@ describe("thumbHashTint", () => {
         expect(thumbHashTint(undefined)).toBeUndefined();
         expect(thumbHashTint(withCollections([{ aspectRatio: 1, imageFiles: [] }]))).toBeUndefined();
         expect(thumbHashTint(withCollections([{ aspectRatio: 1, imageFiles: [], thumbHash: "%%%" }]))).toBeUndefined();
+    });
+});
+
+describe("thumbHashAverage", () => {
+    it("is the picture's average colour, a light one not darkened", () => {
+        const rgba = new Uint8Array(8 * 8 * 4);
+        for (let i = 0; i < 64; i++) rgba.set([250, 230, 120, 255], i * 4);
+        const hash = btoa(String.fromCharCode(...rgbaToThumbHash(8, 8, rgba)));
+        const [r, g, b] = thumbHashAverage(withCollections([{ aspectRatio: 1, imageFiles: [], thumbHash: hash }]))!
+            .match(/\d+/g)!
+            .map(Number);
+        expect(Math.abs(r - 250)).toBeLessThan(12);
+        expect(Math.abs(g - 230)).toBeLessThan(12);
+        expect(Math.abs(b - 120)).toBeLessThan(12);
+    });
+
+    it("has none for a post without a ThumbHash", () => {
+        expect(thumbHashAverage(undefined)).toBeUndefined();
+        expect(thumbHashAverage(withCollections([{ aspectRatio: 1, imageFiles: [] }]))).toBeUndefined();
     });
 });

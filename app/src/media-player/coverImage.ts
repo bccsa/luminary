@@ -44,6 +44,22 @@ export function thumbHashWash(content: ContentDto | undefined): string | undefin
 }
 
 /**
+ * The post image's average colour, unchanged: what the wash fades into around a video, so the parts above and below
+ * the picture meet in one colour. Undefined when the post has no ThumbHash.
+ */
+export function thumbHashAverage(content: ContentDto | undefined): string | undefined {
+    const bytes = thumbHashBytes(content);
+    if (!bytes) return undefined;
+    try {
+        const { r, g, b } = thumbHashToAverageRGBA(bytes);
+        const channel = (value: number) => Math.round(Math.max(0, Math.min(1, value)) * 255);
+        return `rgb(${channel(r)}, ${channel(g)}, ${channel(b)})`;
+    } catch {
+        return undefined;
+    }
+}
+
+/**
  * Highest relative luminance the tint may keep: white text over it then stands at about 6:1, so the bar's
  * dimmer second line still passes 4.5:1.
  */
