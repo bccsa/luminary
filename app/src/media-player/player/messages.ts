@@ -47,6 +47,9 @@ export interface PlayerMessages {
      * many there are; a translation may move either.
      */
     chapterOf: string;
+    /** The buttons beside the skips that go to the previous and the next chapter. */
+    previousChapter: string;
+    nextChapter: string;
 
     // --- Fullscreen --------------------------------------------------------
     /**
@@ -148,6 +151,8 @@ export const DEFAULT_MESSAGES: PlayerMessages = {
     skipBack: "Skip back {seconds} seconds",
     skipForward: "Skip forward {seconds} seconds",
     chapterOf: "Chapter {index} of {count}",
+    previousChapter: "Previous chapter",
+    nextChapter: "Next chapter",
 
     exitFullscreen: "Exit full screen",
     enterFullscreen: "Full screen",

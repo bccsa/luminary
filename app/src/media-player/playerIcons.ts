@@ -1,7 +1,10 @@
 // The Video.js 10 default skin's icons: SVG path data on an 18-unit grid, y downwards, in layers (some
 // are half-opaque, and a few are outlines). Native full-screen draws the same data from its own copy,
 // generated from @videojs/html, so the two change together: regenerate rather than edit. `language` is
-// the exception: the Heroicons glyph the app uses for choosing a language.
+// an exception: the Heroicons glyph the app uses for choosing a language. So are the chapter skips, which
+// Video.js 10 has no glyph for.
+
+import { CHAPTER_GLYPHS } from "./player/ui/chapterSkip";
 
 export type IconLayer = { path: string; alpha: number; strokeWidth: number };
 
@@ -204,6 +207,8 @@ export const PLAYER_ICONS = {
         },
     ],
     check: [{ path: "M4 10.455 6.5 13 14 5", alpha: 1.0, strokeWidth: 2.0 }],
+    previousChapter: CHAPTER_GLYPHS.previous,
+    nextChapter: CHAPTER_GLYPHS.next,
 } satisfies Record<string, IconLayer[]>;
 
 export type PlayerIconName = keyof typeof PLAYER_ICONS;

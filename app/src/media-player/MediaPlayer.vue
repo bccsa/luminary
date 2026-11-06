@@ -38,7 +38,10 @@ import {
     ScrubPicture,
     ScrubRoster,
     chapterMask,
+    hasChapterSkip,
     mergeMessages,
+    nextChapterTime,
+    previousChapterTime,
     rosterFineStep,
     rosterStep,
     rosterTiles,
@@ -931,6 +934,21 @@ function togglePlay() {
 function skip(seconds: number) {
     const target = Math.min(Math.max(shownTime.value + seconds, 0), duration.value || Infinity);
     handle.value?.seek(target, { exact: false });
+    holdScrubAt(target);
+}
+
+/** Only with chapters to move between, and never live; "next" is disabled in the last chapter. */
+const chapterSkipShown = computed(
+    () => hasChapterSkip(chapters.value) && timeKnown.value && !live.value,
+);
+const nextChapter = computed(() => nextChapterTime(chapters.value, shownTime.value));
+
+// From where the bar shows, as the skips, so presses in a row step chapter by chapter.
+function skipChapter(step: -1 | 1) {
+    const target =
+        step === 1 ? nextChapter.value : previousChapterTime(chapters.value, shownTime.value);
+    if (target === null) return;
+    handle.value?.seek(target);
     holdScrubAt(target);
 }
 
@@ -2397,7 +2415,22 @@ function onKeydown(event: KeyboardEvent) {
                         </div>
                     </div>
 
-                    <div class="flex flex-none items-center justify-center gap-8">
+                    <div
+                        class="flex flex-none items-center justify-center"
+                        :class="chapterSkipShown ? 'gap-4' : 'gap-8'"
+                    >
+                        <PlayerButton
+                            v-if="chapterSkipShown"
+                            class="h-10 w-10 !rounded-full"
+                            :label="t('media_player.previous_chapter')"
+                            data-test="mediaPlayerPreviousChapter"
+                            @click="skipChapter(-1)"
+                        >
+                            <PlayerIcon
+                                name="previousChapter"
+                                class="h-6 w-6"
+                            />
+                        </PlayerButton>
                         <PlayerButton
                             round
                             class="h-14 w-14 [@media(max-height:840px)]:h-12 [@media(max-height:840px)]:w-12"
@@ -2466,6 +2499,19 @@ function onKeydown(event: KeyboardEvent) {
                             <PlayerIcon
                                 :skip="{ seconds: SKIP_SECONDS, direction: 'forward' }"
                                 class="h-8 w-8"
+                            />
+                        </PlayerButton>
+                        <PlayerButton
+                            v-if="chapterSkipShown"
+                            class="h-10 w-10 !rounded-full disabled:opacity-40"
+                            :label="t('media_player.next_chapter')"
+                            :disabled="nextChapter === null"
+                            data-test="mediaPlayerNextChapter"
+                            @click="skipChapter(1)"
+                        >
+                            <PlayerIcon
+                                name="nextChapter"
+                                class="h-6 w-6"
                             />
                         </PlayerButton>
                     </div>

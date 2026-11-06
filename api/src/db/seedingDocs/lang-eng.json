@@ -229,6 +229,8 @@
         "media_player.seek": "Seek",
         "media_player.skip_back": "Skip back {seconds} seconds",
         "media_player.skip_forward": "Skip forward {seconds} seconds",
+        "media_player.previous_chapter": "Previous chapter",
+        "media_player.next_chapter": "Next chapter",
         "media_player.speed": "Playback speed",
         "media_player.language": "Audio language",
         "media_player.sleep_timer": "Sleep timer",

@@ -69,6 +69,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
             ),
         chapterSegments: () => [],
         chapterMask: () => "",
+        ...(await import("@/media-player/player/ui/chapterSkip")),
         mergeMessages: (messages: object) => messages,
         // The real screen is the player's, tested there: it says what is asked through its events.
         AudioFullscreen: defineComponent({

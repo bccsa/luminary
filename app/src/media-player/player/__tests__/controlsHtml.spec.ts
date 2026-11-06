@@ -126,11 +126,33 @@ describe("buildControlsHtml", () => {
         ]);
     });
 
-    it("centres play between the skip buttons, back first", () => {
-        const kids = [...render().querySelector(".lmpl-cluster-centre")!.children].map(
-            (e) => e.localName,
+    it("centres play between the skip buttons, back first, with the chapter buttons outermost", () => {
+        const kids = [...render().querySelector(".lmpl-cluster-centre")!.children].map((e) =>
+            e.classList.contains("lmpl-chapter-skip")
+                ? e.getAttribute("data-chapter-step")
+                : e.localName,
         );
-        expect(kids).toEqual(["media-seek-button", "media-play-button", "media-seek-button"]);
+        expect(kids).toEqual([
+            "-1",
+            "media-seek-button",
+            "media-play-button",
+            "media-seek-button",
+            "1",
+        ]);
+    });
+
+    it("names the chapter buttons from the labels it is given, and draws their glyphs", () => {
+        const doc = document.implementation.createHTMLDocument("");
+        doc.body.innerHTML = buildControlsHtml(ALL, "p1", {
+            previousChapter: "Vorige <hoofstuk>",
+            nextChapter: "Volgende hoofstuk",
+        });
+        const previous = doc.querySelector('[data-chapter-step="-1"]')!;
+        const next = doc.querySelector('[data-chapter-step="1"]')!;
+        expect(previous.getAttribute("aria-label")).toBe("Vorige <hoofstuk>");
+        expect(next.getAttribute("aria-label")).toBe("Volgende hoofstuk");
+        expect(previous.getAttribute("type")).toBe("button");
+        expect(previous.querySelector("svg.lmpl-chapter-icon")).not.toBeNull();
     });
 
     it("seeks backwards and forwards by the configured interval, and writes it in the icon", () => {

@@ -1,4 +1,5 @@
 import type { PlayerControlsOptions } from "../controls";
+import { chapterIcon } from "./chapterSkip";
 
 /**
  * The player's control surface, as markup.
@@ -9,7 +10,7 @@ import type { PlayerControlsOptions } from "../controls";
  * keeps drawing the buttons, icons, menus and sliders; the layout around them is `lmpl-*` and lives in
  * `styles.css`.
  *
- * The layout: pause/play in the middle with the skips either side, and under it the timeline, then one
+ * The layout: pause/play in the middle with the skips either side and the chapter skips outside those, and under it the timeline, then one
  * row — volume and the four settings (quality, language, speed, captions) on the left, each its own
  * button opening its own card, and casting, picture-in-picture and fullscreen on the right.
  */
@@ -204,10 +205,22 @@ function topLine(heading: { title: string; subtitle?: string }): string {
     );
 }
 
-/** Pause/play in the middle, the skip buttons flanking it. */
-function centreCluster(options: ControlsHtmlOptions): string {
+/**
+ * Goes to the previous (`-1`) or next (`1`) chapter. The component shows the pair only when the video has chapters,
+ * and disables "next" in the last one.
+ */
+function chapterButton(step: -1 | 1, label: string): string {
+    return (
+        `<button type="button" class="media-button lmpl-chapter-skip" data-chapter-step="${step}" ` +
+        `aria-label="${escapeHtml(label)}">${chapterIcon(step === 1)}</button>`
+    );
+}
+
+/** Pause/play in the middle, the skip buttons flanking it, and the chapter buttons outside those. */
+function centreCluster(options: ControlsHtmlOptions, labels: ControlsHtmlLabels): string {
     return (
         '<div class="lmpl-cluster lmpl-cluster-centre">' +
+        chapterButton(-1, labels.previousChapter) +
         skipButton(options.skipBackSeconds, "back") +
         '<media-play-button class="media-button lmpl-play media-play-button">' +
         icon("restart", "media-play-button-restart-icon") +
@@ -215,6 +228,7 @@ function centreCluster(options: ControlsHtmlOptions): string {
         icon("pause", "media-play-button-pause-icon") +
         "</media-play-button>" +
         skipButton(options.skipForwardSeconds, "forward") +
+        chapterButton(1, labels.nextChapter) +
         "</div>"
     );
 }
@@ -265,6 +279,9 @@ export interface ControlsHtmlLabels {
     /** Names of the volume card's plus and minus buttons. */
     volumeUp: string;
     volumeDown: string;
+    /** Names of the previous and next chapter buttons. */
+    previousChapter: string;
+    nextChapter: string;
 }
 
 const DEFAULT_LABELS: ControlsHtmlLabels = {
@@ -275,6 +292,8 @@ const DEFAULT_LABELS: ControlsHtmlLabels = {
     captions: "Captions",
     volumeUp: "Volume up",
     volumeDown: "Volume down",
+    previousChapter: "Previous chapter",
+    nextChapter: "Next chapter",
 };
 
 /** Everything that sits inside `<media-controls>`, ids made unique with `id`. */
@@ -289,7 +308,7 @@ export function buildControlsHtml(
         '<media-controls-backdrop class="video-controls-backdrop"></media-controls-backdrop>' +
         '<media-controls-content class="lmpl-controls-content">' +
         (heading?.title ? topLine(heading) : "") +
-        centreCluster(options) +
+        centreCluster(options, labels) +
         bottomBar(options, id, labels) +
         "</media-controls-content>"
     );

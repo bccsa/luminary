@@ -11,7 +11,8 @@
  */
 
 /** The controls that get a name: the icon buttons and the middle cluster, but not the volume card's plus and minus. */
-export const TOOLTIP_TARGETS = ".lmpl-icon-btn:not(.lmpl-vstep), .lmpl-play, .lmpl-seek";
+export const TOOLTIP_TARGETS =
+    ".lmpl-icon-btn:not(.lmpl-vstep), .lmpl-play, .lmpl-seek, .lmpl-chapter-skip";
 
 /** A pause before the name appears, so one passing over the row does not flash a name at every control. */
 export const TOOLTIP_DELAY_MS = 350;

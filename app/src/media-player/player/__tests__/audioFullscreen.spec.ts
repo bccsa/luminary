@@ -575,3 +575,48 @@ describe("the picture's place with a band for subtitles", () => {
         expect(height).toBeCloseTo(384 / (16 / 9) + 64);
     });
 });
+
+describe("AudioFullscreen — chapter skips", () => {
+    it("goes to the next chapter's start, and back to this one's when well into it", async () => {
+        const wrapper = mountScreen();
+        await find(wrapper, "afsNextChapter").trigger("click");
+        expect(wrapper.emitted("seek")).toEqual([[180]]);
+
+        const back = mountScreen();
+        await find(back, "afsPreviousChapter").trigger("click");
+        expect(back.emitted("seek")).toEqual([[120]]);
+    });
+
+    it("steps back chapter by chapter on presses in a row", async () => {
+        const wrapper = mountScreen();
+        await find(wrapper, "afsPreviousChapter").trigger("click");
+        await find(wrapper, "afsPreviousChapter").trigger("click");
+        expect(wrapper.emitted("seek")).toEqual([[120], [60]]);
+    });
+
+    it("disables next in the last chapter", () => {
+        const wrapper = mountScreen({ currentTime: 450 });
+        expect(find(wrapper, "afsNextChapter").attributes("disabled")).toBeDefined();
+        expect(find(wrapper, "afsPreviousChapter").attributes("disabled")).toBeUndefined();
+    });
+
+    it("has no chapter skips without two chapters, or on a live stream", () => {
+        for (const props of [
+            { chapters: [] },
+            { chapters: chapters.slice(0, 1) },
+            { live: true },
+        ]) {
+            const wrapper = mountScreen(props);
+            expect(find(wrapper, "afsPreviousChapter").exists()).toBe(false);
+            expect(find(wrapper, "afsNextChapter").exists()).toBe(false);
+        }
+    });
+
+    it("names the buttons from the messages", () => {
+        const wrapper = mountScreen({
+            messages: { ...DEFAULT_MESSAGES, previousChapter: "Vorige", nextChapter: "Volgende" },
+        });
+        expect(find(wrapper, "afsPreviousChapter").attributes("aria-label")).toBe("Vorige");
+        expect(find(wrapper, "afsNextChapter").attributes("aria-label")).toBe("Volgende");
+    });
+});

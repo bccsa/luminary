@@ -414,6 +414,58 @@
     overflow: visible;
 }
 
+/* The chapter skips: plain glyphs outside the 10 s skips, so play and the skips still lead. Only with chapters. */
+.lmpl-root .lmpl-chapter-skip {
+    display: none;
+    place-items: center;
+    width: calc(40px * var(--lmpl-s));
+    height: calc(40px * var(--lmpl-s));
+    padding: 0;
+    border: 0;
+    border-radius: 9999px;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.6));
+    transition:
+        background-color 0.15s ease,
+        transform 0.15s ease,
+        opacity 0.15s ease;
+}
+
+.lmpl-root.lmpl-has-chapter-skip .lmpl-chapter-skip {
+    display: grid;
+}
+
+/* Five controls must still fit a phone held upright. */
+.lmpl-root.lmpl-has-chapter-skip .lmpl-cluster-centre {
+    gap: calc(20px * var(--lmpl-s));
+}
+
+.lmpl-root .lmpl-chapter-skip:hover:not(:disabled) {
+    background: rgb(255 255 255 / 0.16);
+}
+
+.lmpl-root .lmpl-chapter-skip:active:not(:disabled) {
+    transform: scale(0.94);
+}
+
+.lmpl-root .lmpl-chapter-skip:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+.lmpl-root .lmpl-chapter-skip:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.lmpl-chapter-icon {
+    display: block;
+    width: calc(24px * var(--lmpl-s));
+    height: calc(24px * var(--lmpl-s));
+}
+
 /* --- Bottom: timeline, then buttons --------------------------------------- */
 
 .lmpl-bottom {
@@ -1769,6 +1821,35 @@
     height: 100%;
 }
 
+/* The chapter skips: smaller than the 10 s skips beside them, as on the full-screen controls. */
+.lmpl-afs-chapter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: calc(40px * var(--lmpl-s));
+    height: calc(40px * var(--lmpl-s));
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: rgb(255 255 255 / 0.82);
+    cursor: pointer;
+}
+
+.lmpl-afs-chapter svg {
+    width: calc(24px * var(--lmpl-s));
+    height: calc(24px * var(--lmpl-s));
+}
+
+.lmpl-afs-chapter:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* Five controls must still fit a phone held upright. */
+.lmpl-afs-transport.lmpl-afs-has-chapter-skip {
+    gap: 14px;
+}
+
 /* The play and pause glyph is a share of its disc, so it grows with it. */
 .lmpl-afs-playbtn svg,
 .lmpl-afs-playbtn .media-button-icon {
@@ -2088,6 +2169,7 @@
 
 /* Until a finite video's length is known there is nothing to skip through or scrub, and no speed worth offering. */
 .lmpl-root.lmpl-awaiting-duration .lmpl-seek,
+.lmpl-root.lmpl-awaiting-duration .lmpl-chapter-skip,
 .lmpl-root.lmpl-awaiting-duration .lmpl-opt-speed,
 .lmpl-root.lmpl-awaiting-duration .lmpl-timeline-row,
 .lmpl-root.lmpl-awaiting-duration .lmpl-chapter-now {

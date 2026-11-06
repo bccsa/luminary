@@ -229,6 +229,8 @@
         "media_player.seek": "Avancer ou reculer",
         "media_player.skip_back": "Reculer de {seconds} secondes",
         "media_player.skip_forward": "Avancer de {seconds} secondes",
+        "media_player.previous_chapter": "Chapitre précédent",
+        "media_player.next_chapter": "Chapitre suivant",
         "media_player.speed": "Vitesse de lecture",
         "media_player.language": "Langue audio",
         "media_player.sleep_timer": "Minuterie de sommeil",
