@@ -6,7 +6,7 @@
  * the same with or without it; pressing it opens the app-wide media player, which does the playing, and where
  * sound and picture are switched.
  */
-import { computed, ref, useId } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import type { ContentDto } from "luminary-shared";
 import { getMediaDuration, getMediaProgress } from "@/contentProgress";
@@ -28,15 +28,6 @@ const open = () => openMediaPlayer(props.content, props.language);
 /** Set from pointer events because iOS WebKit gives a touch no `:active` without a touch listener. */
 const pressed = ref(false);
 
-/** The ring's colours: a translucent track that suits the page, and progress that stands apart from the yellow. */
-const ringTrackClass = "stroke-zinc-900/[0.08] dark:stroke-white/15";
-const ringProgressFromClass =
-    "[stop-color:theme(colors.zinc.800)] dark:[stop-color:theme(colors.white)]";
-const ringProgressToClass =
-    "[stop-color:theme(colors.zinc.600)] dark:[stop-color:theme(colors.yellow.200)]";
-const ringGradientId = `media-play-ring-${useId()}`;
-const discGradientId = `media-play-disc-${useId()}`;
-
 /** How far the media was played, 0–100; 0 until it has been started. */
 const mediaProgress = computed(() => {
     const source = mediaSourceFor(props.content);
@@ -55,7 +46,7 @@ const mediaProgress = computed(() => {
         :class="
             pressed
                 ? 'motion-safe:scale-[0.92] motion-safe:duration-75 motion-safe:ease-out'
-                : 'motion-safe:duration-[120ms] motion-safe:ease-[cubic-bezier(0.2,0.9,0.3,1)]'
+                : 'motion-safe:duration-[120ms] motion-safe:ease-out'
         "
         :aria-label="t('media_player.play')"
         data-test="mediaPlay"
@@ -65,109 +56,44 @@ const mediaProgress = computed(() => {
         @pointerleave="pressed = false"
         @click.stop="open"
     >
-        <span
-            class="absolute inset-[7%] rounded-full shadow-lg shadow-black/25"
-            aria-hidden="true"
-        />
-        <!-- One SVG for disc, track and progress: no seam or border between them, and vector edges at any scale. -->
+        <!-- The ring shows before the video is started too. -->
         <svg
             viewBox="0 0 68 68"
-            class="absolute inset-0 h-full w-full"
+            class="absolute inset-0 h-full w-full -rotate-90"
             aria-hidden="true"
             data-test="mediaPlayProgress"
         >
-            <!-- Static: painted with the arc, which changes only by its dash length. -->
-            <defs>
-                <!-- In the arc's own, unrotated space: from its start at the top to the bottom. -->
-                <linearGradient
-                    :id="ringGradientId"
-                    data-test="mediaPlayGradient"
-                    gradientUnits="userSpaceOnUse"
-                    x1="68"
-                    y1="34"
-                    x2="0"
-                    y2="34"
-                >
-                    <stop
-                        offset="0"
-                        :class="ringProgressFromClass"
-                    />
-                    <stop
-                        offset="1"
-                        :class="ringProgressToClass"
-                    />
-                </linearGradient>
-                <!-- A gentle top-to-bottom sheen on the disc. -->
-                <linearGradient
-                    :id="discGradientId"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                >
-                    <stop
-                        offset="0"
-                        class="[stop-color:theme(colors.yellow.300)]"
-                    />
-                    <stop
-                        offset="1"
-                        class="[stop-color:theme(colors.yellow.500)]"
-                    />
-                </linearGradient>
-            </defs>
-            <!-- Reaches just under the track, so no gap shows between the ring and the button. -->
             <circle
                 cx="34"
                 cy="34"
-                r="29.25"
-                :fill="`url(#${discGradientId})`"
-                data-test="mediaPlayDisc"
-            />
-            <!-- A faint highlight on the disc's upper-left edge. -->
-            <circle
-                cx="34"
-                cy="34"
-                r="28.6"
-                fill="none"
-                stroke="white"
-                stroke-opacity="0.55"
-                stroke-width="0.8"
-                stroke-linecap="round"
-                pathLength="100"
-                stroke-dasharray="30 70"
-                transform="rotate(-145 34 34)"
-            />
-            <!-- Shown before the video is started too, so the ring is always there. -->
-            <circle
-                cx="34"
-                cy="34"
-                r="31.5"
+                r="31"
                 fill="none"
                 stroke-width="5"
-                :class="ringTrackClass"
-                data-test="mediaPlayTrack"
+                class="stroke-zinc-200 dark:stroke-slate-700"
             />
             <!-- A round-capped dash of length 0 still draws a dot. -->
             <circle
                 v-if="mediaProgress > 0"
                 cx="34"
                 cy="34"
-                r="31.5"
+                r="31"
                 fill="none"
                 stroke-width="5"
                 stroke-linecap="round"
                 pathLength="100"
-                transform="rotate(-90 34 34)"
                 :stroke-dasharray="`${mediaProgress} 100`"
-                :stroke="`url(#${ringGradientId})`"
-                data-test="mediaPlayProgressArc"
+                class="stroke-yellow-700"
             />
         </svg>
-        <!-- The triangle's weight sits left of its box: moved right so it looks centred. -->
-        <PlayerIcon
-            name="play"
-            class="relative h-6 w-6 translate-x-[8%] text-zinc-900 lg:h-8 lg:w-8"
-        />
+        <span
+            class="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-yellow-500 text-zinc-900 lg:h-16 lg:w-16"
+        >
+            <!-- The triangle's weight sits left of its box: moved right so it looks centred. -->
+            <PlayerIcon
+                name="play"
+                class="h-6 w-6 translate-x-[8%] lg:h-8 lg:w-8"
+            />
+        </span>
     </button>
     <div
         v-else
