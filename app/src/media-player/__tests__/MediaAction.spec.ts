@@ -56,15 +56,19 @@ describe("MediaAction", () => {
         expect(mediaPlayerView.value).toBe("expanded");
     });
 
-    it("sits on no background of its own", () => {
+    it("sits on no background or border of its own", () => {
         const play = mountAction(true).find("[data-test='mediaPlay']");
         expect(play.classes().some((c) => /^(dark:)?bg-/.test(c))).toBe(false);
+        // The yellow disc is drawn in the ring's own SVG.
+        expect(
+            play.find("[data-test='mediaPlayProgress'] [data-test='mediaPlayDisc']").exists(),
+        ).toBe(true);
     });
 
     it("shows the ring's track, with no progress on it, before the video is started", () => {
         const ring = mountAction(true).find("[data-test='mediaPlayProgress']");
-        expect(ring.exists()).toBe(true);
-        expect(ring.findAll("circle")).toHaveLength(1);
+        expect(ring.find("[data-test='mediaPlayTrack']").exists()).toBe(true);
+        expect(ring.find("[data-test='mediaPlayProgressArc']").exists()).toBe(false);
     });
 
     it("scales down while pressed and back on release, unless motion is reduced", async () => {
@@ -88,11 +92,26 @@ describe("MediaAction", () => {
 
         const ring = wrapper.find("[data-test='mediaPlayProgress']");
         expect(ring.exists()).toBe(true);
-        expect(ring.findAll("circle")[1].attributes("stroke-dasharray")).toBe("25 100");
+        expect(ring.find("[data-test='mediaPlayProgressArc']").attributes("stroke-dasharray")).toBe(
+            "25 100",
+        );
 
         setMediaProgress(videoUrl, mockEnglishContentDto._id, 900, 1200);
         await wrapper.vm.$nextTick();
-        expect(ring.findAll("circle")[1].attributes("stroke-dasharray")).toBe("75 100");
+        expect(ring.find("[data-test='mediaPlayProgressArc']").attributes("stroke-dasharray")).toBe(
+            "75 100",
+        );
+    });
+
+    it("paints the progress with the ring's own static gradient", () => {
+        setMediaProgress(videoUrl, mockEnglishContentDto._id, 300, 1200);
+        const ring = mountAction(true).find("[data-test='mediaPlayProgress']");
+
+        const gradient = ring.find("[data-test='mediaPlayGradient']");
+        expect(gradient.findAll("stop")).toHaveLength(2);
+        expect(ring.find("[data-test='mediaPlayProgressArc']").attributes("stroke")).toBe(
+            `url(#${gradient.attributes("id")})`,
+        );
     });
 
     it("uses the player's play icon under the title too", () => {

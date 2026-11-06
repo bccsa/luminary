@@ -6,7 +6,7 @@
  * the same with or without it; pressing it opens the app-wide media player, which does the playing, and where
  * sound and picture are switched.
  */
-import { computed, ref } from "vue";
+import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import type { ContentDto } from "luminary-shared";
 import { getMediaDuration, getMediaProgress } from "@/contentProgress";
@@ -28,6 +28,14 @@ const open = () => openMediaPlayer(props.content, props.language);
 /** Set from pointer events because iOS WebKit gives a touch no `:active` without a touch listener. */
 const pressed = ref(false);
 
+/** The ring's colours, neutral on either theme so the progress stands out from the yellow and the track. */
+const ringTrackClass = "stroke-black/[0.12] dark:stroke-white/20";
+const ringProgressFromClass =
+    "[stop-color:theme(colors.slate.700)] dark:[stop-color:theme(colors.white)]";
+const ringProgressToClass =
+    "[stop-color:theme(colors.yellow.600)] dark:[stop-color:theme(colors.yellow.300)]";
+const ringGradientId = `media-play-ring-${useId()}`;
+
 /** How far the media was played, 0–100; 0 until it has been started. */
 const mediaProgress = computed(() => {
     const source = mediaSourceFor(props.content);
@@ -46,7 +54,7 @@ const mediaProgress = computed(() => {
         :class="
             pressed
                 ? 'motion-safe:scale-[0.92] motion-safe:duration-75 motion-safe:ease-out'
-                : 'motion-safe:duration-[120ms] motion-safe:ease-[cubic-bezier(0.34,1.56,0.64,1)]'
+                : 'motion-safe:duration-[120ms] motion-safe:ease-[cubic-bezier(0.2,0.9,0.3,1)]'
         "
         :aria-label="t('media_player.play')"
         data-test="mediaPlay"
@@ -56,20 +64,53 @@ const mediaProgress = computed(() => {
         @pointerleave="pressed = false"
         @click.stop="open"
     >
-        <!-- The track shows before the video is started too, so the button always reads as a player with progress. -->
+        <!-- One SVG for disc, track and progress: no seam or border between them, and vector edges at any scale. -->
         <svg
             viewBox="0 0 68 68"
-            class="absolute inset-0 h-full w-full -rotate-90"
+            class="absolute inset-0 h-full w-full"
+            shape-rendering="geometricPrecision"
             aria-hidden="true"
             data-test="mediaPlayProgress"
         >
+            <!-- Static: painted with the arc, which changes only by its dash length. -->
+            <defs>
+                <!-- In the arc's own, unrotated space: from its start at the top to the bottom. -->
+                <linearGradient
+                    :id="ringGradientId"
+                    data-test="mediaPlayGradient"
+                    gradientUnits="userSpaceOnUse"
+                    x1="68"
+                    y1="34"
+                    x2="0"
+                    y2="34"
+                >
+                    <stop
+                        offset="0"
+                        :class="ringProgressFromClass"
+                    />
+                    <stop
+                        offset="1"
+                        :class="ringProgressToClass"
+                    />
+                </linearGradient>
+            </defs>
+            <!-- A small gap inside the track, so the ring does not read as a border. -->
+            <circle
+                cx="34"
+                cy="34"
+                r="29.5"
+                class="fill-yellow-500"
+                data-test="mediaPlayDisc"
+            />
+            <!-- Shown before the video is started too, so the ring is always there. -->
             <circle
                 cx="34"
                 cy="34"
                 r="32.5"
                 fill="none"
                 stroke-width="3"
-                class="stroke-zinc-400/60 dark:stroke-slate-400/50"
+                :class="ringTrackClass"
+                data-test="mediaPlayTrack"
             />
             <!-- A round-capped dash of length 0 still draws a dot. -->
             <circle
@@ -81,19 +122,17 @@ const mediaProgress = computed(() => {
                 stroke-width="3"
                 stroke-linecap="round"
                 pathLength="100"
+                transform="rotate(-90 34 34)"
                 :stroke-dasharray="`${mediaProgress} 100`"
-                class="stroke-yellow-700"
+                :stroke="`url(#${ringGradientId})`"
+                data-test="mediaPlayProgressArc"
             />
         </svg>
-        <span
-            class="relative flex h-[58px] w-[58px] items-center justify-center rounded-full bg-yellow-500 text-zinc-900 shadow-lg lg:h-[72px] lg:w-[72px]"
-        >
-            <!-- The triangle's weight sits left of its box: moved right so it looks centred. -->
-            <PlayerIcon
-                name="play"
-                class="h-6 w-6 translate-x-[8%] lg:h-8 lg:w-8"
-            />
-        </span>
+        <!-- The triangle's weight sits left of its box: moved right so it looks centred. -->
+        <PlayerIcon
+            name="play"
+            class="relative h-6 w-6 translate-x-[8%] text-zinc-900 lg:h-8 lg:w-8"
+        />
     </button>
     <div
         v-else
