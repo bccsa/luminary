@@ -6,7 +6,7 @@
  * the same with or without it; pressing it opens the app-wide media player, which does the playing, and where
  * sound and picture are switched.
  */
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import type { ContentDto } from "luminary-shared";
 import { getMediaDuration, getMediaProgress } from "@/contentProgress";
@@ -25,6 +25,9 @@ const { t } = useI18n();
 
 const open = () => openMediaPlayer(props.content, props.language);
 
+/** Set from pointer events because iOS WebKit gives a touch no `:active` without a touch listener. */
+const pressed = ref(false);
+
 /** How far the media was played, 0–100; 0 until it has been started. */
 const mediaProgress = computed(() => {
     const source = mediaSourceFor(props.content);
@@ -36,19 +39,28 @@ const mediaProgress = computed(() => {
 </script>
 
 <template>
-    <!-- The border is the page's own background, so the button reads as cut out of the picture's edge. -->
     <button
         v-if="corner"
         type="button"
-        class="absolute -bottom-[34px] right-3.5 flex h-[68px] w-[68px] items-center justify-center rounded-full bg-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-500 dark:bg-slate-900 lg:-bottom-[42px] lg:right-6 lg:h-[84px] lg:w-[84px]"
+        class="absolute -bottom-[34px] right-3.5 flex h-[68px] w-[68px] items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-500 motion-safe:transition-transform lg:-bottom-[42px] lg:right-6 lg:h-[84px] lg:w-[84px]"
+        :class="
+            pressed
+                ? 'motion-safe:scale-[0.92] motion-safe:duration-75 motion-safe:ease-out'
+                : 'motion-safe:duration-[120ms] motion-safe:ease-out'
+        "
         :aria-label="t('media_player.play')"
         data-test="mediaPlay"
+        @pointerdown="pressed = true"
+        @pointerup="pressed = false"
+        @pointercancel="pressed = false"
+        @pointerleave="pressed = false"
         @click.stop="open"
     >
+        <!-- The ring shows before the video is started too. It lies on a photo of any brightness, so it is light
+             with a dark halo in both themes. -->
         <svg
-            v-if="mediaProgress > 0"
             viewBox="0 0 68 68"
-            class="absolute inset-0 h-full w-full -rotate-90"
+            class="absolute inset-0 h-full w-full -rotate-90 drop-shadow-[0_0_1.5px_rgba(0,0,0,0.6)]"
             aria-hidden="true"
             data-test="mediaPlayProgress"
         >
@@ -58,9 +70,11 @@ const mediaProgress = computed(() => {
                 r="31"
                 fill="none"
                 stroke-width="5"
-                class="stroke-zinc-200 dark:stroke-slate-700"
+                class="stroke-white/80"
             />
+            <!-- A round-capped dash of length 0 still draws a dot. -->
             <circle
+                v-if="mediaProgress > 0"
                 cx="34"
                 cy="34"
                 r="31"
@@ -69,16 +83,11 @@ const mediaProgress = computed(() => {
                 stroke-linecap="round"
                 pathLength="100"
                 :stroke-dasharray="`${mediaProgress} 100`"
-                class="stroke-yellow-700"
+                class="stroke-yellow-500"
             />
         </svg>
         <span
-            class="relative flex items-center justify-center rounded-full bg-yellow-500 text-zinc-900"
-            :class="
-                mediaProgress > 0
-                    ? 'h-[52px] w-[52px] lg:h-16 lg:w-16'
-                    : 'h-[58px] w-[58px] lg:h-[72px] lg:w-[72px]'
-            "
+            class="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-yellow-500 text-zinc-900 lg:h-16 lg:w-16"
         >
             <!-- The triangle's weight sits left of its box: moved right so it looks centred. -->
             <PlayerIcon
