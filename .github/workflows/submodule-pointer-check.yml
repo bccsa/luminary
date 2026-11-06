@@ -1,0 +1,47 @@
+name: Check luminary-media-convert Submodule Pointer
+permissions:
+  contents: read
+
+# A stale submodule checkout committed by accident silently reverts the encoder/player on merge,
+# so the pointer may only ever be the latest commit released to luminary-media-convert's prod branch.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+    paths:
+      - luminary-media-convert
+      - .gitmodules
+      - .github/workflows/submodule-pointer-check.yml
+  workflow_call:
+
+env:
+  SUBMODULE_PATH: luminary-media-convert
+  SUBMODULE_URL: https://github.com/bccsa/luminary-media-convert.git
+  RELEASE_BRANCH: prod
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Check pointer matches the latest prod commit
+        run: |
+          pointer=$(git ls-tree HEAD "$SUBMODULE_PATH" | awk '{print $3}')
+          prod=$(git ls-remote "$SUBMODULE_URL" "refs/heads/$RELEASE_BRANCH" | awk '{print $1}')
+
+          if [ -z "$prod" ]; then
+            echo "::error::$SUBMODULE_PATH has no '$RELEASE_BRANCH' branch to check the pointer against."
+            exit 1
+          fi
+
+          if [ "$pointer" != "$prod" ]; then
+            echo "::error::$SUBMODULE_PATH points at $pointer, but the latest '$RELEASE_BRANCH' commit is $prod." \
+              "Update it with: git -C $SUBMODULE_PATH fetch && git -C $SUBMODULE_PATH checkout $prod && git add $SUBMODULE_PATH"
+            exit 1
+          fi
+
+          echo "$SUBMODULE_PATH points at the latest '$RELEASE_BRANCH' commit ($prod)."
