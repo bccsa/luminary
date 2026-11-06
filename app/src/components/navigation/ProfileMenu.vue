@@ -163,13 +163,11 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
     ];
 });
 
-const privacyPolicyNavigationItem = computed(
-    (): NavigationItems => ({
-        name: t("profile_menu.privacy_policy"),
-        icon: ShieldCheckIcon,
-        action: () => (showPrivacyPolicyModal.value = true),
-    }),
-);
+const privacyPolicyNavigationItem = computed((): NavigationItems => ({
+    name: t("profile_menu.privacy_policy"),
+    icon: ShieldCheckIcon,
+    action: () => (showPrivacyPolicyModal.value = true),
+}));
 
 const userNavigation = computed(() => {
     const authItem = isAuthenticated.value
