@@ -181,3 +181,16 @@ describe("useGroupAccessGraph — selectedAccess", () => {
         expect([...selectedAccess.value.upstreamNodes].sort()).toEqual(["A", "B"]);
     });
 });
+
+describe("useGroupAccessGraph edge source", () => {
+    it("drops edges when given ACL-filtered groups", () => {
+        const groups = [
+            mkGroup("a", "A"),
+            mkGroup("b", "B", [{ groupId: "a", permission: ["view"] }]),
+        ];
+        const filtered = groups.map((g) => ({ ...g, acl: [] }));
+        const sel = ref<string | null>(null);
+        expect(inScope(() => useGroupAccessGraph(() => groups, sel)).edges.value).toHaveLength(1);
+        expect(inScope(() => useGroupAccessGraph(() => filtered, sel)).edges.value).toHaveLength(0);
+    });
+});

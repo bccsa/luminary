@@ -7,6 +7,7 @@ import {
     CHART_TOP_OFFSET,
     TREE_COLUMN_WIDTH,
     TREE_ROW_HEIGHT,
+    TREE_WRAP_COLUMNS,
     chartLanes,
     snapPosition,
     type ChartNode,
@@ -119,6 +120,8 @@ export function useGroupGraphLayout(
             });
 
             let columnOffset = 0;
+            let bandRowOffset = 0;
+            let bandRows = 0;
 
             return clusters.flatMap((cluster) => {
                 const root = [...cluster].sort(sortByReach)[0];
@@ -152,6 +155,12 @@ export function useGroupGraphLayout(
                     treeColumnCount.value,
                     Math.max(1, ...orderedLevels.map(([, groups]) => groups.length)),
                 );
+                // Wrap to a new band of rows instead of extending the layout endlessly to the right.
+                if (columnOffset > 0 && columnOffset + clusterColumns > TREE_WRAP_COLUMNS) {
+                    bandRowOffset += bandRows + 1;
+                    columnOffset = 0;
+                    bandRows = 0;
+                }
                 let rowOffset = 0;
 
                 const nodes = orderedLevels.flatMap(([, groups]) => {
@@ -168,7 +177,9 @@ export function useGroupGraphLayout(
                                 (clusterColumns - columns) * (TREE_COLUMN_WIDTH / 2) +
                                 column * TREE_COLUMN_WIDTH +
                                 36,
-                            y: (rowOffset + row) * TREE_ROW_HEIGHT + CHART_TOP_OFFSET,
+                            y:
+                                (bandRowOffset + rowOffset + row) * TREE_ROW_HEIGHT +
+                                CHART_TOP_OFFSET,
                         });
                     });
 
@@ -176,6 +187,7 @@ export function useGroupGraphLayout(
                     return levelNodes;
                 });
 
+                bandRows = Math.max(bandRows, rowOffset);
                 columnOffset += clusterColumns + 1;
                 return nodes;
             });

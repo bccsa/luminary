@@ -94,6 +94,20 @@ describe("GroupOverview", () => {
         });
     });
 
+    it("filters the list by doc type and permission", async () => {
+        sessionStorage.setItem(
+            "queryOptions_group_overview",
+            JSON.stringify({ filterDocTypes: ["redirect"], filterPermissions: ["translate"] }),
+        );
+        const wrapper = mount(GroupOverview);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("No groups found");
+            expect(wrapper.text()).not.toContain("Super Admins");
+        });
+        sessionStorage.clear();
+    });
+
     it("can create a new group", async () => {
         const wrapper = mount(GroupOverview);
 
