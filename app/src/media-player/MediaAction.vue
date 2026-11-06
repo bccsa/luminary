@@ -28,11 +28,14 @@ const open = () => openMediaPlayer(props.content, props.language);
 /** Set from pointer events because iOS WebKit gives a touch no `:active` without a touch listener. */
 const pressed = ref(false);
 
-/** The ring's colours: tones of the icon's dark on the yellow, the same on either theme. */
-const ringTrackClass = "stroke-zinc-900/[0.12]";
-const ringProgressFromClass = "[stop-color:theme(colors.zinc.900)] [stop-opacity:0.45]";
-const ringProgressToClass = "[stop-color:theme(colors.zinc.900)] [stop-opacity:0.8]";
+/** The ring's colours: a translucent track that suits the page, and progress that stands apart from the yellow. */
+const ringTrackClass = "stroke-zinc-900/[0.08] dark:stroke-white/15";
+const ringProgressFromClass =
+    "[stop-color:theme(colors.zinc.800)] dark:[stop-color:theme(colors.white)]";
+const ringProgressToClass =
+    "[stop-color:theme(colors.zinc.600)] dark:[stop-color:theme(colors.yellow.200)]";
 const ringGradientId = `media-play-ring-${useId()}`;
+const discGradientId = `media-play-disc-${useId()}`;
 
 /** How far the media was played, 0–100; 0 until it has been started. */
 const mediaProgress = computed(() => {
@@ -48,7 +51,7 @@ const mediaProgress = computed(() => {
     <button
         v-if="corner"
         type="button"
-        class="absolute -bottom-[34px] right-3.5 flex h-[68px] w-[68px] items-center justify-center rounded-full shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-500 motion-safe:transition-transform lg:-bottom-[42px] lg:right-6 lg:h-[84px] lg:w-[84px]"
+        class="absolute -bottom-[34px] right-3.5 flex h-[68px] w-[68px] items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-500 motion-safe:transition-transform lg:-bottom-[42px] lg:right-6 lg:h-[84px] lg:w-[84px]"
         :class="
             pressed
                 ? 'motion-safe:scale-[0.92] motion-safe:duration-75 motion-safe:ease-out'
@@ -62,11 +65,14 @@ const mediaProgress = computed(() => {
         @pointerleave="pressed = false"
         @click.stop="open"
     >
+        <span
+            class="absolute inset-[7%] rounded-full shadow-lg shadow-black/25"
+            aria-hidden="true"
+        />
         <!-- One SVG for disc, track and progress: no seam or border between them, and vector edges at any scale. -->
         <svg
             viewBox="0 0 68 68"
             class="absolute inset-0 h-full w-full"
-            shape-rendering="geometricPrecision"
             aria-hidden="true"
             data-test="mediaPlayProgress"
         >
@@ -91,22 +97,53 @@ const mediaProgress = computed(() => {
                         :class="ringProgressToClass"
                     />
                 </linearGradient>
+                <!-- A gentle top-to-bottom sheen on the disc. -->
+                <linearGradient
+                    :id="discGradientId"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                >
+                    <stop
+                        offset="0"
+                        class="[stop-color:theme(colors.yellow.300)]"
+                    />
+                    <stop
+                        offset="1"
+                        class="[stop-color:theme(colors.yellow.500)]"
+                    />
+                </linearGradient>
             </defs>
-            <!-- The ring lies on the disc, inset from its edge, so it never reads as a border. -->
+            <!-- Reaches just under the track, so no gap shows between the ring and the button. -->
             <circle
                 cx="34"
                 cy="34"
-                r="34"
-                class="fill-yellow-500"
+                r="29.25"
+                :fill="`url(#${discGradientId})`"
                 data-test="mediaPlayDisc"
+            />
+            <!-- A faint highlight on the disc's upper-left edge. -->
+            <circle
+                cx="34"
+                cy="34"
+                r="28.6"
+                fill="none"
+                stroke="white"
+                stroke-opacity="0.55"
+                stroke-width="0.8"
+                stroke-linecap="round"
+                pathLength="100"
+                stroke-dasharray="30 70"
+                transform="rotate(-145 34 34)"
             />
             <!-- Shown before the video is started too, so the ring is always there. -->
             <circle
                 cx="34"
                 cy="34"
-                r="30.5"
+                r="31.5"
                 fill="none"
-                stroke-width="3"
+                stroke-width="5"
                 :class="ringTrackClass"
                 data-test="mediaPlayTrack"
             />
@@ -115,9 +152,9 @@ const mediaProgress = computed(() => {
                 v-if="mediaProgress > 0"
                 cx="34"
                 cy="34"
-                r="30.5"
+                r="31.5"
                 fill="none"
-                stroke-width="3"
+                stroke-width="5"
                 stroke-linecap="round"
                 pathLength="100"
                 transform="rotate(-90 34 34)"
