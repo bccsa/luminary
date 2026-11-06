@@ -97,6 +97,7 @@ defineExpose({
             <LButton
                 v-if="authProviders.canEdit && hasAnyContent && isSmallScreen"
                 variant="primary"
+                class="bg-zinc-100 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
                 :icon="PlusIcon"
                 data-test="create-auth-provider"
                 @click="authProviders.openCreateModal"

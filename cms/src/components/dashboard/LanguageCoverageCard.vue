@@ -26,14 +26,17 @@ const maxContentCount = computed(() => {
 
 <template>
     <LCard :title="title" :icon="GlobeEuropeAfricaIcon">
-        <div v-if="cmsLanguages.length === 0" class="py-4 text-center text-sm dark:text-zinc-100">
+        <div
+            v-if="cmsLanguages.length === 0"
+            class="py-4 text-center text-sm text-zinc-400 dark:text-zinc-100"
+        >
             No languages configured.
         </div>
         <ul v-else class="space-y-1.5 pl-0.5">
             <li v-for="lang in cmsLanguages" :key="lang._id">
                 <div class="flex items-center justify-between text-sm">
                     <span
-                        class="font-medium"
+                        class="font-medium text-zinc-700"
                         :class="
                             lang._id === cmsLanguageIdAsRef
                                 ? 'dark:text-yellow-400'
@@ -41,17 +44,17 @@ const maxContentCount = computed(() => {
                         "
                     >
                         {{ lang.name }}
-                        <span class="text-xs text-zinc-400"> ({{ lang.languageCode }}) </span>
+                        <span class="text-xs text-zinc-500"> ({{ lang.languageCode }}) </span>
                     </span>
-                    <span class="text-xs tabular-nums dark:text-zinc-100">
+                    <span class="bg-zinc-100 text-xs tabular-nums dark:text-zinc-100">
                         {{ contentCountPerLanguage[lang._id] ?? 0 }}
                     </span>
                 </div>
-                <div class="dark mt-0.5 h-1 w-full overflow-hidden rounded-full bg-zinc-400">
+                <div class="dark mt-0.5 h-1 w-full overflow-hidden rounded-full bg-yellow-500">
                     <div
                         class="h-full rounded-full transition-all"
                         :class="
-                            lang._id === cmsLanguageIdAsRef ? 'dark:bg-yellow-500' : 'bg-zinc-300'
+                            lang._id === cmsLanguageIdAsRef ? 'dark:bg-yellow-500' : 'bg-zinc-600'
                         "
                         :style="{
                             width:
