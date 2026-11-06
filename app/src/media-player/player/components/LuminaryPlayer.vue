@@ -1374,8 +1374,12 @@ function toggleBrowse(): void {
     else void openBrowse();
 }
 
-/** Shown with a chapter boundary to skip to; a live stream has no chapters to move between. */
-const chapterSkipShown = computed(() => hasChapterSkip(chapters.value) && !state.value.live);
+/**
+ * Shown with a chapter boundary to skip to, as the 10 s skips: not on live, and not until the length is known.
+ */
+const chapterSkipShown = computed(
+    () => hasChapterSkip(chapters.value) && !state.value.live && state.value.duration > 0,
+);
 /** In the last chapter "next" has nowhere to go. */
 const nextChapterDisabled = computed(
     () => nextChapterTime(chapters.value, state.value.currentTime) === null,

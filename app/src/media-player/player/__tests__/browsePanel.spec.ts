@@ -50,7 +50,7 @@ let wrapper: VueWrapper | undefined;
 
 async function mountPlayer(
     props: Record<string, unknown>,
-    state: Partial<PlayerState> = { chapters: CHAPTERS, currentTime: 70 },
+    state: Partial<PlayerState> = { chapters: CHAPTERS, currentTime: 70, duration: 200 },
 ) {
     wrapper = mount(LuminaryPlayer, {
         attachTo: document.body,
@@ -355,12 +355,17 @@ describe("LuminaryPlayer chapter skips", () => {
         const w = await mountPlayer({});
         expect(w.find(".lmpl-root").classes()).toContain("lmpl-has-chapter-skip");
         w.unmount();
-        const one = await mountPlayer({}, { chapters: CHAPTERS.slice(0, 1) });
+        const one = await mountPlayer({}, { chapters: CHAPTERS.slice(0, 1), duration: 200 });
         expect(one.find(".lmpl-root").classes()).not.toContain("lmpl-has-chapter-skip");
     });
 
+    it("waits for the length, as the 10 s skips do", async () => {
+        const w = await mountPlayer({}, { chapters: CHAPTERS, currentTime: 70, duration: 0 });
+        expect(w.find(".lmpl-root").classes()).not.toContain("lmpl-has-chapter-skip");
+    });
+
     it("goes to the next chapter's start", async () => {
-        const w = await mountPlayer({}, { chapters: CHAPTERS, currentTime: 10 });
+        const w = await mountPlayer({}, { chapters: CHAPTERS, currentTime: 10, duration: 200 });
         const media = w.find("hlsjs-video").element as unknown as { currentTime: number };
         expect(step(1).disabled).toBe(false);
         step(1).click();
