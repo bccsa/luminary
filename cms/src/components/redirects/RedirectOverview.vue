@@ -99,6 +99,7 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
             <LButton
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
                 variant="primary"
+                class="bg-zinc-100 hover:bg-zinc-300 hover:text-zinc-700 text-zinc-500"
                 :icon="PlusIcon"
                 @click="isCreateOrEditModalVisible = true"
                 name="createLanguageBtn"
