@@ -15,12 +15,15 @@ import {
     useHybridQueryWithState,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
-import { validDocTypes } from "./permissions";
+import { availablePermissionsPerDocType, validDocTypes } from "./permissions";
+import { filterGroupAcl, isAclFilterActive } from "./aclFilter";
+import LCombobox from "@/components/forms/LCombobox.vue";
+import LTag from "@/components/content/LTag.vue";
 import EditGroup from "./EditGroup.vue";
 import { isSmallScreen } from "@/globalConfig";
 import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
 import { type GroupOverviewQueryOptions } from "./GroupOverview/types";
-import { MapIcon, ListBulletIcon } from "@heroicons/vue/24/outline";
+import { MapIcon, ListBulletIcon, DocumentTextIcon, KeyIcon } from "@heroicons/vue/24/outline";
 import GroupGraph from "./GroupGraph/GroupGraph.vue";
 import EmptyState from "@/components/EmptyState.vue";
 
@@ -84,6 +87,8 @@ const showModal = ref(false);
 const defaultQueryOptions: GroupOverviewQueryOptions = {
     search: "",
     filterGroupIds: [],
+    filterDocTypes: [],
+    filterPermissions: [],
     orderBy: "updatedTimeUtc",
     orderDirection: "desc",
 };
@@ -114,10 +119,28 @@ const resetQueryOptions = () => {
     queryOptions.value = {
         search: "",
         filterGroupIds: [],
+        filterDocTypes: [],
+        filterPermissions: [],
         orderBy: "updatedTimeUtc",
         orderDirection: "desc",
     };
 };
+
+const aclFilter = computed(() => ({
+    types: queryOptions.value.filterDocTypes,
+    permissions: queryOptions.value.filterPermissions,
+}));
+
+const label = (value: string) =>
+    value.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+
+const docTypeOptions = validDocTypes.map((t) => ({ id: t, label: label(t), value: t }));
+const permissionOptions = [...new Set(Object.values(availablePermissionsPerDocType).flat())].map(
+    (p) => ({ id: p, label: label(p), value: p }),
+);
+
+/** Groups with ACLs narrowed to the doc type/permission filter; drives the graph's edges. */
+const aclFilteredGroups = computed(() => filterGroupAcl(editable.value, aclFilter.value));
 
 const filteredGroups = computed(() => {
     let result = [...editable.value];
@@ -133,6 +156,13 @@ const filteredGroups = computed(() => {
                 group.acl.some((aclEntry) => aclEntry.groupId === filterId),
             );
         });
+    }
+
+    if (isAclFilterActive(aclFilter.value)) {
+        const matching = new Set(
+            aclFilteredGroups.value.filter((g) => g.acl.length > 0).map((g) => g._id),
+        );
+        result = result.filter((group) => matching.has(group._id));
     }
 
     result.sort((a, b) => {
@@ -228,14 +258,66 @@ const hasAnyContent = computed(() => editable.value.length > 0);
             </LButton>
         </template>
 
-        <template v-if="currentTab === 'overview' && hasAnyContent" #internalPageHeader>
+        <template v-if="hasAnyContent" #internalPageHeader>
             <FilterOptions
                 v-model:search="queryOptions.search"
                 v-model:selected-groups="queryOptions.filterGroupIds"
                 :groups="editable"
                 :is-small-screen="isSmallScreen"
                 @reset="resetQueryOptions"
-            />
+            >
+                <template #extra-filters>
+                    <LCombobox
+                        :options="docTypeOptions"
+                        v-model:selected-options="queryOptions.filterDocTypes"
+                        :show-selected-in-dropdown="false"
+                        :showSelectedLabels="false"
+                        placeholder="Doc type"
+                        :icon="DocumentTextIcon"
+                        data-test="filter-doc-types"
+                    />
+                    <LCombobox
+                        :options="permissionOptions"
+                        v-model:selected-options="queryOptions.filterPermissions"
+                        :show-selected-in-dropdown="false"
+                        :showSelectedLabels="false"
+                        placeholder="Permission"
+                        :icon="KeyIcon"
+                        data-test="filter-permissions"
+                    />
+                </template>
+                <template #selected-filters>
+                    <ul
+                        v-if="
+                            queryOptions.filterDocTypes.length ||
+                            queryOptions.filterPermissions.length
+                        "
+                        class="flex w-full flex-wrap gap-2"
+                    >
+                        <LTag
+                            v-for="t in queryOptions.filterDocTypes"
+                            :key="`type-${t}`"
+                            @remove="
+                                queryOptions.filterDocTypes = queryOptions.filterDocTypes.filter(
+                                    (x) => x !== t,
+                                )
+                            "
+                        >
+                            {{ label(t) }}
+                        </LTag>
+                        <LTag
+                            v-for="p in queryOptions.filterPermissions"
+                            :key="`perm-${p}`"
+                            @remove="
+                                queryOptions.filterPermissions =
+                                    queryOptions.filterPermissions.filter((x) => x !== p)
+                            "
+                        >
+                            {{ label(p) }}
+                        </LTag>
+                    </ul>
+                </template>
+            </FilterOptions>
         </template>
 
         <div v-show="currentTab === 'overview'" class="flex flex-col gap-[8px]">
@@ -284,6 +366,7 @@ const hasAnyContent = computed(() => editable.value.length > 0);
                     v-if="currentTab === 'graph'"
                     class="h-full w-full"
                     :all-groups="editable"
+                    :edge-groups="isAclFilterActive(aclFilter) ? aclFilteredGroups : undefined"
                     @open="handleGraphSelect"
                 />
             </KeepAlive>
