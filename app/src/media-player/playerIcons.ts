@@ -65,6 +65,19 @@ export const PLAYER_ICONS = {
             strokeWidth: 0.0,
         },
     ],
+    /** A video camera, body and lens: the same outline native full-screen draws for choosing the camera angle. */
+    camera: [
+        {
+            path: "M3 4.75h7a1.75 1.75 0 0 1 1.75 1.75v5a1.75 1.75 0 0 1-1.75 1.75H3a1.75 1.75 0 0 1-1.75-1.75v-5A1.75 1.75 0 0 1 3 4.75z",
+            alpha: 1.0,
+            strokeWidth: 1.35,
+        },
+        {
+            path: "M11.75 7.75L16.25 5.25V12.75L11.75 10.25",
+            alpha: 1.0,
+            strokeWidth: 1.35,
+        },
+    ],
     language: [
         {
             path: "m7.875 15.75 3.938-8.438L15.75 15.75m-6.75-2.25h5.625M2.25 4.216a36.355 36.355 0 0 1 4.5-.278m0 0c.84 0 1.675.028 2.501.086M6.75 3.938V2.25m2.501 1.773C8.382 7.993 5.768 11.31 2.25 13.127m7-9.104c.672.046 1.339.11 1.999.193m-3.442 6.371a13.517 13.517 0 0 1-2.87-4.351",

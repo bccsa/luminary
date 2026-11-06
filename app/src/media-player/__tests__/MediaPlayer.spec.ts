@@ -96,6 +96,8 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 activeSubtitleTrackId: String,
                 canPictureInPicture: Boolean,
                 lyrics: Array,
+                cameras: Array,
+                activeCameraId: String,
             },
             emits: [
                 "exit",
@@ -108,6 +110,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 "subtitle-track",
                 "picture-in-picture",
                 "fullscreen",
+                "camera",
             ],
             // Its top line and its stage, as the real screen draws them, so a host's switch and engine live in it.
             setup:
@@ -513,6 +516,80 @@ describe("MediaPlayer", () => {
             await flushPromises();
 
             expect(wrapper.find("button[aria-label='media_player.language']").exists()).toBe(false);
+        });
+    });
+
+    describe("the camera", () => {
+        const TWO_CAMERAS = [
+            { id: "angle_0", name: "Wide", isDefault: true },
+            { id: "angle_1", name: "Pulpit", isDefault: false },
+            { id: AUDIO, name: "Audio only", isDefault: false },
+        ];
+
+        /** The video playing its picture, with `angles` to choose from. */
+        async function watching(angles: typeof TWO_CAMERAS) {
+            const wrapper = await playing();
+            engine.state.angles = angles;
+            engine.state.activeAngleId = "angle_0";
+            engine.state.isAudioOnly = false;
+            await flushPromises();
+            return wrapper;
+        }
+        const screen = (wrapper: VueWrapper) => wrapper.findComponent({ name: "AudioFullscreen" });
+
+        it("gives the now-playing screen the video's cameras, not the sound alone, and loads the one picked there", async () => {
+            const wrapper = await watching(TWO_CAMERAS);
+            expect(screen(wrapper).props("cameras")).toEqual([
+                { id: "angle_0", label: "Wide" },
+                { id: "angle_1", label: "Pulpit" },
+            ]);
+            expect(screen(wrapper).props("activeCameraId")).toBe("angle_0");
+
+            screen(wrapper).vm.$emit("camera", "angle_1");
+            await flushPromises();
+            expect(engine.controller.setAngle).toHaveBeenCalledWith("angle_1");
+        });
+
+        describe("on the card in the corner", () => {
+            /** Minimised, which mounts the player afresh; its state is set after. */
+            async function card(angles: typeof TWO_CAMERAS) {
+                const wrapper = await playing();
+                minimiseMediaPlayer();
+                await flushPromises();
+                engine.state.angles = angles;
+                engine.state.activeAngleId = "angle_0";
+                engine.state.isAudioOnly = false;
+                await flushPromises();
+                return wrapper;
+            }
+            const camera = (wrapper: VueWrapper) => wrapper.find("[data-test='mediaPlayerCamera']");
+
+            it("offers no camera for a video with one picture", async () => {
+                const wrapper = await card([TWO_CAMERAS[0]!, TWO_CAMERAS[2]!]);
+                expect(find(wrapper, "mediaPlayerControls").exists()).toBe(true);
+                expect(camera(wrapper).exists()).toBe(false);
+            });
+
+            it("lists the cameras and loads the one picked", async () => {
+                const wrapper = await card(TWO_CAMERAS);
+                await camera(wrapper).trigger("click");
+                const items = wrapper
+                    .findAll("button")
+                    .filter((b) => ["Wide", "Pulpit", "Audio only"].includes(b.text().trim()));
+                expect(items.map((b) => b.text().trim())).toEqual(["Wide", "Pulpit"]);
+
+                await items[1]!.trigger("click");
+                expect(engine.controller.setAngle).toHaveBeenCalledWith("angle_1");
+                expect(camera(wrapper).attributes("aria-expanded")).toBe("false");
+            });
+
+            it("hides while only the sound plays", async () => {
+                const wrapper = await card(TWO_CAMERAS);
+                engine.state.activeAngleId = AUDIO;
+                engine.state.isAudioOnly = true;
+                await flushPromises();
+                expect(camera(wrapper).exists()).toBe(false);
+            });
         });
     });
 

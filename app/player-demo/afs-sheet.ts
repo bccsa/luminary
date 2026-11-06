@@ -23,6 +23,15 @@ const tracks =
               { id: "fr", label: "Français" },
           ]
         : [];
+// `?stage=video&cameras=2` shows the screen over a video with two camera angles.
+const video = params.get("stage") === "video";
+const cameras =
+    params.get("cameras") === "2"
+        ? [
+              { id: "main", label: "Main" },
+              { id: "pulpit", label: "Pulpit" },
+          ]
+        : [];
 createApp({
     render: () =>
         h(
@@ -37,6 +46,9 @@ createApp({
                     subtitle: noAuthor ? undefined : "Pastor Daniel",
                     artwork: params.get("cover") ? { src: params.get("cover")! } : null,
                     appearance: params.get("theme") === "light" ? "light" : "dark",
+                    stage: video ? "video" : "cover",
+                    cameras,
+                    activeCameraId: cameras.length ? "main" : null,
                     chapters: noChapters ? [] : chapters,
                     currentTime: 75,
                     duration: 360,

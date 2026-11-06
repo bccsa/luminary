@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildControlsHtml, type ControlsHtmlOptions } from "../ui/controlsHtml";
+import { buildControlsHtml, cameraItemsHtml, type ControlsHtmlOptions } from "../ui/controlsHtml";
 
 const ALL: ControlsHtmlOptions = {
     audioMenu: true,
@@ -19,7 +19,7 @@ describe("buildControlsHtml", () => {
         const doc = render();
         expect(doc.querySelector(".lmpl-settings")).toBeNull();
         expect(doc.querySelector(".lmpl-cluster-top")).toBeNull();
-        for (const kind of ["quality", "audio", "speed", "captions"]) {
+        for (const kind of ["camera", "quality", "audio", "speed", "captions"]) {
             expect(doc.querySelectorAll(`.lmpl-opt-${kind}`), kind).toHaveLength(1);
         }
     });
@@ -52,6 +52,7 @@ describe("buildControlsHtml", () => {
     it("opens each setting as its own card, a menu holding its radio group directly under a title", () => {
         const doc = render();
         const expected: Record<string, [string, string]> = {
+            camera: ["media-menu-radio-group[data-camera-group]", "Camera"],
             quality: ["media-quality-radio-group", "Quality"],
             audio: ["media-audio-track-radio-group", "Language"],
             speed: ["media-playback-rate-radio-group", "Speed"],
@@ -245,9 +246,36 @@ describe("buildControlsHtml", () => {
         const a = ids("one");
         const b = ids("two");
         // One card per setting, and the volume's; nothing else carries an id.
-        expect(a).toHaveLength(5);
+        expect(a).toHaveLength(6);
         expect(a.filter((id) => b.includes(id))).toEqual([]);
         expect(new Set(a).size).toBe(a.length);
+    });
+});
+
+describe("camera setting", () => {
+    it("comes first among the settings, with a camera glyph, named from its label", () => {
+        const doc = document.implementation.createHTMLDocument("");
+        doc.body.innerHTML = buildControlsHtml(ALL, "p1", { camera: "Caméra" });
+        const first = doc.querySelector(".lmpl-options .lmpl-opt")!;
+        expect(first.classList.contains("lmpl-opt-camera")).toBe(true);
+        expect(first.querySelector("svg.lmpl-camera-icon")).not.toBeNull();
+        expect(first.querySelector(".media-settings-menu-trigger-label")!.textContent).toBe(
+            "Caméra",
+        );
+    });
+
+    it("leaves its group empty for the player to fill, one item per angle, valued by id and escaped", () => {
+        const group = render().querySelector("[data-camera-group]")!;
+        expect(group.children).toHaveLength(0);
+
+        group.innerHTML = cameraItemsHtml([
+            { id: "Main", name: "Main" },
+            { id: "pulpit", name: 'Pulpit <"side">' },
+        ]);
+        const items = [...group.querySelectorAll("media-menu-radio-item")];
+        expect(items.map((i) => i.getAttribute("value"))).toEqual(["Main", "pulpit"]);
+        expect(items[1]!.textContent).toBe('Pulpit <"side">');
+        expect(items[1]!.querySelector("media-menu-item-indicator media-icon")).not.toBeNull();
     });
 });
 

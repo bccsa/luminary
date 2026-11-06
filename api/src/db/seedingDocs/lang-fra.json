@@ -283,6 +283,7 @@
         "video_player.exit_fullscreen": "Quitter le plein écran",
         "video_player.audio_menu": "Audio",
         "video_player.subtitles_menu": "Sous-titres",
+        "video_player.camera_menu": "Caméra",
         "video_player.quality_menu": "Qualité",
         "video_player.language_menu": "Langue",
         "video_player.captions_menu": "Sous-titres",

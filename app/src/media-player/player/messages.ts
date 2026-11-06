@@ -68,6 +68,8 @@ export interface PlayerMessages {
 
     // --- Track menus -------------------------------------------------------
     audioMenuLabel: string;
+    /** Name of the camera angle setting: its button, its tooltip and its card's title. */
+    cameraLabel: string;
     /** Name of the video quality setting: its button, its tooltip and its card's title. */
     qualityLabel: string;
     /** The quality card's row that lets the player choose. */
@@ -157,6 +159,7 @@ export const DEFAULT_MESSAGES: PlayerMessages = {
     loading: "Loading",
 
     audioMenuLabel: "Audio",
+    cameraLabel: "Camera",
     qualityLabel: "Quality",
     qualityAuto: "Auto",
     languageLabel: "Language",

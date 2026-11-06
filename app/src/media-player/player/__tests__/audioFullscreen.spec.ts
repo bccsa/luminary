@@ -575,3 +575,43 @@ describe("the picture's place with a band for subtitles", () => {
         expect(height).toBeCloseTo(384 / (16 / 9) + 64);
     });
 });
+
+describe("AudioFullscreen camera", () => {
+    const cameras = [
+        { id: "main", label: "Main" },
+        { id: "pulpit", label: "Pulpit" },
+    ];
+    const items = (wrapper: ReturnType<typeof mountScreen>) =>
+        wrapper.findAll(".lmpl-afs-menu [role='menuitemradio']");
+
+    it("offers the video's cameras, the one playing checked, and hands over the one picked", async () => {
+        const wrapper = mountScreen({ stage: "video", cameras, activeCameraId: "main" });
+        const button = wrapper.find("[data-test='afsCamera']");
+        expect(button.attributes("aria-label")).toBe("Camera");
+
+        await button.trigger("click");
+        expect(items(wrapper).map((i) => [i.text(), i.attributes("aria-checked")])).toEqual([
+            ["Main", "true"],
+            ["Pulpit", "false"],
+        ]);
+
+        await items(wrapper)[0]!.trigger("click");
+        expect(wrapper.emitted("camera")).toBeUndefined();
+
+        await button.trigger("click");
+        await items(wrapper)[1]!.trigger("click");
+        expect(wrapper.emitted("camera")).toEqual([["pulpit"]]);
+        expect(wrapper.find(".lmpl-afs-menu").exists()).toBe(false);
+        wrapper.unmount();
+    });
+
+    it("has no camera for one picture, or over the sound alone", () => {
+        const one = mountScreen({ stage: "video", cameras: cameras.slice(0, 1), activeCameraId: "main" });
+        expect(one.find("[data-test='afsCamera']").exists()).toBe(false);
+        one.unmount();
+
+        const sound = mountScreen({ stage: "cover", cameras, activeCameraId: null });
+        expect(sound.find("[data-test='afsCamera']").exists()).toBe(false);
+        sound.unmount();
+    });
+});

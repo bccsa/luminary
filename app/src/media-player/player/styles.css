@@ -558,6 +558,7 @@
  * does not depend on it.
  */
 /* Read from any ancestor carrying the class, not the first `.lmpl-root`: a host may wrap the player in a root of its own. */
+.lmpl-opt-camera:not(.lmpl-has-camera-choice *),
 .lmpl-opt-quality:not(.lmpl-has-quality-choice *),
 .lmpl-opt-audio:not(.lmpl-has-audio-choice *),
 .lmpl-opt-captions:not(.lmpl-has-subtitles *) {
