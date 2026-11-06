@@ -4,7 +4,8 @@ import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
-import ProfileMenu from "./ProfileMenu.vue";
+import { Bars3Icon } from "@heroicons/vue/24/outline";
+import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
 import { keyboardOpen } from "@/composables/useKeyboardOpen";
 
 // `closeSearch` still closes the desktop modal if it happens to be open; mobile navigates to
@@ -138,6 +139,23 @@ onUnmounted(() => {
             </span>
         </div>
 
-        <ProfileMenu trigger="bars" />
+        <!-- Menu tab — toggles the sidebar drawer. The checkbox lives in App.vue; the drawer
+             itself is DesktopSidebar.vue, opened purely by CSS (`group-has-[…]/app:`). -->
+        <label
+            for="mobile-sidebar-open"
+            class="flex cursor-pointer flex-col items-center rounded-md px-2 py-1"
+        >
+            <Bars3Icon
+                class="h-6 w-6 text-zinc-400 group-has-[#mobile-sidebar-open:checked]/app:hidden dark:text-slate-200"
+            />
+            <Bars3IconSolid
+                class="hidden h-6 w-6 text-yellow-600 group-has-[#mobile-sidebar-open:checked]/app:block dark:text-yellow-500"
+            />
+            <span
+                class="text-sm font-medium text-zinc-600 group-has-[#mobile-sidebar-open:checked]/app:text-yellow-700 dark:text-slate-100 dark:group-has-[#mobile-sidebar-open:checked]/app:text-yellow-400"
+            >
+                {{ t("profile_menu.title") }}
+            </span>
+        </label>
     </div>
 </template>

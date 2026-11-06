@@ -8,7 +8,6 @@ import {
     HeartIcon as FilledHeartIcon,
     Cog6ToothIcon as FilledCog6ToothIcon,
 } from "@heroicons/vue/20/solid";
-import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useRouter } from "vue-router";
 import { computed, onMounted, ref, type ComputedRef } from "vue";
@@ -16,7 +15,6 @@ import {
     ArrowDownTrayIcon,
     ShieldCheckIcon,
     HeartIcon,
-    Bars3Icon,
     Cog6ToothIcon,
     LanguageIcon,
     SunIcon,
@@ -39,7 +37,7 @@ import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { useAppUpdate } from "@/composables/useAppUpdate";
 
-type Trigger = "avatar" | "bars" | "sidebar";
+type Trigger = "avatar" | "sidebar";
 type Props = {
     trigger?: Trigger;
 };
@@ -63,7 +61,6 @@ onMounted(() => {
 });
 
 const { t } = useI18n();
-const menuLabel = computed(() => t("profile_menu.title"));
 
 const navigationItems = computed(() => getNavigationItems(t));
 const { isSearchOpen, openSearch } = useSearchOverlay();
@@ -163,11 +160,13 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
     ];
 });
 
-const privacyPolicyNavigationItem = computed((): NavigationItems => ({
-    name: t("profile_menu.privacy_policy"),
-    icon: ShieldCheckIcon,
-    action: () => (showPrivacyPolicyModal.value = true),
-}));
+const privacyPolicyNavigationItem = computed(
+    (): NavigationItems => ({
+        name: t("profile_menu.privacy_policy"),
+        icon: ShieldCheckIcon,
+        action: () => (showPrivacyPolicyModal.value = true),
+    }),
+);
 
 const userNavigation = computed(() => {
     const authItem = isAuthenticated.value
@@ -307,37 +306,7 @@ const sidebarNavigation = computed(() =>
         </div>
     </DropdownMenu>
 
-    <!-- Trigger: bars + "Menu" tab on the mobile bottom bar (matches the other tabs) -->
-    <button
-        v-else
-        type="button"
-        name="profile-menu-btn"
-        aria-label="Open user menu"
-        class="flex flex-col items-center rounded-md px-2 py-1"
-        @click="menuOpen = !menuOpen"
-    >
-        <component
-            :is="menuOpen ? Bars3IconSolid : Bars3Icon"
-            :class="[
-                'h-6 w-6',
-                menuOpen
-                    ? 'text-yellow-600 dark:text-yellow-500'
-                    : 'text-zinc-400 dark:text-slate-200',
-            ]"
-        />
-        <span
-            :class="[
-                'text-sm font-medium',
-                menuOpen
-                    ? 'text-yellow-700 dark:text-yellow-400'
-                    : 'text-zinc-600 dark:text-slate-100',
-            ]"
-        >
-            {{ menuLabel }}
-        </span>
-    </button>
-
-    <!-- Shared slide-in panel (avatar + bars triggers only) -->
+    <!-- Shared slide-in panel (avatar trigger only) -->
     <LSidePanel
         v-if="trigger !== 'sidebar'"
         v-model:open="menuOpen"

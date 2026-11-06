@@ -9,7 +9,6 @@ import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import SearchModal from "@/components/navigation/SearchModal.vue";
-import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { useDismissKeyboardOnTouch } from "@/composables/useDismissKeyboardOnTouch";
 import { useKeyboardOpen } from "@/composables/useKeyboardOpen";
@@ -30,7 +29,9 @@ import { useHydrated } from "@/composables/useHydrated";
 const { t } = useI18n();
 const { available: availableUpdate, applyUpdate } = useAppUpdate();
 const canPrompt = useCanPrompt();
-const mobileChrome = useMobileChromeAutoHide();
+// The bottom menu this drove is gone (the sidebar is CSS-only now); the call stays in case
+// other chrome (e.g. the top bar) still reads the shared auto-hide state.
+useMobileChromeAutoHide();
 useDismissKeyboardOnTouch();
 useKeyboardOpen();
 
@@ -228,21 +229,6 @@ onErrorCaptured((err) => {
                     />
                 </KeepAlive>
             </RouterView>
-        </div>
-
-        <!-- Bottom menu divider for mobile view -->
-        <!-- <div class="w-full lg:hidden h-[2px] bg-zinc-100/25 dark:bg-slate-700/50"></div> -->
-        <!-- Mobile Navigation (mobile only) -->
-        <!-- Overlays the content and steps aside via transform while a reading page
-             scrolls down (see useMobileChromeAutoHide): a transform animates on the
-             compositor and never resizes the page mid-scroll, where a layout
-             animation reads as the text jumping. Content clears the bar through
-             --mobile-menu-h padding. -->
-        <div
-            class="lmc-page absolute inset-x-0 bottom-0 z-50 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform lg:hidden"
-            :class="mobileChrome.hidden.value ? 'translate-y-full' : 'translate-y-0'"
-        >
-            <MobileMenu class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50" />
         </div>
 
         <!-- Privacy Policy Modal for authentication flow -->
