@@ -2104,6 +2104,29 @@
 .lmpl-afs-hole .lmpl-afs-bg-low {
     clip-path: inset(var(--lmpl-hole-bottom) 0 0 0);
 }
+/* Around a video the ThumbHash fades into its average colour towards the picture: unblurred, its top and bottom can
+   differ sharply, and the picture would hide the change between them, leaving two colours meeting at its edges. */
+.lmpl-afs-video .lmpl-afs-bg.lmpl-afs-bg-hash {
+    background-color: var(--lmpl-wash-tint, #0e1013);
+}
+.lmpl-afs-video .lmpl-afs-wash.lmpl-afs-wash-hash {
+    /* Unscaled, so the mask lines up with the measured stage. */
+    transform: none;
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        #000 0,
+        transparent var(--lmpl-hole-top, 40%),
+        transparent var(--lmpl-hole-bottom, 60%),
+        #000 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        #000 0,
+        transparent var(--lmpl-hole-top, 40%),
+        transparent var(--lmpl-hole-bottom, 60%),
+        #000 100%
+    );
+}
 /* The scrim is the sound's, as on the web: both parts of the wash span the whole screen, so its gradient meets itself
    across the picture. */
 .lmpl-afs-hole .lmpl-afs-art {

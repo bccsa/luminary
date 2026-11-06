@@ -103,6 +103,8 @@ const props = defineProps<{
     stageHole?: boolean;
     /** The screen's colour in place of the cover blurred: a small picture (a ThumbHash) that is soft once stretched. */
     wash?: string;
+    /** The wash's average colour: around a video the wash fades into it, so above and below the picture meet. */
+    washTint?: string;
     /** The chevron's name, where it minimises the player rather than leaving full screen. */
     exitLabel?: string;
     subtitleTracks?: readonly { id: string; label: string }[];
@@ -610,6 +612,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
             '--lmpl-hole-bottom': `${holeBottom}px`,
             '--lmpl-art-bottom': artBottom ? `${artBottom}px` : undefined,
             '--lmpl-stage-ar': stageAspect && stageAspect > 0 ? String(stageAspect) : undefined,
+            '--lmpl-wash-tint': wash && washTint ? washTint : undefined,
         }"
         data-test="audioFullscreen"
         @keydown="onKeydown"
