@@ -370,7 +370,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
             class="rounded-md border border-zinc-200 bg-white p-2 text-zinc-800 dark:border-slate-800 dark:bg-slate-800"
         >
             <label class="text-sm font-medium dark:text-zinc-100">Conditions (AND)</label>
-            <p class="mt-0.5 text-[11px] dark:text-zinc-100">
+            <p class="mt-0.5 text-[11px] dark:text-zinc-100 text-zinc-400">
                 Assign the selected groups when all conditions are true. If no conditions are set,
                 groups are assigned to all authenticated users.
             </p>
