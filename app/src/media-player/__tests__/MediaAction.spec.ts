@@ -74,6 +74,14 @@ describe("MediaAction", () => {
         expect(halos).toContain("dark:drop-shadow-[0_0_1.5px_rgba(0,0,0,0.6)]");
     });
 
+    it("borders the yellow disc in one solid colour per theme, so the picture behind can't show through", () => {
+        const rings = mountAction(true)
+            .find("[data-test='mediaPlayDisc']")
+            .classes()
+            .filter((c) => /^(dark:)?ring-(?!\[)/.test(c));
+        expect(rings).toEqual(["ring-zinc-600", "dark:ring-slate-950"]);
+    });
+
     it("draws the progress in its own colour per theme", () => {
         setMediaProgress(videoUrl, mockEnglishContentDto._id, 300, 1200);
         const progress = mountAction(true).findAll("[data-test='mediaPlayProgress'] circle")[1];

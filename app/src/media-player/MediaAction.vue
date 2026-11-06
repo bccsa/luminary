@@ -82,7 +82,7 @@ const mediaProgress = computed(() => {
             />
         </svg>
         <span
-            class="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-yellow-500 text-zinc-900 shadow-[0_2px_6px_rgba(0,0,0,0.3)] ring-[3px] ring-zinc-900/70 motion-safe:transition-transform dark:ring-black/35 lg:h-16 lg:w-16"
+            class="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-yellow-500 text-zinc-900 shadow-[0_2px_6px_rgba(0,0,0,0.3)] ring-[3px] ring-zinc-600 motion-safe:transition-transform dark:ring-slate-950 lg:h-16 lg:w-16"
             :class="
                 pressed
                     ? 'motion-safe:scale-[0.92] motion-safe:duration-75 motion-safe:ease-out'
