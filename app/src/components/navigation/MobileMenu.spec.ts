@@ -80,9 +80,9 @@ describe("MobileMenu.vue", () => {
                     disconnect() {}
                 },
             );
-            measured = vi
-                .spyOn(HTMLElement.prototype, "getBoundingClientRect")
-                .mockImplementation(() => ({ height }) as DOMRect);
+            measured = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+                () => ({ height }) as DOMRect,
+            );
         });
         afterEach(() => {
             vi.unstubAllGlobals();
