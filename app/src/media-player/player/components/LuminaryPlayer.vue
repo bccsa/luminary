@@ -38,7 +38,7 @@ import { buildControlsHtml } from "../ui/controlsHtml";
 import { installAutoHide, type ControlsStore } from "../ui/autoHide";
 import { attachPressActivation } from "../ui/pressActivate";
 import { stepVolume } from "../ui/volume";
-import { spriteSheetsByDistance, warmSpriteSheets } from "../ui/spriteWarm";
+import { SpriteWarmer, spriteSheetsByDistance, spriteWarmLimit } from "../ui/spriteWarm";
 import { liftCues, liftLine, type LiftableCue } from "../ui/cueLift";
 import { cuesToLyrics, type LyricCue } from "../ui/lyrics";
 import { chapterMask, formatChapterOf } from "../ui/chapterBar";
@@ -1312,33 +1312,46 @@ function onPinUp(event: PointerEvent): void {
 }
 
 /**
- * Fetches every sprite sheet once the thumbnails are in, nearest the playhead first. A sheet fetched only
- * when the pointer reaches it queues behind the video's segment downloads, and the scrub shows blank frames.
- * Saving data, or with only sound playing, just the first is fetched so the first hover is not blank.
+ * Fetches the sprite sheets ahead of a scrub, nearest the playhead first, once playback is under way
+ * (`spriteWarmLimit`). A sheet fetched only when the pointer reaches it queues behind the segment downloads,
+ * and the scrub shows blank frames. Saving data, or with only sound playing, only the playhead's sheet is.
  */
-let spriteWarm: { stop: () => void } | undefined;
+const spriteWarm = shallowRef<SpriteWarmer>();
+const warmStarted = ref(false);
 watch(
-    () =>
-        state.value.thumbnailsReady && state.value.duration > 0
-            ? `${props.lazyThumbnails || isAudioOnly.value}|${props.source.masterUrl}`
-            : null,
-    (ready) => {
-        spriteWarm?.stop();
-        spriteWarm = undefined;
-        const instance = controller.value;
-        if (!ready || !instance) return;
-        const { duration, currentTime } = state.value;
-        const sheets = spriteSheetsByDistance(
-            (t) => instance.thumbnailAt(t),
-            duration,
-            currentTime,
-        );
-        const first = instance.thumbnailAt(0)?.spriteUrl;
-        const lazy = props.lazyThumbnails || isAudioOnly.value;
-        spriteWarm = warmSpriteSheets(lazy ? (first ? [first] : []) : sheets);
+    () => props.source.masterUrl,
+    () => (warmStarted.value = false),
+);
+watch(
+    () => state.value.playing,
+    (playing) => {
+        if (playing) warmStarted.value = true;
     },
 );
-onBeforeUnmount(() => spriteWarm?.stop());
+watch(
+    () => (state.value.thumbnailsReady && state.value.duration > 0 ? props.source.masterUrl : null),
+    (ready) => {
+        spriteWarm.value?.stop();
+        spriteWarm.value = ready ? new SpriteWarmer() : undefined;
+    },
+);
+const playheadSheet = computed(() =>
+    state.value.thumbnailsReady
+        ? controller.value?.thumbnailAt(state.value.currentTime)?.spriteUrl
+        : undefined,
+);
+watch([spriteWarm, playheadSheet], ([warm]) => {
+    const instance = controller.value;
+    if (!warm || !instance) return;
+    const { duration, currentTime } = state.value;
+    warm.setSheets(spriteSheetsByDistance((t) => instance.thumbnailAt(t), duration, currentTime));
+});
+const spriteLimit = computed(() => {
+    const limit = spriteWarmLimit({ ...state.value, started: warmStarted.value });
+    return props.lazyThumbnails || isAudioOnly.value ? Math.min(limit, 1) : limit;
+});
+watch([spriteWarm, spriteLimit], ([warm, limit]) => warm?.setLimit(limit));
+onBeforeUnmount(() => spriteWarm.value?.stop());
 
 watch(
     () => props.source,

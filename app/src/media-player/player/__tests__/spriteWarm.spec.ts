@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { ThumbnailSpriteCue } from "@luminary-media-converter/player-web";
-import { spriteSheetsByDistance, warmSpriteSheets } from "../ui/spriteWarm";
+import { SpriteWarmer, spriteSheetsByDistance, spriteWarmLimit } from "../ui/spriteWarm";
 
 // The encoder's layout: a frame every 5 s, 25 frames to a sheet.
 function thumbnailAt(duration: number) {
@@ -42,30 +42,100 @@ describe("spriteSheetsByDistance", () => {
     });
 });
 
-describe("warmSpriteSheets", () => {
-    it("loads every sheet, no more than two at once, carrying on past a failure", async () => {
-        let inFlight = 0;
-        let peak = 0;
-        const loaded: string[] = [];
-        const load = vi.fn(async (url: string) => {
-            inFlight++;
-            peak = Math.max(peak, inFlight);
-            await new Promise((r) => setTimeout(r, 1));
-            inFlight--;
-            if (url === "b") throw new Error("404");
-            loaded.push(url);
-        });
-        await warmSpriteSheets(["a", "b", "c", "d", "e"], load).done;
-        expect(load).toHaveBeenCalledTimes(5);
-        expect(loaded).toEqual(["a", "c", "d", "e"]);
-        expect(peak).toBe(2);
+describe("spriteWarmLimit", () => {
+    const playback = {
+        started: true,
+        stalled: false,
+        currentTime: 100,
+        bufferedEnd: 100,
+        duration: 3600,
+    };
+
+    it("fetches nothing before playback starts, while it stalls, or with little buffer", () => {
+        expect(spriteWarmLimit({ ...playback, started: false, bufferedEnd: 200 })).toBe(0);
+        expect(spriteWarmLimit({ ...playback, stalled: true, bufferedEnd: 200 })).toBe(0);
+        expect(spriteWarmLimit({ ...playback, bufferedEnd: 109 })).toBe(0);
     });
 
-    it("abandons the queue on stop", async () => {
-        const load = vi.fn(() => new Promise((r) => setTimeout(r, 1)));
-        const warm = warmSpriteSheets(["a", "b", "c", "d", "e"], load);
-        warm.stop();
-        await warm.done;
-        expect(load).toHaveBeenCalledTimes(2);
+    it("fetches the window around the playhead with some buffer, and all with plenty", () => {
+        expect(spriteWarmLimit({ ...playback, bufferedEnd: 110 })).toBe(7);
+        expect(spriteWarmLimit({ ...playback, bufferedEnd: 130 })).toBe(Infinity);
+        expect(spriteWarmLimit({ ...playback, bufferedEnd: 3600 - 0.2, currentTime: 3595 })).toBe(
+            Infinity,
+        );
+    });
+});
+
+describe("SpriteWarmer", () => {
+    function harness() {
+        const started: string[] = [];
+        const aborted: string[] = [];
+        const pending = new Map<string, { resolve: () => void; reject: () => void }>();
+        const load = (url: string, signal: AbortSignal) =>
+            new Promise<void>((resolve, reject) => {
+                started.push(url);
+                pending.set(url, { resolve, reject });
+                signal.addEventListener("abort", () => {
+                    aborted.push(url);
+                    reject(new Error("aborted"));
+                });
+            });
+        const settle = async (url: string, ok = true) => {
+            const p = pending.get(url)!;
+            if (ok) p.resolve();
+            else p.reject();
+            await new Promise((r) => setTimeout(r));
+        };
+        return { warmer: new SpriteWarmer(load), started, aborted, settle };
+    }
+
+    it("fetches nothing until allowed, then no more than two at once, nearest first", async () => {
+        const { warmer, started, settle } = harness();
+        warmer.setSheets(["a", "b", "c", "d"]);
+        expect(started).toEqual([]);
+
+        warmer.setLimit(Infinity);
+        expect(started).toEqual(["a", "b"]);
+        await settle("a");
+        expect(started).toEqual(["a", "b", "c"]);
+        await settle("b", false);
+        await settle("c");
+        expect(started).toEqual(["a", "b", "c", "d"]);
+    });
+
+    it("goes no further down the order than its limit, and pauses when the limit drops", async () => {
+        const { warmer, started, settle } = harness();
+        warmer.setSheets(["a", "b", "c", "d"]);
+        warmer.setLimit(1);
+        expect(started).toEqual(["a"]);
+        await settle("a");
+        expect(started).toEqual(["a"]);
+
+        warmer.setLimit(3);
+        warmer.setLimit(0);
+        await settle("b");
+        await settle("c");
+        expect(started).toEqual(["a", "b", "c"]);
+    });
+
+    it("re-centres on a new order without fetching a sheet twice", async () => {
+        const { warmer, started, settle } = harness();
+        warmer.setSheets(["a", "b", "c"]);
+        warmer.setLimit(1);
+        await settle("a");
+        warmer.setSheets(["c", "a", "b"]);
+        warmer.setLimit(2);
+        expect(started).toEqual(["a", "c"]);
+    });
+
+    it("aborts what is loading on stop, and fetches nothing more", async () => {
+        const { warmer, started, aborted } = harness();
+        warmer.setSheets(["a", "b", "c"]);
+        warmer.setLimit(Infinity);
+        warmer.stop();
+        expect(aborted).toEqual(["a", "b"]);
+        warmer.setLimit(Infinity);
+        await new Promise((r) => setTimeout(r));
+        expect(started).toEqual(["a", "b"]);
     });
 });
