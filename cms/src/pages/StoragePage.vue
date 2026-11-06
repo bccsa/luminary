@@ -33,6 +33,7 @@ const createNew = () => {
             <LButton
                 v-if="isSmallScreen && canEdit"
                 variant="primary"
+                class="text-zinc-500"
                 :icon="PlusIcon"
                 @click="createNew"
                 name="createBucketBtn"
@@ -43,7 +44,7 @@ const createNew = () => {
 
         <div class="space-y-1">
             <div>
-                <p class="dark:text-zinc-100">
+                <p class="dark:text-zinc-100 text-zinc-600">
                     Manage S3 bucket configurations for file storage and uploads.
                 </p>
             </div>
