@@ -56,10 +56,11 @@ const mediaProgress = computed(() => {
         @pointerleave="pressed = false"
         @click.stop="open"
     >
-        <!-- The ring shows before the video is started too. -->
+        <!-- The ring shows before the video is started too. It lies on a photo of any brightness, so it is light
+             with a dark halo in both themes. -->
         <svg
             viewBox="0 0 68 68"
-            class="absolute inset-0 h-full w-full -rotate-90"
+            class="absolute inset-0 h-full w-full -rotate-90 drop-shadow-[0_0_1.5px_rgba(0,0,0,0.6)]"
             aria-hidden="true"
             data-test="mediaPlayProgress"
         >
@@ -69,7 +70,7 @@ const mediaProgress = computed(() => {
                 r="31"
                 fill="none"
                 stroke-width="5"
-                class="stroke-zinc-200 dark:stroke-slate-700"
+                class="stroke-white/80"
             />
             <!-- A round-capped dash of length 0 still draws a dot. -->
             <circle
@@ -82,7 +83,7 @@ const mediaProgress = computed(() => {
                 stroke-linecap="round"
                 pathLength="100"
                 :stroke-dasharray="`${mediaProgress} 100`"
-                class="stroke-yellow-700"
+                class="stroke-yellow-500"
             />
         </svg>
         <span

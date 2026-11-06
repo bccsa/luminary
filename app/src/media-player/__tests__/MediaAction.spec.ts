@@ -67,6 +67,12 @@ describe("MediaAction", () => {
         expect(ring.findAll("circle")).toHaveLength(1);
     });
 
+    it("draws the ring the same in both themes, with a halo so it reads over any photo", () => {
+        const ring = mountAction(true).find("[data-test='mediaPlayProgress']");
+        expect(ring.classes().some((c) => c.startsWith("drop-shadow-"))).toBe(true);
+        expect(ring.find("circle").classes().some((c) => c.startsWith("dark:"))).toBe(false);
+    });
+
     it("scales down while pressed and back on release, unless motion is reduced", async () => {
         const play = mountAction(true).find("[data-test='mediaPlay']");
         expect(play.classes()).not.toContain("motion-safe:scale-[0.92]");
