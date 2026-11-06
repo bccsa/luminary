@@ -163,11 +163,13 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
     ];
 });
 
-const privacyPolicyNavigationItem = computed((): NavigationItems => ({
-    name: t("profile_menu.privacy_policy"),
-    icon: ShieldCheckIcon,
-    action: () => (showPrivacyPolicyModal.value = true),
-}));
+const privacyPolicyNavigationItem = computed(
+    (): NavigationItems => ({
+        name: t("profile_menu.privacy_policy"),
+        icon: ShieldCheckIcon,
+        action: () => (showPrivacyPolicyModal.value = true),
+    }),
+);
 
 const userNavigation = computed(() => {
     const authItem = isAuthenticated.value
@@ -313,7 +315,7 @@ const sidebarNavigation = computed(() =>
         type="button"
         name="profile-menu-btn"
         aria-label="Open user menu"
-        class="flex min-w-0 flex-1 basis-0 flex-col items-center rounded-md px-1 py-1"
+        class="flex min-w-0 flex-1 basis-0 flex-col items-center gap-0.5 rounded-md px-0.5 py-1"
         @click="menuOpen = !menuOpen"
     >
         <component
@@ -327,7 +329,7 @@ const sidebarNavigation = computed(() =>
         />
         <span
             :class="[
-                'max-w-full truncate text-sm font-medium',
+                'max-w-full truncate text-xs font-medium tracking-tight',
                 menuOpen
                     ? 'text-yellow-700 dark:text-yellow-400'
                     : 'text-zinc-600 dark:text-slate-100',
