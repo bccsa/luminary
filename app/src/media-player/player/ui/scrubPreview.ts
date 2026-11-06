@@ -85,6 +85,8 @@ export interface RosterTile {
     index: number;
     /** Left edge in px from the roster's left. */
     left: number;
+    /** Width in px: the roster's tile width, stretched for the first and last frame to reach the roster's edges. */
+    width: number;
     /** The time the frame is looked up at: the middle of the slot it covers. */
     time: number;
 }
@@ -115,13 +117,23 @@ export function rosterTiles(
     const pxPerSecond = tileWidth / step;
     const first = Math.floor((time - markerX / pxPerSecond) / step);
     const last = Math.ceil((time + (width - markerX) / pxPerSecond) / step);
+    const lastIndex = Math.ceil(duration / step) - 1;
     const tiles: RosterTile[] = [];
     for (let index = first; index <= last; index++) {
         const start = index * step;
         if (start >= duration || start + step <= 0) continue;
+        let left = markerX + (start - time) * pxPerSecond;
+        let tileWidthPx = tileWidth;
+        // The first and last frames stretch to the roster's edges rather than leaving an empty gap beyond the video.
+        if (index === 0 && left > 0) {
+            tileWidthPx += left;
+            left = 0;
+        }
+        if (index === lastIndex && left + tileWidthPx < width) tileWidthPx = width - left;
         tiles.push({
             index,
-            left: markerX + (start - time) * pxPerSecond,
+            left,
+            width: tileWidthPx,
             time: Math.min(Math.max(0, start + step / 2), Math.max(0, duration - 0.001)),
         });
     }

@@ -10,7 +10,7 @@ import type { ThumbnailSpriteCue } from "@luminary-media-converter/player-web";
  * the crop, scaled to the roster's height. A tile without a cue yet stays dark rather than leaving a hole.
  */
 const props = defineProps<{
-    tiles: { key: string; left: number; cue: ThumbnailSpriteCue | null }[];
+    tiles: { key: string; left: number; width?: number; cue: ThumbnailSpriteCue | null }[];
     /** Each frame's width and the roster's height, in px. */
     tileWidth: number;
     height: number;
@@ -23,15 +23,15 @@ const props = defineProps<{
 }>();
 
 /** Slid into place rather than laid out: the strip moves every frame while the video plays under it. */
-function tileStyle(tile: { left: number }) {
+function tileStyle(tile: { left: number; width?: number }) {
     return {
         transform: `translate3d(${Math.round(tile.left)}px, 0, 0)`,
-        width: `${props.tileWidth}px`,
+        width: `${tile.width ?? props.tileWidth}px`,
         height: `${props.height}px`,
     };
 }
 
-function frameStyle(cue: ThumbnailSpriteCue) {
+function frameStyle(cue: ThumbnailSpriteCue, tileWidth: number) {
     if (!cue.w || !cue.h) {
         return {
             width: "100%",
@@ -41,13 +41,19 @@ function frameStyle(cue: ThumbnailSpriteCue) {
             backgroundPosition: "center",
         };
     }
+    // A stretched end frame is scaled up to cover its wider tile and cropped top and bottom, not squashed.
+    const stretched = tileWidth > props.tileWidth;
+    const scale = stretched
+        ? Math.max(props.height / cue.h, tileWidth / cue.w)
+        : props.height / cue.h;
+    const lift = stretched ? `translateY(${-(cue.h * scale - props.height) / 2}px) ` : "";
     return {
         width: `${cue.w}px`,
         height: `${cue.h}px`,
         backgroundImage: `url("${cue.spriteUrl}")`,
         backgroundPosition: `-${cue.x}px -${cue.y}px`,
         backgroundRepeat: "no-repeat",
-        transform: `scale(${props.height / cue.h})`,
+        transform: `${lift}scale(${scale})`,
         transformOrigin: "top left",
     };
 }
@@ -77,7 +83,7 @@ const markerStyle = computed(() => ({ left: `${props.markerX}px` }));
             <div
                 v-if="tile.cue"
                 class="lmpl-roster-frame"
-                :style="frameStyle(tile.cue)"
+                :style="frameStyle(tile.cue, tile.width ?? tileWidth)"
             ></div>
         </div>
         <div class="lmpl-roster-vignette"></div>
