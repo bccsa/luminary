@@ -1,5 +1,6 @@
 import type { ContentDto } from "luminary-shared";
 import { thumbHashToAverageRGBA, thumbHashToDataURL } from "thumbhash";
+import { imageSizes } from "@/components/images/LImageProvider.vue";
 
 const COVER_TARGET_WIDTH = 640;
 
@@ -11,11 +12,7 @@ export function coverImageUrl(content: ContentDto, bucketBaseUrl?: string): stri
     const collections = content.parentImageData?.fileCollections ?? [];
     if (!bucketBaseUrl || !collections.length) return undefined;
 
-    const collection = collections.reduce((closest, candidate) =>
-        Math.abs(candidate.aspectRatio - 1) < Math.abs(closest.aspectRatio - 1)
-            ? candidate
-            : closest,
-    );
+    const collection = squarest(collections);
     const files = collection.imageFiles ?? [];
     if (!files.length) return undefined;
 
@@ -26,6 +23,54 @@ export function coverImageUrl(content: ContentDto, bucketBaseUrl?: string): stri
             : closest,
     );
     return `${bucketBaseUrl.replace(/\/$/, "")}/${file.filename}`;
+}
+
+/** The full-screen sound screen's cover, as the player draws it. */
+export type CoverArtwork = {
+    src: string;
+    srcset?: string;
+    sizes?: string;
+    /** The ThumbHash, shown until the picture is drawn. */
+    placeholder?: string;
+    fallback?: string;
+};
+
+/**
+ * The cover with every width of its image set, offered with the `sizes` of the post page's picture: the
+ * browser then picks the file that page already loaded, so the cover is drawn from cache. The app's
+ * stand-in alone when the post has no image or the bucket's address is not known yet.
+ */
+export function coverArtwork(
+    content: ContentDto,
+    bucketBaseUrl?: string,
+    fallback?: string,
+): CoverArtwork | null {
+    const src = coverImageUrl(content, bucketBaseUrl);
+    if (!src) return fallback ? { src: fallback } : null;
+
+    const collection = squarest(content.parentImageData!.fileCollections);
+    const base = bucketBaseUrl!.replace(/\/$/, "");
+    const srcset = [...collection.imageFiles]
+        .sort((a, b) => a.width - b.width)
+        .map((file) => `${base}/${file.filename} ${file.width}w`)
+        .join(", ");
+    const placeholder = thumbHashWash(content);
+    return {
+        src,
+        srcset,
+        sizes: imageSizes("post", "video", collection.aspectRatio),
+        ...(placeholder ? { placeholder } : {}),
+        ...(fallback ? { fallback } : {}),
+    };
+}
+
+/** The image set nearest square. */
+function squarest<T extends { aspectRatio: number }>(collections: T[]): T {
+    return collections.reduce((closest, candidate) =>
+        Math.abs(candidate.aspectRatio - 1) < Math.abs(closest.aspectRatio - 1)
+            ? candidate
+            : closest,
+    );
 }
 
 /**
@@ -84,11 +129,7 @@ function thumbHashBytes(content: ContentDto | undefined): Uint8Array | undefined
         (c) => c.thumbHash,
     );
     if (!collections.length) return undefined;
-    const collection = collections.reduce((closest, candidate) =>
-        Math.abs(candidate.aspectRatio - 1) < Math.abs(closest.aspectRatio - 1)
-            ? candidate
-            : closest,
-    );
+    const collection = squarest(collections);
     try {
         return Uint8Array.from(atob(collection.thumbHash!), (char) => char.charCodeAt(0));
     } catch {

@@ -55,7 +55,7 @@ import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { isMac } from "@/globalConfig";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { fallbackImageFor } from "@/util/fallbackArtwork";
-import { coverImageUrl, thumbHashTint, thumbHashWash } from "./coverImage";
+import { coverArtwork, thumbHashTint, thumbHashWash } from "./coverImage";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
 import { subtitlePreference, subtitlesOnVideo } from "@/globalConfig";
@@ -1218,10 +1218,9 @@ const coverBucketId = computed(() => content.value?.parentImageBucketId);
 const { bucketBaseUrl: coverBucketBaseUrl } = useBucketInfo(coverBucketId);
 /** The post's own cover, with the app's stand-in picture for a post without one or whose cover does not load. */
 const screenArtwork = computed(() => {
-    const src = content.value ? coverImageUrl(content.value, coverBucketBaseUrl.value) : undefined;
     const fallback = fallbackImageFor(content.value?.parentId);
-    if (src) return { src, ...(fallback ? { fallback } : {}) };
-    return fallback ? { src: fallback } : null;
+    if (!content.value) return fallback ? { src: fallback } : null;
+    return coverArtwork(content.value, coverBucketBaseUrl.value, fallback);
 });
 const screenChapterIndex = computed(() => chapterIndexAt(chapters.value, currentTime.value));
 /** The preview frame at a time, for the chapters' pictures, once the thumbnails are in. */

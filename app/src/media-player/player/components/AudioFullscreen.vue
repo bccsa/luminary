@@ -55,7 +55,14 @@ const props = defineProps<{
     /** Who it is by. */
     subtitle?: string;
     /** `fallback` is shown in its place if the picture does not load. */
-    artwork: { src?: string; srcset?: string; sizes?: string; fallback?: string } | null;
+    artwork: {
+        src?: string;
+        srcset?: string;
+        sizes?: string;
+        /** Shown behind the cover until it is drawn, as a ThumbHash data URL. */
+        placeholder?: string;
+        fallback?: string;
+    } | null;
     appearance: "light" | "dark";
     chapters: readonly Chapter[];
     currentTime: number;
@@ -574,9 +581,18 @@ const artworkSizes = computed(() => props.artwork?.sizes ?? "(min-aspect-ratio: 
 
 // A picture that does not load gives way to its fallback, and to the placeholder when there is none.
 const coverFailed = ref(false);
+const coverDrawn = ref(false);
 watch(
     () => props.artwork?.src,
-    () => (coverFailed.value = false),
+    () => {
+        coverFailed.value = false;
+        coverDrawn.value = false;
+    },
+);
+const coverPlaceholder = computed(() =>
+    cover.value && "placeholder" in cover.value && cover.value.placeholder && !coverDrawn.value
+        ? { backgroundImage: `url("${cover.value.placeholder}")` }
+        : undefined,
 );
 const cover = computed(() => {
     const art = props.artwork;
@@ -757,7 +773,9 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                         :sizes="'srcset' in cover && cover.srcset ? artworkSizes : undefined"
                         alt=""
                         draggable="false"
+                        :style="coverPlaceholder"
                         data-test="afsCover"
+                        @load="coverDrawn = true"
                         @error="coverFailed = true"
                     />
                     <div
