@@ -112,7 +112,7 @@ interface Props {
     appearance?: "light" | "dark";
     /** Audio language to select automatically; a viewer's own choice outranks it. */
     preferredLanguage?: string;
-    /** Fetch scrub sprite sheets only as the pointer reaches them, to save data; the first is still fetched up front. */
+    /** Saves data on scrub sprite sheets: only the playhead's own is fetched ahead, once playback is under way; the rest as the pointer reaches them. */
     lazyThumbnails?: boolean;
     /** Options handed to the default `PlayerController`. */
     controllerOptions?: Partial<PlayerControllerOptions>;

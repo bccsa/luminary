@@ -40,6 +40,10 @@ describe("spriteSheetsByDistance", () => {
         expect(spriteSheetsByDistance(thumbnailAt(600), 0, 0)).toEqual([]);
         expect(spriteSheetsByDistance(() => null, 600, 0)).toEqual([]);
     });
+
+    it("lists nothing for a live stream, whose duration is Infinity", () => {
+        expect(spriteSheetsByDistance(() => null, Infinity, 0)).toEqual([]);
+    });
 });
 
 describe("spriteWarmLimit", () => {

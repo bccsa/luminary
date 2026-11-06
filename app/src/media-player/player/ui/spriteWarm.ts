@@ -12,6 +12,9 @@ export const SPRITE_WARM_WINDOW_BUFFER_S = 10;
 /** Seconds buffered ahead before the rest of the video's sheets are fetched. */
 export const SPRITE_WARM_ALL_BUFFER_S = 30;
 
+/** Loaded sheets nearest the playhead held decoded; the rest stay in the HTTP cache, so a long video doesn't pin every sheet in memory. */
+export const SPRITE_WARM_KEPT = 1 + 2 * SPRITE_WARM_WINDOW;
+
 /**
  * Every sprite sheet of a video, each once, nearest `around` first: the order a viewer is likely to
  * scrub them in. Walks the cues through `thumbnailAt`, cue end to cue end.
@@ -21,7 +24,8 @@ export function spriteSheetsByDistance(
     duration: number,
     around: number,
 ): string[] {
-    if (!(duration > 0)) return [];
+    // A live stream's duration is Infinity, which this walk would never reach.
+    if (!(duration > 0) || !Number.isFinite(duration)) return [];
     const nearest = new Map<string, number>();
     let time = 0;
     while (time < duration) {
@@ -81,8 +85,8 @@ export class SpriteWarmer {
     /** Sheets already asked for, loaded or not. */
     private readonly done = new Set<string>();
     private readonly inFlight = new Map<string, () => void>();
-    /** Loaded sheets, held so the browser keeps them decoded in its memory cache. */
-    private kept: unknown[] = [];
+    /** Loaded sheets near the playhead, held so the browser keeps them decoded in its memory cache. */
+    private readonly kept = new Map<string, unknown>();
     private stopped = false;
 
     constructor(
@@ -93,6 +97,7 @@ export class SpriteWarmer {
     /** The sheets, nearest the playhead first. */
     setSheets(urls: string[]): void {
         this.queue = urls;
+        this.trimKept();
         this.pump();
     }
 
@@ -107,7 +112,7 @@ export class SpriteWarmer {
         this.stopped = true;
         for (const abort of this.inFlight.values()) abort();
         this.inFlight.clear();
-        this.kept = [];
+        this.kept.clear();
     }
 
     private pump(): void {
@@ -121,7 +126,11 @@ export class SpriteWarmer {
             this.inFlight.set(url, () => controller.abort());
             void this.load(url, controller.signal)
                 .then(
-                    (loaded) => void this.kept.push(loaded),
+                    (loaded) => {
+                        if (this.stopped) return;
+                        this.kept.set(url, loaded);
+                        this.trimKept();
+                    },
                     // A failed sheet is left to load when a frame on it is drawn, not retried here.
                     () => undefined,
                 )
@@ -130,6 +139,11 @@ export class SpriteWarmer {
                     this.pump();
                 });
         }
+    }
+
+    private trimKept(): void {
+        const near = new Set(this.queue.slice(0, SPRITE_WARM_KEPT));
+        for (const url of this.kept.keys()) if (!near.has(url)) this.kept.delete(url);
     }
 }
 
