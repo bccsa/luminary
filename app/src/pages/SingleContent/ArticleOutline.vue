@@ -2,8 +2,8 @@
 import { computed, inject, nextTick, ref, watch, type Ref } from "vue";
 import { useEventListener } from "@vueuse/core";
 import { useI18n } from "vue-i18n";
-import { ArrowUturnLeftIcon, CheckCircleIcon, ChevronDownIcon } from "@heroicons/vue/24/outline";
-import { XMarkIcon } from "@heroicons/vue/20/solid";
+import { ArrowUturnLeftIcon, ChevronDownIcon } from "@heroicons/vue/24/outline";
+import { CheckCircleIcon as CheckCircleSolidIcon, XMarkIcon } from "@heroicons/vue/20/solid";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import { isPrerender } from "@/ssg/isPrerender";
 
@@ -134,7 +134,10 @@ function containerTop() {
 
 // Active heading: the last one that's scrolled past a small offset from the container's
 // visible top, rAF-throttled like the other scroll-driven reads in this composable family.
-const ACTIVE_OFFSET = 80;
+// Where a chosen heading lands, below the pinned pill. The active offset sits a little past it,
+// so the heading just scrolled to is the active one, not the one before it.
+const SCROLL_OFFSET = 96;
+const ACTIVE_OFFSET = SCROLL_OFFSET + 8;
 
 function updateActiveHeading() {
     if (!headings.value.length) return;
@@ -192,8 +195,6 @@ watch(headings, () =>
 watch(visible, (isVisible) => {
     if (!isVisible) open.value = false;
 });
-
-const SCROLL_OFFSET = 96;
 
 function goToHeading(id: string) {
     open.value = false;
@@ -370,16 +371,17 @@ function onResume() {
             :class="[
                 h.level === 3 ? 'pl-8' : 'pl-4',
                 activeId === h.id
-                    ? 'font-medium text-yellow-600 dark:text-yellow-400'
+                    ? 'bg-yellow-500/15 font-semibold text-yellow-700 shadow-[inset_3px_0_0_0_theme(colors.yellow.500)] dark:bg-yellow-400/15 dark:text-yellow-300'
                     : 'text-zinc-800 dark:text-white',
             ]"
+            :aria-current="activeId === h.id ? 'location' : undefined"
             data-test="articleOutlineOption"
             @click="goToHeading(h.id)"
         >
             <span class="flex-1">{{ h.text }}</span>
-            <CheckCircleIcon
+            <CheckCircleSolidIcon
                 v-if="activeId === h.id"
-                class="h-5 w-5 flex-shrink-0 text-yellow-500"
+                class="h-5 w-5 flex-shrink-0 text-yellow-500 dark:text-yellow-400"
                 aria-hidden="true"
             />
         </button>
