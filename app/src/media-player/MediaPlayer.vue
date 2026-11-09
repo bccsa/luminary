@@ -69,6 +69,7 @@ import PlayerButton from "./PlayerButton.vue";
 import { mediaSourceFor } from "@/util/mediaSource";
 import { isYouTubeLink } from "@/util/youtube";
 import PlayerIcon from "./PlayerIcon.vue";
+import BusyRing from "./BusyRing.vue";
 import { timeEnds } from "./playerTime";
 import MediaPlayerMenuItem from "./MediaPlayerMenuItem.vue";
 import MediaPlayerUpNext from "./MediaPlayerUpNext.vue";
@@ -925,9 +926,35 @@ watch(item, (now, before) => {
     void (now.audio ? showAudio() : showVideo());
 });
 
+/**
+ * What the viewer last asked for with play / pause, until the engine has done it. The buttons show it, so a press
+ * takes at once, like a latching switch, while the engine may still take a moment to start.
+ */
+const commanded = ref<boolean | null>(null);
+/** Play or pause as the buttons show it: a pending command, else what the engine is doing. */
+const showsPlaying = computed(() => commanded.value ?? playing.value);
+watch(playing, (isPlaying) => {
+    if (isPlaying === commanded.value) commanded.value = null;
+});
+// The engine could not do it, or something else took over: the buttons follow the engine again.
+watch(
+    [
+        () => state.value?.lifecycle === "error",
+        () => state.value?.ended,
+        () => item.value?.content._id,
+    ],
+    () => (commanded.value = null),
+);
+
 function togglePlay() {
-    if (playing.value) handle.value?.pause();
-    else void handle.value?.play();
+    if (!handle.value) return;
+    const play = !showsPlaying.value;
+    commanded.value = play === playing.value ? null : play;
+    if (!play) {
+        handle.value?.pause();
+        return;
+    }
+    Promise.resolve(handle.value?.play()).catch(() => (commanded.value = null));
 }
 
 // From where the bar shows, so presses in a row add up before playback has caught up with the first.
@@ -1664,7 +1691,7 @@ function onKeydown(event: KeyboardEvent) {
                     :current-time="currentTime"
                     :duration="duration"
                     :buffered-end="state?.bufferedEnd ?? 0"
-                    :playing="playing"
+                    :playing="showsPlaying"
                     :busy="playerBusy"
                     :live="live"
                     :chapter-index="screenChapterIndex"
@@ -2423,39 +2450,18 @@ function onKeydown(event: KeyboardEvent) {
                         </PlayerButton>
                         <PlayerButton
                             round
-                            class="h-20 w-20 disabled:opacity-100 [@media(max-height:840px)]:h-16 [@media(max-height:840px)]:w-16"
-                            :label="
-                                playerBusy
-                                    ? t('video_player.loading')
-                                    : playing
-                                      ? t('media_player.pause')
-                                      : t('media_player.play')
-                            "
-                            :data-test="
-                                playerBusy
-                                    ? starting
-                                        ? 'mediaPlayerStarting'
-                                        : 'mediaPlayerStalled'
-                                    : 'mediaPlayerPlayPause'
-                            "
-                            :disabled="starting"
+                            class="relative h-20 w-20 [@media(max-height:840px)]:h-16 [@media(max-height:840px)]:w-16"
+                            :label="showsPlaying ? t('media_player.pause') : t('media_player.play')"
+                            :aria-busy="playerBusy ? 'true' : undefined"
+                            data-test="mediaPlayerPlayPause"
                             @click="togglePlay"
                         >
-                            <!-- The player busy shows here, in play's place, as on the phone and the bar. -->
-                            <svg
+                            <BusyRing
                                 v-if="playerBusy"
-                                class="h-[38px] w-[38px] animate-spin"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2.4"
-                                stroke-linecap="round"
-                                aria-hidden="true"
-                            >
-                                <path d="M12 3a9 9 0 1 1-9 9" />
-                            </svg>
+                                :data-test="starting ? 'mediaPlayerStarting' : 'mediaPlayerStalled'"
+                            />
                             <PlayerIcon
-                                v-else-if="playing"
+                                v-if="showsPlaying"
                                 name="pause"
                                 class="h-[38px] w-[38px]"
                             />
@@ -2653,7 +2659,7 @@ function onKeydown(event: KeyboardEvent) {
                 :current-time="currentTime"
                 :duration="duration"
                 :buffered-end="state.bufferedEnd"
-                :playing="playing"
+                :playing="showsPlaying"
                 :busy="playerBusy"
                 :live="live"
                 :chapter-index="screenChapterIndex"
@@ -2808,35 +2814,20 @@ function onKeydown(event: KeyboardEvent) {
                     >{{ content.author }}</span
                 >
             </button>
-            <span
-                v-if="playerBusy || !state"
-                class="flex h-11 w-11 flex-shrink-0 items-center justify-center"
-                role="status"
-                :aria-label="t('video_player.loading')"
-                data-test="mediaPlayerBarBusy"
-            >
-                <svg
-                    class="h-6 w-6 animate-spin"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.4"
-                    stroke-linecap="round"
-                    aria-hidden="true"
-                >
-                    <path d="M12 3a9 9 0 1 1-9 9" />
-                </svg>
-            </span>
             <button
-                v-else
                 type="button"
-                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:bg-white/10 [@media(hover:hover)]:hover:bg-white/10"
-                :aria-label="playing ? t('media_player.pause') : t('media_player.play')"
+                class="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:bg-white/10 [@media(hover:hover)]:hover:bg-white/10"
+                :aria-label="showsPlaying ? t('media_player.pause') : t('media_player.play')"
+                :aria-busy="playerBusy || !state ? 'true' : undefined"
                 data-test="mediaPlayerBarPlayPause"
                 @click="togglePlay"
             >
+                <BusyRing
+                    v-if="playerBusy || !state"
+                    data-test="mediaPlayerBarBusy"
+                />
                 <PlayerIcon
-                    v-if="playing"
+                    v-if="showsPlaying"
                     name="pause"
                     class="h-7 w-7"
                 />

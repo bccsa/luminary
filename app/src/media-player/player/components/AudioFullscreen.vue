@@ -978,35 +978,33 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                 type="button"
                                 class="lmpl-afs-playbtn"
                                 :class="{ 'lmpl-afs-busy': busy }"
-                                :aria-label="
-                                    busy
-                                        ? messages.loading
-                                        : playing
-                                          ? messages.pause
-                                          : messages.play
-                                "
+                                :aria-label="playing ? messages.pause : messages.play"
                                 :aria-busy="busy ? 'true' : undefined"
                                 data-test="afsPlay"
                                 data-lmpl-press="play"
                                 @click="onPlayButton"
                             >
+                                <!-- The button keeps what was asked for; the ring round it says it is on its way. -->
                                 <svg
                                     v-if="busy"
-                                    class="lmpl-afs-spinner"
-                                    viewBox="0 0 24 24"
-                                    width="30"
-                                    height="30"
+                                    class="lmpl-afs-spinner lmpl-busy-ring"
+                                    viewBox="0 0 48 48"
                                     fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2.6"
-                                    stroke-linecap="round"
                                     aria-hidden="true"
                                     data-test="afsSpinner"
                                 >
-                                    <path d="M12 3a9 9 0 1 1-9 9" />
+                                    <circle
+                                        cx="24"
+                                        cy="24"
+                                        r="22.5"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-dasharray="35 107"
+                                    />
                                 </svg>
                                 <media-icon
-                                    v-else-if="playing"
+                                    v-if="playing"
                                     name="pause"
                                     class="media-button-icon"
                                     data-test="afsPauseIcon"
