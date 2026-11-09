@@ -340,14 +340,14 @@ function swapToNext(id: string) {
 // Minimising hands the page back with its bars showing, whatever its scroll had done meanwhile.
 const mobileChrome = useMobileChromeAutoHide();
 watch(
-    expanded,
-    (isExpanded) => {
-        if (!item.value) return;
+    [expanded, () => !!item.value],
+    ([isExpanded, open]) => {
         const phone = !window.matchMedia("(min-width: 1024px)").matches;
-        mobileChrome.hidden.value = isExpanded && phone;
+        mobileChrome.hold(open && isExpanded && phone);
     },
     { immediate: true },
 );
+onBeforeUnmount(() => mobileChrome.hold(false));
 
 // Pages keep their content clear of the bar through --media-bar-h, as they do for the menu.
 const bar = ref<HTMLElement | null>(null);
