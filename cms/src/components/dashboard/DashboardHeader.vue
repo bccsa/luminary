@@ -18,7 +18,7 @@ const greeting = computed(() => {
 <template>
     <div class="flex flex-wrap items-center justify-between gap-3 px-4 lg:px-0">
         <div class="flex flex-col lg:flex-row lg:items-baseline lg:gap-2">
-            <h1 class="pl-0 text-lg font-semibold dark:text-zinc-100">{{ greeting }},</h1>
+            <h1 class="pl-0 text-lg font-semibold dark:text-zinc-10 text-zinc-500 dark:text-zinc-600">{{ greeting }},</h1>
             <h2 class="pl-0 text-lg font-semibold text-zinc-600 dark:text-yellow-400">
                 {{ userName }}
             </h2>
