@@ -84,10 +84,7 @@ export function publishedNowConditions(options?: MangoIsPublishedOptions): Mango
  * };
  * ```
  */
-export function mangoIsPublished(
-    languageIds: Uuid[],
-    options?: MangoIsPublishedOptions,
-): MangoSelector[] {
+export function mangoIsPublished(languageIds: Uuid[], options?: MangoIsPublishedOptions): MangoSelector[] {
     return [
         ...publishedNowConditions(options),
         // Language priority: select the best available translation

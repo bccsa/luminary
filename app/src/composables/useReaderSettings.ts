@@ -50,7 +50,7 @@ function load(): ReaderSettings {
     }
 }
 
-// Module-level so the theme modal and the highlight popup edit the same settings.
+// Module-level so every consumer edits the same settings.
 const settings = ref<ReaderSettings>(load());
 
 watch(
@@ -74,7 +74,8 @@ export function useReaderSettings() {
     });
     const lineHeight = computed({
         get: () => settings.value.lineHeight,
-        set: (v: number) => (settings.value.lineHeight = v),
+        set: (v: number) =>
+            (settings.value.lineHeight = Math.min(Math.max(v, 0), LINE_HEIGHTS.length - 1)),
     });
     const font = computed({
         get: () => settings.value.font,

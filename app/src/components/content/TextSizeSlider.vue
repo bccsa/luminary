@@ -23,7 +23,7 @@ const stepButtonClass =
             <MinusIcon class="size-4" />
         </button>
         <!-- Explicit thumb/track resets: appearance-none + accent colour alone renders a doubled bar in some engines.
-             mousedown is stopped so a parent popup's preventDefault (used to keep the text selection) can't block dragging. -->
+             mousedown is stopped so an ancestor's preventDefault can't block dragging. -->
         <input
             type="range"
             min="0"
