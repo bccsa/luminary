@@ -1806,23 +1806,9 @@ function onKeydown(event: KeyboardEvent) {
                         </div>
                     </template>
                     <template #stage>
-                        <MediaPlayerWrapper
-                            ref="engine"
-                            :content="content"
-                            :language="item.language"
-                            :start-audio="startAudio"
-                            :next-up="nextUp"
-                            :up-next="browseUpNext"
-                            autoplay
-                            @nextupselect="swapToNext"
-                            @upnextselect="swapToNext"
-                            :inline="true"
-                            :caption-band="captionBand ? 64 : 0"
-                            :fullscreen-on-play="isNativeApp()"
-                            :windowed-controls="webFill"
-                            :captions-hidden="
-                                (webCaptionsBelow && !webFill) || (isNativeApp() && screenCovered)
-                            "
+                        <div
+                            id="lmp-engine-screen"
+                            class="contents"
                         />
                         <div
                             v-if="scrubPictureCue"
@@ -1957,18 +1943,9 @@ function onKeydown(event: KeyboardEvent) {
                     v-show="!audioMode"
                     class="absolute inset-0"
                 >
-                    <MediaPlayerWrapper
-                        ref="engine"
-                        :content="content"
-                        :language="item.language"
-                        :start-audio="startAudio"
-                        :next-up="nextUp"
-                        :up-next="browseUpNext"
-                        autoplay
-                        @nextupselect="swapToNext"
-                        @upnextselect="swapToNext"
-                        inline
-                        :fullscreen-on-play="isNativeApp()"
+                    <div
+                        id="lmp-engine-card"
+                        class="contents"
                     />
                 </div>
 
@@ -2629,6 +2606,32 @@ function onKeydown(event: KeyboardEvent) {
                     @select="playChapter"
                 />
             </div>
+            <!-- One engine, moved between the screen and the card: a copy in each was a second player
+                 that started from the last saved position whenever the card was minimised or expanded. -->
+            <Teleport
+                defer
+                :to="screen ? '#lmp-engine-screen' : '#lmp-engine-card'"
+            >
+                <MediaPlayerWrapper
+                    ref="engine"
+                    :content="content"
+                    :language="item.language"
+                    :start-audio="startAudio"
+                    :next-up="nextUp"
+                    :up-next="browseUpNext"
+                    autoplay
+                    @nextupselect="swapToNext"
+                    @upnextselect="swapToNext"
+                    inline
+                    :caption-band="screen && captionBand ? 64 : 0"
+                    :fullscreen-on-play="isNativeApp()"
+                    :windowed-controls="screen && webFill"
+                    :captions-hidden="
+                        screen &&
+                        ((webCaptionsBelow && !webFill) || (isNativeApp() && screenCovered))
+                    "
+                />
+            </Teleport>
         </section>
 
         <div
