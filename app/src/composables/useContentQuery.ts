@@ -22,6 +22,7 @@ import { chainFor, queueOnChain } from "@/ssg/ssrChains";
 import { isPrerender } from "@/ssg/isPrerender";
 import { queryContentLocal } from "@/ssg/contentStore";
 import { reportRenderIssue } from "@/ssg/renderDiagnostics";
+import { rememberContent } from "@/util/recentContent";
 
 /** Reads back one just-written response-cache entry so it can be attributed to its route. Takes the full `hqcache:`-prefixed storage key (matching shared's `STORAGE_PREFIX`). */
 function readCacheEntry(storageKey: string): string | null {
@@ -256,6 +257,7 @@ function useContentQueryState(
         cache,
         persistOffline,
         stripFields,
+        onLocalRead: rememberContent,
         ...rest,
         // Auth-scope the response-cache key: the SSG build always seeds the `:anon`
         // entry (see the SSR branch below), so a returning logged-in client must

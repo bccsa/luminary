@@ -85,6 +85,7 @@ import { useTranslationSwitcher } from "@/composables/useTranslationSwitcher";
 import { useKeepScreenAwake } from "@/composables/useKeepScreenAwake";
 import { recoverSsrArticleText, takeSsrArticleTextSnapshot } from "@/util/ssrTextRecovery";
 import { isPrerender } from "@/ssg/isPrerender";
+import { recentContentBySlug } from "@/util/recentContent";
 
 const router = useRouter();
 
@@ -142,16 +143,36 @@ const contentOverride = ref<ContentDto | undefined>();
 // change and once the live query emits (local docs carry full `text` via
 // `stripFields: []`, so the live doc takes over cleanly).
 const coldStartBackstop = ref<ContentDto | undefined>();
+// Published-right-now check compiled to a plain predicate rather than reusing `mangoIsPublished`, which also bakes in single-language-priority selection — wrong here, where the dropdown/hreflang need every published sibling translation. `includeScheduled: false` excludes future-dated "coming soon" translations that aren't readable yet.
+const isPublishedNow = mangoCompile({ $and: publishedNowConditions({ includeScheduled: false }) });
+
+// The doc as a feed last read it from IndexedDB (e.g. the tile just tapped), so a cached
+// article renders before its own read lands; a busy app delays that read by seconds.
+const readRecent = (slug: string) => {
+    if (isPrerender()) return undefined;
+    const doc = recentContentBySlug(slug);
+    return doc && isPublishedNow(doc) ? doc : undefined;
+};
+const recentContent = ref<ContentDto | undefined>(readRecent(props.slug));
 const content = computed<ContentDto | undefined>(
-    () => contentOverride.value ?? coldStartBackstop.value ?? contentArr.value[0],
+    () =>
+        contentOverride.value ??
+        coldStartBackstop.value ??
+        contentArr.value[0] ??
+        recentContent.value,
 );
 watch(
     () => props.slug,
-    () => {
+    (slug) => {
         contentOverride.value = undefined;
         coldStartBackstop.value = undefined;
+        recentContent.value = readRecent(slug);
     },
 );
+// The query is authoritative: a doc it no longer finds (unpublished, revoked) must not linger.
+watch([contentArr, isContentFetching], ([docs, fetching]) => {
+    if (!fetching && !docs.length) recentContent.value = undefined;
+});
 
 // One-time hydration patch (client only): recover `text` (omitted from the cache seed via `ssrCacheStripFields`) from the snapshot `main.web.ts` captured before `app.mount` cleared the prerendered DOM, so `v-html` matches the prerendered HTML. Runs in setup (not a watcher) so it lands before the template's first evaluation. Guarded on `!isPrerender` so it runs in the browser after the web build hydrates but skips the Node prerender pass; the normal SPA always passes. No-op when the seed already carries `text` or there's nothing to recover.
 if (!isPrerender()) {
@@ -415,9 +436,6 @@ const translationsArr = useContentQuery(
         cacheStripFields: ["text"],
     },
 );
-
-// Published-right-now check compiled to a plain predicate rather than reusing `mangoIsPublished`, which also bakes in single-language-priority selection — wrong here, where the dropdown/hreflang need every published sibling translation. `includeScheduled: false` excludes future-dated "coming soon" translations that aren't readable yet.
-const isPublishedNow = mangoCompile({ $and: publishedNowConditions({ includeScheduled: false }) });
 
 const availableTranslations = computed<ContentDto[]>(() => {
     if (!content.value) return [];

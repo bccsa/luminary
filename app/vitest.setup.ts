@@ -24,8 +24,11 @@ if (typeof localStorage === "undefined") {
 // a file's tests and re-run real mangoToDexie on every beforeEach mutation, which
 // compounds badly under parallel load.
 enableAutoUnmount(afterEach);
+// Remembered articles are module state; one test's reads must not seed the next test's page.
+afterEach(() => __resetRecentContent());
 import { db, initConfig, initDatabase } from "luminary-shared";
 import { APP_DOCS_INDEX } from "./src/docsIndex";
+import { __resetRecentContent } from "./src/util/recentContent";
 import { createI18n } from "vue-i18n";
 import { mockLanguageDtoEng } from "./src/tests/mockdata";
 import waitForExpect from "wait-for-expect";

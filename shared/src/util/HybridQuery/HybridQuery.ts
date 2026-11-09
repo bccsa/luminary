@@ -306,6 +306,11 @@ export type HybridQueryOptions = {
      * a non-Content query) means no hold.
      */
     waitForRemote?: boolean;
+    /**
+     * Receives each local Dexie result before `stripFields` is applied, so a caller can keep
+     * fields the output drops (e.g. an article body) without holding them in every output.
+     */
+    onLocalRead?: (docs: BaseDocumentDto[]) => void;
 };
 
 /**
@@ -429,6 +434,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     private readonly _keepPreviousResult: boolean;
     // See {@link HybridQueryOptions.waitForRemote}.
     private readonly _waitForRemote: boolean;
+    private readonly _onLocalRead?: (docs: BaseDocumentDto[]) => void;
     // True while `_recompute` must not publish: this generation owes a supplement that
     // hasn't settled yet. Released in `_settleRemote`.
     private _holding = false;
@@ -481,6 +487,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._live = options.live ?? false;
         this._keepPreviousResult = options.keepPreviousResult ?? false;
         this._waitForRemote = options.waitForRemote ?? false;
+        this._onLocalRead = options.onLocalRead;
         this._persistOffline = options.persistOffline ?? false;
         this._cache = options.cache ?? false;
         this._cacheId = options.cacheId;
@@ -1082,6 +1089,13 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
 
     /** Replace the local contribution (the live emission may have dropped docs). */
     private _setLocal(local: T[]): void {
+        if (this._onLocalRead) {
+            try {
+                this._onLocalRead(local);
+            } catch (err) {
+                this._reportError("on-local-read", err);
+            }
+        }
         local = this._strip(local);
         // Prune tombstones the fresh Dexie read has caught up on: the id is gone,
         // or present with a copy NEWER than the delete (republished). A still-

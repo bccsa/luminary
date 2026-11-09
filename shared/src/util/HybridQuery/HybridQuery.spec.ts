@@ -2641,6 +2641,38 @@ describe("HybridQuery", () => {
             }
         });
 
+        it("hands onLocalRead the full local docs before stripping", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content", text: "body-a" },
+            ]);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+            const onLocalRead = vi.fn();
+
+            const q = new HybridQuery(contentQuery, { stripFields: ["text"], onLocalRead });
+            await flush();
+
+            expect(onLocalRead).toHaveBeenCalledWith([
+                expect.objectContaining({ _id: "a", text: "body-a" }),
+            ]);
+            expect((q.output.value as any[])[0]).not.toHaveProperty("text");
+        });
+
+        it("keeps publishing local docs when onLocalRead throws", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ]);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            const q = new HybridQuery(contentQuery, {
+                onLocalRead: () => {
+                    throw new Error("boom");
+                },
+            });
+            await flush();
+
+            expect((q.output.value as any[]).map((d) => d._id)).toEqual(["a"]);
+        });
+
         it("persistOffline writes the FULL doc even when those fields are stripped from output", async () => {
             mocks.mangoToDexieMock.mockResolvedValueOnce([
                 { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
