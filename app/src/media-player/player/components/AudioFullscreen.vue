@@ -123,6 +123,9 @@ const emit = defineEmits<{
     /** A menu or the chapters panel is over the screen, or is not any more. */
     covered: [open: boolean];
     "toggle-play": [];
+    /** A scrub holding the video still, and handing it back: explicit, so they cannot land the wrong way. */
+    play: [];
+    pause: [];
     /** `exact: false` for skips: the player may land on the nearest keyframe, which shows at once. */
     seek: [time: number, options?: { exact?: boolean }];
     "open-browse": [];
@@ -302,11 +305,12 @@ const timelineScrub = new TimelineScrub((effect) => {
             if (stripOpen.value) emit("scrub", null);
             stripOpen.value = false;
             break;
+        // Not toggle-play: `playing` trails the element by an event, and a toggle read off it can land the wrong way.
         case "pause":
-            if (props.playing) emit("toggle-play");
+            emit("pause");
             break;
         case "play":
-            if (!props.playing) emit("toggle-play");
+            emit("play");
             break;
         case "seek":
             holdSeek(effect.time);

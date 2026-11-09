@@ -313,6 +313,52 @@ describe("AudioFullscreen — the transport", () => {
         expect(wrapper.emitted("seek")).toEqual([[360]]);
     });
 
+    it("a finger drag pauses and plays explicitly, never by toggling", async () => {
+        // `playing` still reads true at the release, as it can before the pause event arrives.
+        const wrapper = mountScreen({ playing: true });
+        const bar = find(wrapper, "afsBar");
+        bar.element.getBoundingClientRect = () => ({
+            left: 100,
+            width: 200,
+            top: 0,
+            height: 30,
+            right: 300,
+            bottom: 30,
+            x: 100,
+            y: 0,
+            toJSON: () => ({}),
+        });
+        await bar.trigger("pointerdown", { clientX: 200, pointerId: 4, pointerType: "touch" });
+        await bar.trigger("pointermove", { clientX: 250, pointerId: 4, pointerType: "touch" });
+        expect(wrapper.emitted("pause")).toHaveLength(1);
+        await bar.trigger("pointerup", { clientX: 250, pointerId: 4, pointerType: "touch" });
+        expect(wrapper.emitted("seek")).toEqual([[360]]);
+        expect(wrapper.emitted("play")).toHaveLength(1);
+        expect(wrapper.emitted("toggle-play")).toBeUndefined();
+    });
+
+    it("a finger drag on a paused video leaves it paused", async () => {
+        const wrapper = mountScreen({ playing: false });
+        const bar = find(wrapper, "afsBar");
+        bar.element.getBoundingClientRect = () => ({
+            left: 100,
+            width: 200,
+            top: 0,
+            height: 30,
+            right: 300,
+            bottom: 30,
+            x: 100,
+            y: 0,
+            toJSON: () => ({}),
+        });
+        await bar.trigger("pointerdown", { clientX: 200, pointerId: 5, pointerType: "touch" });
+        await bar.trigger("pointermove", { clientX: 150, pointerId: 5, pointerType: "touch" });
+        await bar.trigger("pointerup", { clientX: 150, pointerId: 5, pointerType: "touch" });
+        expect(wrapper.emitted("pause")).toBeUndefined();
+        expect(wrapper.emitted("play")).toBeUndefined();
+        expect(wrapper.emitted("toggle-play")).toBeUndefined();
+    });
+
     it("lets go of a seek the player never makes, after a moment", async () => {
         vi.useFakeTimers();
         try {

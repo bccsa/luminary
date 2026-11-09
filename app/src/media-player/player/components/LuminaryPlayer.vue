@@ -677,10 +677,32 @@ function seek(seconds: number): void {
     mediaEl.value.currentTime = seconds;
 }
 
-/** Starts playback and reports whether the browser allowed it; a refusal is expected, not an error. */
+/** Undoes the wait {@link play} arms for a seek still under way; null when none is armed. */
+let cancelPlayOnSeeked: (() => void) | null = null;
+
+function disarmPlayOnSeeked(): void {
+    cancelPlayOnSeeked?.();
+    cancelPlayOnSeeked = null;
+}
+
+/**
+ * Starts playback and reports whether the browser allowed it; a refusal is expected, not an error.
+ * Asked for mid-seek (a scrub letting go), it is asked for again once the seek lands: a seek into media
+ * not yet buffered can leave the element paused, and a scrub must hand back the state it found.
+ */
 async function play(): Promise<boolean> {
+    const media = mediaEl.value;
+    disarmPlayOnSeeked();
+    if (media?.seeking) {
+        const onSeeked = (): void => {
+            cancelPlayOnSeeked = null;
+            if (media.paused) void media.play()?.catch(() => undefined);
+        };
+        media.addEventListener("seeked", onSeeked, { once: true });
+        cancelPlayOnSeeked = () => media.removeEventListener("seeked", onSeeked);
+    }
     try {
-        await mediaEl.value?.play();
+        await media?.play();
         return true;
     } catch {
         return false;
@@ -688,6 +710,7 @@ async function play(): Promise<boolean> {
 }
 
 function pause(): void {
+    disarmPlayOnSeeked();
     mediaEl.value?.pause();
 }
 
@@ -821,13 +844,13 @@ function pauseForScrub(): void {
     const media = mediaEl.value;
     if (!media || media.paused || resumeAfterScrub) return;
     resumeAfterScrub = true;
-    media.pause();
+    pause();
 }
 
 function resumeFromScrub(): void {
     if (!resumeAfterScrub) return;
     resumeAfterScrub = false;
-    void mediaEl.value?.play();
+    void play();
 }
 
 /** The press ended, or was taken from us: nothing is being scrubbed any more. */
@@ -859,7 +882,6 @@ function endScrub(event?: PointerEvent): void {
  * would seek on release, and decided here. A mouse keeps the slider's click-to-seek.
  */
 const timelineScrub = new TimelineScrub((effect) => {
-    const media = mediaEl.value;
     switch (effect.kind) {
         case "open":
             if (effect.mode === "strip") openPinAtPlayhead();
@@ -871,10 +893,10 @@ const timelineScrub = new TimelineScrub((effect) => {
             barDragAt.value = null;
             break;
         case "pause":
-            media?.pause();
+            pause();
             break;
         case "play":
-            void media?.play();
+            void play();
             break;
         case "seek":
             pinAnchor.value = effect.time;
@@ -883,7 +905,10 @@ const timelineScrub = new TimelineScrub((effect) => {
             break;
     }
 });
-onBeforeUnmount(() => timelineScrub.reset());
+onBeforeUnmount(() => {
+    timelineScrub.reset();
+    disarmPlayOnSeeked();
+});
 
 /** Opened without frames: the bar thickens and carries a handle. */
 const barScrub = ref(false);
@@ -2036,6 +2061,8 @@ defineExpose({
                     :messages="msg"
                     @exit="exitFullscreen"
                     @toggle-play="state.playing ? pause() : play()"
+                    @play="play()"
+                    @pause="pause()"
                     @seek="seek"
                     @open-browse="openBrowse"
                     @seek-chapter="(chapter: Chapter) => seek(chapter.startTime)"

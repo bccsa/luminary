@@ -1690,6 +1690,8 @@ function onKeydown(event: KeyboardEvent) {
                     :lyrics="lyrics"
                     @exit="minimiseMediaPlayer"
                     @toggle-play="togglePlay"
+                    @play="handle?.play()"
+                    @pause="handle?.pause()"
                     @seek="(time, options) => handle?.seek(time, options)"
                     @seek-chapter="(chapter: Chapter) => handle?.seek(chapter.startTime)"
                     @upnextselect="
