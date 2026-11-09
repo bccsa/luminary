@@ -52,6 +52,7 @@ import { shareImageUrl } from "@/composables/useSocialShare";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import type {
     VideoNowPlaying,
+    VideoNowPlayingAction,
     VideoPlayerHandle,
 } from "@/build-time/contracts/video-player/contract";
 
@@ -82,7 +83,12 @@ type Props = {
 };
 
 const props = defineProps<Props>();
-const emit = defineEmits<{ upnextselect: [id: string]; nextupselect: [id: string] }>();
+const emit = defineEmits<{
+    upnextselect: [id: string];
+    nextupselect: [id: string];
+    /** What the platform's own now-playing screen asks of the page. */
+    nowplayingaction: [action: VideoNowPlayingAction, value?: string];
+}>();
 
 /**
  * The player's own strings, in the language of the app: the web and the native player take the
@@ -90,6 +96,11 @@ const emit = defineEmits<{ upnextselect: [id: string]; nextupselect: [id: string
  * to fill in with its own interval.
  */
 const playerMessages = usePlayerMessages();
+
+function passNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
+    if (value === undefined) emit("nowplayingaction", action);
+    else emit("nowplayingaction", action, value);
+}
 
 // The browser's player when no service is provided: a component mounted on its own.
 const videoPlayer = inject(VideoPlayerKey, {
@@ -641,6 +652,7 @@ function onEnded() {
                 @upnextselect="emit('upnextselect', $event)"
                 @nextupselect="onNextUpSelect"
                 @nextupdismiss="nextUpDismissed = true"
+                @nowplayingaction="passNowPlayingAction"
             />
         </div>
     </div>

@@ -8,11 +8,31 @@ const COVER_TARGET_WIDTH = 640;
  * nearest 640 px wide. Undefined when the post has no image or the bucket's address is not known yet.
  */
 export function coverImageUrl(content: ContentDto, bucketBaseUrl?: string): string | undefined {
+    return imageUrlNear(content, bucketBaseUrl, 1, COVER_TARGET_WIDTH);
+}
+
+const POSTER_ASPECT = 16 / 9;
+const POSTER_TARGET_WIDTH = 960;
+
+/**
+ * The post's wide picture, as the player's poster shows it: the image set nearest 16:9, at the file nearest
+ * 960 px wide. Undefined when the post has no image or the bucket's address is not known yet.
+ */
+export function posterImageUrl(content: ContentDto, bucketBaseUrl?: string): string | undefined {
+    return imageUrlNear(content, bucketBaseUrl, POSTER_ASPECT, POSTER_TARGET_WIDTH);
+}
+
+function imageUrlNear(
+    content: ContentDto,
+    bucketBaseUrl: string | undefined,
+    aspect: number,
+    width: number,
+): string | undefined {
     const collections = content.parentImageData?.fileCollections ?? [];
     if (!bucketBaseUrl || !collections.length) return undefined;
 
     const collection = collections.reduce((closest, candidate) =>
-        Math.abs(candidate.aspectRatio - 1) < Math.abs(closest.aspectRatio - 1)
+        Math.abs(candidate.aspectRatio - aspect) < Math.abs(closest.aspectRatio - aspect)
             ? candidate
             : closest,
     );
@@ -20,10 +40,7 @@ export function coverImageUrl(content: ContentDto, bucketBaseUrl?: string): stri
     if (!files.length) return undefined;
 
     const file = files.reduce((closest, candidate) =>
-        Math.abs(candidate.width - COVER_TARGET_WIDTH) <
-        Math.abs(closest.width - COVER_TARGET_WIDTH)
-            ? candidate
-            : closest,
+        Math.abs(candidate.width - width) < Math.abs(closest.width - width) ? candidate : closest,
     );
     return `${bucketBaseUrl.replace(/\/$/, "")}/${file.filename}`;
 }

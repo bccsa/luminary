@@ -32,6 +32,7 @@ import {
     chapterSegments,
     type ThumbnailSpriteCue,
     type Chapter,
+    type SleepTimerOption,
 } from "@luminary-media-converter/player-web";
 import {
     AudioFullscreen,
@@ -50,12 +51,17 @@ import {
 import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
 import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";
+import type {
+    VideoNowPlayingAction,
+    VideoNowPlayingScreen,
+    VideoNowPlayingTexts,
+} from "@/build-time/contracts/video-player/contract";
 import LImage from "@/components/images/LImage.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { isMac } from "@/globalConfig";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { fallbackImageFor } from "@/util/fallbackArtwork";
-import { coverImageUrl, thumbHashTint, thumbHashWash } from "./coverImage";
+import { coverImageUrl, posterImageUrl, thumbHashTint, thumbHashWash } from "./coverImage";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
 import { subtitlePreference, subtitlesOnVideo } from "@/globalConfig";
@@ -90,8 +96,8 @@ import {
 const { t } = useI18n();
 const router = useRouter();
 
-/** The speeds the player's own full-screen offers, so both agree. */
-const RATES = [0.5, 0.7, 1, 1.5];
+/** The speeds every speed menu offers, the player's own included, so a speed set in one is ticked in the others. */
+const RATES = [0.75, 1, 1.25, 1.5, 1.75, 2];
 const SKIP_SECONDS = 10;
 /**
  * When a pull down lets go of what it moves: far enough (two fifths of its height), or after a throw (a
@@ -339,15 +345,6 @@ function swapToNext(id: string) {
 // away with them: the status bar steps aside with it in the packaged app, for a screen of its own.
 // Minimising hands the page back with its bars showing, whatever its scroll had done meanwhile.
 const mobileChrome = useMobileChromeAutoHide();
-watch(
-    expanded,
-    (isExpanded) => {
-        if (!item.value) return;
-        const phone = !window.matchMedia("(min-width: 1024px)").matches;
-        mobileChrome.hidden.value = isExpanded && phone;
-    },
-    { immediate: true },
-);
 
 // Pages keep their content clear of the bar through --media-bar-h, as they do for the menu.
 const bar = ref<HTMLElement | null>(null);
@@ -380,10 +377,13 @@ watch(
 
 /** Audio was asked for and the audio-only source is still loading: the picture would only be frozen until it arrives. */
 const audioRequested = ref(false);
+/** The viewer chose sound, and the platform turned the picture off in place rather than loading the sound angle. */
+const videoOffByChoice = ref(false);
 const audioMode = computed(
     () =>
         !!state.value &&
         (audioRequested.value ||
+            videoOffByChoice.value ||
             state.value.isAudioOnly ||
             state.value.activeAngleId === AUDIO_ONLY_ANGLE_ID),
 );
@@ -495,9 +495,10 @@ const webCaption = computed(() => {
             ?.text ?? ""
     );
 });
-const inlineHole = computed(() => expanded.value && inlineVideo.value && !audioMode.value);
-watchEffect(() => document.documentElement.classList.toggle("lmc-inline-video", inlineHole.value));
-onBeforeUnmount(() => document.documentElement.classList.remove("lmc-inline-video"));
+// The platform's own screen covers the page: a see-through page would show the window behind it while that opens.
+const inlineHole = computed(
+    () => expanded.value && inlineVideo.value && !audioMode.value && !nativeOwnsScreen.value,
+);
 
 /** `seconds` as a share of the duration, 0 while there is none. */
 function fraction(seconds: number): number {
@@ -898,6 +899,12 @@ const canSwitch = computed(
 
 async function showAudio() {
     if (audioMode.value) return;
+    // The picture goes and the sound plays on: nothing loads, so there is no gap.
+    if (handle.value?.canTurnVideoOff && state.value?.activeAngleId !== AUDIO_ONLY_ANGLE_ID) {
+        videoOffByChoice.value = true;
+        handle.value.setVideoOff?.(true);
+        return;
+    }
     audioRequested.value = true;
     try {
         await controller.value?.setAngle(AUDIO_ONLY_ANGLE_ID);
@@ -907,6 +914,12 @@ async function showAudio() {
 }
 
 async function showVideo() {
+    if (videoOffByChoice.value) {
+        videoOffByChoice.value = false;
+        handle.value?.setVideoOff?.(false);
+        if (isNativeApp() && !inlineVideo.value) await handle.value?.enterFullscreen();
+        return;
+    }
     const audioPending = audioRequested.value;
     audioRequested.value = false;
     const target =
@@ -918,6 +931,16 @@ async function showVideo() {
     // full-screen; the web shows it in the player.
     if (isNativeApp() && !inlineVideo.value) await handle.value?.enterFullscreen();
 }
+
+// The picture's off-switch belongs to the item it was used on; the next one starts as its own mode says.
+watch(
+    () => item.value?.content._id,
+    () => {
+        if (!videoOffByChoice.value) return;
+        videoOffByChoice.value = false;
+        handle.value?.setVideoOff?.(false);
+    },
+);
 
 // Watch or Listen asked for again on what is already playing: switch to it, as the player's own buttons do.
 watch(item, (now, before) => {
@@ -1223,6 +1246,10 @@ const screenArtwork = computed(() => {
     if (src) return { src, ...(fallback ? { fallback } : {}) };
     return fallback ? { src: fallback } : null;
 });
+/** The wide picture the player's own poster shows, for the platform's screen while a new item starts. */
+const screenPoster = computed(() =>
+    content.value ? posterImageUrl(content.value, coverBucketBaseUrl.value) : undefined,
+);
 const screenChapterIndex = computed(() => chapterIndexAt(chapters.value, currentTime.value));
 /** The preview frame at a time, for the chapters' pictures, once the thumbnails are in. */
 const chapterThumbnailAt = computed(() =>
@@ -1249,6 +1276,15 @@ watch([audioMode, () => item.value?.content._id], ([isAudio]) => {
 
 const SLEEP_MINUTES = [5, 10, 15, 30, 45, 60];
 const sleepTimer = computed(() => state.value?.sleepTimer ?? null);
+/** The length last picked: the running timer keeps only its end, and the platform's menu ticks the length. */
+const sleepPickedMinutes = ref<number | null>(null);
+watch(sleepTimer, (timer) => {
+    if (timer?.kind !== "minutes") sleepPickedMinutes.value = null;
+});
+function setSleep(option: SleepTimerOption | null) {
+    sleepPickedMinutes.value = option?.kind === "minutes" ? option.minutes : null;
+    controller.value?.setSleepTimer(option);
+}
 
 // --- the now-playing screen on a phone -----------------------------------------------------------
 
@@ -1348,6 +1384,136 @@ const nowPlayingSubtitle = computed(() =>
     [content.value?.author, publishDate.value].filter(Boolean).join(" · "),
 );
 
+// --- the platform's own now-playing screen ---------------------------------------------------------
+
+/**
+ * Where the platform draws the expanded screen itself, it covers this one, which stays mounted for its player. An
+ * error or a video not yet published keeps the page's screen, whose panel says so and offers to try again.
+ */
+const nativeScreen = computed(
+    () =>
+        screen.value &&
+        expanded.value &&
+        handle.value?.nativeNowPlaying === true &&
+        state.value?.lifecycle !== "error" &&
+        state.value?.lifecycle !== "waiting-for-master",
+);
+/**
+ * The platform's screen is (or is about to be) the one on the phone: this one is taken out of the page, so it
+ * neither shows (also while a closing native screen slides away) nor keeps the web view drawing under it.
+ */
+const nativeOwnsScreen = computed(
+    () =>
+        screen.value &&
+        isNativeApp() &&
+        state.value?.lifecycle !== "error" &&
+        state.value?.lifecycle !== "waiting-for-master" &&
+        handle.value?.nativeNowPlaying !== false,
+);
+watchEffect(() => document.documentElement.classList.toggle("lmc-inline-video", inlineHole.value));
+// Under the platform's own screen the page keeps its bars: moving them would re-lay the page out beneath a
+// screen that is sliding in, for nothing anyone sees.
+watch(
+    [expanded, nativeOwnsScreen],
+    ([isExpanded, native]) => {
+        if (!item.value) return;
+        const phone = !window.matchMedia("(min-width: 1024px)").matches;
+        mobileChrome.hidden.value = isExpanded && phone && !native;
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => document.documentElement.classList.remove("lmc-inline-video"));
+/** The timer as the platform's screen shows it; its length is a guess only when it was set elsewhere. */
+const nativeSleep = computed<VideoNowPlayingScreen["sleep"]>(() => {
+    const timer = sleepTimer.value;
+    if (!timer) return null;
+    if (timer.kind === "chapter") return { kind: "chapter" };
+    const minutes =
+        sleepPickedMinutes.value ?? Math.max(1, Math.round((timer.endsAt - Date.now()) / 60_000));
+    return { kind: "minutes", endsAt: timer.endsAt, minutes };
+});
+const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
+    if (!nativeScreen.value || !content.value) return null;
+    const artworkUrl = screenArtwork.value?.src;
+    return {
+        title: content.value.title,
+        ...(nowPlayingSubtitle.value ? { subtitle: nowPlayingSubtitle.value } : {}),
+        ...(artworkUrl ? { artworkUrl } : {}),
+        ...(nowPlayingWash.value ? { washUrl: nowPlayingWash.value } : {}),
+        canRead: !!content.value.slug,
+        canSwitch: canSwitch.value,
+        audioMode: audioMode.value,
+        captionBand: captionBand.value,
+        live: live.value,
+        ...(screenPoster.value ? { posterUrl: screenPoster.value } : {}),
+        itemId: content.value._id,
+        sleep: nativeSleep.value,
+    };
+});
+/** The screen's own words; the player adds those it shares with its other controls. */
+const nativeScreenTexts = computed<VideoNowPlayingTexts>(() => ({
+    minimise: t("media_player.minimise"),
+    audio: t("media_player.audio"),
+    video: t("media_player.video"),
+    playAs: t("media_player.play_as"),
+    read: t("media_player.read"),
+    live: t("media_player.live"),
+    speed: t("media_player.speed"),
+    quality: t("video_player.quality_menu"),
+    qualityAuto: t("video_player.quality_auto"),
+    audioMenu: t("video_player.audio_menu"),
+    subtitles: t("video_player.subtitles_menu"),
+    subtitlesOff: t("video_player.subtitles_off"),
+    lyrics: t("media_player.lyrics"),
+    sleepTimer: t("media_player.sleep_timer"),
+    sleepOff: t("media_player.sleep_off"),
+    // The platform fills these in itself, so the placeholders go through as they are.
+    sleepMinutes: t("media_player.sleep_minutes", { minutes: "{minutes}" }),
+    sleepEndOfChapter: t("media_player.sleep_end_of_chapter"),
+    sleepLeft: t("media_player.sleep_left", { minutes: "{minutes}" }),
+    browse: t("video_player.browse"),
+    pictureInPicture: t("media_player.picture_in_picture"),
+    fullscreen: t("media_player.fullscreen"),
+    cast: t("media_player.cast"),
+}));
+let sentNativeScreen = "";
+watch(
+    [nativeScreenContent, nativeScreenTexts, handle],
+    ([shown, texts, player], [, , playerBefore]) => {
+        // Another player has shown nothing yet.
+        if (player !== playerBefore) sentNativeScreen = "";
+        if (!shown) {
+            if (sentNativeScreen) handle.value?.hideNowPlaying?.();
+            sentNativeScreen = "";
+            return;
+        }
+        const sending = JSON.stringify([shown, texts]);
+        if (sending === sentNativeScreen) return;
+        sentNativeScreen = sending;
+        handle.value?.showNowPlaying?.(shown, texts);
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => {
+    if (sentNativeScreen) handle.value?.hideNowPlaying?.();
+});
+
+function onNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
+    if (action === "minimise") minimiseMediaPlayer();
+    else if (action === "read") openArticle();
+    else if (action === "audio") void showAudio();
+    else if (action === "video") void showVideo();
+    else if (action === "sleep") pickNativeSleep(value);
+}
+
+/** The platform's sleep menu: `off`, `chapter`, or the minutes. */
+function pickNativeSleep(value: string | undefined) {
+    if (value === "off") return setSleep(null);
+    if (value === "chapter") return setSleep({ kind: "chapter" });
+    const minutes = Number(value);
+    if (Number.isFinite(minutes) && minutes > 0) setSleep({ kind: "minutes", minutes });
+}
+
 /** With sound alone the subtitles are the lyrics, read from the player where it can. */
 const lyrics = computed(() => (audioMode.value ? (handle.value?.subtitleCues ?? []) : []));
 
@@ -1416,8 +1582,8 @@ const sleepMinutesLeft = computed(() =>
         ? Math.max(1, Math.ceil((sleepTimer.value.endsAt - Date.now()) / 60_000))
         : null,
 );
-function pickSleep(option: { kind: "minutes"; minutes: number } | { kind: "chapter" } | null) {
-    controller.value?.setSleepTimer(option);
+function pickSleep(option: SleepTimerOption | null) {
+    setSleep(option);
     openMenu.value = null;
 }
 /** `m:ss`, or `h:mm:ss` past an hour. */
@@ -1630,6 +1796,8 @@ function onKeydown(event: KeyboardEvent) {
                 ...(playerDragging
                     ? { '--tw-translate-y': `${playerDragY}px`, transition: 'none' }
                     : {}),
+                // Hidden under the platform's screen: no slide of its own to composite every frame.
+                ...(nativeOwnsScreen ? { transition: 'none' } : {}),
             }"
             ref="sectionEl"
             data-test="mediaPlayer"
@@ -1640,6 +1808,7 @@ function onKeydown(event: KeyboardEvent) {
                 v-if="screen"
                 class="lmpl-root [&_.lmpl-afs-top]:touch-none"
                 style="position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto"
+                :style="nativeOwnsScreen ? { display: 'none' } : undefined"
                 data-test="mediaPlayerNowPlaying"
                 @pointerdown="onNowPlayingDragStart"
                 @pointermove="onDragMove"
@@ -1701,7 +1870,7 @@ function onKeydown(event: KeyboardEvent) {
                     @rate="(rate) => controller?.setPlaybackRate(rate)"
                     @audio-track="(id: string) => controller?.setAudioTrack(id)"
                     @quality="(id) => controller?.setQuality(id)"
-                    @sleep="(option) => controller?.setSleepTimer(option)"
+                    @sleep="setSleep"
                     @subtitle-track="(id: string | null) => controller?.setSubtitleTrack(id)"
                     @picture-in-picture="handle?.startPictureInPicture?.()"
                     @fullscreen="
@@ -1816,6 +1985,7 @@ function onKeydown(event: KeyboardEvent) {
                             autoplay
                             @nextupselect="swapToNext"
                             @upnextselect="swapToNext"
+                            @nowplayingaction="onNowPlayingAction"
                             :inline="true"
                             :caption-band="captionBand ? 64 : 0"
                             :fullscreen-on-play="isNativeApp()"
@@ -2681,7 +2851,7 @@ function onKeydown(event: KeyboardEvent) {
                 "
                 @rate="(rate) => controller?.setPlaybackRate(rate)"
                 @audio-track="(id: string) => controller?.setAudioTrack(id)"
-                @sleep="(option) => controller?.setSleepTimer(option)"
+                @sleep="setSleep"
                 @subtitle-track="(id: string | null) => controller?.setSubtitleTrack(id)"
             >
                 <template #audio-tool>

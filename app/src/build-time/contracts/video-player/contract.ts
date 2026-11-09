@@ -10,6 +10,71 @@ export type VideoNowPlaying = {
     fallbackArtworkUrl?: string;
 };
 
+/** What a platform's own now-playing screen shows besides the player's state. */
+export type VideoNowPlayingScreen = {
+    title: string;
+    subtitle?: string;
+    /** The square cover drawn for sound. */
+    artworkUrl?: string;
+    /** A small soft image (a `data:` PNG) stretched over the background. */
+    washUrl?: string;
+    canRead: boolean;
+    canSwitch: boolean;
+    audioMode: boolean;
+    /** Room kept under the picture for subtitles. */
+    captionBand: boolean;
+    live?: boolean;
+    /** The item's wide picture, shown in the picture's place until the item's first frame. */
+    posterUrl?: string;
+    /** Which item is on screen: another one starts on its poster. */
+    itemId?: string;
+    /** The page's sleep timer, for the screen's menu and badge; `minutes` is the length picked. */
+    sleep?: { kind: "minutes"; endsAt: number; minutes: number } | { kind: "chapter" } | null;
+};
+
+/** The words of a platform's now-playing screen, in the page's language; any left out stay English. */
+export type VideoNowPlayingTexts = Partial<
+    Record<
+        | "minimise"
+        | "play"
+        | "pause"
+        | "loading"
+        | "seek"
+        | "skipBack"
+        | "skipForward"
+        | "previousChapter"
+        | "nextChapter"
+        | "audio"
+        | "video"
+        | "playAs"
+        | "read"
+        | "live"
+        | "speed"
+        | "quality"
+        | "qualityAuto"
+        | "audioMenu"
+        | "subtitles"
+        | "subtitlesOff"
+        | "lyrics"
+        | "sleepTimer"
+        | "sleepOff"
+        | "sleepMinutes"
+        | "sleepEndOfChapter"
+        | "sleepLeft"
+        | "browse"
+        | "pictureInPicture"
+        | "fullscreen"
+        | "cast",
+        string
+    >
+>;
+
+/**
+ * What the viewer asked a platform's now-playing screen for that only the page can do. `sleep` comes with a value:
+ * `off`, `chapter`, or the minutes.
+ */
+export type VideoNowPlayingAction = "minimise" | "read" | "audio" | "video" | "sleep";
+
 /**
  * The player component a content page renders.
  *
@@ -80,4 +145,16 @@ export type VideoPlayerHandle = {
     seek(seconds: number, options?: { exact?: boolean }): void;
     enterFullscreen(): Promise<void>;
     exitFullscreen(): Promise<void>;
+    /**
+     * The platform draws the phone's expanded now-playing screen itself, over the page; it raises
+     * `nowplayingaction` ({@link VideoNowPlayingAction}) for what only the page can do.
+     */
+    readonly nativeNowPlaying?: boolean | null;
+    /** Shows the platform's now-playing screen, or updates the one that is up. */
+    showNowPlaying?(screen: VideoNowPlayingScreen, texts?: VideoNowPlayingTexts): void;
+    hideNowPlaying?(): void;
+    /** The platform turns the picture off in place, the sound playing on: {@link setVideoOff} does something. */
+    readonly canTurnVideoOff?: boolean;
+    /** The picture off (its downloads stop) or back on, with nothing loaded again. */
+    setVideoOff?(off: boolean): void;
 };

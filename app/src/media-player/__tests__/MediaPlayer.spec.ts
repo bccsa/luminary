@@ -33,6 +33,8 @@ const engine = vi.hoisted(() => ({
     castAvailable: false,
     airPlayActive: false,
     thumbnailsReady: false,
+    /** The packaged app's native player: it draws its own now-playing screen and turns the picture off in place. */
+    native: false as boolean | null,
 }));
 
 vi.mock("@luminary-media-converter/player-web", async () => {
@@ -265,6 +267,15 @@ vi.mock("@/media-player/MediaPlayerWrapper.vue", async () => {
                         return engine.airPlayActive;
                     },
                     showAirPlayPicker: vi.fn(),
+                    ...(engine.native
+                        ? {
+                              nativeNowPlaying: true,
+                              showNowPlaying: vi.fn(),
+                              hideNowPlaying: vi.fn(),
+                              canTurnVideoOff: true,
+                              setVideoOff: vi.fn(),
+                          }
+                        : { nativeNowPlaying: engine.native === false ? false : null }),
                 };
                 expose({
                     player: engine.handle,
@@ -362,6 +373,7 @@ beforeEach(() => {
     engine.airPlayAvailable = false;
     engine.airPlayActive = false;
     engine.thumbnailsReady = false;
+    engine.native = false;
     document.documentElement.classList.remove("lmc-inline-video");
     document.documentElement.classList.remove("lmc-player-dragging");
     closeMediaPlayer();
@@ -432,6 +444,126 @@ describe("MediaPlayer", () => {
 
             expect(find(wrapper, "mediaPlayerAudio").exists()).toBe(false);
         });
+    });
+
+    describe("in the packaged app, where the player draws its own now-playing screen", () => {
+        beforeEach(() => {
+            vi.stubEnv("VITE_BUILD_TARGET", "native");
+            engine.native = true;
+        });
+        afterEach(() => {
+            vi.unstubAllEnvs();
+        });
+
+        const nowPlayingHidden = (wrapper: VueWrapper) =>
+            (find(wrapper, "mediaPlayerNowPlaying").element as HTMLElement).style.display === "none";
+
+        it("keeps the page's screen out of the way, also while it is minimised", async () =>
+            narrow(async () => {
+                const wrapper = await playing();
+                expect(nowPlayingHidden(wrapper)).toBe(true);
+                const sent = engine.handle.showNowPlaying.mock.calls.at(-1)[0];
+                expect(sent.itemId).toBe(mockEnglishContentDto._id);
+
+                minimiseMediaPlayer();
+                await flushPromises();
+                if (find(wrapper, "mediaPlayerNowPlaying").exists()) expect(nowPlayingHidden(wrapper)).toBe(true);
+            }));
+
+        it("shows the page's screen where the player has none of its own", async () =>
+            narrow(async () => {
+                engine.native = false;
+                const wrapper = await playing();
+                expect(nowPlayingHidden(wrapper)).toBe(false);
+            }));
+
+        it("keeps the page's screen hidden while the player has not yet said whether it draws its own", async () =>
+            narrow(async () => {
+                engine.native = null;
+                const wrapper = await playing();
+                expect(nowPlayingHidden(wrapper)).toBe(true);
+            }));
+
+        it("shows the page's screen for an error, which only it explains", async () =>
+            narrow(async () => {
+                const wrapper = await playing();
+                engine.state.lifecycle = "error";
+                await flushPromises();
+                expect(nowPlayingHidden(wrapper)).toBe(false);
+            }));
+
+        it("turns the picture off in place for the sound, and back on for the picture", async () =>
+            narrow(async () => {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerAudio").trigger("click");
+                await flushPromises();
+
+                expect(engine.handle.setVideoOff).toHaveBeenLastCalledWith(true);
+                expect(engine.controller.setAngle).not.toHaveBeenCalled();
+                expect(engine.handle.showNowPlaying.mock.calls.at(-1)[0].audioMode).toBe(true);
+
+                await find(wrapper, "mediaPlayerVideo").trigger("click");
+                await flushPromises();
+                expect(engine.handle.setVideoOff).toHaveBeenLastCalledWith(false);
+                expect(engine.controller.setAngle).not.toHaveBeenCalled();
+                expect(engine.handle.showNowPlaying.mock.calls.at(-1)[0].audioMode).toBe(false);
+            }));
+
+        it("runs the sleep timer the screen's menu picks", async () =>
+            narrow(async () => {
+                await playing();
+                engine.emit("nowplayingaction", "sleep", "15");
+                expect(engine.controller.setSleepTimer).toHaveBeenLastCalledWith({ kind: "minutes", minutes: 15 });
+                engine.emit("nowplayingaction", "sleep", "chapter");
+                expect(engine.controller.setSleepTimer).toHaveBeenLastCalledWith({ kind: "chapter" });
+                engine.emit("nowplayingaction", "sleep", "off");
+                expect(engine.controller.setSleepTimer).toHaveBeenLastCalledWith(null);
+            }));
+
+        it("tells the screen the running timer and the minutes picked, and when it ends", async () =>
+            narrow(async () => {
+                await playing();
+                expect(engine.handle.showNowPlaying.mock.calls.at(-1)[0].sleep).toBeNull();
+
+                engine.emit("nowplayingaction", "sleep", "15");
+                const endsAt = Date.now() + 14.2 * 60_000;
+                engine.state.sleepTimer = { kind: "minutes", endsAt };
+                await flushPromises();
+                expect(engine.handle.showNowPlaying.mock.calls.at(-1)[0].sleep).toEqual({
+                    kind: "minutes",
+                    endsAt,
+                    minutes: 15,
+                });
+
+                engine.state.sleepTimer = { kind: "chapter" };
+                await flushPromises();
+                expect(engine.handle.showNowPlaying.mock.calls.at(-1)[0].sleep).toEqual({ kind: "chapter" });
+
+                engine.state.sleepTimer = null;
+                await flushPromises();
+                expect(engine.handle.showNowPlaying.mock.calls.at(-1)[0].sleep).toBeNull();
+            }));
+
+        it("gives the next item its picture back", async () =>
+            narrow(async () => {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerAudio").trigger("click");
+                await flushPromises();
+
+                openMediaPlayer({ ...mockEnglishContentDto, _id: "another-post" }, "en");
+                await flushPromises();
+                expect(engine.handle.setVideoOff).toHaveBeenLastCalledWith(false);
+                expect(engine.handle.showNowPlaying.mock.calls.at(-1)[0].audioMode).toBe(false);
+            }));
+
+        it("loads the sound angle where the picture cannot be turned off in place", async () =>
+            narrow(async () => {
+                engine.native = false;
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerAudio").trigger("click");
+                await flushPromises();
+                expect(engine.controller.setAngle).toHaveBeenCalledWith(AUDIO);
+            }));
     });
 
     describe("drawing the player down", () => {
@@ -1311,9 +1443,9 @@ describe("MediaPlayer", () => {
         it("step through the player's speeds and turn the subtitles on and off", async () => {
             await playing();
             press(">", { shiftKey: true });
-            expect(engine.controller.setPlaybackRate).toHaveBeenLastCalledWith(1.5);
+            expect(engine.controller.setPlaybackRate).toHaveBeenLastCalledWith(1.25);
             press("<", { shiftKey: true });
-            expect(engine.controller.setPlaybackRate).toHaveBeenLastCalledWith(0.7);
+            expect(engine.controller.setPlaybackRate).toHaveBeenLastCalledWith(0.75);
 
             press("c");
             expect(engine.controller.setSubtitleTrack).toHaveBeenLastCalledWith("sub-fr");
