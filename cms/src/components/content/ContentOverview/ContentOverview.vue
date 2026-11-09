@@ -245,6 +245,7 @@ const createNew = () => {
             <!-- Same button as on large screens, so styling stays with the same styling and size when the page shrinks -->
             <LButton
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
+                class="bg-zinc-100 hover:bg-zinc-300 hover:text-zinc-700 text-zinc-500"
                 variant="primary"
                 :icon="PlusIcon"
                 data-test="create-button"
