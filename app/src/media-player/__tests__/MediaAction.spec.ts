@@ -67,19 +67,33 @@ describe("MediaAction", () => {
         expect(ring.findAll("circle")).toHaveLength(1);
     });
 
+    it("draws the ring, the disc and the triangle in one SVG, so they stay crisp on a low-density screen", () => {
+        const button = mountAction(true).find("[data-test='mediaPlay']");
+        const svgs = button.findAll("svg");
+        // The button's own SVG and the play icon nested in it: no CSS circle or ring drawn beside them.
+        expect(svgs).toHaveLength(2);
+        expect(svgs[0].find("[data-test='mediaPlayProgress']").exists()).toBe(true);
+        expect(svgs[0].find("[data-test='mediaPlayDisc'] [data-test='playerIcon']").exists()).toBe(
+            true,
+        );
+    });
+
     it("gives the ring a halo in both themes, soft in light so it shows no dark band", () => {
-        const ring = mountAction(true).find("[data-test='mediaPlayProgress']");
-        const halos = ring.classes().filter((c) => c.includes("drop-shadow-"));
-        expect(halos).toContain("drop-shadow-[0_0_1.5px_rgba(0,0,0,0.25)]");
-        expect(halos).toContain("dark:drop-shadow-[0_0_1.5px_rgba(0,0,0,0.6)]");
+        const wrapper = mountAction(true);
+        const filter = wrapper.find("[data-test='mediaPlayProgress']").attributes("filter");
+        const id = filter?.match(/url\(#(.+)\)/)?.[1];
+        const halo = wrapper.find(`filter[id='${id}'] feDropShadow`);
+        expect(halo.classes()).toEqual(["[flood-opacity:0.25]", "dark:[flood-opacity:0.6]"]);
     });
 
     it("borders the yellow disc in one solid colour per theme, so the picture behind can't show through", () => {
-        const rings = mountAction(true)
-            .find("[data-test='mediaPlayDisc']")
-            .classes()
-            .filter((c) => /^(dark:)?ring-(?!\[)/.test(c));
-        expect(rings).toEqual(["ring-zinc-600", "dark:ring-slate-950"]);
+        const disc = mountAction(true).find("[data-test='mediaPlayDisc'] circle");
+        expect(disc.attributes("stroke-width")).toBe("3");
+        expect(disc.classes()).toEqual([
+            "fill-yellow-500",
+            "stroke-zinc-600",
+            "dark:stroke-slate-950",
+        ]);
     });
 
     it("draws the progress in its own colour per theme", () => {
