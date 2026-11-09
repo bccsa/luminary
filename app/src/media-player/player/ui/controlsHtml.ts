@@ -285,7 +285,7 @@ export interface ControlsHtmlLabels {
 }
 
 const DEFAULT_LABELS: ControlsHtmlLabels = {
-    browse: "Chapters and up next",
+    browse: "Chapters and More",
     quality: "Quality",
     audio: "Language",
     speed: "Speed",

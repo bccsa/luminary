@@ -176,7 +176,7 @@ export const DEFAULT_MESSAGES: PlayerMessages = {
 
     chapters: "Chapters",
     upNext: "Up next",
-    browse: "Chapters and up next",
+    browse: "Chapters and More",
     closeBrowse: "Close",
 
     nextUp: "Up next",
