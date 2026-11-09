@@ -14,3 +14,10 @@ export const LEGACY_AUTH0_CACHE_PREFIX = "@@auth0spajs@@::";
  * `domain` + `_id` after IndexedDB is evicted but localStorage survives.
  */
 export const ACTIVE_PROVIDER_KEY = "activeAuthProvider";
+
+/**
+ * localStorage key holding the provider of a sign-in that has started but not
+ * completed. Only a completed callback promotes it to {@link ACTIVE_PROVIDER_KEY},
+ * so a login the user backs out of never counts as a session.
+ */
+export const PENDING_PROVIDER_KEY = "pendingAuthProvider";
