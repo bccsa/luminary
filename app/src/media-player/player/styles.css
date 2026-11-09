@@ -1734,7 +1734,7 @@
 .lmpl-afs-bar-track {
     position: relative;
     width: 100%;
-    height: calc(8px * var(--lmpl-s));
+    height: calc(12px * var(--lmpl-s));
     border-radius: 999px;
     overflow: hidden;
     background: rgb(255 255 255 / 0.28);
@@ -1746,7 +1746,7 @@
 .lmpl-afs-bar:hover .lmpl-afs-bar-track,
 .lmpl-afs-bar:focus-visible .lmpl-afs-bar-track,
 .lmpl-afs-bar-dragging .lmpl-afs-bar-track {
-    height: calc(12px * var(--lmpl-s));
+    height: calc(16px * var(--lmpl-s));
 }
 
 .lmpl-afs-bar-buffer,
@@ -1771,7 +1771,7 @@
 
 /* Opened for scrubbing by a tap: thicker, with a handle where the fill ends, which the track's own clip would cut. */
 .lmpl-afs-bar-open .lmpl-afs-bar-track {
-    height: calc(16px * var(--lmpl-s));
+    height: calc(20px * var(--lmpl-s));
 }
 
 .lmpl-afs-bar-open::after {
@@ -1779,8 +1779,8 @@
     position: absolute;
     top: 50%;
     left: var(--lmpl-afs-at, 0%);
-    width: calc(26px * var(--lmpl-s));
-    height: calc(26px * var(--lmpl-s));
+    width: calc(28px * var(--lmpl-s));
+    height: calc(28px * var(--lmpl-s));
     border-radius: 50%;
     background: #fff;
     box-shadow: 0 0 6px rgb(0 0 0 / 0.35);
