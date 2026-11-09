@@ -55,7 +55,7 @@ const handleClick = () => {
             {
                 'cursor-pointer hover:bg-zinc-50 dark:hover:bg-slate-800/50 dark:hover:shadow-none':
                     !disable && canNavigate && navigateTo,
-                'select-none divide-zinc-200 border-gray-200 bg-zinc-50/50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-zinc-600':
+                'select-none divide-zinc-200 border-gray-200 dark:border-slate-800 dark:bg-slate-900/40 dark:text-zinc-600':
                     disable,
             },
         ]"
@@ -115,7 +115,7 @@ const handleClick = () => {
         <!-- Footer: Bottom metadata -->
         <div
             v-if="isSmallScreen && $slots.mobileFooter"
-            class="flex flex-wrap items-center gap-1 py-1 dark:text-zinc-500"
+            class="flex flex-wrap items-center gap-1 py-1 text-zinc-400 dark:text-zinc-500"
         >
             <slot name="mobileFooter" />
             <div
