@@ -763,7 +763,7 @@ watch(isLgScreen, (isLg) => {
                 class="flex w-full min-w-0 flex-1 flex-col lg:h-full lg:min-h-0 lg:overflow-hidden"
             >
                 <div
-                    class="flex w-full flex-1 flex-col bg-white dark:border-slate-700 dark:bg-slate-800/30 lg:min-h-0 lg:overflow-hidden lg:border-l lg:border-zinc-200 lg:pr-8"
+                    class="flex w-full flex-1 flex-col bg-white dark:border-slate-700 dark:bg-slate-800/30 lg:min-h-0 lg:overflow-hidden lg:border-l lg:border-zinc-200"
                 >
                     <EmptyState
                         v-if="!selectedContent"
