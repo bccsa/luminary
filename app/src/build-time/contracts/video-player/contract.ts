@@ -62,6 +62,9 @@ export type VideoNowPlayingTexts = Partial<
         | "sleepEndOfChapter"
         | "sleepLeft"
         | "browse"
+        | "chapters"
+        | "more"
+        | "closeBrowse"
         | "pictureInPicture"
         | "fullscreen"
         | "cast",
