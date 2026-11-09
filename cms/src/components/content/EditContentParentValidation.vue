@@ -279,7 +279,7 @@ watch(
             </template>
 
             <template #persistent>
-                <div class="flex flex-col gap-1" :class="{ 'mb-0': isLanguageSelectorCollapsed }">
+                <div class="flex flex-col gap-1" :class="{ 'mb-3': isLanguageSelectorCollapsed }">
                     <EditContentValidation
                         v-for="content in editableContent?.filter((c) => !c.deleteReq)"
                         :editableContent="content"
@@ -299,7 +299,10 @@ watch(
                     v-if="!(canTranslate || canPublish) || !canEdit"
                     class="mb-1 rounded-md bg-zinc-50 p-2 shadow"
                 >
-                    <span v-if="!canTranslate" class="mb-1 flex gap-1 text-xs dark:text-zinc-100">
+                    <span
+                        v-if="!canTranslate"
+                        class="mb-1 flex gap-1 text-xs text-zinc-600 dark:text-zinc-100"
+                    >
                         <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No
                         translate permission</span
                     >
@@ -321,7 +324,7 @@ watch(
                         >
                             <div class="flex items-center gap-2">
                                 <XCircleIcon class="h-[18px] w-[18px] min-w-[18px] text-red-400" />
-                                <span class="text-xs dark:text-zinc-100">{{
+                                <span class="text-xs text-zinc-700 dark:text-zinc-100">{{
                                     validation.message
                                 }}</span>
                             </div>
