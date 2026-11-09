@@ -6,7 +6,7 @@
  * the same with or without it; pressing it opens the app-wide media player, which does the playing, and where
  * sound and picture are switched.
  */
-import { computed, ref } from "vue";
+import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import type { ContentDto } from "luminary-shared";
 import { getMediaDuration, getMediaProgress } from "@/contentProgress";
@@ -27,6 +27,10 @@ const open = () => openMediaPlayer(props.content, props.language);
 
 /** Set from pointer events because iOS WebKit gives a touch no `:active` without a touch listener. */
 const pressed = ref(false);
+
+/** The shadows are SVG filters, which need ids unique on the page. */
+const haloId = `lm-play-halo-${useId()}`;
+const shadowId = `lm-play-shadow-${useId()}`;
 
 /** How far the media was played, 0–100; 0 until it has been started. */
 const mediaProgress = computed(() => {
@@ -51,51 +55,102 @@ const mediaProgress = computed(() => {
         @pointerleave="pressed = false"
         @click.stop="open"
     >
-        <!-- The ring shows before the video is started too. It lies on a photo of any brightness, so it is light
-             with a halo: soft on the light page, where a strong one reads as a black band, and strong in dark. -->
+        <!-- One SVG for the ring, the disc, its border and the triangle: drawn on one grid, they stay crisp and
+             meet exactly on a low-density screen, where separate CSS and SVG layers left soft, uneven edges. -->
         <svg
             viewBox="0 0 68 68"
-            class="absolute inset-0 h-full w-full -rotate-90 drop-shadow-[0_0_1.5px_rgba(0,0,0,0.25)] dark:drop-shadow-[0_0_1.5px_rgba(0,0,0,0.6)]"
+            class="absolute inset-0 h-full w-full overflow-visible"
             aria-hidden="true"
-            data-test="mediaPlayProgress"
         >
-            <circle
-                cx="34"
-                cy="34"
-                r="31"
-                fill="none"
-                stroke-width="5"
-                class="stroke-zinc-200 dark:stroke-slate-600"
-            />
-            <!-- A round-capped dash of length 0 still draws a dot. -->
-            <circle
-                v-if="mediaProgress > 0"
-                cx="34"
-                cy="34"
-                r="31"
-                fill="none"
-                stroke-width="5"
-                stroke-linecap="round"
-                pathLength="100"
-                :stroke-dasharray="`${mediaProgress} 100`"
-                class="stroke-yellow-500 dark:stroke-yellow-300"
-            />
+            <defs>
+                <!-- The ring lies on a photo of any brightness, so it is light with a halo: soft on the light
+                     page, where a strong one reads as a black band, and strong in dark. -->
+                <filter
+                    :id="haloId"
+                    x="-10%"
+                    y="-10%"
+                    width="120%"
+                    height="120%"
+                >
+                    <feDropShadow
+                        dx="0"
+                        dy="0"
+                        stdDeviation="0.75"
+                        flood-color="#000"
+                        class="[flood-opacity:0.25] dark:[flood-opacity:0.6]"
+                    />
+                </filter>
+                <filter
+                    :id="shadowId"
+                    x="-25%"
+                    y="-25%"
+                    width="150%"
+                    height="150%"
+                >
+                    <feDropShadow
+                        dx="0"
+                        dy="2"
+                        stdDeviation="3"
+                        flood-color="#000"
+                        flood-opacity="0.3"
+                    />
+                </filter>
+            </defs>
+            <g
+                :filter="`url(#${haloId})`"
+                transform="rotate(-90 34 34)"
+                data-test="mediaPlayProgress"
+            >
+                <circle
+                    cx="34"
+                    cy="34"
+                    r="31"
+                    fill="none"
+                    stroke-width="5"
+                    class="stroke-zinc-200 dark:stroke-slate-600"
+                />
+                <!-- A round-capped dash of length 0 still draws a dot. -->
+                <circle
+                    v-if="mediaProgress > 0"
+                    cx="34"
+                    cy="34"
+                    r="31"
+                    fill="none"
+                    stroke-width="5"
+                    stroke-linecap="round"
+                    pathLength="100"
+                    :stroke-dasharray="`${mediaProgress} 100`"
+                    class="stroke-yellow-500 dark:stroke-yellow-300"
+                />
+            </g>
+            <g
+                class="origin-center text-zinc-900 [transform-box:fill-box] motion-safe:transition-transform"
+                :class="
+                    pressed
+                        ? 'motion-safe:scale-[0.92] motion-safe:duration-75 motion-safe:ease-out'
+                        : 'motion-safe:duration-[120ms] motion-safe:ease-out'
+                "
+                data-test="mediaPlayDisc"
+            >
+                <!-- The yellow disc and its border in one solid colour per theme, so the picture can't show through. -->
+                <circle
+                    cx="34"
+                    cy="34"
+                    r="27.5"
+                    stroke-width="3"
+                    :filter="`url(#${shadowId})`"
+                    class="fill-yellow-500 stroke-zinc-600 dark:stroke-slate-950"
+                />
+                <!-- The triangle's weight sits left of its box: moved right so it looks centred. -->
+                <PlayerIcon
+                    name="play"
+                    x="23.92"
+                    y="22"
+                    width="24"
+                    height="24"
+                />
+            </g>
         </svg>
-        <span
-            class="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-yellow-500 text-zinc-900 shadow-[0_2px_6px_rgba(0,0,0,0.3)] ring-[3px] ring-zinc-600 motion-safe:transition-transform dark:ring-slate-950 lg:h-16 lg:w-16"
-            :class="
-                pressed
-                    ? 'motion-safe:scale-[0.92] motion-safe:duration-75 motion-safe:ease-out'
-                    : 'motion-safe:duration-[120ms] motion-safe:ease-out'
-            "
-            data-test="mediaPlayDisc"
-        >
-            <!-- The triangle's weight sits left of its box: moved right so it looks centred. -->
-            <PlayerIcon
-                name="play"
-                class="h-6 w-6 translate-x-[8%] lg:h-8 lg:w-8"
-            />
-        </span>
     </button>
     <div
         v-else
