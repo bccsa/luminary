@@ -1,4 +1,3 @@
-```vue
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
@@ -62,18 +61,18 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
                 name: 'overview',
                 params: { docType: DocType.Post, tagOrPostType: PostType.Blog },
             }"
-            class="transparent group rounded-lg border border-t-4 border-zinc-400 bg-white px-1.5 py-3 shadow-sm transition-colors duration-200 hover:border-blue-400 dark:bg-slate-800 dark:hover:border-blue-400 lg:flex-1"
+            class="group rounded-lg border border-zinc-200 bg-white px-1.5 py-3 transition-colors hover:border-zinc-300 dark:border-t-4 dark:border-zinc-400 dark:bg-slate-800 dark:shadow-sm dark:duration-200 dark:hover:border-blue-400 lg:flex-1"
         >
-            <div class="flex items-center gap-2 dark:text-zinc-100">
+            <div class="flex items-center gap-2 text-zinc-500 dark:text-zinc-100">
                 <DocumentDuplicateIcon class="h-4 w-4" />
                 <span class="text-xs font-medium uppercase tracking-wide">Posts</span>
             </div>
             <p
-                class="mt-0.5 text-xl font-semibold leading-tight text-zinc-800 hover:text-blue-400 dark:text-yellow-400"
+                class="mt-0.5 text-xl font-semibold leading-tight text-zinc-900 dark:text-yellow-400 dark:hover:text-blue-400"
             >
                 {{ posts.length }}
             </p>
-            <p class="text-xs dark:text-zinc-100">
+            <p class="text-xs text-zinc-400 dark:text-zinc-100">
                 {{ contentByParentType.post }} content item{{
                     contentByParentType.post !== 1 ? "s" : ""
                 }}
@@ -86,18 +85,18 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
                 name: 'overview',
                 params: { docType: DocType.Tag, tagOrPostType: TagType.Category },
             }"
-            class="transparent group rounded-lg border border-t-4 border-zinc-400 bg-white px-1.5 py-3 shadow-sm transition-colors duration-200 hover:border-yellow-400 dark:bg-slate-800 dark:hover:border-yellow-400 lg:flex-1"
+            class="group rounded-lg border border-zinc-200 bg-white px-1.5 py-3 transition-colors hover:border-zinc-300 dark:border-t-4 dark:border-zinc-400 dark:bg-slate-800 dark:shadow-sm dark:duration-200 dark:hover:border-yellow-400 lg:flex-1"
         >
-            <div class="flex items-center gap-2 dark:text-zinc-100">
+            <div class="flex items-center gap-2 text-zinc-500 dark:text-zinc-100">
                 <TagIcon class="h-4 w-4" />
                 <span class="text-xs font-medium uppercase tracking-wide">Tags</span>
             </div>
             <p
-                class="mt-0.5 text-xl font-semibold leading-tight text-zinc-800 hover:text-yellow-400 dark:text-yellow-400"
+                class="mt-0.5 text-xl font-semibold leading-tight text-zinc-900 dark:text-yellow-400 dark:hover:text-yellow-400"
             >
                 {{ tags.length }}
             </p>
-            <p class="text-xs dark:text-zinc-100">
+            <p class="text-xs text-zinc-400 dark:text-zinc-100">
                 {{ contentByParentType.tag }} content item{{
                     contentByParentType.tag !== 1 ? "s" : ""
                 }}
@@ -105,31 +104,31 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
         </RouterLink>
 
         <div
-            class="transparent group cursor-pointer rounded-lg border border-t-4 border-zinc-400 bg-white px-1.5 py-3 shadow-sm transition-colors duration-200 hover:border-green-600 dark:bg-slate-800 dark:hover:border-green-600 lg:flex-1"
+            class="rounded-lg border border-zinc-200 bg-white px-1.5 py-3 dark:border-t-4 dark:border-zinc-400 dark:bg-slate-800 dark:shadow-sm dark:transition-colors dark:duration-200 dark:hover:border-green-600 lg:flex-1"
         >
-            <div class="flex items-center gap-2 dark:text-zinc-100">
+            <div class="flex items-center gap-2 text-zinc-500 dark:text-zinc-100">
                 <CheckCircleIcon class="h-4 w-4" />
                 <span class="text-xs font-medium uppercase tracking-wide">Published</span>
             </div>
             <p
-                class="mt-0.5 text-xl font-semibold leading-tight text-zinc-800 hover:text-green-600 dark:text-yellow-400"
+                class="mt-0.5 text-xl font-semibold leading-tight text-zinc-900 dark:text-yellow-400 dark:hover:text-green-600"
             >
                 {{ publishedCount }}
             </p>
-            <p v-if="draftCount > 0" class="text-xs dark:text-zinc-100">
+            <p v-if="draftCount > 0" class="text-xs text-zinc-400 dark:text-zinc-100">
                 {{ draftCount }} draft{{ draftCount !== 1 ? "s" : "" }}
             </p>
         </div>
 
         <div
-            class="transparent group cursor-pointer rounded-lg border border-t-4 border-zinc-400 bg-white px-1.5 py-3 shadow-sm transition-colors duration-200 hover:border-purple-300 dark:bg-slate-800 dark:hover:border-purple-300 lg:flex-1"
+            class="rounded-lg border border-zinc-200 bg-white px-1.5 py-3 dark:border-t-4 dark:border-zinc-400 dark:bg-slate-800 dark:shadow-sm dark:transition-colors dark:duration-200 dark:hover:border-purple-300 lg:flex-1"
         >
-            <div class="flex items-center gap-2 dark:text-zinc-100">
+            <div class="flex items-center gap-2 text-zinc-500 dark:text-zinc-100">
                 <CalendarDaysIcon class="h-4 w-4" />
                 <span class="text-xs font-medium uppercase tracking-wide">Scheduled</span>
             </div>
             <p
-                class="mt-0.5 text-xl font-semibold leading-tight text-zinc-800 hover:text-purple-300 dark:text-yellow-400"
+                class="mt-0.5 text-xl font-semibold leading-tight text-zinc-900 dark:text-yellow-400 dark:hover:text-purple-300"
             >
                 {{ scheduledContent.length }}
             </p>
@@ -141,18 +140,18 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
         <RouterLink
             v-if="canViewGroups"
             :to="{ name: 'groups' }"
-            class="transparent group rounded-lg border border-t-4 border-zinc-400 bg-white px-1.5 py-3 shadow-sm transition-colors duration-200 hover:border-lime-300 dark:bg-slate-800 dark:hover:border-lime-300 lg:flex-1"
+            class="group rounded-lg border border-zinc-200 bg-white px-1.5 py-3 transition-colors hover:border-zinc-300 dark:border-t-4 dark:border-zinc-400 dark:bg-slate-800 dark:shadow-sm dark:duration-200 dark:hover:border-lime-300 lg:flex-1"
         >
-            <div class="flex items-center gap-2 dark:text-zinc-100">
+            <div class="flex items-center gap-2 text-zinc-500 dark:text-zinc-100">
                 <RectangleStackIcon class="h-4 w-4" />
                 <span class="text-xs font-medium uppercase tracking-wide">Groups</span>
             </div>
             <p
-                class="mt-0.5 text-xl font-semibold leading-tight text-zinc-800 hover:text-lime-300 dark:text-yellow-400"
+                class="mt-0.5 text-xl font-semibold leading-tight text-zinc-900 dark:text-yellow-400 dark:hover:text-lime-300"
             >
                 {{ groups.length }}
             </p>
-            <p class="text-xs dark:text-zinc-100">
+            <p class="text-xs text-zinc-400 dark:text-zinc-100">
                 {{ cmsLanguages.length }} language{{ cmsLanguages.length !== 1 ? "s" : "" }}
             </p>
         </RouterLink>
