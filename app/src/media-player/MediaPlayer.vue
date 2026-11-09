@@ -574,6 +574,7 @@ function buildRoster(time: number, markerX: number, step: number, width = pictur
             // A different step makes the same index a different slot, so the step is part of the identity.
             key: `${step}:${tile.index}`,
             left: tile.left,
+            width: tile.width,
             time: tile.time,
             cue: instance.thumbnailAt(tile.time),
         }),

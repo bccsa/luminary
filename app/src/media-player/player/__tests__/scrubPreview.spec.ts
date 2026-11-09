@@ -136,6 +136,31 @@ describe("rosterTiles", () => {
         expect(Math.max(...tiles.map((t) => t.index))).toBe(2);
     });
 
+    it("stretches the first frame to the left edge without moving its right edge", () => {
+        const [first, second] = rosterTiles(0, 48, 800, 100, 10, 1000);
+        expect(first.index).toBe(0);
+        expect(first.left).toBe(0);
+        expect(first.width).toBe(148);
+        expect(first.left + first.width).toBe(second.left);
+    });
+
+    it("stretches the last frame to the right edge without moving its left edge", () => {
+        const tiles = rosterTiles(999, 400, 800, 100, 10, 1000);
+        const last = tiles[tiles.length - 1];
+        expect(last.index).toBe(99);
+        expect(last.left).toBe(310);
+        expect(last.left + last.width).toBe(800);
+    });
+
+    it("leaves every frame at its normal width where there is no gap to fill", () => {
+        const tiles = rosterTiles(500, 400, 800, 100, 10, 1000);
+        expect(tiles.every((t) => t.width === 100)).toBe(true);
+
+        // The first frame is only stretched while it still has a gap before it.
+        const scrolled = rosterTiles(50, 48, 800, 100, 10, 1000);
+        expect(scrolled.every((t) => t.width === 100)).toBe(true);
+    });
+
     it("gives nothing to draw with no width or no media", () => {
         expect(rosterTiles(0, 0, 0, 100, 10, 100)).toEqual([]);
         expect(rosterTiles(0, 0, 800, 100, 10, 0)).toEqual([]);

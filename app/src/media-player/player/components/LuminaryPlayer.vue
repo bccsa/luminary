@@ -722,7 +722,7 @@ interface ScrubState {
     chapter: string;
     /** While the press is held, the strip of frames around the playhead that replaces the single frame. */
     roster: {
-        tiles: { key: string; left: number; cue: ThumbnailSpriteCue | null }[];
+        tiles: { key: string; left: number; width: number; cue: ThumbnailSpriteCue | null }[];
         /** Where the marker sits, in px from the roster's left. */
         markerX: number;
         tileWidth: number;
@@ -1149,7 +1149,7 @@ function buildRoster(
     step: number,
     gap: number,
 ): {
-    tiles: { key: string; left: number; cue: ThumbnailSpriteCue | null }[];
+    tiles: { key: string; left: number; width: number; cue: ThumbnailSpriteCue | null }[];
     markerX: number;
     tileWidth: number;
     height: number;
@@ -1165,6 +1165,7 @@ function buildRoster(
         // A different step makes the same index a different slot, so the step is part of the identity.
         key: `${step}:${tile.index}`,
         left: tile.left,
+        width: tile.width,
         cue: instance.thumbnailAt(tile.time),
     }));
     return { tiles, markerX, tileWidth, height, step };
