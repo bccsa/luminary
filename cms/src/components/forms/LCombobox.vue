@@ -407,9 +407,9 @@ const onEscape = (e: KeyboardEvent) => {
                         :class="[
                             'relative cursor-default select-none py-2 pl-3 pr-9',
                             {
-                                'bg-white text-black hover:bg-white dark:bg-slate-800  dark:text-zinc-300 dark:hover:bg-slate-700 dark:hover:text-white':
+                                'bg-white text-black hover:bg-zinc-100 dark:bg-slate-800 dark:text-zinc-300 dark:hover:bg-slate-700 dark:hover:text-white':
                                     !option.selected,
-                                'cursor-not-allowed text-zinc-300 dark:text-zinc-600':
+                                'cursor-not-allowed text-zinc-300 hover:bg-white dark:text-zinc-600':
                                     option.selected,
                                 'bg-zinc-100 dark:bg-slate-700 dark:text-zinc-100':
                                     highlightedIndex === filtered.indexOf(option),
