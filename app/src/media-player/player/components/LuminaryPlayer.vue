@@ -424,7 +424,8 @@ onMounted(() => {
     applyFit();
     on("loadstart", applyFit);
 
-    const frame = playerEl.value;
+    // The container, not the player: fullscreen is entered on the container, and the player keeps its windowed width.
+    const frame = containerEl.value;
     if (frame && typeof ResizeObserver !== "undefined") {
         frameObserver = new ResizeObserver(([entry]) => {
             if (entry) frameWidth.value = entry.contentRect.width;
