@@ -5,6 +5,7 @@ import * as shared from "luminary-shared";
 import { DocType, PublishStatus, type ContentDto, type FtsSearchResult } from "luminary-shared";
 import { appLanguageIdsAsRef, appSyncedLanguageIdsAsRef } from "@/globalConfig";
 import { affinityProfile } from "@/recommendation/affinityStore";
+import { recordUserActivity } from "@/userActivity/store";
 import {
     computeRichness,
     fuseTagFts,
@@ -488,6 +489,66 @@ describe("useRecommendations pinned content", () => {
                 tagTitleDoc._id,
                 unpinnedTagMatch._id,
                 pinnedTagMatch._id,
+            ]);
+        }
+    });
+});
+
+describe("useRecommendations viewed content", () => {
+    it("drops a post once it was viewed, from both legs", async () => {
+        const languageId = "lang-eng";
+        const tagId = "tag-viewed-exclusion";
+        const publishDate = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const tagTitleDoc = {
+            ...makeContent("content-tag-viewed-exclusion"),
+            parentType: DocType.Tag,
+            parentId: tagId,
+            title: "Viewed exclusion topic",
+            publishDate,
+        } as ContentDto;
+        const unviewedTagMatch = makeContent("unviewed-tag-match", [tagId], publishDate);
+        const viewedTagMatch = makeContent("viewed-tag-match", [tagId], publishDate);
+        const unviewedFtsHit = makeContent("unviewed-fts-hit");
+        // Another translation of the viewed post: its own id was never recorded.
+        const viewedFtsHit = makeContent("viewed-fts-hit", [], undefined, "post-viewed-fts");
+        const previousLanguages = [...appLanguageIdsAsRef.value];
+        const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
+        const previousProfile = affinityProfile.value;
+        const fts = spyOnFtsSearch([
+            makeFtsResult(viewedFtsHit, 10),
+            makeFtsResult(unviewedFtsHit, 9),
+        ]);
+        const scope = effectScope();
+
+        try {
+            await shared.db.docs.bulkPut([tagTitleDoc, unviewedTagMatch, viewedTagMatch]);
+            await recordUserActivity({ type: "viewed", parentId: viewedTagMatch.parentId });
+            await recordUserActivity({ type: "viewed", parentId: viewedFtsHit.parentId });
+            appLanguageIdsAsRef.value = [languageId];
+            appSyncedLanguageIdsAsRef.value = [languageId];
+            affinityProfile.value = { affinity: { [tagId]: 0.8 }, lastDecayUtc: Date.now() };
+            const result = scope.run(() => useRecommendations());
+            if (!result) throw new Error("recommendation scope did not initialize");
+
+            await waitForExpect(() => {
+                const ids = result.recommended.value.map((doc) => doc._id);
+                expect(ids).toContain(unviewedTagMatch._id);
+                expect(ids).toContain(unviewedFtsHit._id);
+            });
+            const ids = result.recommended.value.map((doc) => doc._id);
+            expect(ids).not.toContain(viewedTagMatch._id);
+            expect(ids).not.toContain(viewedFtsHit._id);
+        } finally {
+            scope.stop();
+            fts.restore();
+            affinityProfile.value = previousProfile;
+            appLanguageIdsAsRef.value = previousLanguages;
+            appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
+            await shared.db.userActivity.clear();
+            await shared.db.docs.bulkDelete([
+                tagTitleDoc._id,
+                unviewedTagMatch._id,
+                viewedTagMatch._id,
             ]);
         }
     });
