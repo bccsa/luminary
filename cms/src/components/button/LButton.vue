@@ -14,7 +14,7 @@ const buttonClasses = cva({
                 "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100/70 dark:bg-slate-700 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-600 dark:active:bg-slate-500 disabled:bg-zinc-100 disabled:text-zinc-500 dark:disabled:bg-slate-900 dark:disabled:text-zinc-700",
             tertiary:
                 "disabled:hover:bg-transparent bg-transparent text-zinc-700 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100 disabled:text-zinc-500",
-            muted: "bg-transparent text-zinc-600 hover:text-zinc-700 active:text-zinc-800 hover:bg-zinc-100 active:bg-zinc-200 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-slate-800/50 disabled:text-zinc-400",
+            muted: "bg-transparent text-zinc-600 hover:text-zinc-700 active:text-zinc-800 hover:bg-zinc-100 active:bg-zinc-200 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-slate-800/50 disabled:text-zinc-400 disabled:hover:bg-transparent",
         },
         size: {
             sm: "px-2 py-1.5",

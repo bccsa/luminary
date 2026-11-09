@@ -36,25 +36,29 @@ const maxContentCount = computed(() => {
             <li v-for="lang in cmsLanguages" :key="lang._id">
                 <div class="flex items-center justify-between text-sm">
                     <span
-                        class="font-medium text-zinc-700"
+                        class="font-medium"
                         :class="
                             lang._id === cmsLanguageIdAsRef
-                                ? 'dark:text-yellow-400'
-                                : 'dark:text-yellow-400'
+                                ? 'text-yellow-600 dark:text-yellow-400'
+                                : 'text-zinc-700 dark:text-yellow-400'
                         "
                     >
                         {{ lang.name }}
-                        <span class="text-xs text-zinc-500"> ({{ lang.languageCode }}) </span>
+                        <span class="text-xs text-zinc-400"> ({{ lang.languageCode }}) </span>
                     </span>
-                    <span class="bg-zinc-100 text-xs tabular-nums dark:text-zinc-100">
+                    <span class="text-xs tabular-nums text-zinc-500 dark:text-zinc-100">
                         {{ contentCountPerLanguage[lang._id] ?? 0 }}
                     </span>
                 </div>
-                <div class="dark mt-0.5 h-1 w-full overflow-hidden rounded-full bg-yellow-500">
+                <div
+                    class="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-400"
+                >
                     <div
                         class="h-full rounded-full transition-all"
                         :class="
-                            lang._id === cmsLanguageIdAsRef ? 'dark:bg-yellow-500' : 'bg-zinc-600'
+                            lang._id === cmsLanguageIdAsRef
+                                ? 'bg-yellow-500 dark:bg-yellow-500'
+                                : 'bg-zinc-300'
                         "
                         :style="{
                             width:

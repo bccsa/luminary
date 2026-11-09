@@ -5,12 +5,10 @@ import { computed, toRefs } from "vue";
 type Props = {
     modelValue: boolean;
     disabled?: boolean;
-    dark?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
-    dark: false,
 });
 
 const { modelValue } = toRefs(props);
@@ -32,14 +30,13 @@ const toggled = computed({
         v-model="toggled"
         :disabled="disabled"
         :class="[
-            'relative inline-flex h-4 w-8 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2',
+            'relative inline-flex h-4 w-8 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 dark:focus:ring-slate-400 dark:focus:ring-offset-slate-950',
             {
                 'cursor-pointer': !disabled,
-                'focus:ring-zinc-950 focus:ring-offset-white': !dark,
-                'bg-zinc-400': disabled && toggled,
-                'bg-zinc-100': disabled && !toggled,
-                'bg-zinc-500': !disabled && toggled,
-                'bg-zinc-200': !disabled && !toggled,
+                'bg-zinc-400 dark:bg-white': disabled && toggled,
+                'bg-zinc-100 dark:bg-slate-800': disabled && !toggled,
+                'bg-zinc-500 dark:bg-slate-700': !disabled && toggled,
+                'bg-zinc-200 dark:bg-slate-500/40': !disabled && !toggled,
             },
         ]"
     >
@@ -47,8 +44,7 @@ const toggled = computed({
         <span
             :class="[
                 toggled ? 'translate-x-4' : 'translate-x-0',
-                'pointer-events-none relative inline-block h-3 w-3 transform rounded-full shadow ring-0 transition duration-200 ease-in-out',
-                dark ? 'bg-slate-100' : 'bg-white',
+                'pointer-events-none relative inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out dark:bg-slate-100',
             ]"
         >
             <span
@@ -64,13 +60,10 @@ const toggled = computed({
                     fill="none"
                     viewBox="0 0 12 12"
                     :class="[
-                        'h-3 w-3',
-                        {
-                            'text-slate-400': dark && disabled,
-                            'text-slate-500': dark && !disabled,
-                            'text-zinc-300': !dark && disabled,
-                            'text-zinc-400': !dark && !disabled,
-                        },
+                        'h-3 w-3 ',
+                        disabled
+                            ? 'text-zinc-300 dark:text-slate-400'
+                            : 'text-zinc-400 dark:text-slate-500',
                     ]"
                 >
                     <path
@@ -92,7 +85,7 @@ const toggled = computed({
                 aria-hidden="true"
             >
                 <svg
-                    :class="['h-2.5 w-2.5', dark ? 'text-slate-700' : 'text-zinc-600']"
+                    class="h-2.5 w-2.5 text-zinc-600 dark:text-slate-700"
                     fill="currentColor"
                     viewBox="0 0 12 12"
                 >

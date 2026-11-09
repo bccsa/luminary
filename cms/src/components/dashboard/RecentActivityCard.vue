@@ -43,7 +43,7 @@ function formatRelativeTime(timestamp: number): string {
                 class="rounded-lg px-0 py-1.5 hover:bg-zinc-100 dark:hover:bg-slate-800"
             >
                 <RouterLink
-                    class="grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-x-2 dark:rounded-sm dark:border-l-4 dark:pl-2 dark:hover:border-yellow-400 sm:grid-cols-[20px_1fr_150px_100px_80px] sm:gap-x-0"
+                    class="grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-x-2 rounded-sm border-l-4 border-transparent pl-2 dark:border-gray-200 dark:hover:border-yellow-400 sm:grid-cols-[20px_1fr_150px_100px_80px] sm:gap-x-0"
                     :to="parentRoute(doc)!"
                 >
                     <component

@@ -1,3 +1,4 @@
+```vue
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
@@ -61,7 +62,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
                 name: 'overview',
                 params: { docType: DocType.Post, tagOrPostType: PostType.Blog },
             }"
-            class="group rounded-lg border border-zinc-200 bg-white px-1.5 py-3 transition-colors hover:border-zinc-300 dark:border-t-4 dark:border-zinc-400 dark:bg-slate-800 dark:shadow-sm dark:duration-200 dark:hover:border-blue-400 lg:flex-1"
+            class="transparent group rounded-lg border border-t-4 border-zinc-200 bg-white px-1.5 py-3 shadow-sm transition-colors duration-200 hover:border-zinc-300 dark:border-zinc-400 dark:bg-slate-800 dark:hover:border-blue-400 lg:flex-1"
         >
             <div class="flex items-center gap-2 text-zinc-500 dark:text-zinc-100">
                 <DocumentDuplicateIcon class="h-4 w-4" />
@@ -85,7 +86,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
                 name: 'overview',
                 params: { docType: DocType.Tag, tagOrPostType: TagType.Category },
             }"
-            class="group rounded-lg border border-zinc-200 bg-white px-1.5 py-3 transition-colors hover:border-zinc-300 dark:border-t-4 dark:border-zinc-400 dark:bg-slate-800 dark:shadow-sm dark:duration-200 dark:hover:border-yellow-400 lg:flex-1"
+            class="transparent group rounded-lg border border-t-4 border-zinc-200 bg-white px-1.5 py-3 shadow-sm transition-colors duration-200 hover:border-zinc-300 dark:border-zinc-400 dark:bg-slate-800 dark:hover:border-yellow-400 lg:flex-1"
         >
             <div class="flex items-center gap-2 text-zinc-500 dark:text-zinc-100">
                 <TagIcon class="h-4 w-4" />
@@ -104,7 +105,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
         </RouterLink>
 
         <div
-            class="rounded-lg border border-zinc-200 bg-white px-1.5 py-3 dark:border-t-4 dark:border-zinc-400 dark:bg-slate-800 dark:shadow-sm dark:transition-colors dark:duration-200 dark:hover:border-green-600 lg:flex-1"
+            class="transparent group cursor-pointer rounded-lg border border-t-4 border-zinc-200 bg-white px-1.5 py-3 shadow-sm transition-colors duration-200 dark:border-zinc-400 dark:bg-slate-800 dark:hover:border-green-600 lg:flex-1"
         >
             <div class="flex items-center gap-2 text-zinc-500 dark:text-zinc-100">
                 <CheckCircleIcon class="h-4 w-4" />
@@ -121,7 +122,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
         </div>
 
         <div
-            class="rounded-lg border border-zinc-200 bg-white px-1.5 py-3 dark:border-t-4 dark:border-zinc-400 dark:bg-slate-800 dark:shadow-sm dark:transition-colors dark:duration-200 dark:hover:border-purple-300 lg:flex-1"
+            class="transparent group cursor-pointer rounded-lg border border-t-4 border-zinc-200 bg-white px-1.5 py-3 shadow-sm transition-colors duration-200 dark:border-zinc-400 dark:bg-slate-800 dark:hover:border-purple-300 lg:flex-1"
         >
             <div class="flex items-center gap-2 text-zinc-500 dark:text-zinc-100">
                 <CalendarDaysIcon class="h-4 w-4" />
@@ -140,7 +141,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
         <RouterLink
             v-if="canViewGroups"
             :to="{ name: 'groups' }"
-            class="group rounded-lg border border-zinc-200 bg-white px-1.5 py-3 transition-colors hover:border-zinc-300 dark:border-t-4 dark:border-zinc-400 dark:bg-slate-800 dark:shadow-sm dark:duration-200 dark:hover:border-lime-300 lg:flex-1"
+            class="transparent group rounded-lg border border-t-4 border-zinc-200 bg-white px-1.5 py-3 shadow-sm transition-colors duration-200 hover:border-zinc-300 dark:border-zinc-400 dark:bg-slate-800 dark:hover:border-lime-300 lg:flex-1"
         >
             <div class="flex items-center gap-2 text-zinc-500 dark:text-zinc-100">
                 <RectangleStackIcon class="h-4 w-4" />
