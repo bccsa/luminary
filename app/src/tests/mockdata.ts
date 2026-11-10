@@ -354,9 +354,17 @@ export const mockLanguageDtoEng: LanguageDto = {
         "settings.app_version.up_to_date": "You have the latest version.",
         "settings.data_saver.title": "Data saver",
         "settings.data_saver.description":
-            "Reduce image quality to use less data. This also turns on automatically on slow connections or when your device's Data Saver is enabled.",
+            "Choose how much data to save. Images also get lighter by themselves on slow connections.",
+        "settings.data_saver.off": "Off",
+        "settings.data_saver.light": "Light",
+        "settings.data_saver.strict": "Strict",
+        "settings.data_saver.off_description": "Videos and images in full quality.",
+        "settings.data_saver.light_description":
+            "Videos play in their lowest quality, and images are lighter.",
+        "settings.data_saver.strict_description":
+            "As Light, and videos start with the sound only. You can switch to the picture at any time.",
         "settings.data_saver.browser_note":
-            "Your browser's Data Saver is on, so reduced data use is controlled by your browser.",
+            "Your device's Data Saver is on, so Light is used until you choose a level here.",
         "settings.data_saver.slow_connection_note":
             "Your connection seems slow, so reduced data use will be applied automatically.",
         "app_update.title": "A new version is available",

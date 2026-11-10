@@ -1,6 +1,8 @@
-import { computed, ref, shallowRef } from "vue";
+import { computed, ref, shallowRef, watch } from "vue";
 import type { ContentDto } from "luminary-shared";
-import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import { effectiveDataSaverLevel } from "@/globalConfig";
+
+const CHOSEN_MODE_KEY = "mediaPlayerMode";
 
 /** What the media player is playing, and in which audio language. */
 export type MediaPlayerItem = {
@@ -18,11 +20,36 @@ export const mediaPlayerItem = shallowRef<MediaPlayerItem | null>(null);
 
 export const mediaPlayerView = ref<MediaPlayerView>("expanded");
 
+/** Whether play starts with the sound only: strict data saving, since a video's picture is most of what it costs. */
+export const startsAsAudio = computed(() => effectiveDataSaverLevel.value === "strict");
+
 /**
- * Whether play starts with the sound only. Data Saver, the user's or the device's, already means
- * "spend less data"; a video's picture is most of what it costs.
+ * The mode the viewer last chose (true: sound only), kept across restarts; null until they choose. Every item opens
+ * in it, by whatever way it was opened, ahead of Data Saver's default.
  */
-export const startsAsAudio = computed(() => userDataSaverEnabled.value || isDataSaverEnabled());
+export const chosenAudio = ref<boolean | null>(readChosenAudio());
+watch(chosenAudio, (audio) => {
+    try {
+        if (audio === null) localStorage.removeItem(CHOSEN_MODE_KEY);
+        else localStorage.setItem(CHOSEN_MODE_KEY, audio ? "audio" : "video");
+    } catch {
+        // Storage refused (private mode, quota): the choice lasts for this session only.
+    }
+});
+
+function readChosenAudio(): boolean | null {
+    try {
+        const stored = localStorage.getItem(CHOSEN_MODE_KEY);
+        return stored === "audio" ? true : stored === "video" ? false : null;
+    } catch {
+        return null;
+    }
+}
+
+/** The mode a new item opens in: what was asked for it, else the viewer's last choice, else Data Saver's. */
+export function opensAsAudio(item: Pick<MediaPlayerItem, "audio">): boolean {
+    return item.audio ?? chosenAudio.value ?? startsAsAudio.value;
+}
 
 /**
  * Plays `content` in the media player, opened full; the content already playing just reopens.

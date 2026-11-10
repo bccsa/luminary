@@ -10,6 +10,7 @@ import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import MediaPlayer from "../MediaPlayer.vue";
 import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 import {
+    chosenAudio,
     closeMediaPlayer,
     mediaPlayerItem,
     minimiseMediaPlayer,
@@ -312,6 +313,7 @@ let screenLandscape = false;
 let pointerFine = false;
 const setupMatchMedia = window.matchMedia;
 beforeEach(() => {
+    chosenAudio.value = null;
     subtitlePreference.value = { on: false };
     screenWide = true;
     screenLandscape = false;
@@ -484,12 +486,18 @@ describe("MediaPlayer", () => {
                 expect(nowPlayingHidden(wrapper)).toBe(true);
             }));
 
-        it("shows the page's screen for an error, which only it explains", async () =>
+        it("keeps the platform's screen for an error or a video not yet out, which its panel explains", async () =>
             narrow(async () => {
                 const wrapper = await playing();
+                const shown = engine.handle.showNowPlaying.mock.calls.length;
                 engine.state.lifecycle = "error";
                 await flushPromises();
-                expect(nowPlayingHidden(wrapper)).toBe(false);
+                expect(nowPlayingHidden(wrapper)).toBe(true);
+                expect(engine.handle.hideNowPlaying).not.toHaveBeenCalled();
+                engine.state.lifecycle = "waiting-for-master";
+                await flushPromises();
+                expect(nowPlayingHidden(wrapper)).toBe(true);
+                expect(engine.handle.showNowPlaying.mock.calls.length).toBeGreaterThanOrEqual(shown);
             }));
 
         it("turns the picture off in place for the sound, and back on for the picture", async () =>
@@ -544,7 +552,7 @@ describe("MediaPlayer", () => {
                 expect(engine.handle.showNowPlaying.mock.calls.at(-1)[0].sleep).toBeNull();
             }));
 
-        it("gives the next item its picture back", async () =>
+        it("opens the next item as sound once the viewer chose sound, with no picture first", async () =>
             narrow(async () => {
                 const wrapper = await playing();
                 await find(wrapper, "mediaPlayerAudio").trigger("click");
@@ -552,7 +560,21 @@ describe("MediaPlayer", () => {
 
                 openMediaPlayer({ ...mockEnglishContentDto, _id: "another-post" }, "en");
                 await flushPromises();
+                // The picture's off-switch belongs to the item it was used on; the next one loads as sound.
                 expect(engine.handle.setVideoOff).toHaveBeenLastCalledWith(false);
+                expect(engine.handle.showNowPlaying.mock.calls.at(-1)[0].audioMode).toBe(true);
+            }));
+
+        it("opens the next item with its picture once the viewer chose the picture", async () =>
+            narrow(async () => {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerAudio").trigger("click");
+                await flushPromises();
+                await find(wrapper, "mediaPlayerVideo").trigger("click");
+                await flushPromises();
+
+                openMediaPlayer({ ...mockEnglishContentDto, _id: "another-post" }, "en");
+                await flushPromises();
                 expect(engine.handle.showNowPlaying.mock.calls.at(-1)[0].audioMode).toBe(false);
             }));
 

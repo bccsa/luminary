@@ -411,6 +411,19 @@ describe("MediaPlayerWrapper", () => {
             expect(stub(wrapper).props("source").masterUrl).toBe(ABSOLUTE);
         });
 
+        it("asks for a key it could not get again once the network is back", async () => {
+            fetchHlsKeyMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+            const wrapper = await mountPlayer({
+                parentMedia: { hlsUrl: RELATIVE, hlsKey_id: "sidecar-1" },
+            });
+            expect(stub(wrapper).props("source").keyHex).toBeUndefined();
+
+            fetchHlsKeyMock.mockResolvedValueOnce(KEY_HEX);
+            window.dispatchEvent(new Event("online"));
+
+            await waitForExpect(() => expect(stub(wrapper).props("source").keyHex).toBe(KEY_HEX));
+        });
+
         it("still plays when the key cannot be had", async () => {
             // "Not encrypted" and "not yours to have" are the same answer here:
             // play what the playlists give, and let playback fail if it must.

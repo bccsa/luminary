@@ -81,6 +81,7 @@ vi.mock("@/globalConfig", () => ({
     initLanguage: vi.fn(),
     userDataSaverEnabled: ref(false),
     isDataSaverEnabled: () => false,
+    dataSaverOn: ref(false),
 }));
 
 vi.mock("@/seo/contentHead", () => ({ useContentHead: () => {} }));

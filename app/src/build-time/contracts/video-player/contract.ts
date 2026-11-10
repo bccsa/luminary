@@ -30,6 +30,9 @@ export type VideoNowPlayingScreen = {
     itemId?: string;
     /** The page's sleep timer, for the screen's menu and badge; `minutes` is the length picked. */
     sleep?: { kind: "minutes"; endsAt: number; minutes: number } | { kind: "chapter" } | null;
+    /** The tags up next can be narrowed to (chips show from two), and the one it is narrowed to. */
+    upNextTags?: { id: string; title: string; series?: boolean }[];
+    upNextTag?: string | null;
 };
 
 /** The words of a platform's now-playing screen, in the page's language; any left out stay English. */
@@ -67,16 +70,25 @@ export type VideoNowPlayingTexts = Partial<
         | "closeBrowse"
         | "pictureInPicture"
         | "fullscreen"
-        | "cast",
+        | "cast"
+        | "replay"
+        | "upNext"
+        | "playNow"
+        | "cancel"
+        | "closeScrub"
+        | "exitFullscreen"
+        | "allTags"
+        | "noMoreWithTag"
+        | "filterByTag",
         string
     >
 >;
 
 /**
  * What the viewer asked a platform's now-playing screen for that only the page can do. `sleep` comes with a value:
- * `off`, `chapter`, or the minutes.
+ * `off`, `chapter`, or the minutes; `tag` with the tag up next is narrowed to, empty for all.
  */
-export type VideoNowPlayingAction = "minimise" | "read" | "audio" | "video" | "sleep";
+export type VideoNowPlayingAction = "minimise" | "read" | "audio" | "video" | "sleep" | "tag";
 
 /**
  * The player component a content page renders.

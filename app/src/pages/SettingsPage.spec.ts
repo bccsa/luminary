@@ -10,15 +10,19 @@ import { db, isConnected } from "luminary-shared";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
 import {
     isDataSaverEnabled,
-    userDataSaverEnabled,
+    dataSaverLevel,
     localCacheVersion,
     youtubeAlwaysAllow,
     subtitlesOnVideo,
 } from "@/globalConfig";
 
 vi.mock("@/globalConfig", async () => {
-    const { ref, watch } = await import("vue");
-    const userDataSaverEnabled = ref(false);
+    const { computed, ref, watch } = await import("vue");
+    const isDataSaverEnabled = vi.fn(() => false);
+    const dataSaverLevel = ref<"off" | "light" | "strict" | null>(null);
+    const effectiveDataSaverLevel = computed(
+        () => dataSaverLevel.value ?? (isDataSaverEnabled() ? "light" : "off"),
+    );
     const localCacheVersion = ref(0);
     const youtubeAlwaysAllow = ref(false);
     const subtitlesOnVideo = ref(false);
@@ -28,14 +32,15 @@ vi.mock("@/globalConfig", async () => {
     watch(youtubeAlwaysAllow, (allowed) => {
         localStorage.setItem("youtubeAlwaysAllow", String(allowed));
     });
-    watch(userDataSaverEnabled, (enabled) => {
-        localStorage.setItem("dataSaver", String(enabled));
+    watch(dataSaverLevel, (level) => {
+        if (level) localStorage.setItem("dataSaverLevel", level);
     });
     return {
         getDeviceInfo: () => ({ platform: "Test OS", userAgent: "Test Browser" }),
         isTestEnviroment: true,
-        isDataSaverEnabled: vi.fn(() => false),
-        userDataSaverEnabled,
+        isDataSaverEnabled,
+        dataSaverLevel,
+        effectiveDataSaverLevel,
         localCacheVersion,
         youtubeAlwaysAllow,
         subtitlesOnVideo,
@@ -164,13 +169,15 @@ describe("SettingsPage data saver", () => {
         setActivePinia(createTestingPinia());
         vi.mocked(isDataSaverEnabled).mockReturnValue(false);
         connectionSpeed.value = 10;
-        userDataSaverEnabled.value = false;
+        // Touched so the level reads the device flag each test sets.
+        dataSaverLevel.value = "off";
+        dataSaverLevel.value = null;
         localStorage.clear();
     });
 
     afterEach(() => {
         vi.mocked(isDataSaverEnabled).mockReset();
-        userDataSaverEnabled.value = false;
+        dataSaverLevel.value = null;
         localStorage.clear();
     });
 
@@ -179,16 +186,24 @@ describe("SettingsPage data saver", () => {
         expect(wrapper.text()).toContain("10.0 Mbps");
     });
 
-    it("toggles and persists the user Data Saver preference", async () => {
+    it("offers Off, Light and Strict, and keeps the level chosen", async () => {
         const wrapper = mountSettingsPage();
-        const toggle = wrapper.find("[data-test='dataSaverToggle']");
-        expect(toggle.exists()).toBe(true);
-        expect(userDataSaverEnabled.value).toBe(false);
+        expect(wrapper.find("[data-test='dataSaverLevel-off']").attributes("aria-checked")).toBe(
+            "true",
+        );
 
-        await toggle.trigger("click");
+        await wrapper.find("[data-test='dataSaverLevel-light']").trigger("click");
+        expect(dataSaverLevel.value).toBe("light");
+        expect(localStorage.getItem("dataSaverLevel")).toBe("light");
+        expect(wrapper.find("[data-test='dataSaverLevel-light']").attributes("aria-checked")).toBe(
+            "true",
+        );
 
-        expect(userDataSaverEnabled.value).toBe(true);
-        expect(localStorage.getItem("dataSaver")).toBe("true");
+        await wrapper.find("[data-test='dataSaverLevel-strict']").trigger("click");
+        expect(dataSaverLevel.value).toBe("strict");
+        expect(wrapper.find("[data-test='dataSaverLevelDescription']").text()).toContain(
+            "sound only",
+        );
     });
 
     it("lets the viewer choose where subtitles go: under the video by default, or over it", async () => {
@@ -216,20 +231,21 @@ describe("SettingsPage data saver", () => {
         expect(localStorage.getItem("youtubeAlwaysAllow")).toBe("false");
     });
 
-    it("forces the toggle on visually and disables it when browser Data Saver is detected", async () => {
+    it("stands in Light for the device's Data Saver until a level is chosen", async () => {
         vi.mocked(isDataSaverEnabled).mockReturnValue(true);
         const wrapper = mountSettingsPage();
-        const toggle = wrapper.find("[data-test='dataSaverToggle']");
 
-        expect(toggle.attributes("aria-checked")).toBe("true");
-        expect(toggle.attributes("disabled")).toBeDefined();
+        expect(wrapper.find("[data-test='dataSaverLevel-light']").attributes("aria-checked")).toBe(
+            "true",
+        );
         expect(wrapper.find("[data-test='dataSaverNote']").text()).toContain(
-            "Your browser's Data Saver is on",
+            "Your device's Data Saver is on",
         );
 
-        await toggle.trigger("click");
+        await wrapper.find("[data-test='dataSaverLevel-off']").trigger("click");
 
-        expect(userDataSaverEnabled.value).toBe(false);
+        expect(dataSaverLevel.value).toBe("off");
+        expect(wrapper.find("[data-test='dataSaverNote']").exists()).toBe(false);
     });
 
     it("shows the slow-connection note only when Data Saver is otherwise off", async () => {
@@ -240,7 +256,7 @@ describe("SettingsPage data saver", () => {
             "Your connection seems slow",
         );
 
-        userDataSaverEnabled.value = true;
+        dataSaverLevel.value = "light";
         await wrapper.vm.$nextTick();
 
         expect(wrapper.find("[data-test='dataSaverNote']").exists()).toBe(false);

@@ -11,6 +11,8 @@ export function usePlayerMessages() {
     return computed(() => ({
         comingSoon: t("video_player.coming_soon"),
         errorGeneric: t("video_player.error_generic"),
+        // The same words as the app's own offline banner.
+        offline: t("notification.offline.title"),
         errorUnsupportedBrowser: t("video_player.error_unsupported_browser"),
         errorKeyRequired: t("video_player.error_key_required"),
         errorNetwork: t("video_player.error_network"),
@@ -41,6 +43,7 @@ export function usePlayerMessages() {
         closeBrowse: t("video_player.close_browse"),
         nextUp: t("media_player.more"),
         dismiss: t("video_player.dismiss_next_up"),
+        closeScrub: t("media_player.close_frames"),
 
         // Native full-screen draws its own controls and says these.
         pictureInPicture: t("media_player.picture_in_picture"),

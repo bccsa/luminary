@@ -11,7 +11,9 @@ import { useI18n } from "vue-i18n";
 import {
     getDeviceInfo,
     isDataSaverEnabled,
-    userDataSaverEnabled,
+    dataSaverLevel,
+    effectiveDataSaverLevel,
+    type DataSaverLevel,
     subtitlesOnVideo,
     localCacheVersion,
     youtubeAlwaysAllow,
@@ -37,17 +39,17 @@ const deviceInfo = getDeviceInfo();
 // Live, probe-based connection-speed estimate (refreshes itself on focus / regained connectivity).
 const { connectionSpeed, isSlowConnection } = useNetworkSpeedEstimator();
 const browserDataSaverEnabled = isDataSaverEnabled();
-const dataSaverToggleValue = computed(() => userDataSaverEnabled.value || browserDataSaverEnabled);
+const dataSaverLevels: DataSaverLevel[] = ["off", "light", "strict"];
 const dataSaverNote = computed(() => {
-    if (browserDataSaverEnabled) return t("settings.data_saver.browser_note");
-    if (isSlowConnection.value && !userDataSaverEnabled.value) {
+    // The device's own Data Saver stands in until a level is chosen here.
+    if (browserDataSaverEnabled && dataSaverLevel.value === null) {
+        return t("settings.data_saver.browser_note");
+    }
+    if (isSlowConnection.value && effectiveDataSaverLevel.value === "off") {
         return t("settings.data_saver.slow_connection_note");
     }
     return "";
 });
-const setUserDataSaverEnabled = (enabled: boolean) => {
-    userDataSaverEnabled.value = enabled;
-};
 
 const isClearing = ref(false);
 
@@ -149,16 +151,38 @@ const deleteLocalData = async () => {
                 </div>
             </LCard>
             <LCard :title="t('settings.data_saver.title')">
-                <div class="flex items-center justify-between gap-4">
-                    <div class="text-sm text-zinc-600 dark:text-slate-100">
-                        {{ t("settings.data_saver.description") }}
-                    </div>
-                    <LToggle
-                        :modelValue="dataSaverToggleValue"
-                        :disabled="browserDataSaverEnabled"
-                        @update:modelValue="setUserDataSaverEnabled"
-                        data-test="dataSaverToggle"
-                    />
+                <div class="text-sm text-zinc-600 dark:text-slate-100">
+                    {{ t("settings.data_saver.description") }}
+                </div>
+                <div
+                    class="mt-3 inline-flex rounded-full bg-zinc-100 p-1 dark:bg-slate-700"
+                    role="radiogroup"
+                    :aria-label="t('settings.data_saver.title')"
+                    data-test="dataSaverLevels"
+                >
+                    <button
+                        v-for="level in dataSaverLevels"
+                        :key="level"
+                        type="button"
+                        role="radio"
+                        :aria-checked="effectiveDataSaverLevel === level"
+                        class="min-h-[36px] rounded-full px-4 text-sm font-semibold"
+                        :class="
+                            effectiveDataSaverLevel === level
+                                ? 'bg-white text-zinc-900 shadow dark:bg-slate-500 dark:text-white'
+                                : 'text-zinc-600 dark:text-slate-300'
+                        "
+                        :data-test="`dataSaverLevel-${level}`"
+                        @click="dataSaverLevel = level"
+                    >
+                        {{ t(`settings.data_saver.${level}`) }}
+                    </button>
+                </div>
+                <div
+                    class="mt-2 text-sm text-zinc-600 dark:text-slate-100"
+                    data-test="dataSaverLevelDescription"
+                >
+                    {{ t(`settings.data_saver.${effectiveDataSaverLevel}_description`) }}
                 </div>
                 <div
                     v-if="dataSaverNote"

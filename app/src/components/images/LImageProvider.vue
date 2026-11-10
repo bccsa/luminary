@@ -94,7 +94,7 @@ export const activeImageCollection = computed(() => (content: ContentDto) => {
 </script>
 
 <script setup lang="ts">
-import { fallbackImageUrls, isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import { dataSaverOn, fallbackImageUrls } from "@/globalConfig";
 import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
 import { type ImageDto, type ImageFileDto, type Uuid } from "luminary-shared";
 import Rand from "rand-seed";
@@ -137,13 +137,7 @@ const resolvedAlt = computed(() => {
 const baseUrl = computed(() => props.bucketPublicUrl);
 
 // "Reduced data" mode lowers image weight on any of four signals (slow connection, user toggle, OS Data Saver, SSG prerendering). Forced on during SSG so the prerendered HTML advertises the smallest slot, not the full-res `sizes` a real device's DPR would pull in.
-const reducedData = computed(
-    () =>
-        isPrerender() ||
-        isSlowConnection.value ||
-        userDataSaverEnabled.value ||
-        isDataSaverEnabled(),
-);
+const reducedData = computed(() => isPrerender() || isSlowConnection.value || dataSaverOn.value);
 
 // All collections for this image, unfiltered. We deliberately hand the browser the FULL srcset ladder
 // (never pre-filtering variants by width) plus a correct `sizes` attribute, so it can pick the variant

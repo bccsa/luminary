@@ -29,13 +29,7 @@ import LImage from "@/components/images/LImage.vue";
 import { usePlayerMessages } from "@/media-player/usePlayerMessages";
 import YouTubeWrapper from "./YouTubeWrapper.vue";
 import { isYouTubeLink } from "@/util/youtube";
-import {
-    appLanguagesPreferredAsRef,
-    isDarkTheme,
-    isDataSaverEnabled,
-    queryParams,
-    userDataSaverEnabled,
-} from "@/globalConfig";
+import { appLanguagesPreferredAsRef, isDarkTheme, queryParams, dataSaverOn } from "@/globalConfig";
 import {
     connectionSpeed,
     hasMeasuredConnectionSpeed,
@@ -154,13 +148,13 @@ const webNowPlaying = computed(() => ({
  * Taken when this component is created: a player swapped to the next video keeps it.
  */
 const controllerOptions = {
-    prefetch: { enabled: !(userDataSaverEnabled.value || isDataSaverEnabled()) },
+    prefetch: { enabled: !dataSaverOn.value },
 };
 const playerExtras = computed(() => ({
     controllerOptions,
     // Saving data, the scrub frames are fetched as they are reached rather than ahead; the player itself
     // holds back while only sound plays.
-    lazyThumbnails: userDataSaverEnabled.value || isDataSaverEnabled(),
+    lazyThumbnails: dataSaverOn.value,
     ...(videoPlayer.acceptsNowPlaying
         ? { nowPlaying: nowPlaying.value }
         : { nowPlaying: webNowPlaying.value, appearance: isDarkTheme.value ? "dark" : "light" }),
@@ -317,8 +311,7 @@ watch(
         const contentId = props.content?._id;
         const artwork = fallbackArtworkDataUrl(props.content?.parentId);
         startAngleId.value = props.startAudio ? AUDIO_ONLY_ANGLE_ID : undefined;
-        maxHeight.value =
-            userDataSaverEnabled.value || isDataSaverEnabled() ? DATA_SAVER_MAX_HEIGHT : undefined;
+        maxHeight.value = dataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : undefined;
         bandwidthEstimate.value = hasMeasuredConnectionSpeed.value
             ? Math.round(connectionSpeed.value * 1_000_000)
             : undefined;
@@ -345,6 +338,37 @@ watch(
         }
     },
     { immediate: true },
+);
+
+/**
+ * The key could not be had when the video opened (offline, or the server was away), so every load would fail for
+ * want of it. It is asked for again when the network comes back, and when the player fails without it (its "Try
+ * again"); a key that arrives makes a new source, which the player loads.
+ */
+const keyMissing = () =>
+    keyResolved.value && !keyHex.value && !!props.content?.parentId && !!props.content?.parentMedia?.hlsKey_id;
+let keyRefetch: Promise<void> | null = null;
+function refetchKey(): void {
+    if (!keyMissing() || keyRefetch) return;
+    const contentId = props.content?._id;
+    const parentId = props.content!.parentId;
+    keyRefetch = fetchHlsKey(parentId)
+        .then((key) => {
+            if (key && props.content?._id === contentId) keyHex.value = key;
+        })
+        .catch(() => {
+            // Still out of reach: the next way back (online, or another try) asks again.
+        })
+        .finally(() => (keyRefetch = null));
+}
+const onOnline = () => refetchKey();
+onMounted(() => window.addEventListener("online", onOnline));
+onBeforeUnmount(() => window.removeEventListener("online", onOnline));
+watch(
+    () => player.value?.state?.lifecycle,
+    (lifecycle) => {
+        if (lifecycle === "error") refetchKey();
+    },
 );
 
 /**

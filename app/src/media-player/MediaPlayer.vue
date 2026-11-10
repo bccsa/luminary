@@ -64,7 +64,7 @@ import { fallbackImageFor } from "@/util/fallbackArtwork";
 import { coverImageUrl, posterImageUrl, thumbHashTint, thumbHashWash } from "./coverImage";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
-import { subtitlePreference, subtitlesOnVideo } from "@/globalConfig";
+import { dataSaverOn, subtitlePreference, subtitlesOnVideo } from "@/globalConfig";
 import { keyboardOpen } from "@/composables/useKeyboardOpen";
 import { useScreenWakeHold } from "@/composables/screenWakeHolds";
 import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
@@ -90,10 +90,11 @@ import {
     mediaPlayerItem,
     mediaPlayerView,
     minimiseMediaPlayer,
-    startsAsAudio,
+    chosenAudio,
+    opensAsAudio,
 } from "./mediaPlayer";
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const router = useRouter();
 
 /** The speeds every speed menu offers, the player's own included, so a speed set in one is ticked in the others. */
@@ -367,11 +368,11 @@ onBeforeUnmount(() => {
     document.documentElement.style.removeProperty("--media-bar-h");
 });
 
-// Read once per item: switching Data Saver mid-play changes the next item, not this one.
+// Read once per item: switching Data Saver, or the mode, mid-play changes the next item, not this one.
 const startAudio = ref(false);
 watch(
     () => item.value?.content._id,
-    () => (startAudio.value = item.value?.audio ?? startsAsAudio.value),
+    () => (startAudio.value = item.value ? opensAsAudio(item.value) : false),
     { immediate: true },
 );
 
@@ -379,13 +380,39 @@ watch(
 const audioRequested = ref(false);
 /** The viewer chose sound, and the platform turned the picture off in place rather than loading the sound angle. */
 const videoOffByChoice = ref(false);
+/**
+ * The item opens as sound and the player has not yet said which angle it loaded: the screen shows the sound's from
+ * the start, rather than the picture's for the moment before the player reports.
+ */
+const startingAsAudio = ref(false);
+watch(
+    () => item.value?.content._id,
+    () => (startingAsAudio.value = startAudio.value),
+    { immediate: true },
+);
+watch(
+    () =>
+        [
+            state.value?.activeAngleId,
+            state.value?.isAudioOnly,
+            state.value?.playing,
+            state.value?.lifecycle,
+        ] as const,
+    ([angle, audioOnly, isPlaying, lifecycle]) => {
+        if (!startingAsAudio.value) return;
+        // Loaded as sound (audioMode says so itself from here), or it fell back to a picture and plays, or failed.
+        if (angle === AUDIO_ONLY_ANGLE_ID || audioOnly || isPlaying || lifecycle === "error")
+            startingAsAudio.value = false;
+    },
+);
 const audioMode = computed(
     () =>
-        !!state.value &&
-        (audioRequested.value ||
-            videoOffByChoice.value ||
-            state.value.isAudioOnly ||
-            state.value.activeAngleId === AUDIO_ONLY_ANGLE_ID),
+        startingAsAudio.value ||
+        (!!state.value &&
+            (audioRequested.value ||
+                videoOffByChoice.value ||
+                state.value.isAudioOnly ||
+                state.value.activeAngleId === AUDIO_ONLY_ANGLE_ID)),
 );
 const playing = computed(() => state.value?.playing ?? false);
 const currentTime = computed(() => state.value?.currentTime ?? 0);
@@ -898,6 +925,7 @@ const canSwitch = computed(
 );
 
 async function showAudio() {
+    chosenAudio.value = true;
     if (audioMode.value) return;
     // The picture goes and the sound plays on: nothing loads, so there is no gap.
     if (handle.value?.canTurnVideoOff && state.value?.activeAngleId !== AUDIO_ONLY_ANGLE_ID) {
@@ -914,6 +942,8 @@ async function showAudio() {
 }
 
 async function showVideo() {
+    chosenAudio.value = false;
+    startingAsAudio.value = false;
     if (videoOffByChoice.value) {
         videoOffByChoice.value = false;
         handle.value?.setVideoOff?.(false);
@@ -931,6 +961,44 @@ async function showVideo() {
     // full-screen; the web shows it in the player.
     if (isNativeApp() && !inlineVideo.value) await handle.value?.enterFullscreen();
 }
+
+/**
+ * Data Saver holds each new item's picture to its lowest rendition, once the item has loaded with one (sound has
+ * none, so a later switch to the picture still gets it); a quality the viewer picks afterwards stands.
+ */
+let lowestPending = false;
+let lowestLoading = false;
+watch(
+    () => item.value?.content._id,
+    () => {
+        lowestPending = true;
+        lowestLoading = false;
+    },
+    { immediate: true },
+);
+watch(
+    () => [state.value?.lifecycle, state.value?.qualities] as const,
+    ([lifecycle, qualities]) => {
+        if (!lowestPending) return;
+        // The last item's state lingers until the new load begins.
+        if (lifecycle === "loading") lowestLoading = true;
+        if (!lowestLoading || lifecycle !== "ready") return;
+        if (!dataSaverOn.value) {
+            lowestPending = false;
+            return;
+        }
+        const lowest = [...(qualities ?? [])]
+            .filter((quality) => (quality.height ?? 0) > 0)
+            .sort((a, b) => (a.height ?? 0) - (b.height ?? 0))[0];
+        if (!lowest) {
+            // Sound only: wait for a load with a picture (the viewer's switch to video).
+            lowestLoading = false;
+            return;
+        }
+        lowestPending = false;
+        if (state.value?.activeQualityId !== lowest.id) controller.value?.setQuality(lowest.id);
+    },
+);
 
 // The picture's off-switch belongs to the item it was used on; the next one starts as its own mode says.
 watch(
@@ -1387,28 +1455,18 @@ const nowPlayingSubtitle = computed(() =>
 // --- the platform's own now-playing screen ---------------------------------------------------------
 
 /**
- * Where the platform draws the expanded screen itself, it covers this one, which stays mounted for its player. An
- * error or a video not yet published keeps the page's screen, whose panel says so and offers to try again.
+ * Where the platform draws the expanded screen itself, it covers this one, which stays mounted for its player. The
+ * player tells it of an error or a video not yet published, and its panel offers to try again.
  */
 const nativeScreen = computed(
-    () =>
-        screen.value &&
-        expanded.value &&
-        handle.value?.nativeNowPlaying === true &&
-        state.value?.lifecycle !== "error" &&
-        state.value?.lifecycle !== "waiting-for-master",
+    () => screen.value && expanded.value && handle.value?.nativeNowPlaying === true,
 );
 /**
  * The platform's screen is (or is about to be) the one on the phone: this one is taken out of the page, so it
  * neither shows (also while a closing native screen slides away) nor keeps the web view drawing under it.
  */
 const nativeOwnsScreen = computed(
-    () =>
-        screen.value &&
-        isNativeApp() &&
-        state.value?.lifecycle !== "error" &&
-        state.value?.lifecycle !== "waiting-for-master" &&
-        handle.value?.nativeNowPlaying !== false,
+    () => screen.value && isNativeApp() && handle.value?.nativeNowPlaying !== false,
 );
 watchEffect(() => document.documentElement.classList.toggle("lmc-inline-video", inlineHole.value));
 // Under the platform's own screen the page keeps its bars: moving them would re-lay the page out beneath a
@@ -1448,37 +1506,58 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
         ...(screenPoster.value ? { posterUrl: screenPoster.value } : {}),
         itemId: content.value._id,
         sleep: nativeSleep.value,
+        ...(upNext.value.tags.length ? { upNextTags: upNext.value.tags } : {}),
+        ...(upNextTag.value ? { upNextTag: upNextTag.value } : {}),
     };
 });
+/**
+ * A string the language has; left out otherwise, so the platform's own English shows rather than the bare key (a
+ * key added before the server's language documents have it).
+ */
+const known = (key: string, params?: Record<string, string>): string | undefined =>
+    te(key) ? (params ? t(key, params) : t(key)) : undefined;
 /** The screen's own words; the player adds those it shares with its other controls. */
-const nativeScreenTexts = computed<VideoNowPlayingTexts>(() => ({
-    minimise: t("media_player.minimise"),
-    audio: t("media_player.audio"),
-    video: t("media_player.video"),
-    playAs: t("media_player.play_as"),
-    read: t("media_player.read"),
-    live: t("media_player.live"),
-    speed: t("media_player.speed"),
-    quality: t("video_player.quality_menu"),
-    qualityAuto: t("video_player.quality_auto"),
-    audioMenu: t("video_player.audio_menu"),
-    subtitles: t("video_player.subtitles_menu"),
-    subtitlesOff: t("video_player.subtitles_off"),
-    lyrics: t("media_player.lyrics"),
-    sleepTimer: t("media_player.sleep_timer"),
-    sleepOff: t("media_player.sleep_off"),
-    // The platform fills these in itself, so the placeholders go through as they are.
-    sleepMinutes: t("media_player.sleep_minutes", { minutes: "{minutes}" }),
-    sleepEndOfChapter: t("media_player.sleep_end_of_chapter"),
-    sleepLeft: t("media_player.sleep_left", { minutes: "{minutes}" }),
-    browse: t("video_player.browse"),
-    chapters: t("media_player.chapters"),
-    more: t("media_player.more"),
-    closeBrowse: t("video_player.close_browse"),
-    pictureInPicture: t("media_player.picture_in_picture"),
-    fullscreen: t("media_player.fullscreen"),
-    cast: t("media_player.cast"),
-}));
+const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
+    Object.fromEntries(
+        Object.entries({
+            minimise: known("media_player.minimise"),
+            audio: known("media_player.audio"),
+            video: known("media_player.video"),
+            playAs: known("media_player.play_as"),
+            read: known("media_player.read"),
+            live: known("media_player.live"),
+            speed: known("media_player.speed"),
+            quality: known("video_player.quality_menu"),
+            qualityAuto: known("video_player.quality_auto"),
+            audioMenu: known("video_player.audio_menu"),
+            subtitles: known("video_player.subtitles_menu"),
+            subtitlesOff: known("video_player.subtitles_off"),
+            lyrics: known("media_player.lyrics"),
+            sleepTimer: known("media_player.sleep_timer"),
+            sleepOff: known("media_player.sleep_off"),
+            // The platform fills these in itself, so the placeholders go through as they are.
+            sleepMinutes: known("media_player.sleep_minutes", { minutes: "{minutes}" }),
+            sleepEndOfChapter: known("media_player.sleep_end_of_chapter"),
+            sleepLeft: known("media_player.sleep_left", { minutes: "{minutes}" }),
+            browse: known("video_player.browse"),
+            chapters: known("media_player.chapters"),
+            more: known("media_player.more"),
+            closeBrowse: known("video_player.close_browse"),
+            pictureInPicture: known("media_player.picture_in_picture"),
+            fullscreen: known("media_player.fullscreen"),
+            cast: known("media_player.cast"),
+            replay: known("media_player.replay"),
+            upNext: known("media_player.up_next"),
+            playNow: known("media_player.play_now"),
+            cancel: known("media_player.cancel"),
+            closeScrub: known("media_player.close_frames"),
+            exitFullscreen: known("video_player.exit_fullscreen"),
+            allTags: known("media_player.all_tags"),
+            noMoreWithTag: known("media_player.no_more_with_tag"),
+            filterByTag: known("media_player.filter_by_tag"),
+        }).filter((entry): entry is [string, string] => entry[1] !== undefined),
+    ),
+);
 let sentNativeScreen = "";
 watch(
     [nativeScreenContent, nativeScreenTexts, handle],
@@ -1507,6 +1586,7 @@ function onNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
     else if (action === "audio") void showAudio();
     else if (action === "video") void showVideo();
     else if (action === "sleep") pickNativeSleep(value);
+    else if (action === "tag") upNextTag.value = (value || null) as Uuid | null;
 }
 
 /** The platform's sleep menu: `off`, `chapter`, or the minutes. */

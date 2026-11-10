@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { nextTick } from "vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { userDataSaverEnabled } from "@/globalConfig";
 import {
@@ -8,6 +9,8 @@ import {
     mediaPlayerView,
     minimiseMediaPlayer,
     openMediaPlayer,
+    opensAsAudio,
+    chosenAudio,
     startsAsAudio,
 } from "../mediaPlayer";
 
@@ -16,6 +19,7 @@ const other = { ...mockEnglishContentDto, _id: "content-other" };
 beforeEach(() => {
     closeMediaPlayer();
     userDataSaverEnabled.value = false;
+    chosenAudio.value = null;
 });
 
 describe("the media player's store", () => {
@@ -69,5 +73,29 @@ describe("the media player's store", () => {
         expect(startsAsAudio.value).toBe(false);
         userDataSaverEnabled.value = true;
         expect(startsAsAudio.value).toBe(true);
+    });
+
+    it("opens each item in the mode the viewer last chose, ahead of Data Saver, unless one was asked for", () => {
+        expect(opensAsAudio({})).toBe(false);
+        userDataSaverEnabled.value = true;
+        expect(opensAsAudio({})).toBe(true);
+        chosenAudio.value = false;
+        expect(opensAsAudio({})).toBe(false);
+        userDataSaverEnabled.value = false;
+        chosenAudio.value = true;
+        expect(opensAsAudio({})).toBe(true);
+        expect(opensAsAudio({ audio: false })).toBe(false);
+    });
+
+    it("keeps the viewer's choice of mode across restarts", async () => {
+        chosenAudio.value = false;
+        await nextTick();
+        expect(localStorage.getItem("mediaPlayerMode")).toBe("video");
+        chosenAudio.value = true;
+        await nextTick();
+        expect(localStorage.getItem("mediaPlayerMode")).toBe("audio");
+        chosenAudio.value = null;
+        await nextTick();
+        expect(localStorage.getItem("mediaPlayerMode")).toBeNull();
     });
 });
