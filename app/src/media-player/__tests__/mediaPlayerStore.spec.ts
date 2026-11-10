@@ -75,13 +75,15 @@ describe("the media player's store", () => {
         expect(startsAsAudio.value).toBe(true);
     });
 
-    it("opens each item in the mode the viewer last chose, ahead of Data Saver, unless one was asked for", () => {
+    it("opens as sound under strict Data Saver, whatever was chosen or asked; else as asked, else as last chosen", () => {
         expect(opensAsAudio({})).toBe(false);
         userDataSaverEnabled.value = true;
         expect(opensAsAudio({})).toBe(true);
         chosenAudio.value = false;
-        expect(opensAsAudio({})).toBe(false);
+        expect(opensAsAudio({})).toBe(true);
+        expect(opensAsAudio({ audio: false })).toBe(true);
         userDataSaverEnabled.value = false;
+        expect(opensAsAudio({})).toBe(false);
         chosenAudio.value = true;
         expect(opensAsAudio({})).toBe(true);
         expect(opensAsAudio({ audio: false })).toBe(false);

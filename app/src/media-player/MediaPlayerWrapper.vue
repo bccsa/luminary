@@ -29,7 +29,12 @@ import LImage from "@/components/images/LImage.vue";
 import { usePlayerMessages } from "@/media-player/usePlayerMessages";
 import YouTubeWrapper from "./YouTubeWrapper.vue";
 import { isYouTubeLink } from "@/util/youtube";
-import { appLanguagesPreferredAsRef, isDarkTheme, queryParams, dataSaverOn } from "@/globalConfig";
+import {
+    appLanguagesPreferredAsRef,
+    isDarkTheme,
+    queryParams,
+    dataSaverOn,
+} from "@/globalConfig";
 import {
     connectionSpeed,
     hasMeasuredConnectionSpeed,
@@ -245,8 +250,10 @@ const startAngleId = ref<string | undefined>(undefined);
  * be neither chosen by ABR nor picked by hand. Low enough to be cheap, high enough to be watchable.
  */
 const DATA_SAVER_MAX_HEIGHT = 360;
-/** The cap this content loads with: fixed per content, because a cap only takes effect on a load. */
+/** The cap this content loads with: a cap only takes effect on a load, so a change of it reloads the content. */
 const maxHeight = ref<number | undefined>(undefined);
+/** The cap changed mid-play: the reload carries on where it was, playing if it was, on the angle it was on. */
+const preservePosition = ref(false);
 /**
  * The measured connection in bits per second, for the player's ABR to start from; absent until a
  * real reading exists. Fixed per content as well: a probe finishing mid-play must not reload it.
@@ -292,6 +299,18 @@ function thumbnailSidecar(masterUrl: string): { url: string } | undefined {
  */
 const keyResolved = ref(false);
 
+/**
+ * Data Saver turned off mid-play: the cap goes by loading the same content again in place, on the angle it is on.
+ * False when there was no cap to lift. Turning it on needs no load: the host holds the lowest rendition instead.
+ */
+function liftDataSaverCap(): boolean {
+    if (maxHeight.value === undefined || dataSaverOn.value || !props.content) return false;
+    startAngleId.value = player.value?.state?.activeAngleId ?? startAngleId.value;
+    preservePosition.value = true;
+    maxHeight.value = undefined;
+    return true;
+}
+
 const source = computed<PlayerSource | null>(() => {
     const url = mediaSource.value;
     if (!url || !keyResolved.value) return null;
@@ -300,6 +319,7 @@ const source = computed<PlayerSource | null>(() => {
         keyHex: keyHex.value,
         startAngleId: startAngleId.value,
         maxHeight: maxHeight.value,
+        ...(preservePosition.value ? { preservePosition: true } : {}),
         bandwidthEstimate: bandwidthEstimate.value,
         sidecars: { chapters: chapterSidecars(url), thumbnails: thumbnailSidecar(url) },
     };
@@ -315,6 +335,7 @@ watch(
         const artwork = fallbackArtworkDataUrl(props.content?.parentId);
         startAngleId.value = props.startAudio ? AUDIO_ONLY_ANGLE_ID : undefined;
         maxHeight.value = dataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : undefined;
+        preservePosition.value = false;
         bandwidthEstimate.value = hasMeasuredConnectionSpeed.value
             ? Math.round(connectionSpeed.value * 1_000_000)
             : undefined;
@@ -538,7 +559,7 @@ function onLoadedMetadata() {
     }
 }
 
-defineExpose({ player, inlineActive });
+defineExpose({ player, inlineActive, liftDataSaverCap });
 
 function onTimeUpdate(currentTime: number, duration: number) {
     // The video being swapped out is still playing while the next one's key is fetched.

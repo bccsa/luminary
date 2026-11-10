@@ -46,9 +46,14 @@ function readChosenAudio(): boolean | null {
     }
 }
 
-/** The mode a new item opens in: what was asked for it, else the viewer's last choice, else Data Saver's. */
+/**
+ * The mode a new item opens in. Strict data saving always opens as sound, whatever was asked or chosen before (the
+ * viewer can still turn the picture on for the one playing); otherwise what was asked for the item, else the viewer's
+ * last choice.
+ */
 export function opensAsAudio(item: Pick<MediaPlayerItem, "audio">): boolean {
-    return item.audio ?? chosenAudio.value ?? startsAsAudio.value;
+    if (startsAsAudio.value) return true;
+    return item.audio ?? chosenAudio.value ?? false;
 }
 
 /**

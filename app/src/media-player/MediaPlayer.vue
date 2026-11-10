@@ -61,6 +61,7 @@ import type {
 import LImage from "@/components/images/LImage.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { isMac } from "@/globalConfig";
+import LDialog from "@/components/common/LDialog.vue";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { fallbackImageFor } from "@/util/fallbackArtwork";
 import { coverImageUrl, posterImageUrl, thumbHashOf, thumbHashTint } from "./coverImage";
@@ -951,6 +952,11 @@ const canSwitch = computed(
 
 async function showAudio() {
     chosenAudio.value = true;
+    await toSound();
+}
+
+/** The picture goes and the sound plays on, as the viewer's Audio does. */
+async function toSound() {
     if (audioMode.value) return;
     // The picture goes and the sound plays on: nothing loads, so there is no gap.
     if (handle.value?.canTurnVideoOff && state.value?.activeAngleId !== AUDIO_ONLY_ANGLE_ID) {
@@ -966,9 +972,26 @@ async function showAudio() {
     }
 }
 
+/** Strict plays the sound only: the picture is offered by turning Data Saver down to Light, once the viewer agrees. */
+const strictVideoAsk = ref(false);
+function requestVideo() {
+    if (effectiveDataSaverLevel.value === "strict") strictVideoAsk.value = true;
+    else void showVideo();
+}
+function confirmStrictVideo() {
+    strictVideoAsk.value = false;
+    dataSaverLevel.value = "light";
+    void showVideo();
+}
+
 async function showVideo() {
     chosenAudio.value = false;
     startingAsAudio.value = false;
+    // Data Saver went off while only the sound played: the picture comes back without its cap.
+    if (capLiftPending) {
+        capLiftPending = false;
+        engine.value?.liftDataSaverCap();
+    }
     if (videoOffByChoice.value) {
         videoOffByChoice.value = false;
         handle.value?.setVideoOff?.(false);
@@ -1012,17 +1035,49 @@ watch(
             lowestPending = false;
             return;
         }
-        const lowest = [...(qualities ?? [])]
-            .filter((quality) => (quality.height ?? 0) > 0)
-            .sort((a, b) => (a.height ?? 0) - (b.height ?? 0))[0];
-        if (!lowest) {
+        if (!holdLowest()) {
             // Sound only: wait for a load with a picture (the viewer's switch to video).
             lowestLoading = false;
             return;
         }
         lowestPending = false;
-        if (state.value?.activeQualityId !== lowest.id) controller.value?.setQuality(lowest.id);
     },
+);
+/** Holds the lowest rendition with a picture; false when the item has none (sound only). */
+function holdLowest(): boolean {
+    const lowest = [...(state.value?.qualities ?? [])]
+        .filter((quality) => (quality.height ?? 0) > 0)
+        .sort((a, b) => (a.height ?? 0) - (b.height ?? 0))[0];
+    if (!lowest) return false;
+    if (state.value?.activeQualityId !== lowest.id) controller.value?.setQuality(lowest.id);
+    return true;
+}
+
+/**
+ * Data Saver changed mid-play, applied at once without a gap. Strict goes to sound exactly as the viewer's own Audio
+ * does (without counting as their choice); turning it on holds the lowest rendition, which needs no load; turning it
+ * off lifts the cap by reloading in place, and in sound waits for the picture to come back, as nothing shows it now.
+ */
+let capLiftPending = false;
+watch(effectiveDataSaverLevel, (level, before) => {
+    if (!item.value) return;
+    if (level === "strict") void toSound();
+    if (level !== "off" && before === "off") {
+        capLiftPending = false;
+        // Not loaded yet, or sound only: the pin waits for a load with a picture.
+        if (state.value?.lifecycle !== "ready" || !holdLowest()) {
+            lowestPending = true;
+            lowestLoading = state.value?.lifecycle === "ready" || state.value?.lifecycle === "loading";
+        }
+    } else if (level === "off" && before !== "off") {
+        lowestPending = false;
+        if (audioMode.value) capLiftPending = true;
+        else engine.value?.liftDataSaverCap();
+    }
+});
+watch(
+    () => item.value?.content._id,
+    () => (capLiftPending = false),
 );
 
 // The picture's off-switch belongs to the item it was used on; the next one starts as its own mode says.
@@ -1038,7 +1093,7 @@ watch(
 // Watch or Listen asked for again on what is already playing: switch to it, as the player's own buttons do.
 watch(item, (now, before) => {
     if (now?.audio === undefined || now.content._id !== before?.content._id) return;
-    void (now.audio ? showAudio() : showVideo());
+    void (now.audio ? showAudio() : requestVideo());
 });
 
 /** From the start again, at the end. */
@@ -1647,6 +1702,9 @@ const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
             autoplay: known("media_player.autoplay"),
             autoplayOn: known("media_player.autoplay_on"),
             autoplayOff: known("media_player.autoplay_off"),
+            strictVideoTitle: known("media_player.strict_video_title"),
+            strictVideoDescription: known("media_player.strict_video_description"),
+            strictVideoConfirm: known("media_player.strict_video_confirm"),
             // The platform fills these in itself, so the placeholders go through as they are.
             sleepMinutes: known("media_player.sleep_minutes", { minutes: "{minutes}" }),
             sleepEndOfChapter: known("media_player.sleep_end_of_chapter"),
@@ -1696,7 +1754,11 @@ function onNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
     if (action === "minimise") minimiseMediaPlayer();
     else if (action === "read") openArticle();
     else if (action === "audio") void showAudio();
-    else if (action === "video") void showVideo();
+    // The native screen asks first under Strict, as `requestVideo` does here: a `video` that arrives then is confirmed.
+    else if (action === "video") {
+        if (effectiveDataSaverLevel.value === "strict") dataSaverLevel.value = "light";
+        void showVideo();
+    }
     else if (action === "sleep") pickNativeSleep(value);
     else if (action === "tag") upNextTag.value = (value || null) as Uuid | null;
     else if (action === "dataSaver") pickDataSaver(value);
@@ -2200,7 +2262,7 @@ function onKeydown(event: KeyboardEvent) {
                                 :class="!audioMode ? 'bg-white text-zinc-900' : 'text-white/75'"
                                 :aria-pressed="!audioMode"
                                 data-test="mediaPlayerVideo"
-                                @click="showVideo"
+                                @click="requestVideo"
                             >
                                 <FilmIcon class="h-4 w-4" />
                                 <span class="truncate">{{ t("media_player.video") }}</span>
@@ -2324,7 +2386,7 @@ function onKeydown(event: KeyboardEvent) {
                             "
                             :aria-pressed="!audioMode"
                             data-test="mediaPlayerVideo"
-                            @click="showVideo"
+                            @click="requestVideo"
                         >
                             <FilmIcon class="h-4 w-4" />
                             <span class="truncate">{{ t("media_player.video") }}</span>
@@ -3271,4 +3333,13 @@ function onKeydown(event: KeyboardEvent) {
             </button>
         </div>
     </template>
+    <LDialog
+        v-model:open="strictVideoAsk"
+        :title="t('media_player.strict_video_title')"
+        :description="t('media_player.strict_video_description')"
+        :primaryAction="confirmStrictVideo"
+        :primaryButtonText="t('media_player.strict_video_confirm')"
+        :secondaryAction="() => (strictVideoAsk = false)"
+        :secondaryButtonText="t('media_player.cancel')"
+    />
 </template>
