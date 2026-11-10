@@ -67,7 +67,14 @@ import { coverImageUrl, posterImageUrl, thumbHashOf, thumbHashTint } from "./cov
 import ThumbHashWash from "./wash/ThumbHashWash.vue";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
-import { dataSaverOn, subtitlePreference, subtitlesOnVideo } from "@/globalConfig";
+import {
+    autoplayNext,
+    dataSaverLevel,
+    dataSaverOn,
+    effectiveDataSaverLevel,
+    subtitlePreference,
+    subtitlesOnVideo,
+} from "@/globalConfig";
 import { keyboardOpen } from "@/composables/useKeyboardOpen";
 import { useScreenWakeHold } from "@/composables/screenWakeHolds";
 import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
@@ -1034,6 +1041,12 @@ watch(item, (now, before) => {
     void (now.audio ? showAudio() : showVideo());
 });
 
+/** From the start again, at the end. */
+function replay() {
+    handle.value?.seek(0);
+    void handle.value?.play();
+}
+
 function togglePlay() {
     if (playing.value) handle.value?.pause();
     else void handle.value?.play();
@@ -1417,10 +1430,14 @@ const screenChapterMask = computed(() =>
 const screenQualities = computed(() =>
     [...(state.value?.qualities ?? [])]
         .sort((a, b) => (b.height ?? 0) - (a.height ?? 0))
-        .map((quality) => ({ id: quality.id, label: quality.label })),
+        .map((quality) => ({ id: quality.id, label: quality.label, height: quality.height })),
 );
 const screenTracks = computed(() =>
-    (state.value?.audioTracks ?? []).map((track) => ({ id: track.id, label: track.label })),
+    (state.value?.audioTracks ?? []).map((track) => ({
+        id: track.id,
+        label: track.label,
+        lang: track.lang,
+    })),
 );
 // The screen is for the sound alone: back to the picture, or another item, and it closes.
 watch([audioMode, () => item.value?.content._id], ([isAudio]) => {
@@ -1593,6 +1610,8 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
         sleep: nativeSleep.value,
         ...(upNext.value.tags.length ? { upNextTags: upNext.value.tags } : {}),
         ...(upNextTag.value ? { upNextTag: upNextTag.value } : {}),
+        dataSaver: effectiveDataSaverLevel.value,
+        autoplay: autoplayNext.value,
     };
 });
 /**
@@ -1620,6 +1639,14 @@ const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
             lyrics: known("media_player.lyrics"),
             sleepTimer: known("media_player.sleep_timer"),
             sleepOff: known("media_player.sleep_off"),
+            playbackSettings: known("media_player.playback_settings"),
+            dataSaver: known("media_player.data_saver"),
+            dataSaverOff: known("settings.data_saver.off"),
+            dataSaverLight: known("settings.data_saver.light"),
+            dataSaverStrict: known("settings.data_saver.strict"),
+            autoplay: known("media_player.autoplay"),
+            autoplayOn: known("media_player.autoplay_on"),
+            autoplayOff: known("media_player.autoplay_off"),
             // The platform fills these in itself, so the placeholders go through as they are.
             sleepMinutes: known("media_player.sleep_minutes", { minutes: "{minutes}" }),
             sleepEndOfChapter: known("media_player.sleep_end_of_chapter"),
@@ -1672,6 +1699,13 @@ function onNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
     else if (action === "video") void showVideo();
     else if (action === "sleep") pickNativeSleep(value);
     else if (action === "tag") upNextTag.value = (value || null) as Uuid | null;
+    else if (action === "dataSaver") pickDataSaver(value);
+    else if (action === "autoplay" && (value === "on" || value === "off"))
+        autoplayNext.value = value === "on";
+}
+
+function pickDataSaver(value: string | undefined) {
+    if (value === "off" || value === "light" || value === "strict") dataSaverLevel.value = value;
 }
 
 /** The platform's sleep menu: `off`, `chapter`, or the minutes. */
@@ -2008,9 +2042,15 @@ function onKeydown(event: KeyboardEvent) {
                     :playback-rate="state?.playbackRate ?? 1"
                     :qualities="screenQualities"
                     :active-quality-id="state?.activeQualityId ?? 'auto'"
+                    :playing-height="handle?.playingHeight"
                     :audio-tracks="screenTracks"
                     :active-audio-track-id="state?.activeAudioTrackId ?? null"
                     :sleep-timer="sleepTimer"
+                    :sleep-minutes="sleepPickedMinutes"
+                    :data-saver="effectiveDataSaverLevel"
+                    :autoplay="autoplayNext"
+                    :ended="expanded && !!state?.ended"
+                    :next-up="nextUp[0] ?? null"
                     :has-browse="tabs.length > 0"
                     :up-next="browseUpNext"
                     chapters-sheet
@@ -2027,6 +2067,7 @@ function onKeydown(event: KeyboardEvent) {
                     :lyrics="lyrics"
                     @exit="minimiseMediaPlayer"
                     @toggle-play="togglePlay"
+                    @replay="replay"
                     @seek="(time, options) => handle?.seek(time, options)"
                     @seek-chapter="(chapter: Chapter) => handle?.seek(chapter.startTime)"
                     @upnextselect="
@@ -2039,6 +2080,8 @@ function onKeydown(event: KeyboardEvent) {
                     @audio-track="(id: string) => controller?.setAudioTrack(id)"
                     @quality="(id) => controller?.setQuality(id)"
                     @sleep="setSleep"
+                    @data-saver="pickDataSaver"
+                    @autoplay="autoplayNext = $event"
                     @subtitle-track="(id: string | null) => controller?.setSubtitleTrack(id)"
                     @picture-in-picture="handle?.startPictureInPicture?.()"
                     @fullscreen="
@@ -2069,6 +2112,28 @@ function onKeydown(event: KeyboardEvent) {
                             @pointerup.stop="!nowPlayingScrub && onRosterUp($event)"
                             @pointercancel.stop="!nowPlayingScrub && onRosterUp($event)"
                         />
+                        <button
+                            type="button"
+                            class="lmpl-afs-stripclose"
+                            :style="{
+                                '--lmpl-strip-close-max': `calc(100% - ${nowPlayingRoster.bottom + nowPlayingRoster.height + 36}px)`,
+                            }"
+                            :aria-label="known('media_player.close_frames') ?? 'Close the frames'"
+                            data-test="mediaPlayerStripClose"
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                width="18"
+                                height="18"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2.2"
+                                stroke-linecap="round"
+                                aria-hidden="true"
+                            >
+                                <path d="M6 6l12 12M18 6L6 18" />
+                            </svg>
+                        </button>
                     </template>
                     <template
                         v-if="content.slug"
@@ -2997,6 +3062,7 @@ function onKeydown(event: KeyboardEvent) {
                 :audio-tracks="screenTracks"
                 :active-audio-track-id="state.activeAudioTrackId"
                 :sleep-timer="sleepTimer"
+                :sleep-minutes="sleepPickedMinutes"
                 :has-browse="tabs.length > 0"
                 :up-next="browseUpNext"
                 chapters-sheet
@@ -3008,6 +3074,8 @@ function onKeydown(event: KeyboardEvent) {
                 :subtitle-tracks="state.subtitleTracks"
                 :active-subtitle-track-id="state.activeSubtitleTrackId"
                 :lyrics="lyrics"
+                fullscreen-active
+                @fullscreen="audioFullscreen = false"
                 @exit="audioFullscreen = false"
                 @toggle-play="togglePlay"
                 @seek="(time) => controller?.seek(time)"

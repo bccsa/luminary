@@ -113,6 +113,12 @@ export interface PlayerMessages {
     nextUp: string;
     /** Accessible name of the strip's close button, which stops the automatic advance. */
     dismiss: string;
+    /** The play button at the end, which plays it again from the start. */
+    replay: string;
+    /** The end panel's button that plays the next video at once. */
+    playNow: string;
+    /** The end panel's button that stops the countdown. */
+    cancel: string;
 
     // --- Fullscreen audio screen ---------------------------------------------
     /** Name of the playback speed button and its menu. */
@@ -123,6 +129,17 @@ export interface PlayerMessages {
     sleepTimer: string;
     /** The sleep timer menu's entry that turns it off. */
     sleepOff: string;
+    /** Name of the gear button and its menu: Data Saver and Autoplay. */
+    playbackSettings: string;
+    /** Heading of the Data Saver rows in that menu. */
+    dataSaver: string;
+    dataSaverOff: string;
+    dataSaverLight: string;
+    dataSaverStrict: string;
+    /** Heading of the Autoplay rows in that menu. */
+    autoplay: string;
+    autoplayOn: string;
+    autoplayOff: string;
     /** A sleep timer entry; `{minutes}` is replaced with the number. */
     sleepMinutes: string;
     /** The sleep timer entry that stops playback when the chapter playing ends. */
@@ -181,11 +198,22 @@ export const DEFAULT_MESSAGES: PlayerMessages = {
 
     nextUp: "Up next",
     dismiss: "Dismiss",
+    replay: "Replay",
+    playNow: "Play now",
+    cancel: "Cancel",
 
     speedLabel: "Speed",
     live: "Live",
     sleepTimer: "Sleep timer",
     sleepOff: "Off",
+    playbackSettings: "Playback settings",
+    dataSaver: "Data saver",
+    dataSaverOff: "Off",
+    dataSaverLight: "Light",
+    dataSaverStrict: "Strict",
+    autoplay: "Autoplay",
+    autoplayOn: "On",
+    autoplayOff: "Off",
     sleepMinutes: "{minutes} minutes",
     sleepEndOfChapter: "End of chapter",
     sleepLeft: "{minutes} min left",

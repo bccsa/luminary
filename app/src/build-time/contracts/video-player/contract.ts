@@ -33,6 +33,10 @@ export type VideoNowPlayingScreen = {
     /** The tags up next can be narrowed to (chips show from two), and the one it is narrowed to. */
     upNextTags?: { id: string; title: string; series?: boolean }[];
     upNextTag?: string | null;
+    /** The Data Saver level in force, for the screen's gear menu. */
+    dataSaver?: "off" | "light" | "strict";
+    /** Whether the end counts down to the next item and plays it, for the gear menu and the end panel. */
+    autoplay?: boolean;
 };
 
 /** The words of a platform's now-playing screen, in the page's language; any left out stay English. */
@@ -79,16 +83,33 @@ export type VideoNowPlayingTexts = Partial<
         | "exitFullscreen"
         | "allTags"
         | "noMoreWithTag"
-        | "filterByTag",
+        | "filterByTag"
+        | "playbackSettings"
+        | "dataSaver"
+        | "dataSaverOff"
+        | "dataSaverLight"
+        | "dataSaverStrict"
+        | "autoplay"
+        | "autoplayOn"
+        | "autoplayOff",
         string
     >
 >;
 
 /**
  * What the viewer asked a platform's now-playing screen for that only the page can do. `sleep` comes with a value:
- * `off`, `chapter`, or the minutes; `tag` with the tag up next is narrowed to, empty for all.
+ * `off`, `chapter`, or the minutes; `tag` with the tag up next is narrowed to, empty for all; `dataSaver` with
+ * `off`, `light` or `strict`; `autoplay` with `on` or `off`.
  */
-export type VideoNowPlayingAction = "minimise" | "read" | "audio" | "video" | "sleep" | "tag";
+export type VideoNowPlayingAction =
+    | "minimise"
+    | "read"
+    | "audio"
+    | "video"
+    | "sleep"
+    | "tag"
+    | "dataSaver"
+    | "autoplay";
 
 /** What a platform's own minimised player shows of the item, as the page's bar does. */
 export type VideoMiniPlayerBar = {
@@ -170,6 +191,8 @@ export type VideoPlayerHandle = {
     /** The player's volume, 0 to 1, where the page can set it; a phone keeps its own. */
     readonly volume?: number;
     setVolume?(volume: number): void;
+    /** The height of the picture playing now, in pixels, where the player knows it: what Auto quality has picked. */
+    readonly playingHeight?: number;
     /** The words of the subtitles that are on, timed, where the player can read them; for lyrics with sound alone. */
     readonly subtitleCues?: readonly { start: number; end: number; text: string }[];
     startPictureInPicture?(): void;

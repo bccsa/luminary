@@ -24,7 +24,10 @@ import { TimelineScrub } from "../ui/timelineScrub";
 import {
     SLEEP_MINUTES,
     SPEED_OPTIONS,
+    autoQualityLabel,
     formatMinutes,
+    languageBadge,
+    qualityBadge,
     sleepMinutesLeft,
 } from "../ui/audioFullscreen";
 import { nextInstanceId } from "../ui/instanceId";
@@ -49,81 +52,99 @@ import ThumbHashWash from "../../wash/ThumbHashWash.vue";
  * listener's. `stageHole` leaves that place transparent, for a picture the platform draws behind the page. The
  * `top-end` slot fills the right of the top line (a switch between sound and picture, say).
  */
-const props = defineProps<{
-    title: string;
-    /** The series or collection it belongs to, small, above the title. */
-    eyebrow?: string;
-    /** Who it is by. */
-    subtitle?: string;
-    /** `fallback` is shown in its place if the picture does not load. */
-    artwork: { src?: string; srcset?: string; sizes?: string; fallback?: string } | null;
-    appearance: "light" | "dark";
-    chapters: readonly Chapter[];
-    currentTime: number;
-    duration: number;
-    bufferedEnd?: number;
-    playing: boolean;
-    /** Loading or stuck: the play button turns while the player gets ready, as a video's spinner does. */
-    busy?: boolean;
-    /** A live stream: nothing to skip and no time left to show. */
-    live?: boolean;
-    /** The chapter the playhead is in; -1 for none. */
-    chapterIndex: number;
-    playbackRate: number;
-    /** The video's renditions, for the quality menu; none or one and the menu is not offered. */
-    qualities?: readonly { id: string; label: string }[];
-    /** The rendition held, or `auto` while the player chooses. */
-    activeQualityId?: string;
-    audioTracks: readonly { id: string; label: string }[];
-    activeAudioTrackId: string | null;
-    sleepTimer: SleepTimerState | null;
-    hasBrowse: boolean;
-    skipBackSeconds: number;
-    skipForwardSeconds: number;
-    /** Mask that cuts the timeline at the chapters; empty for one plain bar. */
-    chapterMask: string;
-    messages: PlayerMessages;
-    /** Videos that may follow, for the panel's Up next tab. */
-    upNext?: readonly PlayerUpNextItem[];
-    /** Open the panel for chapters and up next on this screen, instead of asking the host (`open-browse`) to show them. */
-    chaptersSheet?: boolean;
-    /** What takes the picture's place: the cover, or the host's picture (`stage` slot) at full width. */
-    stage?: "cover" | "video";
-    /**
-     * The picture takes the whole screen and nothing else shows: a browser turned sideways, which cannot go full
-     * screen without a tap, has the host's player and its own controls fill the window instead.
-     */
-    fill?: boolean;
-    /** The picture's width over its height, so its place takes the picture's shape; 16:9 when not known. */
-    stageAspect?: number;
-    /** Room under the picture for the host's subtitles. */
-    captionBand?: boolean;
-    /** The words being said now, under the picture, where the host shows subtitles itself. */
-    caption?: string;
-    /** The host draws the picture behind the page, where the stage is: nothing of the screen may cover it there. */
-    stageHole?: boolean;
-    /** The item's ThumbHash (base64): the screen's colour, drawn as the wash, in place of the cover blurred. */
-    thumbHash?: string;
-    /** The chevron's name, where it minimises the player rather than leaving full screen. */
-    exitLabel?: string;
-    subtitleTracks?: readonly { id: string; label: string }[];
-    activeSubtitleTrackId?: string | null;
-    canPictureInPicture?: boolean;
-    /** Offers full screen with sound alone too, among the tools, for a host that has a full screen to take it to. */
-    fullscreenTool?: boolean;
-    /** The host's full screen is open: it is left by an X where a video's full screen has its own, top right. */
-    fullscreenActive?: boolean;
-    /** The words of what plays, timed: offered, with sound alone, as lyrics in the picture's place. */
-    lyrics?: readonly LyricCue[];
-    /** The preview frame at a time, once the thumbnails are in: the chapters' pictures. */
-    thumbnailAt?: (seconds: number) => ThumbnailSpriteCue | null;
-}>();
+const props = withDefaults(
+    defineProps<{
+        title: string;
+        /** The series or collection it belongs to, small, above the title. */
+        eyebrow?: string;
+        /** Who it is by. */
+        subtitle?: string;
+        /** `fallback` is shown in its place if the picture does not load. */
+        artwork: { src?: string; srcset?: string; sizes?: string; fallback?: string } | null;
+        appearance: "light" | "dark";
+        chapters: readonly Chapter[];
+        currentTime: number;
+        duration: number;
+        bufferedEnd?: number;
+        playing: boolean;
+        /** Loading or stuck: the play button turns while the player gets ready, as a video's spinner does. */
+        busy?: boolean;
+        /** A live stream: nothing to skip and no time left to show. */
+        live?: boolean;
+        /** The chapter the playhead is in; -1 for none. */
+        chapterIndex: number;
+        playbackRate: number;
+        /** The video's renditions, for the quality menu; none or one and the menu is not offered. */
+        qualities?: readonly { id: string; label: string; height?: number }[];
+        /** The height of the picture playing now, which is what Auto has picked. */
+        playingHeight?: number;
+        /** The rendition held, or `auto` while the player chooses. */
+        activeQualityId?: string;
+        audioTracks: readonly { id: string; label: string; lang?: string }[];
+        activeAudioTrackId: string | null;
+        sleepTimer: SleepTimerState | null;
+        /** The Data Saver level in force, for the gear menu; with `autoplay`, absent leaves the gear out. */
+        dataSaver?: "off" | "light" | "strict";
+        /** Whether the next video plays by itself at the end: the end panel counts down to it, else only replay shows. */
+        autoplay?: boolean;
+        /** Playback reached the end: the play button replays, and with autoplay the end panel offers `nextUp`. */
+        ended?: boolean;
+        /** The video the end panel counts down to. */
+        nextUp?: PlayerUpNextItem | null;
+        /** The minutes picked for a running minutes timer, so its row is ticked; the timer itself only knows its end. */
+        sleepMinutes?: number | null;
+        hasBrowse: boolean;
+        skipBackSeconds: number;
+        skipForwardSeconds: number;
+        /** Mask that cuts the timeline at the chapters; empty for one plain bar. */
+        chapterMask: string;
+        messages: PlayerMessages;
+        /** Videos that may follow, for the panel's Up next tab. */
+        upNext?: readonly PlayerUpNextItem[];
+        /** Open the panel for chapters and up next on this screen, instead of asking the host (`open-browse`) to show them. */
+        chaptersSheet?: boolean;
+        /** What takes the picture's place: the cover, or the host's picture (`stage` slot) at full width. */
+        stage?: "cover" | "video";
+        /**
+         * The picture takes the whole screen and nothing else shows: a browser turned sideways, which cannot go full
+         * screen without a tap, has the host's player and its own controls fill the window instead.
+         */
+        fill?: boolean;
+        /** The picture's width over its height, so its place takes the picture's shape; 16:9 when not known. */
+        stageAspect?: number;
+        /** Room under the picture for the host's subtitles. */
+        captionBand?: boolean;
+        /** The words being said now, under the picture, where the host shows subtitles itself. */
+        caption?: string;
+        /** The host draws the picture behind the page, where the stage is: nothing of the screen may cover it there. */
+        stageHole?: boolean;
+        /** The item's ThumbHash (base64): the screen's colour, drawn as the wash, in place of the cover blurred. */
+        thumbHash?: string;
+        /** The chevron's name, where it minimises the player rather than leaving full screen. */
+        exitLabel?: string;
+        subtitleTracks?: readonly { id: string; label: string; lang?: string }[];
+        activeSubtitleTrackId?: string | null;
+        canPictureInPicture?: boolean;
+        /** Offers full screen with sound alone too, among the tools, for a host that has a full screen to take it to. */
+        fullscreenTool?: boolean;
+        /** The host's full screen is open: it is left by an X where a video's full screen has its own, top right. */
+        fullscreenActive?: boolean;
+        /** The words of what plays, timed: offered, with sound alone, as lyrics in the picture's place. */
+        lyrics?: readonly LyricCue[];
+        /** The preview frame at a time, once the thumbnails are in: the chapters' pictures. */
+        thumbnailAt?: (seconds: number) => ThumbnailSpriteCue | null;
+    }>(),
+    // Left out, the gear has no Autoplay rows: not read as off, as an absent boolean would be.
+    { autoplay: undefined },
+);
 
 const emit = defineEmits<{
     exit: [];
     /** A menu or the chapters panel is over the screen, or is not any more. */
     covered: [open: boolean];
     "toggle-play": [];
+    /** The play button at the end: from the start again. */
+    replay: [];
     /** `exact: false` for skips: the player may land on the nearest keyframe, which shows at once. */
     seek: [time: number, options?: { exact?: boolean }];
     "open-browse": [];
@@ -133,6 +154,8 @@ const emit = defineEmits<{
     "audio-track": [id: string];
     quality: [id: string];
     sleep: [option: SleepTimerOption | null];
+    "data-saver": [level: "off" | "light" | "strict"];
+    autoplay: [on: boolean];
     "subtitle-track": [id: string | null];
     "picture-in-picture": [];
     fullscreen: [];
@@ -166,7 +189,7 @@ const cueLine = computed(
 // In the cover's place, in a window of any shape, as on a phone.
 const lyricsInStage = showLyrics;
 
-type MenuId = "speed" | "language" | "sleep" | "subtitles" | "quality";
+type MenuId = "speed" | "language" | "sleep" | "subtitles" | "quality" | "settings";
 const menu = ref<MenuId | null>(null);
 const rootEl = ref<HTMLElement | null>(null);
 
@@ -337,6 +360,8 @@ function framesReady(): boolean {
  */
 function onRootDown(event: PointerEvent): void {
     if (!timelineScrub.isOpen || !(event.target instanceof Element)) return;
+    // The host's close button for its strip sits in the roster slot but is a press that closes it.
+    if (event.target.closest(".lmpl-afs-stripclose")) return timelineScrub.tappedElsewhere();
     if (event.target.closest(".lmpl-afs-roster-slot")) return timelineScrub.touchBegan();
     if (event.target.closest(".lmpl-afs-bar, .lmpl-afs-scrubzone")) return;
     if (event.target.closest(".lmpl-afs-playbtn")) return;
@@ -354,8 +379,53 @@ function onRootUp(event: PointerEvent): void {
 }
 
 function onPlayButton(): void {
-    if (timelineScrub.isOpen) timelineScrub.playPressed();
+    if (props.ended) {
+        // Played again, the end's offer has been turned down for this video.
+        if (props.nextUp) declinedId.value = props.nextUp.id;
+        emit("replay");
+    } else if (timelineScrub.isOpen) timelineScrub.playPressed();
     else emit("toggle-play");
+}
+
+/** The end panel's countdown, as long as the native screen's. */
+const COUNTDOWN_MS = 5000;
+/** The next video the viewer turned down (Cancel, or replay), or that has been taken already: no countdown for it. */
+const declinedId = ref<string | null>(null);
+const offer = computed(() =>
+    props.ended && props.autoplay && props.nextUp && props.nextUp.id !== declinedId.value
+        ? props.nextUp
+        : null,
+);
+const countdownLeft = ref(COUNTDOWN_MS);
+let countdownTimer: ReturnType<typeof setInterval> | undefined;
+watch(
+    () => offer.value?.id,
+    (id) => {
+        clearInterval(countdownTimer);
+        countdownTimer = undefined;
+        countdownLeft.value = COUNTDOWN_MS;
+        if (!id) return;
+        const startedAt = Date.now();
+        countdownTimer = setInterval(() => {
+            countdownLeft.value = Math.max(0, COUNTDOWN_MS - (Date.now() - startedAt));
+            if (countdownLeft.value === 0) takeOffer();
+        }, 100);
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => clearInterval(countdownTimer));
+const countdownSeconds = computed(() => Math.ceil(countdownLeft.value / 1000));
+/** The ring's stroke still to draw: full at the start, empty at zero. */
+const RING_LENGTH = 2 * Math.PI * 20;
+const ringOffset = computed(() => RING_LENGTH * (1 - countdownLeft.value / COUNTDOWN_MS));
+function takeOffer(): void {
+    const next = offer.value;
+    if (!next) return;
+    declinedId.value = next.id;
+    emit("upnextselect", next.id);
+}
+function cancelOffer(): void {
+    if (offer.value) declinedId.value = offer.value.id;
 }
 
 function onBarDown(event: PointerEvent): void {
@@ -502,8 +572,40 @@ const sleepCaption = computed(() => {
     return props.sleepTimer?.kind === "chapter" ? props.messages.sleepEndOfChapter : "";
 });
 
+const autoPicked = computed(() => !props.activeQualityId || props.activeQualityId === "auto");
+const qualityBadgeText = computed(() => {
+    const held = autoPicked.value
+        ? undefined
+        : props.qualities?.find((quality) => quality.id === props.activeQualityId);
+    if (held) return held.height ? qualityBadge(held.height, undefined) : held.label;
+    return qualityBadge(undefined, props.playingHeight);
+});
+const subtitlesBadgeText = computed(() =>
+    languageBadge(
+        subtitleTracks.value.find((track) => track.id === props.activeSubtitleTrackId)?.lang,
+    ),
+);
+const languageBadgeText = computed(() =>
+    languageBadge(props.audioTracks.find((track) => track.id === props.activeAudioTrackId)?.lang),
+);
+
 function chooseSleep(option: SleepTimerOption | null): void {
     emit("sleep", option);
+    closeMenu();
+}
+const DATA_SAVER_LEVELS = ["off", "light", "strict"] as const;
+const settingsTool = computed(() => props.dataSaver !== undefined || props.autoplay !== undefined);
+function dataSaverLabel(level: (typeof DATA_SAVER_LEVELS)[number]): string {
+    if (level === "light") return props.messages.dataSaverLight;
+    if (level === "strict") return props.messages.dataSaverStrict;
+    return props.messages.dataSaverOff;
+}
+function chooseDataSaver(level: (typeof DATA_SAVER_LEVELS)[number]): void {
+    emit("data-saver", level);
+    closeMenu();
+}
+function chooseAutoplay(on: boolean): void {
+    emit("autoplay", on);
     closeMenu();
 }
 function chooseRate(rate: number): void {
@@ -786,6 +888,67 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                             />
                         </svg>
                     </div>
+                    <!-- The end, with something to follow: it counts down to it, the ring emptying as it goes. -->
+                    <div
+                        v-if="offer"
+                        class="lmpl-afs-endpanel"
+                        role="group"
+                        :aria-label="messages.nextUp"
+                        data-test="afsEndPanel"
+                    >
+                        <span class="lmpl-afs-endpanel-label">{{ messages.nextUp }}</span>
+                        <span class="lmpl-afs-endpanel-title">{{ offer.title }}</span>
+                        <span
+                            class="lmpl-afs-endpanel-ring"
+                            aria-hidden="true"
+                        >
+                            <svg
+                                viewBox="0 0 48 48"
+                                width="48"
+                                height="48"
+                            >
+                                <circle
+                                    cx="24"
+                                    cy="24"
+                                    r="20"
+                                    fill="none"
+                                    stroke="rgb(255 255 255 / 0.2)"
+                                    stroke-width="3"
+                                />
+                                <circle
+                                    cx="24"
+                                    cy="24"
+                                    r="20"
+                                    fill="none"
+                                    stroke="#fff"
+                                    stroke-width="3"
+                                    stroke-linecap="round"
+                                    :stroke-dasharray="RING_LENGTH"
+                                    :stroke-dashoffset="ringOffset"
+                                    transform="rotate(-90 24 24)"
+                                />
+                            </svg>
+                            <b data-test="afsCountdown">{{ countdownSeconds }}</b>
+                        </span>
+                        <span class="lmpl-afs-endpanel-actions">
+                            <button
+                                type="button"
+                                class="lmpl-afs-endpanel-btn"
+                                data-test="afsEndCancel"
+                                @click="cancelOffer"
+                            >
+                                {{ messages.cancel }}
+                            </button>
+                            <button
+                                type="button"
+                                class="lmpl-afs-endpanel-btn lmpl-afs-endpanel-primary"
+                                data-test="afsEndPlayNow"
+                                @click="takeOffer"
+                            >
+                                {{ messages.playNow }}
+                            </button>
+                        </span>
+                    </div>
                 </div>
                 <div
                     v-if="lyricsOn"
@@ -835,7 +998,12 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
             </div>
 
             <div class="lmpl-afs-info">
-                <div class="lmpl-afs-titles">
+                <!-- Behind the host's strip of frames it would show half hidden: it steps away while the strip is up,
+                     and a press where it was only closes the strip. -->
+                <div
+                    class="lmpl-afs-titles"
+                    :class="{ 'lmpl-afs-titles-away': !!$slots.roster }"
+                >
                     <h2
                         class="lmpl-afs-title"
                         data-test="afsTitle"
@@ -991,9 +1159,11 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                                 :aria-label="
                                     busy
                                         ? messages.loading
-                                        : playing
-                                          ? messages.pause
-                                          : messages.play
+                                        : ended
+                                          ? messages.replay
+                                          : playing
+                                            ? messages.pause
+                                            : messages.play
                                 "
                                 :aria-busy="busy ? 'true' : undefined"
                                 data-test="afsPlay"
@@ -1014,6 +1184,19 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                                     data-test="afsSpinner"
                                 >
                                     <path d="M12 3a9 9 0 1 1-9 9" />
+                                </svg>
+                                <svg
+                                    v-else-if="ended"
+                                    viewBox="0 0 24 24"
+                                    width="30"
+                                    height="30"
+                                    fill="currentColor"
+                                    aria-hidden="true"
+                                    data-test="afsReplayIcon"
+                                >
+                                    <path
+                                        d="M12 5V2.2a.5.5 0 0 0-.85-.35L7.4 5.6a.5.5 0 0 0 0 .7l3.75 3.75A.5.5 0 0 0 12 9.7V7a6 6 0 1 1-6 6 1 1 0 1 0-2 0 8 8 0 1 0 8-8Z"
+                                    />
                                 </svg>
                                 <media-icon
                                     v-else-if="playing"
@@ -1115,11 +1298,10 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                                         class="media-button-icon"
                                     ></media-icon>
                                     <span
-                                        v-if="activeQualityId && activeQualityId !== 'auto'"
+                                        v-if="qualityBadgeText"
                                         class="lmpl-afs-badge"
-                                        >{{
-                                            qualities?.find((q) => q.id === activeQualityId)?.label
-                                        }}</span
+                                        data-test="afsQualityBadge"
+                                        >{{ qualityBadgeText }}</span
                                     >
                                 </button>
                                 <div
@@ -1131,14 +1313,12 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                                     <button
                                         type="button"
                                         role="menuitemradio"
-                                        :aria-checked="
-                                            !activeQualityId || activeQualityId === 'auto'
-                                        "
+                                        :aria-checked="autoPicked"
                                         class="lmpl-afs-menuitem"
                                         data-test="afsQualityAuto"
                                         @click="chooseQuality('auto')"
                                     >
-                                        {{ messages.qualityAuto }}
+                                        {{ autoQualityLabel(messages.qualityAuto, playingHeight) }}
                                     </button>
                                     <button
                                         v-for="quality in qualities"
@@ -1150,44 +1330,6 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                                         @click="chooseQuality(quality.id)"
                                     >
                                         {{ quality.label }}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div
-                                v-if="audioTracks.length > 1"
-                                class="lmpl-afs-tool"
-                            >
-                                <button
-                                    type="button"
-                                    class="lmpl-afs-iconbtn"
-                                    :aria-label="messages.audioMenuLabel"
-                                    :aria-expanded="menu === 'language'"
-                                    aria-haspopup="menu"
-                                    data-test="afsLanguage"
-                                    @click="toggleMenu('language')"
-                                >
-                                    <media-icon
-                                        name="language"
-                                        class="media-button-icon"
-                                    ></media-icon>
-                                </button>
-                                <div
-                                    v-if="menu === 'language'"
-                                    class="lmpl-afs-menu"
-                                    role="menu"
-                                    :aria-label="messages.audioMenuLabel"
-                                >
-                                    <button
-                                        v-for="track in audioTracks"
-                                        :key="track.id"
-                                        type="button"
-                                        role="menuitemradio"
-                                        :aria-checked="track.id === activeAudioTrackId"
-                                        class="lmpl-afs-menuitem"
-                                        @click="chooseTrack(track.id)"
-                                    >
-                                        {{ track.label }}
                                     </button>
                                 </div>
                             </div>
@@ -1249,6 +1391,10 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                                         :key="minutes"
                                         type="button"
                                         role="menuitemradio"
+                                        :aria-checked="
+                                            sleepTimer?.kind === 'minutes' &&
+                                            sleepMinutes === minutes
+                                        "
                                         class="lmpl-afs-menuitem"
                                         :data-test="`afsSleep${minutes}`"
                                         @click="chooseSleep({ kind: 'minutes', minutes })"
@@ -1270,6 +1416,50 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                             </div>
 
                             <div
+                                v-if="audioTracks.length > 1"
+                                class="lmpl-afs-tool"
+                            >
+                                <button
+                                    type="button"
+                                    class="lmpl-afs-iconbtn"
+                                    :aria-label="messages.audioMenuLabel"
+                                    :aria-expanded="menu === 'language'"
+                                    aria-haspopup="menu"
+                                    data-test="afsLanguage"
+                                    @click="toggleMenu('language')"
+                                >
+                                    <media-icon
+                                        name="language"
+                                        class="media-button-icon"
+                                    ></media-icon>
+                                    <span
+                                        v-if="languageBadgeText"
+                                        class="lmpl-afs-badge"
+                                        data-test="afsLanguageBadge"
+                                        >{{ languageBadgeText }}</span
+                                    >
+                                </button>
+                                <div
+                                    v-if="menu === 'language'"
+                                    class="lmpl-afs-menu"
+                                    role="menu"
+                                    :aria-label="messages.audioMenuLabel"
+                                >
+                                    <button
+                                        v-for="track in audioTracks"
+                                        :key="track.id"
+                                        type="button"
+                                        role="menuitemradio"
+                                        :aria-checked="track.id === activeAudioTrackId"
+                                        class="lmpl-afs-menuitem"
+                                        @click="chooseTrack(track.id)"
+                                    >
+                                        {{ track.label }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
                                 v-if="!isVideo && subtitleTracks.length > 0"
                                 class="lmpl-afs-tool"
                             >
@@ -1283,24 +1473,16 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                                     data-test="afsLyricsLanguage"
                                     @click="toggleMenu('subtitles')"
                                 >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        width="22"
-                                        height="22"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="1.8"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        aria-hidden="true"
+                                    <media-icon
+                                        :name="activeSubtitleTrackId ? 'cc-on' : 'cc-off'"
+                                        class="media-button-icon"
+                                    ></media-icon>
+                                    <span
+                                        v-if="subtitlesBadgeText"
+                                        class="lmpl-afs-badge"
+                                        data-test="afsSubtitlesBadge"
+                                        >{{ subtitlesBadgeText }}</span
                                     >
-                                        <path d="M4 6h16M4 10h10M4 14h16M4 18h7" />
-                                        <circle
-                                            cx="18"
-                                            cy="18"
-                                            r="2"
-                                        />
-                                    </svg>
                                 </button>
                                 <div
                                     v-if="menu === 'subtitles'"
@@ -1347,11 +1529,15 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                                     @click="toggleMenu('subtitles')"
                                 >
                                     <media-icon
-                                        :name="
-                                            activeSubtitleTrackId ? 'captions-on' : 'captions-off'
-                                        "
+                                        :name="activeSubtitleTrackId ? 'cc-on' : 'cc-off'"
                                         class="media-button-icon"
                                     ></media-icon>
+                                    <span
+                                        v-if="subtitlesBadgeText"
+                                        class="lmpl-afs-badge"
+                                        data-test="afsSubtitlesBadge"
+                                        >{{ subtitlesBadgeText }}</span
+                                    >
                                 </button>
                                 <div
                                     v-if="menu === 'subtitles'"
@@ -1386,6 +1572,96 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                             <slot name="audio-tool"></slot>
 
                             <slot name="cast"></slot>
+
+                            <div
+                                v-if="settingsTool"
+                                class="lmpl-afs-tool"
+                            >
+                                <button
+                                    type="button"
+                                    class="lmpl-afs-iconbtn"
+                                    :aria-label="messages.playbackSettings"
+                                    :aria-expanded="menu === 'settings'"
+                                    aria-haspopup="menu"
+                                    data-test="afsSettings"
+                                    @click="toggleMenu('settings')"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        width="22"
+                                        height="22"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.8"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <path
+                                            d="M10.3 3.6a1.7 1.7 0 0 1 3.4 0l.2 1a1.7 1.7 0 0 0 2.4 1.2l.9-.5a1.7 1.7 0 0 1 2.4 2.4l-.5.9a1.7 1.7 0 0 0 1.2 2.4l1 .2a1.7 1.7 0 0 1 0 3.4l-1 .2a1.7 1.7 0 0 0-1.2 2.4l.5.9a1.7 1.7 0 0 1-2.4 2.4l-.9-.5a1.7 1.7 0 0 0-2.4 1.2l-.2 1a1.7 1.7 0 0 1-3.4 0l-.2-1a1.7 1.7 0 0 0-2.4-1.2l-.9.5a1.7 1.7 0 0 1-2.4-2.4l.5-.9a1.7 1.7 0 0 0-1.2-2.4l-1-.2a1.7 1.7 0 0 1 0-3.4l1-.2a1.7 1.7 0 0 0 1.2-2.4l-.5-.9a1.7 1.7 0 0 1 2.4-2.4l.9.5a1.7 1.7 0 0 0 2.4-1.2z"
+                                        />
+                                        <circle
+                                            cx="12"
+                                            cy="12"
+                                            r="3"
+                                        />
+                                    </svg>
+                                </button>
+                                <div
+                                    v-if="menu === 'settings'"
+                                    class="lmpl-afs-menu"
+                                    role="menu"
+                                    :aria-label="messages.playbackSettings"
+                                    data-test="afsSettingsMenu"
+                                >
+                                    <template v-if="dataSaver !== undefined">
+                                        <span
+                                            class="lmpl-afs-menuhead"
+                                            role="presentation"
+                                            >{{ messages.dataSaver }}</span
+                                        >
+                                        <button
+                                            v-for="level in DATA_SAVER_LEVELS"
+                                            :key="level"
+                                            type="button"
+                                            role="menuitemradio"
+                                            :aria-checked="dataSaver === level"
+                                            class="lmpl-afs-menuitem"
+                                            :data-test="`afsDataSaver-${level}`"
+                                            @click="chooseDataSaver(level)"
+                                        >
+                                            {{ dataSaverLabel(level) }}
+                                        </button>
+                                    </template>
+                                    <template v-if="autoplay !== undefined">
+                                        <span
+                                            class="lmpl-afs-menuhead"
+                                            role="presentation"
+                                            >{{ messages.autoplay }}</span
+                                        >
+                                        <button
+                                            type="button"
+                                            role="menuitemradio"
+                                            :aria-checked="autoplay"
+                                            class="lmpl-afs-menuitem"
+                                            data-test="afsAutoplayOn"
+                                            @click="chooseAutoplay(true)"
+                                        >
+                                            {{ messages.autoplayOn }}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            role="menuitemradio"
+                                            :aria-checked="!autoplay"
+                                            class="lmpl-afs-menuitem"
+                                            data-test="afsAutoplayOff"
+                                            @click="chooseAutoplay(false)"
+                                        >
+                                            {{ messages.autoplayOff }}
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
 
                             <button
                                 v-if="hasBrowse"

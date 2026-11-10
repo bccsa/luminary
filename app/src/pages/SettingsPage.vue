@@ -15,6 +15,7 @@ import {
     effectiveDataSaverLevel,
     type DataSaverLevel,
     subtitlesOnVideo,
+    autoplayNext,
     localCacheVersion,
     youtubeAlwaysAllow,
 } from "@/globalConfig";
@@ -190,6 +191,17 @@ const deleteLocalData = async () => {
                     data-test="dataSaverNote"
                 >
                     {{ dataSaverNote }}
+                </div>
+            </LCard>
+            <LCard :title="t('settings.autoplay.title')">
+                <div class="flex items-center justify-between gap-4">
+                    <div class="text-sm text-zinc-600 dark:text-slate-100">
+                        {{ t("settings.autoplay.description") }}
+                    </div>
+                    <LToggle
+                        v-model="autoplayNext"
+                        data-test="autoplayToggle"
+                    />
                 </div>
             </LCard>
             <LCard :title="t('settings.subtitles.title')">

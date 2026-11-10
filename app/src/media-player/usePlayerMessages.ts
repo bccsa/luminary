@@ -7,7 +7,9 @@ import { useI18n } from "vue-i18n";
  * the player to fill in with its own numbers.
  */
 export function usePlayerMessages() {
-    const { t } = useI18n();
+    const { t, te } = useI18n();
+    // Strings newer than a language document are left out, so the player's English stands in rather than the key.
+    const known = (key: string): string | undefined => (te(key) ? t(key) : undefined);
     return computed(() => ({
         comingSoon: t("video_player.coming_soon"),
         errorGeneric: t("video_player.error_generic"),
@@ -64,5 +66,24 @@ export function usePlayerMessages() {
         sleepMinutes: t("media_player.sleep_minutes", { minutes: "{minutes}" }),
         sleepEndOfChapter: t("media_player.sleep_end_of_chapter"),
         sleepLeft: t("media_player.sleep_left", { minutes: "{minutes}" }),
+        ...defined({
+            playbackSettings: known("media_player.playback_settings"),
+            dataSaver: known("media_player.data_saver"),
+            dataSaverOff: known("settings.data_saver.off"),
+            dataSaverLight: known("settings.data_saver.light"),
+            dataSaverStrict: known("settings.data_saver.strict"),
+            autoplay: known("media_player.autoplay"),
+            autoplayOn: known("media_player.autoplay_on"),
+            autoplayOff: known("media_player.autoplay_off"),
+            replay: known("media_player.replay"),
+            playNow: known("media_player.play_now"),
+            cancel: known("media_player.cancel"),
+        }),
     }));
+}
+
+function defined(texts: Record<string, string | undefined>): Record<string, string> {
+    return Object.fromEntries(
+        Object.entries(texts).filter((entry): entry is [string, string] => entry[1] !== undefined),
+    );
 }

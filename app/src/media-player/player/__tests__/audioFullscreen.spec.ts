@@ -620,3 +620,170 @@ describe("AudioFullscreen — chapter skips", () => {
         expect(find(wrapper, "afsNextChapter").attributes("aria-label")).toBe("Volgende");
     });
 });
+
+describe("AudioFullscreen: badges, gear menu, end panel, tool slots", () => {
+    it("badges the quality with the held height, else the height Auto plays, and names it on the Auto row", async () => {
+        const qualities = [
+            { id: "720", label: "720p", height: 720 },
+            { id: "480", label: "480p", height: 480 },
+        ];
+        const wrapper = mountScreen({
+            stage: "video",
+            qualities,
+            activeQualityId: "auto",
+            playingHeight: 480,
+        });
+        expect(find(wrapper, "afsQualityBadge").text()).toBe("480p");
+        await find(wrapper, "afsQuality").trigger("click");
+        expect(find(wrapper, "afsQualityAuto").text()).toBe("Auto (480p)");
+        await wrapper.setProps({ activeQualityId: "720" });
+        expect(find(wrapper, "afsQualityBadge").text()).toBe("720p");
+        wrapper.unmount();
+    });
+
+    it("badges the audio button with the playing track's language, none for an untagged original", async () => {
+        const wrapper = mountScreen({
+            audioTracks: [
+                { id: "a", label: "Português", lang: "pt-BR" },
+                { id: "b", label: "Original", lang: "mul" },
+            ],
+            activeAudioTrackId: "a",
+        });
+        expect(find(wrapper, "afsLanguageBadge").text()).toBe("PT");
+        await wrapper.setProps({ activeAudioTrackId: "b" });
+        expect(wrapper.find('[data-test="afsLanguageBadge"]').exists()).toBe(false);
+        wrapper.unmount();
+    });
+
+    it("reads three-letter language tags as their two-letter code on the badges", async () => {
+        const wrapper = mountScreen({
+            stage: "video",
+            audioTracks: [
+                { id: "a", label: "English", lang: "eng" },
+                { id: "b", label: "Français", lang: "fre" },
+            ],
+            activeAudioTrackId: "a",
+            subtitleTracks: [{ id: "s", label: "Français", lang: "fra" }],
+            activeSubtitleTrackId: "s",
+        });
+        expect(find(wrapper, "afsLanguageBadge").text()).toBe("EN");
+        expect(find(wrapper, "afsSubtitlesBadge").text()).toBe("FR");
+        await wrapper.setProps({ activeSubtitleTrackId: null });
+        expect(wrapper.find('[data-test="afsSubtitlesBadge"]').exists()).toBe(false);
+        wrapper.unmount();
+    });
+
+    it("badges the sound's subtitles (lyrics) tool with the language that is on", () => {
+        const wrapper = mountScreen({
+            stage: "cover",
+            subtitleTracks: [{ id: "s", label: "English", lang: "en-GB" }],
+            activeSubtitleTrackId: "s",
+        });
+        expect(find(wrapper, "afsSubtitlesBadge").text()).toBe("EN");
+        wrapper.unmount();
+    });
+
+    it("ticks the minutes row of a running timer", async () => {
+        const wrapper = mountScreen({
+            stage: "cover",
+            sleepTimer: { kind: "minutes", endsAt: Date.now() + 15 * 60_000 },
+            sleepMinutes: 15,
+        });
+        await find(wrapper, "afsSleep").trigger("click");
+        expect(find(wrapper, "afsSleep15").attributes("aria-checked")).toBe("true");
+        expect(find(wrapper, "afsSleep5").attributes("aria-checked")).toBe("false");
+        wrapper.unmount();
+    });
+
+    it("keeps the headphones in their slot when sound and picture switch", async () => {
+        const order = (w: ReturnType<typeof mountScreen>) =>
+            w.findAll("[data-afs-tools] [data-test]").map((el) => el.attributes("data-test"));
+        const wrapper = mountScreen({
+            stage: "video",
+            qualities: [
+                { id: "720", label: "720p" },
+                { id: "480", label: "480p" },
+            ],
+            audioTracks: [
+                { id: "en", label: "English" },
+                { id: "fr", label: "Français" },
+            ],
+            subtitleTracks: [{ id: "s", label: "English" }],
+        });
+        const video = order(wrapper).filter((id) => !id?.endsWith("Badge"));
+        await wrapper.setProps({ stage: "cover" });
+        const sound = order(wrapper).filter((id) => !id?.endsWith("Badge"));
+        expect(video.indexOf("afsLanguage")).toBe(2);
+        expect(sound.indexOf("afsLanguage")).toBe(2);
+        expect(sound[1]).toBe("afsSleep");
+        wrapper.unmount();
+    });
+
+    it("offers Data Saver and Autoplay in the gear menu and says what was picked", async () => {
+        const wrapper = mountScreen({ dataSaver: "off", autoplay: true });
+        await find(wrapper, "afsSettings").trigger("click");
+        expect(find(wrapper, "afsDataSaver-off").attributes("aria-checked")).toBe("true");
+        expect(find(wrapper, "afsAutoplayOn").attributes("aria-checked")).toBe("true");
+        await find(wrapper, "afsDataSaver-light").trigger("click");
+        expect(wrapper.emitted("data-saver")).toEqual([["light"]]);
+        await find(wrapper, "afsSettings").trigger("click");
+        await find(wrapper, "afsAutoplayOff").trigger("click");
+        expect(wrapper.emitted("autoplay")).toEqual([[false]]);
+        wrapper.unmount();
+    });
+
+    it("has no gear when the host offers neither setting", () => {
+        const wrapper = mountScreen();
+        expect(wrapper.find('[data-test="afsSettings"]').exists()).toBe(false);
+        wrapper.unmount();
+    });
+
+    it("counts down at the end to the next video and picks it, with autoplay on", async () => {
+        vi.useFakeTimers();
+        const next = { id: "next", title: "Next one" };
+        const wrapper = mountScreen({ ended: true, autoplay: true, nextUp: next });
+        await wrapper.vm.$nextTick();
+        expect(find(wrapper, "afsEndPanel").text()).toContain("Next one");
+        expect(find(wrapper, "afsCountdown").text()).toBe("5");
+        vi.advanceTimersByTime(5100);
+        await wrapper.vm.$nextTick();
+        expect(wrapper.emitted("upnextselect")).toEqual([["next"]]);
+        expect(wrapper.find('[data-test="afsEndPanel"]').exists()).toBe(false);
+        vi.useRealTimers();
+        wrapper.unmount();
+    });
+
+    it("shows only the replay glyph at the end with autoplay off, and replays", async () => {
+        const wrapper = mountScreen({
+            ended: true,
+            autoplay: false,
+            nextUp: { id: "next", title: "Next one" },
+        });
+        expect(wrapper.find('[data-test="afsEndPanel"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="afsReplayIcon"]').exists()).toBe(true);
+        await find(wrapper, "afsPlay").trigger("click");
+        expect(wrapper.emitted("replay")).toHaveLength(1);
+        wrapper.unmount();
+    });
+
+    it("drops the countdown on Cancel, and Play now picks at once", async () => {
+        const next = { id: "next", title: "Next one" };
+        const wrapper = mountScreen({ ended: true, autoplay: true, nextUp: next });
+        await find(wrapper, "afsEndCancel").trigger("click");
+        expect(wrapper.find('[data-test="afsEndPanel"]').exists()).toBe(false);
+        expect(wrapper.emitted("upnextselect")).toBeUndefined();
+        await wrapper.setProps({ nextUp: { id: "other", title: "Other" } });
+        await find(wrapper, "afsEndPlayNow").trigger("click");
+        expect(wrapper.emitted("upnextselect")).toEqual([["other"]]);
+        wrapper.unmount();
+    });
+
+    it("hides the title block while the host's strip is up", () => {
+        const wrapper = mountScreen({}, { roster: "<div class='strip'></div>" });
+        expect(wrapper.find(".lmpl-afs-titles").classes()).toContain("lmpl-afs-titles-away");
+        wrapper.unmount();
+        const plain = mountScreen();
+        expect(plain.find(".lmpl-afs-titles").classes()).not.toContain("lmpl-afs-titles-away");
+        plain.unmount();
+    });
+});

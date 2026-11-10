@@ -50,3 +50,38 @@ export interface ScrubPosition {
      */
     held?: boolean;
 }
+
+/** On the quality button: the held quality, else (on Auto) the height playing; none before either is known. */
+export function qualityBadge(
+    held: number | undefined,
+    playing: number | undefined,
+): string | undefined {
+    const height = held ?? playing;
+    return height ? `${height}p` : undefined;
+}
+
+/** The Auto row says what Auto plays: "Auto (480p)", or plain "Auto" while nothing is drawn. */
+export function autoQualityLabel(auto: string, playing: number | undefined): string {
+    return playing ? `${auto} (${playing}p)` : auto;
+}
+
+/** Tags that name no language: several, undetermined, none, or not coded (the untranslated original). */
+const NO_LANGUAGE = new Set(["mul", "und", "zxx", "mis"]);
+
+/**
+ * A track's language as a badge: its primary subtag in capitals, the two-letter code where the language has one
+ * ("EN" for eng, "PT" for pt-BR); none for a tag that names no language.
+ */
+export function languageBadge(lang: string | undefined | null): string | undefined {
+    const tag = lang?.trim().replace(/_/g, "-");
+    if (!tag) return undefined;
+    let primary = tag.split("-")[0]!.toLowerCase();
+    try {
+        // Canonical tags use the two-letter code where there is one, so streams tagged `eng` or `fre` read as the rest.
+        primary = new Intl.Locale(primary).language;
+    } catch {
+        // Not a well-formed tag: shown as it is.
+    }
+    if (NO_LANGUAGE.has(primary)) return undefined;
+    return primary.toUpperCase();
+}

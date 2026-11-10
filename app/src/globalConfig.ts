@@ -100,6 +100,15 @@ export const userDataSaverEnabled = computed<boolean>({
 });
 
 /**
+ * Whether the next video plays by itself when one ends (a short countdown first). On unless the user turns it off,
+ * on the Settings page or the now-playing screen. Persisted to localStorage.
+ */
+export const autoplayNext = ref(localStorage.getItem("autoplay") !== "false");
+watch(autoplayNext, (on) => {
+    localStorage.setItem("autoplay", String(on));
+});
+
+/**
  * Where the media player puts a video's subtitles: over the foot of the picture (true), or in a band under it
  * (false, the default). Persisted to localStorage and toggled from the Settings page.
  */

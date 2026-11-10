@@ -66,6 +66,7 @@ import ScrubRoster from "./ScrubRoster.vue";
 import ScrubPicture from "./ScrubPicture.vue";
 import NextUpThumb from "./NextUpThumb.vue";
 import AudioFullscreen from "./AudioFullscreen.vue";
+import { languageBadge, qualityBadge } from "../ui/audioFullscreen";
 import BrowsePanel from "./BrowsePanel.vue";
 import { imageAttempts, toPlayerImage, type PlayerImageInput } from "../image";
 import { isYouTubeUrl } from "@luminary-media-converter/player-web";
@@ -331,6 +332,51 @@ function onEngineTextTrackChange(): void {
 // --- lifecycle ------------------------------------------------------------
 
 const mediaListeners: [string, EventListener][] = [];
+
+/** The height of the picture playing now; 0 before one has drawn and with sound alone. */
+const playingHeight = ref(0);
+function readPlayingHeight(): void {
+    const media = mediaEl.value as unknown as { videoHeight?: number } | null;
+    playingHeight.value = media?.videoHeight || innerVideo()?.videoHeight || 0;
+}
+
+/**
+ * The quality and language buttons of the control bar carry badges, as the now-playing screen's do. The bar is markup
+ * the skin owns, so the badge text goes on the button as an attribute its CSS draws.
+ */
+const barBadges = computed(() => {
+    const held = state.value.qualities.find(
+        (quality) => quality.id === state.value.activeQualityId,
+    );
+    return {
+        quality: held
+            ? held.height
+                ? qualityBadge(held.height, undefined)
+                : held.label
+            : qualityBadge(undefined, playingHeight.value || undefined),
+        audio: languageBadge(
+            state.value.audioTracks.find((track) => track.id === state.value.activeAudioTrackId)
+                ?.lang,
+        ),
+        captions: languageBadge(
+            state.value.subtitleTracks.find(
+                (track) => track.id === state.value.activeSubtitleTrackId,
+            )?.lang,
+        ),
+    };
+});
+function applyBarBadges(): void {
+    const root = containerEl.value;
+    if (!root) return;
+    for (const [kind, text] of Object.entries(barBadges.value)) {
+        const button = root.querySelector<HTMLElement>(`.lmpl-opt-${kind}`);
+        if (!button) continue;
+        if (text) button.dataset.badge = text;
+        else delete button.dataset.badge;
+    }
+}
+watch(barBadges, applyBarBadges, { flush: "post" });
+onMounted(applyBarBadges);
 let audioTrackList: EventTarget | undefined;
 let textTrackList: EventTarget | undefined;
 
@@ -413,8 +459,12 @@ onMounted(() => {
     on("timeupdate", () => emit("timeupdate", media.currentTime || 0, media.duration || 0));
     on("loadedmetadata", () => {
         readPictureInPicture();
+        readPlayingHeight();
         emit("loadedmetadata");
     });
+    // A rendition switch changes the picture's size: Auto's badge follows it.
+    on("resize", readPlayingHeight);
+    on("emptied", readPlayingHeight);
     on("loadeddata", applyPreferredLanguage);
 
     keepAlive = createKeepAlive(keepAliveEl.value);
@@ -1874,6 +1924,9 @@ defineExpose({
     },
     get volume() {
         return mediaEl.value?.volume ?? 1;
+    },
+    get playingHeight() {
+        return playingHeight.value || undefined;
     },
     setMuted,
     setVolume,

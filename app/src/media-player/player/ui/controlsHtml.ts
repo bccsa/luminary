@@ -76,7 +76,7 @@ const SETTING_ICONS: Record<Setting, string> = {
     quality: "switches",
     audio: "language",
     speed: "speed",
-    captions: "captions-off",
+    captions: "cc-off",
 };
 
 /**
@@ -90,8 +90,8 @@ function setting(kind: Setting, id: string, title: string): string {
         `<button commandfor="${menuId}" class="media-button lmpl-icon-btn lmpl-opt lmpl-opt-${kind}" type="button">` +
         (kind === "captions"
             ? // Outlined while off, filled while a track is on: the player marks which on its root.
-              '<media-icon name="captions-off" class="media-button-icon-base media-settings-menu-trigger-icon lmpl-cc-off"></media-icon>' +
-              '<media-icon name="captions-on" class="media-button-icon-base media-settings-menu-trigger-icon lmpl-cc-on"></media-icon>'
+              '<media-icon name="cc-off" class="media-button-icon-base media-settings-menu-trigger-icon lmpl-cc-off"></media-icon>' +
+              '<media-icon name="cc-on" class="media-button-icon-base media-settings-menu-trigger-icon lmpl-cc-on"></media-icon>'
             : `<media-icon name="${iconName}" class="media-button-icon-base media-settings-menu-trigger-icon"></media-icon>`) +
         // Visually hidden: the button is an icon, and this is its name for a screen reader.
         `<span class="media-settings-menu-trigger-label">${escapeHtml(title)}</span>` +

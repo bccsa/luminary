@@ -610,6 +610,29 @@
  * does not depend on it.
  */
 /* Read from any ancestor carrying the class, not the first `.lmpl-root`: a host may wrap the player in a root of its own. */
+/* The quality and language badges, as the now-playing screen's tools carry them (set by the player). */
+.lmpl-opt[data-badge] {
+    position: relative;
+}
+
+.lmpl-opt[data-badge]::after {
+    content: attr(data-badge);
+    position: absolute;
+    right: -2px;
+    bottom: 2px;
+    max-width: 90px;
+    padding: 0 4px;
+    overflow: hidden;
+    border-radius: 5px;
+    font-size: calc(9px * var(--lmpl-s, 1));
+    font-weight: 700;
+    line-height: 13px;
+    white-space: nowrap;
+    color: #111;
+    background: #fff;
+    pointer-events: none;
+}
+
 .lmpl-opt-quality:not(.lmpl-has-quality-choice *),
 .lmpl-opt-audio:not(.lmpl-has-audio-choice *),
 .lmpl-opt-captions:not(.lmpl-has-subtitles *) {
@@ -1868,10 +1891,49 @@
 
 /* No gap: the inset around each glyph sets them as far apart as the transport's. */
 .lmpl-afs-tools {
+    /* Above the host's strip of frames (z 35), so a menu or pop-up opened from the row is never under it. */
+    position: relative;
+    z-index: 36;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0;
+}
+
+.lmpl-afs-titles {
+    transition:
+        opacity 150ms ease,
+        visibility 150ms;
+}
+
+.lmpl-afs-titles.lmpl-afs-titles-away {
+    visibility: hidden;
+    opacity: 0;
+}
+
+/* The strip's close: under the picture's right corner, never over the strip (the host gives its top). */
+.lmpl-afs-stripclose {
+    position: absolute;
+    z-index: 36;
+    right: 8px;
+    top: min(calc(var(--lmpl-hole-bottom, 0px) + 8px), var(--lmpl-strip-close-max, 100%));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    color: #fff;
+    background: rgb(24 24 27 / 0.82);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+    cursor: pointer;
+    animation: lmpl-roster-in 0.2s ease-out both;
+}
+
+.lmpl-afs-stripclose:active {
+    transform: scale(0.94);
 }
 
 /* A tool with a menu shrinks like the bare buttons beside it, so a crowded row stays evenly spaced. */
@@ -1952,6 +2014,21 @@
     .lmpl-afs-menuitem:hover {
         background: rgb(255 255 255 / 0.12);
     }
+}
+
+/* A heading over a group of rows, in a menu that holds more than one choice (the gear's). */
+.lmpl-afs-menuhead {
+    padding: 8px 12px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgb(255 255 255 / 0.6);
+}
+
+.lmpl-afs-menuitem + .lmpl-afs-menuhead {
+    margin-top: 4px;
+    border-top: 1px solid rgb(255 255 255 / 0.1);
 }
 
 .lmpl-afs-menuitem[aria-checked="true"]::after {
@@ -2428,15 +2505,20 @@
         align-self: center;
         width: 100%;
         max-width: 1800px;
-        gap: clamp(32px, 3.5cqw, 72px);
-        padding-inline: clamp(32px, 5.5cqw, 120px);
+        gap: clamp(40px, 4.5cqw, 96px);
+        padding-inline: clamp(24px, 3.5cqw, 80px) clamp(32px, 5.5cqw, 120px);
     }
 
+    /* A little smaller and further left than the room allows, so the transport and the tools beside it have air. */
     .lmpl-afs-art,
     .lmpl-afs-art.lmpl-afs-art-lyrics {
         align-self: center;
         flex: none;
-        width: min(36cqw, 62cqh, 720px);
+        width: min(32cqw, 56cqh, 640px);
+    }
+
+    .lmpl-afs-bottomrow {
+        column-gap: clamp(24px, 3cqw, 64px);
     }
 
     .lmpl-afs-art.lmpl-afs-art-lyrics {
@@ -2664,4 +2746,145 @@
     width: 18px;
     height: 18px;
     flex: none;
+}
+
+/* The end panel over the picture's place: what follows, a ring counting down to it, and the two ways out. */
+.lmpl-afs-endpanel {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px 24px;
+    text-align: center;
+    color: #fff;
+    background: rgb(9 9 11 / 0.78);
+}
+
+.lmpl-afs-endpanel-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.75;
+}
+
+.lmpl-afs-endpanel-title {
+    display: -webkit-box;
+    max-width: 32ch;
+    overflow: hidden;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.lmpl-afs-endpanel-ring {
+    position: relative;
+    display: inline-flex;
+    width: 48px;
+    height: 48px;
+}
+
+.lmpl-afs-endpanel-ring b {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+}
+
+.lmpl-afs-endpanel-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.lmpl-afs-endpanel-btn {
+    min-height: 36px;
+    padding: 0 16px;
+    border: 1px solid rgb(255 255 255 / 0.22);
+    border-radius: 9999px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    background: transparent;
+    cursor: pointer;
+}
+
+.lmpl-afs-endpanel-btn:active {
+    background: rgb(255 255 255 / 0.12);
+}
+
+.lmpl-afs-endpanel-primary {
+    border-color: transparent;
+    color: #111;
+    background: #fff;
+}
+
+.lmpl-afs-endpanel-primary:active {
+    background: rgb(255 255 255 / 0.86);
+}
+
+/*
+ * Wide: the chapter skips sit close in to the ±10 skips beside play, and the tools keep their own width with air
+ * between them, every glyph one size, centred on the transport's line.
+ */
+@container lmpl-afs (min-aspect-ratio: 6/5) {
+    .lmpl-afs-bottomrow {
+        align-items: center;
+    }
+
+    .lmpl-afs-transport,
+    .lmpl-afs-transport.lmpl-afs-has-chapter-skip {
+        gap: calc(16px * var(--lmpl-s));
+    }
+
+    .lmpl-afs-transport .lmpl-afs-chapter:first-child {
+        margin-inline-end: calc(-8px * var(--lmpl-s));
+    }
+
+    .lmpl-afs-transport .lmpl-afs-chapter:last-child {
+        margin-inline-start: calc(-8px * var(--lmpl-s));
+    }
+
+    .lmpl-afs-tools {
+        align-items: center;
+        gap: calc(10px * var(--lmpl-s));
+    }
+
+    .lmpl-afs-tools > .lmpl-afs-tool,
+    .lmpl-afs-tools > .lmpl-afs-iconbtn {
+        flex: none;
+    }
+
+    .lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn svg,
+    .lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn .media-button-icon {
+        display: block;
+        width: calc(24px * var(--lmpl-s));
+        height: calc(24px * var(--lmpl-s));
+    }
+}
+
+/* A phone on its side has less room: the tools close up again rather than run off the side. */
+@container lmpl-afs (min-aspect-ratio: 6/5) and (max-height: 440px) {
+    .lmpl-afs-tools {
+        gap: calc(2px * var(--lmpl-s));
+    }
+
+    .lmpl-afs-tools > .lmpl-afs-tool,
+    .lmpl-afs-tools > .lmpl-afs-iconbtn {
+        flex: 0 1 auto;
+    }
 }

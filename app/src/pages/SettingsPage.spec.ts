@@ -14,6 +14,7 @@ import {
     localCacheVersion,
     youtubeAlwaysAllow,
     subtitlesOnVideo,
+    autoplayNext,
 } from "@/globalConfig";
 
 vi.mock("@/globalConfig", async () => {
@@ -26,6 +27,10 @@ vi.mock("@/globalConfig", async () => {
     const localCacheVersion = ref(0);
     const youtubeAlwaysAllow = ref(false);
     const subtitlesOnVideo = ref(false);
+    const autoplayNext = ref(true);
+    watch(autoplayNext, (on) => {
+        localStorage.setItem("autoplay", String(on));
+    });
     watch(subtitlesOnVideo, (onVideo) => {
         localStorage.setItem("subtitlesOnVideo", String(onVideo));
     });
@@ -44,6 +49,7 @@ vi.mock("@/globalConfig", async () => {
         localCacheVersion,
         youtubeAlwaysAllow,
         subtitlesOnVideo,
+        autoplayNext,
     };
 });
 vi.mock("@/components/BasePage.vue", async () => {
@@ -216,6 +222,18 @@ describe("SettingsPage data saver", () => {
 
         expect(subtitlesOnVideo.value).toBe(true);
         expect(localStorage.getItem("subtitlesOnVideo")).toBe("true");
+    });
+
+    it("lets the viewer turn autoplay off, on by default", async () => {
+        const wrapper = mountSettingsPage();
+        const toggle = wrapper.find("[data-test='autoplayToggle']");
+        expect(toggle.exists()).toBe(true);
+        expect(autoplayNext.value).toBe(true);
+
+        await toggle.trigger("click");
+
+        expect(autoplayNext.value).toBe(false);
+        expect(localStorage.getItem("autoplay")).toBe("false");
     });
 
     it('turns off "always allow" for videos hosted by YouTube', async () => {
