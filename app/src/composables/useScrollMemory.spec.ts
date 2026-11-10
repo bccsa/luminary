@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, KeepAlive, nextTick, ref, type Ref } from "vue";
 import { mount } from "@vue/test-utils";
 import { localCacheVersion } from "@/globalConfig";
-import { markHistoryNavigation, useScrollMemory } from "./useScrollMemory";
+import { markHistoryNavigation, useRevealedCount, useScrollMemory } from "./useScrollMemory";
 
 const routeMock = { fullPath: "/a" };
 vi.mock("vue-router", () => ({ useRoute: () => routeMock }));
@@ -140,12 +140,103 @@ describe("useScrollMemory", () => {
         markHistoryNavigation(true);
         const second = makeScroller(100);
         mountPage(second.el, "/a");
-        second.el.dispatchEvent(new Event("wheel"));
+        second.el.dispatchEvent(new WheelEvent("wheel", { deltaY: 40 }));
 
         second.setHeight(1000);
         await vi.advanceTimersByTimeAsync(500);
 
         expect(second.el.scrollTop).toBe(0);
+    });
+
+    describe("hiding while restoring", () => {
+        const setUp = () => {
+            const first = makeScroller(1000);
+            const page = mountPage(first.el, "/a");
+            first.scrollTo(600);
+            page.unmount();
+            markHistoryNavigation(true);
+            return makeScroller(100); // content not loaded yet
+        };
+
+        it("hides the page until the position is reached, then shows it", async () => {
+            const second = setUp();
+            mountPage(second.el, "/a");
+            expect(second.el.style.visibility).toBe("hidden");
+
+            second.setHeight(1000);
+            await vi.advanceTimersByTimeAsync(100);
+
+            expect(second.el.scrollTop).toBe(600);
+            expect(second.el.style.visibility).toBe("");
+        });
+
+        it("never hides a page that is restored straight away", () => {
+            const first = makeScroller(1000);
+            const page = mountPage(first.el, "/a");
+            first.scrollTo(600);
+            page.unmount();
+            markHistoryNavigation(true);
+
+            const second = makeScroller(1000);
+            mountPage(second.el, "/a");
+
+            expect(second.el.scrollTop).toBe(600);
+            expect(second.el.style.visibility).toBe("");
+        });
+
+        it("shows the page after 200ms even if the position is still out of reach", async () => {
+            const second = setUp();
+            mountPage(second.el, "/a");
+
+            await vi.advanceTimersByTimeAsync(199);
+            expect(second.el.style.visibility).toBe("hidden");
+            await vi.advanceTimersByTimeAsync(1);
+            expect(second.el.style.visibility).toBe("");
+
+            // The restore carries on behind the visible page.
+            second.setHeight(1000);
+            await vi.advanceTimersByTimeAsync(100);
+            expect(second.el.scrollTop).toBe(600);
+        });
+
+        it("shows the page as soon as the reader scrolls", () => {
+            const second = setUp();
+            mountPage(second.el, "/a");
+
+            second.el.dispatchEvent(new WheelEvent("wheel", { deltaY: 40 }));
+
+            expect(second.el.style.visibility).toBe("");
+        });
+
+        it("does not hide a page reached through a new navigation", () => {
+            const first = makeScroller(1000);
+            const page = mountPage(first.el, "/a");
+            first.scrollTo(600);
+            page.unmount();
+            markHistoryNavigation(false);
+
+            const second = makeScroller(100);
+            mountPage(second.el, "/a");
+
+            expect(second.el.style.visibility).toBe("");
+        });
+    });
+
+    it("keeps restoring through the horizontal wheel inertia of a trackpad swipe", async () => {
+        const first = makeScroller(1000);
+        const page = mountPage(first.el, "/a");
+        first.scrollTo(600);
+        page.unmount();
+
+        markHistoryNavigation(true);
+        const second = makeScroller(100);
+        mountPage(second.el, "/a");
+        second.el.dispatchEvent(new WheelEvent("wheel", { deltaX: 60, deltaY: 2 }));
+
+        second.setHeight(1000);
+        await vi.advanceTimersByTimeAsync(100);
+
+        expect(second.el.scrollTop).toBe(600);
     });
 
     it("forgets every position when the local cache is cleared", () => {
@@ -160,6 +251,50 @@ describe("useScrollMemory", () => {
         mountPage(second.el, "/a");
 
         expect(second.el.scrollTop).toBe(0);
+    });
+
+    describe("useRevealedCount", () => {
+        const leaveAt = (path: string, top: number) => {
+            const scroller = makeScroller(1000);
+            const page = mountPage(scroller.el, path);
+            scroller.scrollTo(top);
+            page.unmount();
+        };
+
+        it("gives back the saved count only on back/forward", () => {
+            leaveAt("/a", 400);
+            useRevealedCount().save(24);
+
+            markHistoryNavigation(true);
+            expect(useRevealedCount().saved).toBe(24);
+
+            markHistoryNavigation(false);
+            expect(useRevealedCount().saved).toBe(0);
+        });
+
+        it("keeps a separate count per route", () => {
+            leaveAt("/a", 400);
+            leaveAt("/b", 300);
+            routeMock.fullPath = "/a";
+            useRevealedCount().save(24);
+            routeMock.fullPath = "/b";
+            useRevealedCount().save(16);
+
+            markHistoryNavigation(true);
+            routeMock.fullPath = "/a";
+            expect(useRevealedCount().saved).toBe(24);
+        });
+
+        it("forgets the counts when the local cache is cleared", async () => {
+            leaveAt("/a", 400);
+            useRevealedCount().save(24);
+
+            localCacheVersion.value++;
+            await nextTick();
+            markHistoryNavigation(true);
+
+            expect(useRevealedCount().saved).toBe(0);
+        });
     });
 
     describe("inside a KeepAlive", () => {

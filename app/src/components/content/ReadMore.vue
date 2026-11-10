@@ -12,6 +12,7 @@ import { RouterLink } from "vue-router";
 import { type ContentDto } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import LImage from "../images/LImage.vue";
+import { useRevealedCount } from "@/composables/useScrollMemory";
 
 const props = defineProps<{ items: ContentDto[] }>();
 
@@ -37,7 +38,13 @@ const tagsFor = (content: ContentDto): ContentDto[] => {
 // the sentinel below the list scrolls into view (the grid grows vertically too, so the
 // same mechanism serves mobile and desktop).
 const BATCH_SIZE = 8;
-const visibleCount = ref(BATCH_SIZE);
+const { saved: savedCount, save: saveCount } = useRevealedCount();
+const visibleCount = ref(Math.max(BATCH_SIZE, savedCount));
+// Saved from the start, so a visit that opens at one batch replaces an older, longer count.
+saveCount(visibleCount.value);
+watch(visibleCount, saveCount);
+// The related items load after mount, which would otherwise reset the restored count below.
+let keepRestoredCount = savedCount > BATCH_SIZE;
 const visibleItems = computed(() => props.items.slice(0, visibleCount.value));
 
 const sentinel = ref<HTMLElement | null>(null);
@@ -124,8 +131,11 @@ onUnmounted(() => {
 });
 watch(
     () => props.items,
-    () => {
-        visibleCount.value = BATCH_SIZE;
+    (items, previous) => {
+        const firstLoad = previous.length === 0 && items.length > 0;
+        const keep = keepRestoredCount && firstLoad;
+        keepRestoredCount = false;
+        if (!keep) visibleCount.value = BATCH_SIZE;
     },
 );
 // Newly revealed cards (infinite scroll, or a new related set) need re-measuring once rendered.
