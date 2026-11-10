@@ -499,6 +499,22 @@ describe("MediaPlayer", () => {
     });
 
     describe("the transport", () => {
+        it("keeps play / pause pressable while the source loads, a ring turning round it", async () => {
+            const wrapper = await playing();
+            // On a wide screen, minimised is the card with its transport.
+            minimiseMediaPlayer();
+            engine.state.playing = false;
+            engine.state.duration = 0;
+            await flushPromises();
+
+            const button = find(wrapper, "mediaPlayerPlayPause");
+            expect(button.find("[data-test='mediaPlayerStarting']").exists()).toBe(true);
+            expect(button.attributes("disabled")).toBeUndefined();
+            await button.trigger("click");
+            expect(engine.handle.play).toHaveBeenCalledTimes(1);
+            expect(button.attributes("aria-label")).toBe("media_player.pause");
+        });
+
         it("shows no spinner over an error", async () => {
             const wrapper = await playing();
             engine.state.playing = false;
@@ -924,6 +940,59 @@ describe("MediaPlayer", () => {
             engine.state.stalled = false;
             await flushPromises();
             expect(screen(wrapper).props().busy).toBe(false);
+        });
+
+        it("shows pause the moment Play is pressed, before the engine has started", async () => {
+            const wrapper = await playing();
+            engine.state.playing = false;
+            await flushPromises();
+            expect(screen(wrapper).props().playing).toBe(false);
+
+            screen(wrapper).vm.$emit("toggle-play");
+            await flushPromises();
+            expect(engine.handle.play).toHaveBeenCalledTimes(1);
+            expect(screen(wrapper).props().playing).toBe(true);
+
+            // A second press is a second command, not a repeat of the first.
+            screen(wrapper).vm.$emit("toggle-play");
+            await flushPromises();
+            expect(engine.handle.pause).toHaveBeenCalledTimes(1);
+            expect(screen(wrapper).props().playing).toBe(false);
+        });
+
+        it("shows play the moment Pause is pressed, while the engine is still playing", async () => {
+            const wrapper = await playing();
+            screen(wrapper).vm.$emit("toggle-play");
+            await flushPromises();
+            expect(engine.handle.pause).toHaveBeenCalledTimes(1);
+            expect(engine.state.playing).toBe(true);
+            expect(screen(wrapper).props().playing).toBe(false);
+        });
+
+        it("follows the engine again once it has done what was asked", async () => {
+            const wrapper = await playing();
+            engine.state.playing = false;
+            await flushPromises();
+            screen(wrapper).vm.$emit("toggle-play");
+            engine.state.playing = true;
+            await flushPromises();
+
+            // The video ends, or the system stops it: no press, so the button follows.
+            engine.state.playing = false;
+            await flushPromises();
+            expect(screen(wrapper).props().playing).toBe(false);
+        });
+
+        it("gives up the command when the engine fails, and shows what it does", async () => {
+            const wrapper = await playing();
+            engine.state.playing = false;
+            await flushPromises();
+            screen(wrapper).vm.$emit("toggle-play");
+            await flushPromises();
+
+            engine.state.lifecycle = "error";
+            await flushPromises();
+            expect(screen(wrapper).props().playing).toBe(false);
         });
 
         it("shows the player busy from a pick until the picked video plays, and for a while at most", async () => {
@@ -1562,7 +1631,7 @@ describe("MediaPlayer", () => {
             );
         });
 
-        it("shows the spinner in play's place while it loads or is stuck, and play once it plays", async () => {
+        it("turns a ring round play / pause while it loads or is stuck, the button still there", async () => {
             const wrapper = await playing();
             minimiseMediaPlayer();
             await flushPromises();
@@ -1571,8 +1640,11 @@ describe("MediaPlayer", () => {
 
             engine.state.lifecycle = "loading";
             await flushPromises();
-            expect(find(wrapper, "mediaPlayerBarBusy").exists()).toBe(true);
-            expect(wrapper.find("[data-test='mediaPlayerBarPlayPause']").exists()).toBe(false);
+            expect(
+                find(wrapper, "mediaPlayerBarPlayPause")
+                    .find("[data-test='mediaPlayerBarBusy']")
+                    .exists(),
+            ).toBe(true);
 
             engine.state.lifecycle = "ready";
             engine.state.stalled = true;

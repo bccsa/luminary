@@ -1801,6 +1801,17 @@
     background: rgb(255 255 255 / 0.86);
     color: #111;
     cursor: pointer;
+    position: relative;
+}
+
+/* Just outside the disc, so the glyph inside keeps what was asked for while the player gets ready. */
+.lmpl-afs-playbtn svg.lmpl-busy-ring {
+    position: absolute;
+    inset: calc(-6px * var(--lmpl-s));
+    width: auto;
+    height: auto;
+    color: rgb(255 255 255 / 0.86);
+    pointer-events: none;
 }
 
 .lmpl-afs-skip {
@@ -2146,8 +2157,8 @@
     mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
 }
 /*
- * While the player gets ready or waits for data: a turning ring in the play button's place, out of the way of taps.
- * It stays when the controls hide, so the picture always says it is loading.
+ * While the player gets ready or waits for data: a turning ring round the play button, out of the way of taps. The
+ * button keeps what was asked for; the ring stays when the controls hide, so the picture always says it is loading.
  */
 .lmpl-root .lmpl-busy {
     position: absolute;
@@ -2160,11 +2171,8 @@
     filter: drop-shadow(0 1px 3px rgb(0 0 0 / 0.6));
 }
 .lmpl-root .lmpl-busy svg {
-    width: calc(56px * var(--lmpl-s));
-    height: calc(56px * var(--lmpl-s));
-}
-.lmpl-root.lmpl-is-busy .lmpl-play {
-    visibility: hidden;
+    width: calc(92px * var(--lmpl-s));
+    height: calc(92px * var(--lmpl-s));
 }
 
 /* Until a finite video's length is known there is nothing to skip through or scrub, and no speed worth offering. */

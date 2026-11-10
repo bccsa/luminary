@@ -256,17 +256,19 @@ describe("the now-playing view for a host", () => {
             expect(wrapper.emitted("subtitle-track")).toEqual([[null]]);
         });
 
-        it("turns its play button while the player gets ready, and still takes a press", async () => {
-            const wrapper = mountView({ busy: true });
+        it("keeps what was asked for on its play button while the player gets ready, a ring turning round it", async () => {
+            const wrapper = mountView({ busy: true, playing: true });
             const play = find(wrapper, "afsPlay");
             expect(play.find("[data-test='afsSpinner']").exists()).toBe(true);
-            expect(play.attributes("aria-label")).toBe("Loading");
+            expect(play.find("[data-test='afsPauseIcon']").exists()).toBe(true);
+            expect(play.attributes("aria-label")).toBe("Pause");
             expect(play.attributes("aria-busy")).toBe("true");
             await play.trigger("click");
             expect(wrapper.emitted("toggle-play")).toHaveLength(1);
 
             await wrapper.setProps({ busy: false });
             expect(play.find("[data-test='afsSpinner']").exists()).toBe(false);
+            expect(play.find("[data-test='afsPauseIcon']").exists()).toBe(true);
             expect(play.attributes("aria-busy")).toBeUndefined();
         });
 

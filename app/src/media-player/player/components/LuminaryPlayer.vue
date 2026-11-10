@@ -1991,7 +1991,7 @@ defineExpose({
                     v-html="controlsHtml"
                 ></media-controls>
 
-                <!-- Inside the container, so it goes fullscreen with the picture, in the play button's place. -->
+                <!-- Inside the container, so it goes fullscreen with the picture: a ring round the play button. -->
                 <div
                     v-if="showsBusy"
                     class="lmpl-busy"
@@ -2001,14 +2001,19 @@ defineExpose({
                 >
                     <svg
                         class="lmpl-afs-spinner"
-                        viewBox="0 0 24 24"
+                        viewBox="0 0 48 48"
                         fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.4"
-                        stroke-linecap="round"
                         aria-hidden="true"
                     >
-                        <path d="M12 3a9 9 0 1 1-9 9" />
+                        <circle
+                            cx="24"
+                            cy="24"
+                            r="22.5"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-dasharray="35 107"
+                        />
                     </svg>
                 </div>
 
