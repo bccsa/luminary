@@ -238,7 +238,8 @@ vi.mock("@/media-player/MediaPlayerWrapper.vue", async () => {
                     setAudioTrack: vi.fn(),
                     setSubtitleTrack: vi.fn(),
                 };
-                engine.handle = {
+                // Reactive, as the real handle's flags are: the page follows a refusal that turns them false.
+                engine.handle = reactive({
                     controller: engine.controller,
                     state: engine.state,
                     play: vi.fn(),
@@ -281,7 +282,7 @@ vi.mock("@/media-player/MediaPlayerWrapper.vue", async () => {
                               setVideoOff: vi.fn(),
                           }
                         : { nativeNowPlaying: engine.native === false ? false : null }),
-                };
+                });
                 expose({
                     player: engine.handle,
                     get inlineActive() {
@@ -524,6 +525,20 @@ describe("MediaPlayer", () => {
                 engine.native = false;
                 const wrapper = await playing();
                 expect(nowPlayingHidden(wrapper)).toBe(false);
+            }));
+
+        it("takes its screen and bar back when the platform refuses to draw them", async () =>
+            narrow(async () => {
+                const wrapper = await playing();
+                expect(nowPlayingHidden(wrapper)).toBe(true);
+                engine.handle.nativeNowPlaying = false;
+                await flushPromises();
+                expect(nowPlayingHidden(wrapper)).toBe(false);
+
+                engine.handle.nativeMiniPlayer = false;
+                minimiseMediaPlayer();
+                await flushPromises();
+                expect(find(wrapper, "mediaPlayerBar").classes()).not.toContain("opacity-0");
             }));
 
         it("keeps the page's screen hidden while the player has not yet said whether it draws its own", async () =>
