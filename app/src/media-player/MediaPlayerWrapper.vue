@@ -47,6 +47,7 @@ import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import type {
     VideoNowPlaying,
     VideoNowPlayingAction,
+    VideoMiniPlayerAction,
     VideoPlayerHandle,
 } from "@/build-time/contracts/video-player/contract";
 
@@ -82,6 +83,8 @@ const emit = defineEmits<{
     nextupselect: [id: string];
     /** What the platform's own now-playing screen asks of the page. */
     nowplayingaction: [action: VideoNowPlayingAction, value?: string];
+    /** What the viewer did on the platform's own minimised player. */
+    miniplayeraction: [action: VideoMiniPlayerAction];
 }>();
 
 /**
@@ -677,6 +680,7 @@ function onEnded() {
                 @nextupselect="onNextUpSelect"
                 @nextupdismiss="nextUpDismissed = true"
                 @nowplayingaction="passNowPlayingAction"
+                @miniplayeraction="emit('miniplayeraction', $event)"
             />
         </div>
     </div>

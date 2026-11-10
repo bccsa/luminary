@@ -94,7 +94,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 fill: Boolean,
                 stageHole: Boolean,
                 captionBand: Boolean,
-                wash: String,
+                thumbHash: String,
                 exitLabel: String,
                 subtitleTracks: Array,
                 activeSubtitleTrackId: String,
@@ -273,6 +273,10 @@ vi.mock("@/media-player/MediaPlayerWrapper.vue", async () => {
                               nativeNowPlaying: true,
                               showNowPlaying: vi.fn(),
                               hideNowPlaying: vi.fn(),
+                              nativeMiniPlayer: true,
+                              showMiniPlayer: vi.fn(),
+                              setMiniPlayerFrame: vi.fn(),
+                              hideMiniPlayer: vi.fn(),
                               canTurnVideoOff: true,
                               setVideoOff: vi.fn(),
                           }
@@ -470,6 +474,49 @@ describe("MediaPlayer", () => {
                 minimiseMediaPlayer();
                 await flushPromises();
                 if (find(wrapper, "mediaPlayerNowPlaying").exists()) expect(nowPlayingHidden(wrapper)).toBe(true);
+            }));
+
+        it("has the platform draw the minimised bar, keeping the page's own in place unseen", async () =>
+            narrow(async () => {
+                const wrapper = await playing();
+                minimiseMediaPlayer();
+                await flushPromises();
+
+                const sent = engine.handle.showMiniPlayer.mock.calls.at(-1);
+                expect(sent[0]).toMatchObject({ title: mockEnglishContentDto.title, live: false });
+                expect(sent[1].close).toBeDefined();
+                const anchor = find(wrapper, "mediaPlayerBar");
+                expect(anchor.exists()).toBe(true);
+                expect(anchor.classes()).toEqual(expect.arrayContaining(["opacity-0", "pointer-events-none"]));
+                expect(anchor.attributes("aria-hidden")).toBe("true");
+                expect(engine.handle.setMiniPlayerFrame).toHaveBeenCalled();
+            }));
+
+        it("follows what the viewer did on the platform's bar", async () =>
+            narrow(async () => {
+                await playing();
+                minimiseMediaPlayer();
+                await flushPromises();
+
+                engine.emit("miniplayeraction", "expand");
+                await flushPromises();
+                expect(mediaPlayerView.value).toBe("expanded");
+                expect(engine.handle.hideMiniPlayer).toHaveBeenCalled();
+
+                minimiseMediaPlayer();
+                await flushPromises();
+                engine.emit("miniplayeraction", "close");
+                await flushPromises();
+                expect(mediaPlayerItem.value).toBeNull();
+            }));
+
+        it("keeps the page's own bar where the player has none", async () =>
+            narrow(async () => {
+                engine.native = false;
+                const wrapper = await playing();
+                minimiseMediaPlayer();
+                await flushPromises();
+                expect(find(wrapper, "mediaPlayerBar").classes()).not.toContain("opacity-0");
             }));
 
         it("shows the page's screen where the player has none of its own", async () =>
@@ -1624,7 +1671,7 @@ describe("MediaPlayer", () => {
             expect(bar.attributes("style") ?? "").not.toContain("background-color");
         });
 
-        it("wears the post image's ThumbHash under a scrim, over its colour darkened", async () => {
+        it("wears the post image's ThumbHash over its average colour, darkened for white text", async () => {
             const rgba = new Uint8Array(8 * 8 * 4);
             for (let i = 0; i < 64; i++) rgba.set([240, 220, 200, 255], i * 4);
             const thumbHash = btoa(String.fromCharCode(...rgbaToThumbHash(8, 8, rgba)));
@@ -1650,32 +1697,8 @@ describe("MediaPlayer", () => {
             // A light picture still gives a bar white text reads on.
             expect(Math.max(r, g, b)).toBeLessThan(140);
             expect(r).toBeGreaterThan(b);
-            // Over that colour, the ThumbHash itself, under a scrim.
-            expect(bar.attributes("style")).toContain("data:image/png");
-            expect(bar.attributes("style")).toContain("linear-gradient");
-        });
-
-        it("keeps the ThumbHash's proportions across the bar instead of squashing it", async () => {
-            const rgba = new Uint8Array(8 * 8 * 4);
-            for (let i = 0; i < 64; i++) rgba.set([i * 4, 100, 200 - i * 3, 255], i * 4);
-            const thumbHash = btoa(String.fromCharCode(...rgbaToThumbHash(8, 8, rgba)));
-            openMediaPlayer(
-                {
-                    ...mockEnglishContentDto,
-                    parentImageData: {
-                        fileCollections: [{ aspectRatio: 1, imageFiles: [], thumbHash }],
-                    },
-                } as unknown as ContentDto,
-                "en",
-            );
-            const wrapper = await mountPlayer();
-            minimiseMediaPlayer();
-            await flushPromises();
-            const style = find(wrapper, "mediaPlayerBar").attributes("style") ?? "";
-
-            expect(style).toContain("data:image/png");
-            expect(style).toContain("background-size: cover");
-            expect(style).toContain("background-position: center");
+            // Over that colour, the ThumbHash itself, drawn as the wash.
+            expect(bar.find("[data-test=thumbHashWash]").exists()).toBe(true);
         });
 
         it("marks the way up on the picture", async () => {

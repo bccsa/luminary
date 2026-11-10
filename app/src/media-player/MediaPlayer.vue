@@ -52,6 +52,8 @@ import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
 import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";
 import type {
+    VideoMiniPlayerAction,
+    VideoMiniPlayerBar,
     VideoNowPlayingAction,
     VideoNowPlayingScreen,
     VideoNowPlayingTexts,
@@ -61,7 +63,8 @@ import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { isMac } from "@/globalConfig";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { fallbackImageFor } from "@/util/fallbackArtwork";
-import { coverImageUrl, posterImageUrl, thumbHashTint, thumbHashWash } from "./coverImage";
+import { coverImageUrl, posterImageUrl, thumbHashOf, thumbHashTint } from "./coverImage";
+import ThumbHashWash from "./wash/ThumbHashWash.vue";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
 import { dataSaverOn, subtitlePreference, subtitlesOnVideo } from "@/globalConfig";
@@ -351,6 +354,7 @@ const mobileChrome = useMobileChromeAutoHide();
 const bar = ref<HTMLElement | null>(null);
 let barObserver: ResizeObserver | null = null;
 function publishBarHeight() {
+    sendBarFrame();
     const height = bar.value?.getBoundingClientRect().height ?? 0;
     if (height > 0) document.documentElement.style.setProperty("--media-bar-h", `${height}px`);
     else document.documentElement.style.removeProperty("--media-bar-h");
@@ -405,7 +409,7 @@ watch(
             startingAsAudio.value = false;
     },
 );
-const audioMode = computed(
+const reportedAudio = computed(
     () =>
         startingAsAudio.value ||
         (!!state.value &&
@@ -413,6 +417,20 @@ const audioMode = computed(
                 videoOffByChoice.value ||
                 state.value.isAudioOnly ||
                 state.value.activeAngleId === AUDIO_ONLY_ANGLE_ID)),
+);
+/**
+ * A reload of the same item (a retry, a late key) starts from a blank state that names no angle until it has
+ * loaded: the mode it had stands meanwhile, so the cover does not give way to an empty picture.
+ */
+const audioMode = ref(false);
+watch(
+    () => [reportedAudio.value, state.value?.lifecycle, item.value?.content._id] as const,
+    ([audio, lifecycle, id], before) => {
+        const sameItem = before !== undefined && id === before[2];
+        if (sameItem && !audio && audioMode.value && lifecycle !== "ready") return;
+        audioMode.value = audio;
+    },
+    { immediate: true, flush: "sync" },
 );
 const playing = computed(() => state.value?.playing ?? false);
 const currentTime = computed(() => state.value?.currentTime ?? 0);
@@ -1230,25 +1248,10 @@ const floatingCard = computed(
 const lineAtFoot = computed(() => isDesktop.value || floatingCard.value);
 /** The bar's fill: the post image's colour, or the plain dark bar when it has none. */
 const barTint = computed(() => thumbHashTint(content.value));
-/**
- * The bar wears the post image's ThumbHash under a scrim that keeps the white text readable; its average colour
- * shows until the picture is drawn. Covered, not stretched: a square hash pulled to the bar's width looks squashed.
- */
-const barFill = computed(() => {
-    const tint = barTint.value;
-    if (!tint) return {};
-    const hash = thumbHashWash(content.value);
-    return {
-        backgroundColor: tint,
-        ...(hash
-            ? {
-                  backgroundImage: `linear-gradient(rgb(8 10 14 / 0.55), rgb(8 10 14 / 0.55)), url("${hash}")`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-              }
-            : {}),
-    };
-});
+/** The post image's ThumbHash, drawn over the bar as the now-playing screen's colour. */
+const barHash = computed(() => thumbHashOf(content.value));
+/** Under the wash (and the strip under the bar, which it does not reach), the wash's average colour. */
+const barFill = computed(() => (barTint.value ? { backgroundColor: barTint.value } : {}));
 /** The player busy, shown alike in the bar and the full player: the spinner standing in for play. */
 const playerBusy = computed(() => starting.value || swapping.value || stalled.value);
 const barCoverFailed = ref(false);
@@ -1262,6 +1265,88 @@ watch(
     () => content.value?._id,
     () => (barCoverFailed.value = false),
 );
+
+/**
+ * The platform draws the minimised player itself. The page's bar stays laid out but unseen and untouchable: its CSS
+ * still decides where the bar goes (card or along the foot, riding the menu, clear of the keyboard), its height still
+ * keeps the page's content clear, and the platform draws in its place.
+ */
+const nativeOwnsBar = computed(
+    () => !expanded.value && isNativeApp() && handle.value?.nativeMiniPlayer === true,
+);
+const nativeBar = computed<VideoMiniPlayerBar | null>(() => {
+    const shown = content.value;
+    if (!nativeOwnsBar.value || !shown) return null;
+    const hash = thumbHashOf(shown);
+    return {
+        title: shown.title,
+        ...(shown.author ? { author: shown.author } : {}),
+        ...(barCover.value ? { cover: barCover.value } : {}),
+        ...(hash ? { thumbHash: hash } : {}),
+        live: live.value,
+        card: floatingCard.value,
+        lineAtFoot: lineAtFoot.value,
+    };
+});
+const nativeBarTexts = computed(() => ({
+    expand: t("media_player.expand"),
+    play: t("media_player.play"),
+    pause: t("media_player.pause"),
+    close: t("media_player.close"),
+    loading: t("video_player.loading"),
+}));
+/** Where the unseen bar is, for the platform to draw in; nothing while the keyboard has it away. */
+function sendBarFrame() {
+    const player = handle.value;
+    if (!player?.setMiniPlayerFrame) return;
+    const element = bar.value;
+    const box = nativeOwnsBar.value && element && !keyboardOpen.value ? element.getBoundingClientRect() : null;
+    player.setMiniPlayerFrame(
+        box && box.width > 0 && box.height > 0
+            ? { x: box.left, y: box.top, width: box.width, height: box.height }
+            : null,
+    );
+}
+/** The bar slides with the menu: the platform's follows it frame by frame while it moves. */
+const MAX_FOLLOWED_BAR_FRAMES = 60;
+let barFollowLeft = 0;
+function followBarFrames() {
+    const following = barFollowLeft > 0;
+    barFollowLeft = MAX_FOLLOWED_BAR_FRAMES;
+    if (following) return;
+    const step = () => {
+        sendBarFrame();
+        if (--barFollowLeft > 0) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+}
+function stopFollowingBar() {
+    barFollowLeft = 0;
+    sendBarFrame();
+}
+watch(
+    [nativeBar, nativeBarTexts, handle],
+    ([shown, texts], [, , before]) => {
+        if (!shown) {
+            before?.hideMiniPlayer?.();
+            handle.value?.hideMiniPlayer?.();
+        } else handle.value?.showMiniPlayer?.(shown, texts);
+        void nextTick(sendBarFrame);
+    },
+    { immediate: true },
+);
+watch(keyboardOpen, () => void nextTick(sendBarFrame));
+onMounted(() => window.addEventListener("resize", sendBarFrame));
+onBeforeUnmount(() => {
+    window.removeEventListener("resize", sendBarFrame);
+    handle.value?.hideMiniPlayer?.();
+});
+
+/** What the viewer did on the platform's bar, which it has done already: the page follows. */
+function onMiniPlayerAction(action: VideoMiniPlayerAction) {
+    if (action === "expand") expandMediaPlayer();
+    else closeMediaPlayer();
+}
 
 /** The sound alone wears the cover's colour over the whole player: pale in the light theme, dark in the dark one. */
 const wash = computed(() => audioMode.value);
@@ -1356,7 +1441,7 @@ function setSleep(option: SleepTimerOption | null) {
 
 // --- the now-playing screen on a phone -----------------------------------------------------------
 
-const nowPlayingWash = computed(() => thumbHashWash(content.value));
+const nowPlayingHash = computed(() => thumbHashOf(content.value));
 
 const platformChrome = inject(PlatformChromeKey, null);
 const soundScreen = computed(() => nowPlaying.value && expanded.value && audioMode.value);
@@ -1497,7 +1582,7 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
         title: content.value.title,
         ...(nowPlayingSubtitle.value ? { subtitle: nowPlayingSubtitle.value } : {}),
         ...(artworkUrl ? { artworkUrl } : {}),
-        ...(nowPlayingWash.value ? { washUrl: nowPlayingWash.value } : {}),
+        ...(nowPlayingHash.value ? { thumbHash: nowPlayingHash.value } : {}),
         canRead: !!content.value.slug,
         canSwitch: canSwitch.value,
         audioMode: audioMode.value,
@@ -1902,7 +1987,7 @@ function onKeydown(event: KeyboardEvent) {
                     :title="content.title"
                     :subtitle="nowPlayingSubtitle"
                     :artwork="screenArtwork"
-                    :wash="nowPlayingWash"
+                    :thumb-hash="nowPlayingHash"
                     appearance="dark"
                     :stage="audioMode ? 'cover' : 'video'"
                     :fill="webFill"
@@ -2069,6 +2154,7 @@ function onKeydown(event: KeyboardEvent) {
                             @nextupselect="swapToNext"
                             @upnextselect="swapToNext"
                             @nowplayingaction="onNowPlayingAction"
+                            @miniplayeraction="onMiniPlayerAction"
                             :inline="true"
                             :caption-band="captionBand ? 64 : 0"
                             :fullscreen-on-play="isNativeApp()"
@@ -2897,7 +2983,7 @@ function onKeydown(event: KeyboardEvent) {
                 :title="content.title"
                 :subtitle="nowPlayingSubtitle"
                 :artwork="screenArtwork"
-                :wash="nowPlayingWash"
+                :thumb-hash="nowPlayingHash"
                 appearance="dark"
                 :chapters="chapters"
                 :current-time="currentTime"
@@ -2984,13 +3070,23 @@ function onKeydown(event: KeyboardEvent) {
                     ? 'inset-x-2 bottom-[calc(var(--mobile-menu-h,0px)+var(--card-gap)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))] overflow-hidden rounded-[14px] shadow-xl shadow-black/30 [--card-gap:max(6px,env(safe-area-inset-bottom)_-_16px,var(--native-inset-bottom,0px)_+_6px)]'
                     : 'inset-x-0 bottom-[var(--mobile-menu-h,0px)] after:absolute after:inset-x-0 after:top-full after:h-[max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px))] after:[background:inherit]',
                 barTint ? '' : 'bg-zinc-900',
+                nativeOwnsBar ? 'pointer-events-none opacity-0' : '',
                 mobileChrome.hidden.value
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'
                     : 'translate-y-0',
             ]"
             :style="barFill"
+            :aria-hidden="nativeOwnsBar || undefined"
             data-test="mediaPlayerBar"
+            @transitionrun="nativeOwnsBar && followBarFrames()"
+            @transitionend="nativeOwnsBar && stopFollowingBar()"
+            @transitioncancel="nativeOwnsBar && stopFollowingBar()"
         >
+            <!-- Behind everything in the bar, edge to edge. -->
+            <ThumbHashWash
+                :hash="barHash"
+                class="-z-10"
+            />
             <!-- Along the bar's top on a phone; along the whole foot of a card (a computer's, or a phone's while
                  reading), under the picture too. -->
             <div
@@ -3008,7 +3104,7 @@ function onKeydown(event: KeyboardEvent) {
             <!-- The way up has a box of its own at the bar's left end, so nothing sits over the picture. -->
             <button
                 type="button"
-                class="-mr-0.5 flex h-[calc(100%-3px)] w-7 flex-none items-center justify-center self-start bg-black/30 [transition:transform_700ms_cubic-bezier(0.32,0.72,0,1)] active:bg-black/45 lg:mr-0 [@media(hover:hover)]:hover:bg-black/45"
+                class="-mr-0.5 flex h-[calc(100%-3px)] w-7 flex-none items-center justify-center self-start [transition:transform_700ms_cubic-bezier(0.32,0.72,0,1)] active:bg-white/10 lg:mr-0 [@media(hover:hover)]:hover:bg-white/10"
                 :aria-label="t('media_player.expand')"
                 data-test="mediaPlayerBarExpandBadge"
                 :class="lineAtFoot ? '' : 'translate-y-[3px]'"

@@ -16,8 +16,8 @@ export type VideoNowPlayingScreen = {
     subtitle?: string;
     /** The square cover drawn for sound. */
     artworkUrl?: string;
-    /** A small soft image (a `data:` PNG) stretched over the background. */
-    washUrl?: string;
+    /** The item's ThumbHash (base64), drawn as the screen's colour. */
+    thumbHash?: string;
     canRead: boolean;
     canSwitch: boolean;
     audioMode: boolean;
@@ -89,6 +89,27 @@ export type VideoNowPlayingTexts = Partial<
  * `off`, `chapter`, or the minutes; `tag` with the tag up next is narrowed to, empty for all.
  */
 export type VideoNowPlayingAction = "minimise" | "read" | "audio" | "video" | "sleep" | "tag";
+
+/** What a platform's own minimised player shows of the item, as the page's bar does. */
+export type VideoMiniPlayerBar = {
+    title: string;
+    author?: string;
+    /** The cover's address. */
+    cover?: string;
+    /** The item's ThumbHash (base64), drawn as the bar's colour, as the now-playing screen's. */
+    thumbHash?: string;
+    live: boolean;
+    /** A rounded floating card rather than a bar along the screen's foot. */
+    card: boolean;
+    /** The progress line along the foot rather than the top. */
+    lineAtFoot: boolean;
+};
+
+/** What the minimised player's buttons are called; one left out keeps the platform's English. */
+export type VideoMiniPlayerTexts = Partial<Record<"expand" | "play" | "pause" | "close" | "loading", string>>;
+
+/** What the viewer did on a platform's own minimised player: it is already done there. */
+export type VideoMiniPlayerAction = "expand" | "close";
 
 /**
  * The player component a content page renders.
@@ -168,6 +189,15 @@ export type VideoPlayerHandle = {
     /** Shows the platform's now-playing screen, or updates the one that is up. */
     showNowPlaying?(screen: VideoNowPlayingScreen, texts?: VideoNowPlayingTexts): void;
     hideNowPlaying?(): void;
+    /**
+     * The platform draws the minimised player itself, over the page, in the frame the page keeps for it; it raises
+     * `miniplayeraction` ({@link VideoMiniPlayerAction}) for what the viewer did there.
+     */
+    readonly nativeMiniPlayer?: boolean | null;
+    showMiniPlayer?(bar: VideoMiniPlayerBar, texts?: VideoMiniPlayerTexts): void;
+    /** Where the page keeps room for it, in CSS pixels of the viewport; null takes it away for now. */
+    setMiniPlayerFrame?(frame: { x: number; y: number; width: number; height: number } | null): void;
+    hideMiniPlayer?(): void;
     /** The platform turns the picture off in place, the sound playing on: {@link setVideoOff} does something. */
     readonly canTurnVideoOff?: boolean;
     /** The picture off (its downloads stop) or back on, with nothing loaded again. */

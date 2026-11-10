@@ -2009,17 +2009,10 @@
     }
 }
 
-/* A ThumbHash is a few pixels: stretched over the screen it is already soft, so it needs no blur, which is what an
-   old phone pays for most. */
-.lmpl-afs-wash.lmpl-afs-wash-hash {
-    filter: saturate(1.6);
-    transform: scale(1.1);
-    opacity: 1;
-}
-/* A ThumbHash is already soft and dark enough at its edges: a lighter scrim lets its colour show, still dark enough
-   at the foot, where the controls are, for white text. */
+/* The ThumbHash's wash is dark enough for white text everywhere on its own: no scrim over it, which would shade it from
+   top to foot. */
 .lmpl-afs-bg-hash::after {
-    background: linear-gradient(to bottom, rgb(8 10 14 / 0.28), rgb(8 10 14 / 0.66));
+    content: none;
 }
 
 /* Video: the host's picture in the cover's place, from edge to edge of the screen. */

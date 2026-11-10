@@ -162,14 +162,14 @@ describe("the now-playing view for a host", () => {
         expect(find(plain, "afsTopEnd").exists()).toBe(false);
     });
 
-    it("takes its colour from the given wash, unblurred, and from the cover without one", () => {
-        const hashed = mountView({ wash: "data:image/png;base64,AAAA" });
-        expect(find(hashed, "afsWash").attributes("src")).toBe("data:image/png;base64,AAAA");
-        expect(find(hashed, "afsWash").classes()).toContain("lmpl-afs-wash-hash");
+    it("takes its colour from the item's ThumbHash, drawn as the wash, and from the cover blurred without one", () => {
+        const hashed = mountView({ thumbHash: "Z0gCdwqAd4dLd3eIiIh3h4h4ePh3e58I" });
+        expect(find(hashed, "thumbHashWash").exists()).toBe(true);
+        expect(find(hashed, "afsWash").exists()).toBe(false);
 
         const plain = mountView();
+        expect(find(plain, "thumbHashWash").exists()).toBe(false);
         expect(find(plain, "afsWash").attributes("src")).toBe("https://cdn.example.com/cover.jpg");
-        expect(find(plain, "afsWash").classes()).not.toContain("lmpl-afs-wash-hash");
     });
 
     describe("with sound alone", () => {

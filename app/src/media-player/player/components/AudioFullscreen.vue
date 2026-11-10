@@ -28,6 +28,7 @@ import {
     sleepMinutesLeft,
 } from "../ui/audioFullscreen";
 import { nextInstanceId } from "../ui/instanceId";
+import ThumbHashWash from "../../wash/ThumbHashWash.vue";
 
 /**
  * The screen fullscreen becomes when only sound is playing: a now-playing screen, not a picture with controls.
@@ -101,8 +102,8 @@ const props = defineProps<{
     caption?: string;
     /** The host draws the picture behind the page, where the stage is: nothing of the screen may cover it there. */
     stageHole?: boolean;
-    /** The screen's colour in place of the cover blurred: a small picture (a ThumbHash) that is soft once stretched. */
-    wash?: string;
+    /** The item's ThumbHash (base64): the screen's colour, drawn as the wash, in place of the cover blurred. */
+    thumbHash?: string;
     /** The chevron's name, where it minimises the player rather than leaving full screen. */
     exitLabel?: string;
     subtitleTracks?: readonly { id: string; label: string }[];
@@ -584,7 +585,7 @@ const cover = computed(() => {
     if (!coverFailed.value) return art;
     return art.fallback ? { src: art.fallback } : null;
 });
-const washSrc = computed(() => props.wash || cover.value?.src);
+const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src));
 </script>
 
 <template>
@@ -619,13 +620,17 @@ const washSrc = computed(() => props.wash || cover.value?.src);
         <!-- The picture, blurred, as the screen's colour: lighter in `light`, darker in `dark`. -->
         <div
             class="lmpl-afs-bg"
-            :class="{ 'lmpl-afs-bg-hash': wash }"
+            :class="{ 'lmpl-afs-bg-hash': thumbHash }"
             aria-hidden="true"
         >
+            <ThumbHashWash
+                v-if="thumbHash"
+                :hash="thumbHash"
+                :tone="appearance === 'light' ? 'light' : 'dark'"
+            />
             <img
-                v-if="washSrc"
+                v-else-if="washSrc"
                 class="lmpl-afs-wash"
-                :class="{ 'lmpl-afs-wash-hash': wash }"
                 :src="washSrc"
                 alt=""
                 draggable="false"
@@ -635,14 +640,19 @@ const washSrc = computed(() => props.wash || cover.value?.src);
 
         <!-- A picture drawn behind the page: the wash is cut out where the picture is, and is the sound's everywhere else. -->
         <div
-            v-if="isVideo && stageHole && washSrc"
+            v-if="isVideo && stageHole && (thumbHash || washSrc)"
             class="lmpl-afs-bg lmpl-afs-bg-low"
-            :class="{ 'lmpl-afs-bg-hash': wash }"
+            :class="{ 'lmpl-afs-bg-hash': thumbHash }"
             aria-hidden="true"
         >
+            <ThumbHashWash
+                v-if="thumbHash"
+                :hash="thumbHash"
+                :tone="appearance === 'light' ? 'light' : 'dark'"
+            />
             <img
+                v-else
                 class="lmpl-afs-wash"
-                :class="{ 'lmpl-afs-wash-hash': wash }"
                 :src="washSrc"
                 alt=""
                 draggable="false"
