@@ -120,9 +120,9 @@ const handleClick = () => {
             <slot name="mobileFooter" />
             <div
                 v-if="showDate"
-                class="flex w-max items-start text-xs text-zinc-400 dark:text-zinc-500"
+                class="flex w-max items-start text-xs text-zinc-500 dark:text-zinc-500"
             >
-                <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-500 dark:text-zinc-500" />
                 <span title="Last Updated">{{
                     renderDate("small", "Last Updated", updatedTimeUtc)
                 }}</span>
@@ -136,9 +136,9 @@ const handleClick = () => {
             <slot name="desktopFooter" />
             <div
                 v-if="showDate"
-                class="flex items-center justify-end text-zinc-400 dark:text-zinc-500"
+                class="flex items-center justify-end text-zinc-500 dark:text-zinc-500"
             >
-                <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-500 dark:text-zinc-500" />
                 <span title="Last Updated">{{
                     renderDate("default", "Last updated", updatedTimeUtc)
                 }}</span>

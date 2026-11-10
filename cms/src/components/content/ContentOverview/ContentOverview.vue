@@ -245,7 +245,7 @@ const createNew = () => {
             <!-- Same button as on large screens, so styling stays with the same styling and size when the page shrinks -->
             <LButton
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
-                class="bg-zinc-100 hover:bg-zinc-300 hover:text-zinc-700 text-zinc-500"
+                class="bg-zinc-100 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
                 variant="primary"
                 :icon="PlusIcon"
                 data-test="create-button"
@@ -266,7 +266,7 @@ const createNew = () => {
             />
         </template>
 
-        <div v-if="cmsLanguageIdAsRef" class="flex flex-col gap-[8px]">
+        <div v-if="cmsLanguageIdAsRef" class="flex flex-col gap-[4px]">
             <div v-if="searchActive" class="px-2 py-1 text-xs text-zinc-500">
                 {{ showRelated ? "Showing related results" : "Showing exact matches" }}
                 for "{{ (queryOptions.search ?? "").trim() }}".
