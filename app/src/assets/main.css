@@ -41,3 +41,20 @@ html.lmc-inline-video.lmc-player-dragging main {
 html.dark.lmc-inline-video.lmc-player-dragging main {
     background-color: rgb(15 23 42);
 }
+
+/* Reader typography, driven by the CSS variables from `useReaderSettings().articleStyle`. */
+.reader-font {
+    font-family: var(--reader-font, inherit);
+}
+
+/* Doubled class outranks `lg:prose-lg`, which would otherwise reset the reader's size at lg. */
+.reader-text.reader-text {
+    font-size: calc(var(--reader-scale, 1) * 1rem);
+    line-height: var(--reader-line-height, 1.75);
+}
+
+@media (min-width: 1024px) {
+    .reader-text.reader-text {
+        font-size: calc(var(--reader-scale, 1) * 1.125rem);
+    }
+}

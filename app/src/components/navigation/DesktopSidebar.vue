@@ -8,6 +8,7 @@ import {
     HeartIcon,
     Cog6ToothIcon,
     SunIcon,
+    DocumentTextIcon,
     LanguageIcon,
     ShieldCheckIcon,
     ChevronLeftIcon,
@@ -24,6 +25,7 @@ import defaultLogo from "@/assets/logo.svg?url";
 import defaultLogoDark from "@/assets/logo-dark.svg?url";
 import defaultLogoSmall from "@/assets/logo-small.svg?url";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
+import ReaderSettingsModal from "./ReaderSettingsModal.vue";
 import LanguageModal from "./LanguageModal.vue";
 import LDialog from "../common/LDialog.vue";
 import LToggle from "../form/LToggle.vue";
@@ -52,6 +54,7 @@ const navigationItems = computed(() => getNavigationItems(t));
 const isItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.value;
 
 const showThemeSelector = ref(false);
+const showReaderSettings = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
 const forceReauthOnNextLogin = ref(true);
@@ -298,6 +301,23 @@ const handleLogin = () => {
 
                 <span
                     :class="navItemClasses(false)"
+                    :title="t('profile_menu.reader_settings')"
+                    data-test="sidebar-reader-settings"
+                    @click="showReaderSettings = true"
+                >
+                    <DocumentTextIcon
+                        :class="navIconClass"
+                        aria-hidden="true"
+                    />
+                    <span
+                        v-if="!collapsed"
+                        :class="navLabelClass"
+                        >{{ t("profile_menu.reader_settings") }}</span
+                    >
+                </span>
+
+                <span
+                    :class="navItemClasses(false)"
                     :title="languageTooltip"
                     @click="showLanguageModal = true"
                 >
@@ -423,6 +443,10 @@ const handleLogin = () => {
         <ThemeSelectorModal
             :isVisible="showThemeSelector"
             @close="showThemeSelector = false"
+        />
+        <ReaderSettingsModal
+            :isVisible="showReaderSettings"
+            @close="showReaderSettings = false"
         />
         <LanguageModal
             :isVisible="showLanguageModal"
