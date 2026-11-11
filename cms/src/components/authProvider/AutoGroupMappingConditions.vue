@@ -10,7 +10,7 @@ import LButton from "../button/LButton.vue";
 import LInput from "../forms/LInput.vue";
 import LCombobox from "../forms/LCombobox.vue";
 import LSelect from "../forms/LSelect.vue";
-import { TrashIcon, UserGroupIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import { MagnifyingGlassIcon, TrashIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { PencilSquareIcon, CheckIcon } from "@heroicons/vue/20/solid";
 
 const props = defineProps<{
@@ -281,9 +281,9 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
             <div>
                 <label class="text-sm font-medium text-zinc-800">Group Assignments</label>
                 <p class="mt-0.5 text-[11px] text-zinc-400">
-                    Assign one or more groups when all conditions are true (AND). e.g. Assign
-                    "St Mary's Editors" and "St Mary's Reviewers" if Authenticated and churchName
-                    equals "St Mary's".
+                    Assign one or more groups when all conditions are true (AND). e.g. Assign "St
+                    Mary's Editors" and "St Mary's Reviewers" if Authenticated and churchName equals
+                    "St Mary's".
                 </p>
             </div>
             <LButton
@@ -301,9 +301,10 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
         <LInput
             v-if="mappings.length > 3"
             name="group-mapping-search"
-            :icon="UserGroupIcon"
+            :icon="MagnifyingGlassIcon"
             v-model="searchQuery"
-            placeholder="Filter by group name..."
+            placeholder="Search groups..."
+            autocomplete="off"
             size="sm"
             class="mt-1"
         />
@@ -349,7 +350,11 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                 </p>
 
                 <p
-                    v-if="mapping.conditions.filter((c: AuthProviderCondition) => c.type !== 'authenticated').length === 0"
+                    v-if="
+                        mapping.conditions.filter(
+                            (c: AuthProviderCondition) => c.type !== 'authenticated',
+                        ).length === 0
+                    "
                     class="mb-1 text-[11px] italic text-zinc-400"
                 >
                     Assigned to all authenticated users.
