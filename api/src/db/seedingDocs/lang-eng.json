@@ -247,6 +247,7 @@
         "media_player.autoplay": "Autoplay",
         "media_player.autoplay_on": "On",
         "media_player.autoplay_off": "Off",
+        "media_player.camera": "Camera",
         "media_player.strict_video_title": "Watch the video?",
         "media_player.strict_video_description": "Data saver is on Strict, which plays the sound only. Watching the video sets data saver to Light: the video plays at a low quality.",
         "media_player.strict_video_confirm": "Watch video",

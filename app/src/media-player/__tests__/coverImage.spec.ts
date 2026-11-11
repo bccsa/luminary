@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { rgbaToThumbHash } from "thumbhash";
 import type { ContentDto } from "luminary-shared";
-import { coverImageUrl, posterImageUrl, thumbHashOf, thumbHashTint } from "../coverImage";
+import {
+    coverImageSrcset,
+    coverImageUrl,
+    imageFileUrls,
+    posterImageUrl,
+    thumbHashOf,
+    thumbHashTint,
+} from "../coverImage";
 
 /** A real ThumbHash of a small two-colour picture, base64 as the API stores it. */
 function hashOf(width: number, height: number): string {
@@ -84,5 +91,33 @@ describe("thumbHashTint", () => {
         expect(thumbHashTint(undefined)).toBeUndefined();
         expect(thumbHashTint(withCollections([{ aspectRatio: 1, imageFiles: [] }]))).toBeUndefined();
         expect(thumbHashTint(withCollections([{ aspectRatio: 1, imageFiles: [], thumbHash: "%%%" }]))).toBeUndefined();
+    });
+});
+
+describe("offline-friendly addresses", () => {
+    const content = withCollections([
+        {
+            aspectRatio: 1,
+            imageFiles: [
+                { width: 640, filename: "square-640.webp" },
+                { width: 180, filename: "square-180.webp" },
+            ],
+        },
+        { aspectRatio: 1.78, imageFiles: [{ width: 480, filename: "wide-480.webp" }] },
+    ]);
+    const base = "https://cdn.example.com/b";
+
+    it("offers the cover's every width, so the browser can settle on one it holds", () => {
+        expect(coverImageSrcset(content, base)).toBe(
+            `${base}/square-180.webp 180w, ${base}/square-640.webp 640w`,
+        );
+    });
+
+    it("lists every file, wide enough ones smallest first, then the small ones largest first", () => {
+        expect(imageFileUrls(content, base, 480)).toEqual([
+            `${base}/wide-480.webp`,
+            `${base}/square-640.webp`,
+            `${base}/square-180.webp`,
+        ]);
     });
 });

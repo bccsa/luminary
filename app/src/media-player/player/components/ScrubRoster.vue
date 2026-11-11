@@ -55,7 +55,6 @@ function frameStyle(cue: ThumbnailSpriteCue) {
 const rosterStyle = computed(() => ({
     bottom: `${props.bottom}px`,
     height: `${props.height}px`,
-    "--lmpl-marker": `${props.markerX}px`,
 }));
 
 const markerStyle = computed(() => ({ left: `${props.markerX}px` }));

@@ -625,11 +625,12 @@
     overflow: hidden;
     border-radius: 5px;
     font-size: calc(9px * var(--lmpl-s, 1));
-    font-weight: 700;
+    font-weight: 500;
     line-height: 13px;
     white-space: nowrap;
-    color: #111;
-    background: #fff;
+    /* Secondary to the glyph: quiet text on a faint, dark backing that only keeps it legible over the picture. */
+    color: rgb(255 255 255 / 0.6);
+    background: rgb(0 0 0 / 0.25);
     pointer-events: none;
 }
 
@@ -855,30 +856,17 @@
     left: 0;
 }
 
-/*
- * The frames around the marker are the ones that matter, so those further out fall away into the dark:
- * the strip reads as a lens on the playhead rather than a flat run of thumbnails.
- */
+/* A light shade at the strip's top and foot, so it sits apart from the picture; every frame stays at full brightness. */
 .lmpl-roster-vignette {
     position: absolute;
     inset: 0;
-    background:
-        linear-gradient(
-            to right,
-            rgb(8 8 10 / 0.78),
-            rgb(8 8 10 / 0.35) calc(var(--lmpl-marker) - 22%),
-            transparent calc(var(--lmpl-marker) - 8%),
-            transparent calc(var(--lmpl-marker) + 8%),
-            rgb(8 8 10 / 0.35) calc(var(--lmpl-marker) + 22%),
-            rgb(8 8 10 / 0.78)
-        ),
-        linear-gradient(
-            to bottom,
-            rgb(0 0 0 / 0.28),
-            transparent 35%,
-            transparent 70%,
-            rgb(0 0 0 / 0.4)
-        );
+    background: linear-gradient(
+        to bottom,
+        rgb(0 0 0 / 0.28),
+        transparent 35%,
+        transparent 70%,
+        rgb(0 0 0 / 0.4)
+    );
 }
 
 .lmpl-roster-marker {
@@ -1182,19 +1170,20 @@
     color: rgb(255 255 255 / 0.8);
 }
 
-/* The frame at its own size, scaled to the tile's width (120 at the panel's scale). */
+/* The frame at its own size, scaled to the tile's width (80 at the panel's scale). */
 .lmpl-chapter-frame {
     position: absolute;
     top: 0;
     left: 0;
     background-repeat: no-repeat;
-    transform: scale(calc(120 * var(--lmpl-s, 1) / var(--lmpl-cue-w, 120)));
+    transform: scale(calc(80 * var(--lmpl-s, 1) / var(--lmpl-cue-w, 80)));
     transform-origin: top left;
 }
 
+/* Small enough that more of either list shows: chapters and up next wear the same tile. */
 .lmpl-upnext-thumb {
     flex: none;
-    width: calc(120px * var(--lmpl-s));
+    width: calc(80px * var(--lmpl-s));
     aspect-ratio: 16 / 9;
     overflow: hidden;
     border-radius: calc(6px * var(--lmpl-s));
@@ -1526,10 +1515,11 @@
     max-width: 90px;
     padding: 0 5px;
     border-radius: 6px;
-    background: #fff;
-    color: #111;
+    /* Secondary to the glyph: quiet text on a faint, dark backing that only keeps it legible over the wash. */
+    background: rgb(0 0 0 / 0.25);
+    color: rgb(255 255 255 / 0.6);
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 500;
     line-height: 14px;
     white-space: nowrap;
 }
@@ -1560,6 +1550,8 @@
     height: 100%;
     border-radius: 16px;
     object-fit: cover;
+    /* A cover cut from a video frame can carry the frame's dark edge row, which reads as a line along the top. */
+    object-view-box: inset(1%);
     box-shadow:
         0 22px 50px -14px rgb(0 0 0 / 0.65),
         0 0 40px 2px rgb(255 255 255 / 0.14);
@@ -2178,17 +2170,6 @@
    across the picture. */
 .lmpl-afs-hole .lmpl-afs-art {
     background: transparent;
-}
-
-/* The picture's foot, a band that takes a drag as the seek bar does; . */
-.lmpl-afs-scrubzone {
-    position: absolute;
-    z-index: 1;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 56px;
-    touch-action: none;
 }
 
 /* Lyrics in the cover's place: the line being sung bright and large, the rest dim, fading out at both ends. */
@@ -2886,5 +2867,152 @@
     .lmpl-afs-tools > .lmpl-afs-tool,
     .lmpl-afs-tools > .lmpl-afs-iconbtn {
         flex: 0 1 auto;
+    }
+}
+
+/* --- Review round: switches, the wide sound layout, no text selection ----------------------------------------- */
+
+/* The player is touched, not read: a long press or a drag never selects its words. */
+.lmpl-root,
+.lmpl-afs,
+.lmpl-browse,
+.lmpl-afs-menu {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.lmpl-root input,
+.lmpl-root textarea {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* The autoplay switch is one of the picture tools: their box and glyph size; off it is dimmed. */
+.lmpl-root .lmpl-afs-picturetools .lmpl-afs-autoplay[aria-checked="false"] svg {
+    opacity: 0.55;
+}
+
+/* The Data Saver row at the quality menu's foot: a switch, not a tick, set apart from the renditions. */
+.lmpl-afs-menuitem.lmpl-afs-menutoggle {
+    gap: 16px;
+}
+
+.lmpl-afs-menuitem + .lmpl-afs-menutoggle {
+    margin-top: 4px;
+    border-top: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: 0 0 8px 8px;
+}
+
+.lmpl-afs-menuitem.lmpl-afs-menutoggle[aria-checked]::after {
+    content: none;
+}
+
+.lmpl-afs-switch {
+    position: relative;
+    flex: none;
+    width: 32px;
+    height: 18px;
+    margin-inline-start: auto;
+    border-radius: 9px;
+    background: rgb(255 255 255 / 0.3);
+    transition: background 150ms ease;
+}
+
+.lmpl-afs-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    transition: translate 150ms ease;
+}
+
+/* On in the app's own toggle colour (Settings' switches, the bar's progress line: Tailwind yellow-500). */
+.lmpl-afs-menutoggle[aria-checked="true"] .lmpl-afs-switch {
+    background: #eab308;
+}
+
+.lmpl-afs-menutoggle[aria-checked="true"] .lmpl-afs-switch::after {
+    translate: 14px 0;
+}
+
+/*
+ * Wide, with sound alone: what plays on the left of the column's top row and the transport on its right, centred on
+ * it; the timeline under them and the tools at the foot.
+ */
+@container lmpl-afs (min-aspect-ratio: 6/5) {
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-info {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "titles transport"
+            "timeline timeline"
+            "tools tools";
+        align-content: center;
+        align-items: center;
+        column-gap: calc(16px * var(--lmpl-s));
+        container: lmpl-afs-column / inline-size;
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-controls,
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-bottomrow {
+        display: contents;
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-titles {
+        grid-area: titles;
+        min-width: 0;
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-title,
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-subtitle {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-transport {
+        grid-area: transport;
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-timeline {
+        grid-area: timeline;
+        margin-top: calc(10px * var(--lmpl-s));
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-tools {
+        grid-area: tools;
+        justify-content: flex-start;
+        margin-inline: calc(-8px * var(--lmpl-s)) 0;
+    }
+}
+
+/* Too narrow for the whole transport beside a readable title (120 px): the chapter skips go, the ±10 and play stay. */
+@container lmpl-afs-column (max-width: 440px) {
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-transport .lmpl-afs-chapter {
+        display: none;
+    }
+}
+
+/* A level above the player's cap (Data Saver) leaves the bar's quality card, as it leaves the player's own list. */
+.lmpl-root media-menu-radio-item[data-lmpl-capped] {
+    display: none !important;
+}
+
+/* Portrait: air between the transport and the quieter tools under it. */
+@container lmpl-afs (max-aspect-ratio: 6/5) {
+    .lmpl-afs-bottomrow > .lmpl-afs-tools {
+        margin-top: 8px;
+    }
+}
+
+/* A short screen pays for that air from the room under the tools, never from the safe area. */
+@container lmpl-afs (max-aspect-ratio: 6/5) and (max-height: 720px) {
+    .lmpl-afs-main {
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
     }
 }

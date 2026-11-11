@@ -5,6 +5,7 @@
  * menu, showing the picture or the cover with the transport; minimised, a bar riding on the menu. `MediaPlayerWrapper` stays mounted in the picture area for as long as an item
  * plays, so minimising never restarts it.
  */
+import { useEventListener } from "@vueuse/core";
 import {
     computed,
     inject,
@@ -64,7 +65,14 @@ import { isMac } from "@/globalConfig";
 import LDialog from "@/components/common/LDialog.vue";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { fallbackImageFor } from "@/util/fallbackArtwork";
-import { coverImageUrl, posterImageUrl, thumbHashOf, thumbHashTint } from "./coverImage";
+import {
+    coverImageSrcset,
+    coverImageUrl,
+    posterImageUrl,
+    thumbHashOf,
+    thumbHashTint,
+} from "./coverImage";
+import { deviceOnline, offlineArtworkDataUrl } from "./cachedArtwork";
 import ThumbHashWash from "./wash/ThumbHashWash.vue";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
@@ -103,6 +111,7 @@ import {
     minimiseMediaPlayer,
     chosenAudio,
     opensAsAudio,
+    sleepTimerDefault,
 } from "./mediaPlayer";
 
 const { t, te } = useI18n();
@@ -112,13 +121,13 @@ const router = useRouter();
 const RATES = [0.75, 1, 1.25, 1.5, 1.75, 2];
 const SKIP_SECONDS = 10;
 /**
- * When a pull down lets go of what it moves: far enough (two fifths of its height), or after a throw (a
- * fifth of it, at a speed a casual swipe does not reach). Anything less springs back.
+ * When a pull down lets go of what it moves: a quarter of its height, or a flick (a tenth of it, at a brisk
+ * swipe's speed). Anything less springs back.
  */
-const LET_GO_FRACTION = 0.4;
-const THROW_MIN_FRACTION = 0.2;
-/** In px per ms; a casual swipe is about a third of this. */
-const THROW_SPEED = 1.5;
+const LET_GO_FRACTION = 0.25;
+const THROW_MIN_FRACTION = 0.1;
+/** In px per ms. */
+const THROW_SPEED = 0.6;
 function letsGo(moved: number, speed: number, height: number): boolean {
     return (
         moved > height * LET_GO_FRACTION ||
@@ -473,6 +482,19 @@ const starting = computed(() => {
     );
 });
 /**
+ * The item's picture has drawn: time has moved while it plays. Until then the now-playing stage keeps the item's own
+ * image over it, so neither black nor the last item's frame shows while the next one loads.
+ */
+const pictureDrawn = ref(false);
+watch(
+    () => item.value?.content._id,
+    () => (pictureDrawn.value = false),
+);
+watch(currentTime, (time, before) => {
+    if (!pictureDrawn.value && playing.value && !starting.value && time > 0 && time !== before)
+        pictureDrawn.value = true;
+});
+/**
  * The engine has run out of data mid-play (the connection dropped, or is too slow): the picture is
  * whatever native has left, often black, and nothing says why. A spinner over it does.
  */
@@ -611,9 +633,9 @@ const SEEK_THUMB_INSET_PX = 8;
 function measurePicture() {
     pictureWidth.value = pictureEl.value?.getBoundingClientRect().width ?? 0;
 }
-/** The frame is a sixth of the width, 16:9, and never smaller than a phone's thumb can read. */
+/** Half a 16:9 frame a sixth of the width (168–340 px wide), so the strip stays low over the picture. */
 const rosterHeightFor = (width: number) =>
-    Math.round((Math.min(340, Math.max(168, width / 6)) * 9) / 16);
+    Math.round((Math.min(340, Math.max(168, width / 6)) * 9) / 32);
 const rosterHeight = computed(() => rosterHeightFor(pictureWidth.value));
 /** The strip of frames for a moment, `step` seconds to a frame, with the marker `markerX` px from the left. */
 function buildRoster(time: number, markerX: number, step: number, width = pictureWidth.value) {
@@ -635,22 +657,15 @@ function buildRoster(time: number, markerX: number, step: number, width = pictur
     return { tiles, tileWidth, height, markerX, time, step };
 }
 
-/** The now-playing screen's held bar, which has no picture element to measure; null when it is let go. */
+/**
+ * The now-playing screen's timeline under a drag: the picture shows the one frame under the finger, as the video
+ * player's own scrub preview does, with no strip. Null when it is let go.
+ */
 const nowPlayingScrub = ref<ScrubPosition | null>(null);
-/** Where the now-playing screen's frames sit once let go: they stay for slow scrubbing, as in full-screen. */
+/** The strip a tap on the now-playing timeline holds open, for slow scrubbing, as in full-screen. */
 const nowPlayingPin = ref<{ width: number; bottom: number; markerX: number } | null>(null);
 const nowPlayingRoster = computed(() => {
-    if (audioMode.value || !state.value?.thumbnailsReady) return null;
-    const scrub = nowPlayingScrub.value;
-    if (scrub) {
-        const roster = buildRoster(
-            scrub.time,
-            scrub.markerX,
-            rosterStep(duration.value),
-            scrub.width,
-        );
-        return roster && { ...roster, bottom: scrub.bottom };
-    }
+    if (audioMode.value || !state.value?.thumbnailsReady || nowPlayingScrub.value) return null;
     const pin = nowPlayingPin.value;
     if (!pin) return null;
     const roster = buildRoster(
@@ -666,9 +681,12 @@ let nowPlayingStartX = 0;
 let heldByPlayer = false;
 function onNowPlayingScrub(position: ScrubPosition | null) {
     // Held by the player, which a tap opened: it pauses, closes and resumes on its own. The frames are
-    // pinned where it says, so they can be dragged as after a drag on the bar, and go when it closes them.
+    // pinned where it says, so they can be dragged, and go when it closes them.
     if (position?.held) {
         heldByPlayer = true;
+        // The player pauses and resumes around its own drags: nothing here is to resume after it.
+        rosterOpened = false;
+        resumeAfterScrub = false;
         nowPlayingScrub.value = null;
         nowPlayingPin.value = {
             width: position.width,
@@ -684,21 +702,17 @@ function onNowPlayingScrub(position: ScrubPosition | null) {
         return;
     }
     if (position) {
+        // A drag puts any strip away: the picture shows the dragged frame alone.
+        heldByPlayer = false;
+        if (nowPlayingPin.value) unpinRoster();
         const first = nowPlayingScrub.value === null;
         nowPlayingScrub.value = position;
         if (first) nowPlayingStartX = position.markerX;
-        if (nowPlayingRoster.value) {
-            rosterOpened = true;
-            if (Math.abs(position.markerX - nowPlayingStartX) > TAP_SLOP_PX) pauseForScrub();
-        }
+        // A mouse's drag waits for the video here; a finger's, the player holds and resumes itself.
+        if (Math.abs(position.markerX - nowPlayingStartX) > TAP_SLOP_PX) pauseForScrub();
         return;
     }
-    const last = nowPlayingScrub.value;
     nowPlayingScrub.value = null;
-    if (!last || !rosterOpened || audioMode.value || !state.value?.thumbnailsReady) return;
-    rosterOpened = false;
-    nowPlayingPin.value = { width: last.width, bottom: last.bottom, markerX: last.markerX };
-    anchorPin(last.time);
     resumeFromScrub();
 }
 
@@ -830,6 +844,11 @@ watch(scrubPictureTime, (time) => {
 const scrubPictureCue = computed(() =>
     scrubPictureTime.value === null ? null : (scrubCue.value ?? lastScrubCue.value),
 );
+// The player fetches the sheets of the frames on show here first, or they load only as each tile is drawn.
+watch(
+    () => scrubPictureTime.value ?? nowPlayingRoster.value?.time ?? heldRoster.value?.time ?? null,
+    (time) => handle.value?.focusThumbnails?.(time),
+);
 
 /**
  * Whether the roster was shown during this press. Remembered apart from `fingerDown`, because a phone's
@@ -932,7 +951,7 @@ watch([() => item.value?.content._id, expanded, audioMode], () => {
 const LOADED_VISIBLE_FRACTION = 0.006;
 const loadedShows = computed(() => loaded.value - progress.value > LOADED_VISIBLE_FRACTION);
 
-/** The last camera seen playing, where Video returns to. */
+/** The last camera seen playing on this item, where Video returns to. */
 let videoAngleId: string | null = null;
 watch(
     () => state.value?.activeAngleId,
@@ -940,8 +959,20 @@ watch(
         if (id && id !== AUDIO_ONLY_ANGLE_ID) videoAngleId = id;
     },
 );
+// Another item's camera is not one this item has: asked for, the switch to Video would do nothing.
+watch(
+    () => item.value?.content._id,
+    () => (videoAngleId = null),
+);
 const videoAngles = computed(
     () => state.value?.angles.filter((angle) => angle.id !== AUDIO_ONLY_ANGLE_ID) ?? [],
+);
+/** The cameras the now-playing screen offers, by the names the master gives them, with a capital ("Pulpit"). */
+const screenAngles = computed(() =>
+    videoAngles.value.map((angle) => ({
+        id: angle.id,
+        label: angle.name ? angle.name.charAt(0).toLocaleUpperCase() + angle.name.slice(1) : angle.name,
+    })),
 );
 const canSwitch = computed(
     () =>
@@ -1001,7 +1032,7 @@ async function showVideo() {
     const audioPending = audioRequested.value;
     audioRequested.value = false;
     const target =
-        videoAngleId ??
+        videoAngles.value.find((angle) => angle.id === videoAngleId)?.id ??
         videoAngles.value.find((angle) => angle.isDefault)?.id ??
         videoAngles.value[0]?.id;
     if ((audioMode.value || audioPending) && target) await controller.value?.setAngle(target);
@@ -1011,52 +1042,10 @@ async function showVideo() {
 }
 
 /**
- * Data Saver holds each new item's picture to its lowest rendition, once the item has loaded with one (sound has
- * none, so a later switch to the picture still gets it); a quality the viewer picks afterwards stands.
- */
-let lowestPending = false;
-let lowestLoading = false;
-watch(
-    () => item.value?.content._id,
-    () => {
-        lowestPending = true;
-        lowestLoading = false;
-    },
-    { immediate: true },
-);
-watch(
-    () => [state.value?.lifecycle, state.value?.qualities] as const,
-    ([lifecycle, qualities]) => {
-        if (!lowestPending) return;
-        // The last item's state lingers until the new load begins.
-        if (lifecycle === "loading") lowestLoading = true;
-        if (!lowestLoading || lifecycle !== "ready") return;
-        if (!dataSaverOn.value) {
-            lowestPending = false;
-            return;
-        }
-        if (!holdLowest()) {
-            // Sound only: wait for a load with a picture (the viewer's switch to video).
-            lowestLoading = false;
-            return;
-        }
-        lowestPending = false;
-    },
-);
-/** Holds the lowest rendition with a picture; false when the item has none (sound only). */
-function holdLowest(): boolean {
-    const lowest = [...(state.value?.qualities ?? [])]
-        .filter((quality) => (quality.height ?? 0) > 0)
-        .sort((a, b) => (a.height ?? 0) - (b.height ?? 0))[0];
-    if (!lowest) return false;
-    if (state.value?.activeQualityId !== lowest.id) controller.value?.setQuality(lowest.id);
-    return true;
-}
-
-/**
- * Data Saver changed mid-play, applied at once without a gap. Strict goes to sound exactly as the viewer's own Audio
- * does (without counting as their choice); turning it on holds the lowest rendition, which needs no load; turning it
- * off lifts the cap by reloading in place, and in sound waits for the picture to come back, as nothing shows it now.
+ * Data Saver changed mid-play. Strict goes to sound exactly as the viewer's own Audio does (without counting as their
+ * choice). Data Saver is a 360p cap, never a pinned rendition: Auto stays free beneath it and a quality the viewer
+ * picks stands. Turning it on caps the next load, so nothing reloads now; turning it off lifts the cap by reloading
+ * in place, and in sound waits for the picture to come back, as nothing shows it now.
  */
 let capLiftPending = false;
 watch(effectiveDataSaverLevel, (level, before) => {
@@ -1064,13 +1053,7 @@ watch(effectiveDataSaverLevel, (level, before) => {
     if (level === "strict") void toSound();
     if (level !== "off" && before === "off") {
         capLiftPending = false;
-        // Not loaded yet, or sound only: the pin waits for a load with a picture.
-        if (state.value?.lifecycle !== "ready" || !holdLowest()) {
-            lowestPending = true;
-            lowestLoading = state.value?.lifecycle === "ready" || state.value?.lifecycle === "loading";
-        }
     } else if (level === "off" && before !== "off") {
-        lowestPending = false;
         if (audioMode.value) capLiftPending = true;
         else engine.value?.liftDataSaverCap();
     }
@@ -1329,6 +1312,10 @@ const barCover = computed(() => {
     if (!artwork) return undefined;
     return barCoverFailed.value ? artwork.fallback : artwork.src;
 });
+/** Every width of the cover, so the browser can use one it holds when offline, as the page's own pictures do. */
+const barCoverSrcset = computed(() =>
+    barCoverFailed.value ? undefined : screenArtwork.value?.srcset,
+);
 watch(
     () => content.value?._id,
     () => (barCoverFailed.value = false),
@@ -1346,10 +1333,12 @@ const nativeBar = computed<VideoMiniPlayerBar | null>(() => {
     const shown = content.value;
     if (!nativeOwnsBar.value || !shown) return null;
     const hash = thumbHashOf(shown);
+    // Offline, native cannot reach the bucket: the cover goes as data, as on the now-playing screen.
+    const cover = deviceOnline.value ? barCover.value : (offlineArtwork.value ?? barCover.value);
     return {
         title: shown.title,
         ...(shown.author ? { author: shown.author } : {}),
-        ...(barCover.value ? { cover: barCover.value } : {}),
+        ...(cover ? { cover } : {}),
         ...(hash ? { thumbHash: hash } : {}),
         live: live.value,
         card: floatingCard.value,
@@ -1368,7 +1357,10 @@ function sendBarFrame() {
     const player = handle.value;
     if (!player?.setMiniPlayerFrame) return;
     const element = bar.value;
-    const box = nativeOwnsBar.value && element && !keyboardOpen.value ? element.getBoundingClientRect() : null;
+    const box =
+        nativeOwnsBar.value && element && !keyboardOpen.value
+            ? element.getBoundingClientRect()
+            : null;
     player.setMiniPlayerFrame(
         box && box.width > 0 && box.height > 0
             ? { x: box.left, y: box.top, width: box.width, height: box.height }
@@ -1463,13 +1455,37 @@ const { bucketBaseUrl: coverBucketBaseUrl } = useBucketInfo(coverBucketId);
 /** The post's own cover, with the app's stand-in picture for a post without one or whose cover does not load. */
 const screenArtwork = computed(() => {
     const src = content.value ? coverImageUrl(content.value, coverBucketBaseUrl.value) : undefined;
+    const srcset = content.value
+        ? coverImageSrcset(content.value, coverBucketBaseUrl.value)
+        : undefined;
     const fallback = fallbackImageFor(content.value?.parentId);
-    if (src) return { src, ...(fallback ? { fallback } : {}) };
+    if (src) return { src, ...(srcset ? { srcset } : {}), ...(fallback ? { fallback } : {}) };
     return fallback ? { src: fallback } : null;
 });
+/** The cover as data while the device is offline, for the platform's screen; see `offlineArtworkDataUrl`. */
+const offlineArtwork = ref<string | undefined>(undefined);
+watch(
+    [deviceOnline, () => content.value?._id, coverBucketBaseUrl],
+    async ([online]) => {
+        offlineArtwork.value = undefined;
+        const shown = content.value;
+        if (online || !shown) return;
+        const made = await offlineArtworkDataUrl(shown, coverBucketBaseUrl.value);
+        if (content.value?._id === shown._id && !deviceOnline.value) offlineArtwork.value = made;
+    },
+    { immediate: true },
+);
 /** The wide picture the player's own poster shows, for the platform's screen while a new item starts. */
 const screenPoster = computed(() =>
     content.value ? posterImageUrl(content.value, coverBucketBaseUrl.value) : undefined,
+);
+/** Over the stage while a new item loads, until its picture draws; a picture drawn behind the page has its own. */
+const stagePoster = computed(
+    () =>
+        !audioMode.value &&
+        !inlineHole.value &&
+        !pictureDrawn.value &&
+        (starting.value || swapping.value || playing.value),
 );
 const screenChapterIndex = computed(() => chapterIndexAt(chapters.value, currentTime.value));
 /** The preview frame at a time, for the chapters' pictures, once the thumbnails are in. */
@@ -1508,8 +1524,26 @@ watch(sleepTimer, (timer) => {
 });
 function setSleep(option: SleepTimerOption | null) {
     sleepPickedMinutes.value = option?.kind === "minutes" ? option.minutes : null;
+    sleepTimerDefault.value = option;
     controller.value?.setSleepTimer(option);
 }
+/**
+ * The viewer's last timer starts again with each listening session: the first time a player (a new one per session)
+ * plays sound, unless a timer already runs. Within a session it keeps counting across items, as the player keeps it.
+ */
+let sleepDefaultAppliedTo: object | null = null;
+watch(
+    [controller, audioMode] as const,
+    ([active, audio]) => {
+        if (!active || !audio || sleepDefaultAppliedTo === active) return;
+        sleepDefaultAppliedTo = active;
+        const option = sleepTimerDefault.value;
+        if (!option || state.value?.sleepTimer) return;
+        sleepPickedMinutes.value = option.kind === "minutes" ? option.minutes : null;
+        active.setSleepTimer(option);
+    },
+    { immediate: true },
+);
 
 // --- the now-playing screen on a phone -----------------------------------------------------------
 
@@ -1625,6 +1659,15 @@ const nativeScreen = computed(
 const nativeOwnsScreen = computed(
     () => screen.value && isNativeApp() && handle.value?.nativeNowPlaying !== false,
 );
+/** The lyrics are opened out on this screen (it reports it); a platform's own screen keeps itself on. */
+const lyricsShown = ref(false);
+/** Someone reading the lyrics keeps the screen on, playing or paused, in either orientation, until they close or minimise. */
+const lyricsWake = useScreenWakeHold("lyrics");
+watch(
+    () => lyricsShown.value && expanded.value && audioMode.value && !nativeOwnsScreen.value,
+    (on) => (on ? lyricsWake.hold() : lyricsWake.release()),
+    { immediate: true },
+);
 watchEffect(() => document.documentElement.classList.toggle("lmc-inline-video", inlineHole.value));
 // Under the platform's own screen the page keeps its bars: moving them would re-lay the page out beneath a
 // screen that is sliding in, for nothing anyone sees.
@@ -1649,7 +1692,9 @@ const nativeSleep = computed<VideoNowPlayingScreen["sleep"]>(() => {
 });
 const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
     if (!nativeScreen.value || !content.value) return null;
-    const artworkUrl = screenArtwork.value?.src;
+    // Offline, native cannot reach the bucket: the cover goes as data, and the poster falls back to it there.
+    const online = deviceOnline.value;
+    const artworkUrl = online ? screenArtwork.value?.src : offlineArtwork.value;
     return {
         title: content.value.title,
         ...(nowPlayingSubtitle.value ? { subtitle: nowPlayingSubtitle.value } : {}),
@@ -1660,7 +1705,7 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
         audioMode: audioMode.value,
         captionBand: captionBand.value,
         live: live.value,
-        ...(screenPoster.value ? { posterUrl: screenPoster.value } : {}),
+        ...(online && screenPoster.value ? { posterUrl: screenPoster.value } : {}),
         itemId: content.value._id,
         sleep: nativeSleep.value,
         ...(upNext.value.tags.length ? { upNextTags: upNext.value.tags } : {}),
@@ -1721,6 +1766,7 @@ const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
             playNow: known("media_player.play_now"),
             cancel: known("media_player.cancel"),
             closeScrub: known("media_player.close_frames"),
+            camera: known("media_player.camera"),
             exitFullscreen: known("video_player.exit_fullscreen"),
             allTags: known("media_player.all_tags"),
             noMoreWithTag: known("media_player.no_more_with_tag"),
@@ -1758,8 +1804,7 @@ function onNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
     else if (action === "video") {
         if (effectiveDataSaverLevel.value === "strict") dataSaverLevel.value = "light";
         void showVideo();
-    }
-    else if (action === "sleep") pickNativeSleep(value);
+    } else if (action === "sleep") pickNativeSleep(value);
     else if (action === "tag") upNextTag.value = (value || null) as Uuid | null;
     else if (action === "dataSaver") pickDataSaver(value);
     else if (action === "autoplay" && (value === "on" || value === "off"))
@@ -1835,10 +1880,16 @@ watch(
     },
 );
 
-/** The screen is drawn down from its top line, as the card is from its handle. */
+/**
+ * The screen is drawn down from anywhere on it, its controls included: a press stays its control's until it moves
+ * down. The timeline, the strip, the lyrics and what lies over the screen keep their own gestures.
+ */
+const OWN_GESTURES =
+    ".lmpl-afs-bar, .lmpl-afs-roster-slot, .lmpl-afs-lyrics, [role=menu], .lmpl-browse, .lmpl-browse-scrim, input";
 function onNowPlayingDragStart(event: PointerEvent) {
-    if (!(event.target as Element | null)?.closest?.(".lmpl-afs-top")) return;
-    onDragStart(event);
+    const target = event.target as Element | null;
+    if (screenCovered.value || target?.closest?.(OWN_GESTURES)) return;
+    onDragStart(event, true);
 }
 /** The minutes a minutes timer has left, rounded up, so it never says 0 while it runs. */
 const sleepMinutesLeft = computed(() =>
@@ -1876,6 +1927,8 @@ let dragLastTime = 0;
 let dragSpeed = 0;
 /** A press that began on one of the bar's buttons: it is the button's until the thumb moves down. */
 let dragFromButton = false;
+/** The screen's pull counts from where the finger came down, so it follows the finger from the first move. */
+let dragKeepsStart = false;
 let followQueued = false;
 /**
  * The video the platform draws behind the page follows the page's own motion (a scroll, a transition),
@@ -1889,29 +1942,35 @@ function nudgeInlineVideo() {
         window.dispatchEvent(new Event("resize"));
     });
 }
-function onDragStart(event: PointerEvent) {
+function onDragStart(event: PointerEvent, deferred = false) {
     dragStartY = event.clientY;
     dragLastY = event.clientY;
     dragLastTime = event.timeStamp;
     dragSpeed = 0;
     // A press on a button stays the button's for a tap: capturing the pointer now would send its click
     // to this handle. The audio and video switch covers most of the bar, so a press there that moves
-    // down still draws the player down.
-    dragFromButton = !!(event.target as Element | null)?.closest?.(
-        "button, a, input, select, textarea",
-    );
+    // down still draws the player down. `deferred` treats every press so: a tap on the picture is its own.
+    dragFromButton =
+        deferred ||
+        !!(event.target as Element | null)?.closest?.("button, a, input, select, textarea");
+    dragKeepsStart = deferred;
     // The rest of the gesture is this handle's, wherever the thumb goes.
     if (!dragFromButton)
         (event.currentTarget as Element | null)?.setPointerCapture?.(event.pointerId);
 }
 function onDragMove(event: PointerEvent) {
     if (dragStartY === null) return;
+    // No button is down any more: the release went elsewhere (the browser leaving full screen, another
+    // window), so a hover must not carry on the drag.
+    if (event.pointerType === "mouse" && event.buttons === 0) return cancelDrag();
     if (dragFromButton) {
         if (event.clientY - dragStartY <= TAP_SLOP_PX) return;
         // Captured from here on, the release lands on this handle, so the button is not clicked.
         dragFromButton = false;
-        dragStartY = event.clientY;
-        dragLastY = event.clientY;
+        if (!dragKeepsStart) {
+            dragStartY = event.clientY;
+            dragLastY = event.clientY;
+        }
         (event.currentTarget as Element | null)?.setPointerCapture?.(event.pointerId);
     }
     // A speed is read over a stretch long enough to mean something: two events a hair apart are not one.
@@ -1939,6 +1998,66 @@ function onDragEnd() {
     // slides to the bar or back to its place, by the same transition as any other.
     if (away) minimiseMediaPlayer();
     nudgeInlineVideo();
+}
+/** A press whose release never arrived: the player springs back where it was, and nothing minimises. */
+function cancelDrag() {
+    if (dragStartY === null) return;
+    dragStartY = null;
+    dragFromButton = false;
+    const moved = playerDragging.value;
+    playerDragging.value = false;
+    playerDragY.value = 0;
+    if (moved) nudgeInlineVideo();
+}
+// Leaving the window or full screen takes the release with it.
+useEventListener(window, "blur", cancelDrag);
+useEventListener(document, "fullscreenchange", cancelDrag);
+useEventListener(document, "webkitfullscreenchange", cancelDrag);
+
+/**
+ * A pull up on the bar opens the player, as a tap does: past a quarter of the bar's height, or a flick up. The bar
+ * rises a little under the finger, never more than `BAR_RISE_MAX_PX`, so the pull reads as one.
+ */
+const BAR_OPEN_FRACTION = 0.25;
+/** In px per ms (600 px/s). */
+const BAR_FLICK_SPEED = 0.6;
+const BAR_RISE_MAX_PX = 24;
+const barPull = ref(0);
+let barPullStart: { id: number; y: number; captured: boolean } | null = null;
+let barPullLastY = 0;
+let barPullLastTime = 0;
+let barPullSpeed = 0;
+function onBarPullStart(event: PointerEvent) {
+    barPullStart = { id: event.pointerId, y: event.clientY, captured: false };
+    barPullLastY = event.clientY;
+    barPullLastTime = event.timeStamp;
+    barPullSpeed = 0;
+}
+function onBarPullMove(event: PointerEvent) {
+    const start = barPullStart;
+    if (!start || event.pointerId !== start.id) return;
+    const up = start.y - event.clientY;
+    // Until it moves up past a tap's slop the press is its button's.
+    if (!start.captured) {
+        if (up <= TAP_SLOP_PX) return;
+        start.captured = true;
+        (event.currentTarget as Element | null)?.setPointerCapture?.(event.pointerId);
+    }
+    const elapsed = event.timeStamp - barPullLastTime;
+    if (elapsed >= MIN_SPEED_SAMPLE_MS) barPullSpeed = (event.clientY - barPullLastY) / elapsed;
+    barPullLastY = event.clientY;
+    barPullLastTime = event.timeStamp;
+    barPull.value = Math.max(0, BAR_RISE_MAX_PX * (1 - Math.exp(-up / (BAR_RISE_MAX_PX * 2))));
+}
+function onBarPullEnd(event: PointerEvent) {
+    const start = barPullStart;
+    if (!start || event.pointerId !== start.id) return;
+    barPullStart = null;
+    barPull.value = 0;
+    if (!start.captured || event.type !== "pointerup") return;
+    const up = start.y - event.clientY;
+    const height = (event.currentTarget as HTMLElement | null)?.offsetHeight || 64;
+    if (up > height * BAR_OPEN_FRACTION || barPullSpeed <= -BAR_FLICK_SPEED) expandMediaPlayer();
 }
 
 /**
@@ -2047,7 +2166,7 @@ function onKeydown(event: KeyboardEvent) {
             role="dialog"
             :aria-label="content.title"
             :inert="!expanded || undefined"
-            class="fixed inset-0 z-[60] flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
+            class="fixed inset-0 z-[60] flex select-none flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
             :class="[
                 expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
                 // The picture follows the card's left corners; at the foot it stops above the progress line, so its
@@ -2070,7 +2189,7 @@ function onKeydown(event: KeyboardEvent) {
             <!-- A phone: the now-playing screen, for sound and picture alike. The engine plays in its stage. -->
             <div
                 v-if="screen"
-                class="lmpl-root [&_.lmpl-afs-top]:touch-none"
+                class="lmpl-root [&_.lmpl-afs]:touch-none"
                 style="position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto"
                 :style="nativeOwnsScreen ? { display: 'none' } : undefined"
                 data-test="mediaPlayerNowPlaying"
@@ -2080,6 +2199,7 @@ function onKeydown(event: KeyboardEvent) {
                 @pointercancel="onDragEnd"
             >
                 <AudioFullscreen
+                    @lyrics="lyricsShown = $event"
                     :title="content.title"
                     :subtitle="nowPlayingSubtitle"
                     :artwork="screenArtwork"
@@ -2111,6 +2231,8 @@ function onKeydown(event: KeyboardEvent) {
                     :sleep-minutes="sleepPickedMinutes"
                     :data-saver="effectiveDataSaverLevel"
                     :autoplay="autoplayNext"
+                    :angles="screenAngles"
+                    :active-angle-id="state?.activeAngleId ?? null"
                     :ended="expanded && !!state?.ended"
                     :next-up="nextUp[0] ?? null"
                     :has-browse="tabs.length > 0"
@@ -2144,6 +2266,7 @@ function onKeydown(event: KeyboardEvent) {
                     @sleep="setSleep"
                     @data-saver="pickDataSaver"
                     @autoplay="autoplayNext = $event"
+                    @angle="(id: string) => controller?.setAngle(id)"
                     @subtitle-track="(id: string | null) => controller?.setSubtitleTrack(id)"
                     @picture-in-picture="handle?.startPictureInPicture?.()"
                     @fullscreen="
@@ -2166,13 +2289,13 @@ function onKeydown(event: KeyboardEvent) {
                             :height="nowPlayingRoster.height"
                             :marker-x="nowPlayingRoster.markerX"
                             :bottom="nowPlayingRoster.bottom"
-                            :interactive="!nowPlayingScrub"
+                            interactive
                             :ref="(el) => (rosterEl = ((el as any)?.$el as HTMLElement) ?? null)"
                             data-test="mediaPlayerNowPlayingRoster"
-                            @pointerdown.stop="!nowPlayingScrub && onRosterDown($event)"
-                            @pointermove.stop="!nowPlayingScrub && onRosterMove($event)"
-                            @pointerup.stop="!nowPlayingScrub && onRosterUp($event)"
-                            @pointercancel.stop="!nowPlayingScrub && onRosterUp($event)"
+                            @pointerdown.stop="onRosterDown"
+                            @pointermove.stop="onRosterMove"
+                            @pointerup.stop="onRosterUp"
+                            @pointercancel.stop="onRosterUp"
                         />
                         <button
                             type="button"
@@ -2290,6 +2413,21 @@ function onKeydown(event: KeyboardEvent) {
                                 (webCaptionsBelow && !webFill) || (isNativeApp() && screenCovered)
                             "
                         />
+                        <div
+                            v-if="stagePoster"
+                            class="pointer-events-none absolute inset-0 bg-black"
+                            data-test="mediaPlayerStagePoster"
+                        >
+                            <LImage
+                                :image="content.parentImageData"
+                                :content-parent-id="content.parentId"
+                                :parent-image-bucket-id="content.parentImageBucketId"
+                                aspectRatio="video"
+                                size="post"
+                                :rounded="false"
+                                class="h-full w-full object-cover"
+                            />
+                        </div>
                         <div
                             v-if="scrubPictureCue"
                             class="absolute inset-0 z-[1]"
@@ -2472,6 +2610,7 @@ function onKeydown(event: KeyboardEvent) {
                         :parent-image-bucket-id="content.parentImageBucketId"
                         aspectRatio="video"
                         size="post"
+                        :rounded="false"
                         class="h-full w-full object-cover opacity-70"
                     />
                 </div>
@@ -3107,6 +3246,7 @@ function onKeydown(event: KeyboardEvent) {
             @keydown.esc="audioFullscreen = false"
         >
             <AudioFullscreen
+                @lyrics="lyricsShown = $event"
                 :title="content.title"
                 :subtitle="nowPlayingSubtitle"
                 :artwork="screenArtwork"
@@ -3194,7 +3334,7 @@ function onKeydown(event: KeyboardEvent) {
             v-if="!expanded"
             v-show="!keyboardOpen"
             ref="bar"
-            class="group fixed z-40 flex h-16 items-center gap-0.5 pr-1 text-white transition-[transform,left,right,bottom,border-radius,box-shadow] duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
+            class="group fixed z-40 flex h-16 touch-none select-none items-center gap-0.5 pr-1 text-white transition-[transform,left,right,bottom,border-radius,box-shadow] duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform after:content-[''] lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-xl lg:shadow-2xl lg:shadow-black/30 lg:after:hidden"
             :class="[
                 floatingCard
                     ? 'inset-x-2 bottom-[calc(var(--mobile-menu-h,0px)+var(--card-gap)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))] overflow-hidden rounded-[14px] shadow-xl shadow-black/30 [--card-gap:max(6px,env(safe-area-inset-bottom)_-_16px,var(--native-inset-bottom,0px)_+_6px)]'
@@ -3205,9 +3345,16 @@ function onKeydown(event: KeyboardEvent) {
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'
                     : 'translate-y-0',
             ]"
-            :style="barFill"
+            :style="[
+                barFill,
+                barPull ? { transform: `translateY(${-barPull}px)`, transition: 'none' } : {},
+            ]"
             :aria-hidden="nativeOwnsBar || undefined"
             data-test="mediaPlayerBar"
+            @pointerdown="onBarPullStart"
+            @pointermove="onBarPullMove"
+            @pointerup="onBarPullEnd"
+            @pointercancel="onBarPullEnd"
             @transitionrun="nativeOwnsBar && followBarFrames()"
             @transitionend="nativeOwnsBar && stopFollowingBar()"
             @transitioncancel="nativeOwnsBar && stopFollowingBar()"
@@ -3254,6 +3401,8 @@ function onKeydown(event: KeyboardEvent) {
                 <img
                     v-if="barCover"
                     :src="barCover"
+                    :srcset="barCoverSrcset"
+                    :sizes="barCoverSrcset ? '48px' : undefined"
                     alt=""
                     class="h-12 w-12 flex-none rounded-lg object-cover shadow-md shadow-black/40 ring-1 ring-white/10 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
                     :class="lineAtFoot ? '-translate-y-[1.5px]' : 'translate-y-[1.5px]'"

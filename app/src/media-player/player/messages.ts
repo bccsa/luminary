@@ -129,17 +129,12 @@ export interface PlayerMessages {
     sleepTimer: string;
     /** The sleep timer menu's entry that turns it off. */
     sleepOff: string;
-    /** Name of the gear button and its menu: Data Saver and Autoplay. */
-    playbackSettings: string;
-    /** Heading of the Data Saver rows in that menu. */
+    /** The Data Saver switch at the foot of the quality menu. */
     dataSaver: string;
-    dataSaverOff: string;
-    dataSaverLight: string;
-    dataSaverStrict: string;
-    /** Heading of the Autoplay rows in that menu. */
+    /** Name of the autoplay switch beside the picture tools. */
     autoplay: string;
-    autoplayOn: string;
-    autoplayOff: string;
+    /** Name of the camera button and its menu. */
+    cameraLabel: string;
     /** A sleep timer entry; `{minutes}` is replaced with the number. */
     sleepMinutes: string;
     /** The sleep timer entry that stops playback when the chapter playing ends. */
@@ -206,14 +201,9 @@ export const DEFAULT_MESSAGES: PlayerMessages = {
     live: "Live",
     sleepTimer: "Sleep timer",
     sleepOff: "Off",
-    playbackSettings: "Playback settings",
     dataSaver: "Data saver",
-    dataSaverOff: "Off",
-    dataSaverLight: "Light",
-    dataSaverStrict: "Strict",
     autoplay: "Autoplay",
-    autoplayOn: "On",
-    autoplayOff: "Off",
+    cameraLabel: "Camera",
     sleepMinutes: "{minutes} minutes",
     sleepEndOfChapter: "End of chapter",
     sleepLeft: "{minutes} min left",

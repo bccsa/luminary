@@ -11,6 +11,49 @@ export function coverImageUrl(content: ContentDto, bucketBaseUrl?: string): stri
     return imageUrlNear(content, bucketBaseUrl, 1, COVER_TARGET_WIDTH);
 }
 
+/**
+ * Every width of the cover's image set, as `srcset`: as `LImage` offers its pictures, so the browser can settle on a
+ * width it already holds when the network is away. Undefined when the post has no image or the bucket is not known.
+ */
+export function coverImageSrcset(content: ContentDto, bucketBaseUrl?: string): string | undefined {
+    const collection = collectionNear(content, 1);
+    if (!bucketBaseUrl || !collection?.imageFiles?.length) return undefined;
+    const base = bucketBaseUrl.replace(/\/$/, "");
+    return [...collection.imageFiles]
+        .sort((a, b) => a.width - b.width)
+        .map((file) => `${base}/${file.filename} ${file.width}w`)
+        .join(", ");
+}
+
+/**
+ * Every file of the post's image, as addresses: the ones of at least `minWidth` from the smallest up, then the smaller
+ * ones from the largest down. Whatever the page has drawn of the post is among them.
+ */
+export function imageFileUrls(
+    content: ContentDto,
+    bucketBaseUrl: string | undefined,
+    minWidth: number,
+): string[] {
+    if (!bucketBaseUrl) return [];
+    const base = bucketBaseUrl.replace(/\/$/, "");
+    const files = (content.parentImageData?.fileCollections ?? []).flatMap(
+        (collection) => collection.imageFiles ?? [],
+    );
+    const large = files.filter((f) => f.width >= minWidth).sort((a, b) => a.width - b.width);
+    const small = files.filter((f) => f.width < minWidth).sort((a, b) => b.width - a.width);
+    return [...large, ...small].map((file) => `${base}/${file.filename}`);
+}
+
+function collectionNear(content: ContentDto, aspect: number) {
+    const collections = content.parentImageData?.fileCollections ?? [];
+    if (!collections.length) return undefined;
+    return collections.reduce((closest, candidate) =>
+        Math.abs(candidate.aspectRatio - aspect) < Math.abs(closest.aspectRatio - aspect)
+            ? candidate
+            : closest,
+    );
+}
+
 const POSTER_ASPECT = 16 / 9;
 const POSTER_TARGET_WIDTH = 960;
 

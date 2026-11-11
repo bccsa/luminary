@@ -35,10 +35,16 @@ import { mergeMessages, type PlayerMessages } from "../messages";
 import { mergeControls, type PlayerControlsOptions } from "../controls";
 import { createKeepAlive, SILENT_AUDIO_DATA_URI, type KeepAlive } from "../ui/keepAlive";
 import { buildControlsHtml } from "../ui/controlsHtml";
+import { capQualityCard } from "../ui/qualityCap";
 import { installAutoHide, type ControlsStore } from "../ui/autoHide";
 import { attachPressActivation } from "../ui/pressActivate";
 import { stepVolume } from "../ui/volume";
-import { SpriteWarmer, spriteSheetsByDistance, spriteWarmLimit } from "../ui/spriteWarm";
+import {
+    SPRITE_WARM_KEPT,
+    SpriteWarmer,
+    spriteSheetsByDistance,
+    spriteWarmLimit,
+} from "../ui/spriteWarm";
 import { liftCues, liftLine, type LiftableCue } from "../ui/cueLift";
 import { cuesToLyrics, type LyricCue } from "../ui/lyrics";
 import { chapterMask, formatChapterOf } from "../ui/chapterBar";
@@ -333,6 +339,32 @@ function onEngineTextTrackChange(): void {
 
 const mediaListeners: [string, EventListener][] = [];
 
+/**
+ * Volume and mute carry over to every item and across restarts, where there is a mouse to set them with: a touch
+ * screen's volume is the device's, and a page that remembered mute there could open silent with no way to tell why.
+ */
+const VOLUME_KEY = "playerVolume";
+const remembersVolume = () =>
+    typeof window.matchMedia === "function" && window.matchMedia("(pointer: fine)").matches;
+function restoreVolume(media: { volume: number; muted: boolean }): void {
+    if (!remembersVolume()) return;
+    try {
+        const stored = JSON.parse(localStorage.getItem(VOLUME_KEY) ?? "null");
+        if (typeof stored?.volume === "number") media.volume = Math.min(1, Math.max(0, stored.volume));
+        if (typeof stored?.muted === "boolean") media.muted = stored.muted;
+    } catch {
+        // An unreadable value is no setting.
+    }
+}
+function saveVolume(media: { volume: number; muted: boolean }): void {
+    if (!remembersVolume()) return;
+    try {
+        localStorage.setItem(VOLUME_KEY, JSON.stringify({ volume: media.volume, muted: media.muted }));
+    } catch {
+        // Storage refused: the setting lasts for this session only.
+    }
+}
+
 /** The height of the picture playing now; 0 before one has drawn and with sound alone. */
 const playingHeight = ref(0);
 function readPlayingHeight(): void {
@@ -377,6 +409,31 @@ function applyBarBadges(): void {
 }
 watch(barBadges, applyBarBadges, { flush: "post" });
 onMounted(applyBarBadges);
+
+/** The heights the player offers (fewer under a Data Saver cap); the bar's quality card shows only these. */
+const offeredHeights = computed(
+    () =>
+        new Set(
+            state.value.qualities
+                .map((quality) => quality.height ?? 0)
+                .filter((height) => height > 0),
+        ),
+);
+function applyQualityCap(): void {
+    const root = containerEl.value;
+    if (root) capQualityCard(root, offeredHeights.value);
+}
+watch(offeredHeights, applyQualityCap, { flush: "post" });
+// The skin rebuilds the card's rows as the engine's levels change, so each rebuild is marked again.
+let qualityCardObserver: MutationObserver | null = null;
+onMounted(() => {
+    const root = containerEl.value;
+    if (!root || typeof MutationObserver === "undefined") return;
+    qualityCardObserver = new MutationObserver(applyQualityCap);
+    qualityCardObserver.observe(root, { childList: true, subtree: true });
+    applyQualityCap();
+});
+onBeforeUnmount(() => qualityCardObserver?.disconnect());
 let audioTrackList: EventTarget | undefined;
 let textTrackList: EventTarget | undefined;
 
@@ -438,6 +495,8 @@ onMounted(() => {
         media.addEventListener(type, handler);
         mediaListeners.push([type, handler]);
     };
+    restoreVolume(media);
+    on("volumechange", () => saveVolume(media));
     on("play", () => {
         keepAlive?.sync(true);
         // Played some other way (a key, the lock screen): the scrub has nothing left to hold still.
@@ -474,7 +533,8 @@ onMounted(() => {
     applyFit();
     on("loadstart", applyFit);
 
-    const frame = playerEl.value;
+    // The container, not the player around it: full screen lifts the container out, and the player keeps its size in the page.
+    const frame = containerEl.value;
     if (frame && typeof ResizeObserver !== "undefined") {
         frameObserver = new ResizeObserver(([entry]) => {
             if (entry) frameWidth.value = entry.contentRect.width;
@@ -1016,15 +1076,15 @@ function followTouch(event: PointerEvent): boolean {
         Math.hypot(event.clientX - touchPress.x, event.clientY - touchPress.y) > TOUCH_DRAG_SLOP_PX
     ) {
         touchPress.dragging = true;
-        timelineScrub.dragBegan(framesReady(), isPlaying());
+        // A drag is the thick bar with the dragged frame over the picture, never the strip: an open strip goes.
+        if (timelineScrub.mode === "strip") timelineScrub.reset();
+        timelineScrub.dragBegan(false, isPlaying());
         scrubbing = true;
     }
     if (!touchPress.dragging) return true;
-    if (timelineScrub.mode === "bar") {
-        barDragAt.value = pointerRatio(event.clientX, slider.getBoundingClientRect());
-        return true;
-    }
-    return false;
+    barDragAt.value = pointerRatio(event.clientX, slider.getBoundingClientRect());
+    // With frames, the scrub preview runs on to show the one under the finger.
+    return !state.value.thumbnailsReady;
 }
 
 /** The finger lifted, or was taken away: a drag lands, a tap only opens. True when it was a finger on the timeline. */
@@ -1041,9 +1101,6 @@ function endTouch(event: PointerEvent): boolean {
     scrubbing = false;
     heldGap = null;
     const ratio = slider ? pointerRatio(event.clientX, slider.getBoundingClientRect()) : null;
-    // The strip stays where the finger lifted, centred on where the video is going.
-    const roster = scrub.value?.roster;
-    if (roster && pin.value) pin.value = { ...pin.value, markerX: roster.markerX };
     hideScrub();
     barDragAt.value = null;
     if (event.type === "pointerup" && ratio !== null && Number.isFinite(duration) && duration > 0) {
@@ -1051,6 +1108,7 @@ function endTouch(event: PointerEvent): boolean {
     } else {
         timelineScrub.dragCancelled();
     }
+    timelineScrub.reset();
     return true;
 }
 
@@ -1127,7 +1185,8 @@ function updateScrub(event: PointerEvent): void {
     if (!held) heldGap = null;
     else heldGap ??= frame.bottom - restBarBottom;
     const roster =
-        held && mergedControls.value.scrubRoster
+        // A finger's drag (the thick bar) shows its one frame over the picture, not the strip.
+        held && mergedControls.value.scrubRoster && !barScrub.value
             ? buildRoster(
                   instance,
                   time,
@@ -1396,21 +1455,41 @@ watch(
         spriteWarm.value = ready ? new SpriteWarmer() : undefined;
     },
 );
-const playheadSheet = computed(() =>
+/** A moment a host's own strip or preview shows, set through `focusThumbnails`. */
+const hostFocus = ref<number | null>(null);
+/**
+ * The moment frames are on screen for, away from the playhead: a strip or a scrub preview. Its sheets are wanted
+ * now, so the warm turns to them and fetches them whatever playback is doing.
+ */
+const thumbnailFocus = computed(
+    () => hostFocus.value ?? scrub.value?.time ?? pinnedView.value?.time ?? null,
+);
+const warmCentre = computed(() => thumbnailFocus.value ?? state.value.currentTime);
+const centreSheet = computed(() =>
     state.value.thumbnailsReady
-        ? controller.value?.thumbnailAt(state.value.currentTime)?.spriteUrl
+        ? controller.value?.thumbnailAt(warmCentre.value)?.spriteUrl
         : undefined,
 );
-watch([spriteWarm, playheadSheet], ([warm]) => {
+watch([spriteWarm, centreSheet], ([warm]) => {
     const instance = controller.value;
     if (!warm || !instance) return;
-    const { duration, currentTime } = state.value;
-    warm.setSheets(spriteSheetsByDistance((t) => instance.thumbnailAt(t), duration, currentTime));
+    warm.setSheets(
+        spriteSheetsByDistance(
+            (t) => instance.thumbnailAt(t),
+            state.value.duration,
+            warmCentre.value,
+        ),
+    );
 });
 const spriteLimit = computed(() => {
     const limit = spriteWarmLimit({ ...state.value, started: warmStarted.value });
-    return props.lazyThumbnails || isAudioOnly.value ? Math.min(limit, 1) : limit;
+    const capped = props.lazyThumbnails || isAudioOnly.value ? Math.min(limit, 1) : limit;
+    return thumbnailFocus.value === null ? capped : Math.max(capped, SPRITE_WARM_KEPT);
 });
+/** A host showing frames of its own (its strip) names the moment, so their sheets come first; null when it is gone. */
+function focusThumbnails(time: number | null): void {
+    hostFocus.value = time;
+}
 watch([spriteWarm, spriteLimit], ([warm, limit]) => warm?.setLimit(limit));
 onBeforeUnmount(() => spriteWarm.value?.stop());
 
@@ -1919,6 +1998,7 @@ defineExpose({
     showCastPicker,
     canPictureInPicture,
     startPictureInPicture,
+    focusThumbnails,
     get muted() {
         return mediaEl.value?.muted ?? false;
     },
@@ -2132,7 +2212,7 @@ defineExpose({
                 />
 
                 <div
-                    v-if="scrub && !scrub.roster"
+                    v-if="scrub && !scrub.roster && !barScrub"
                     class="lmpl-scrub-preview"
                     :style="{ left: `${scrub.left}px`, bottom: `${scrub.bottom}px` }"
                 >

@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { computed, defineComponent, h, nextTick } from "vue";
 import waitForExpect from "wait-for-expect";
 import MediaPlayerWrapper from "../MediaPlayerWrapper.vue";
@@ -24,6 +24,12 @@ import {
  * assert on it would be testing someone else's library through a keyhole.
  */
 const seekMock = vi.hoisted(() => vi.fn());
+/** The player's controller, holding a height cap in place as hls.js and ExoPlayer do. */
+const controllerMock = vi.hoisted(() => ({
+    canCapInPlace: true,
+    setMaxHeight: vi.fn(() => true),
+    setQuality: vi.fn(),
+}));
 const playMock = vi.hoisted(() => vi.fn(() => Promise.resolve(true)));
 const pauseMock = vi.hoisted(() => vi.fn());
 const enterFullscreenMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
@@ -68,6 +74,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
             ],
             setup(_props, { expose }) {
                 expose({
+                    controller: controllerMock,
                     seek: seekMock,
                     play: playMock,
                     pause: pauseMock,
@@ -266,6 +273,23 @@ describe("MediaPlayerWrapper", () => {
                 expect(stub(await mountPlayer()).props("source").maxHeight).toBe(360);
             });
 
+            it("asks for the cap in place, and moves it at once with the setting", async () => {
+                controllerMock.setMaxHeight.mockClear();
+                userDataSaverEnabled.value = true;
+                const wrapper = await mountPlayer();
+                expect(stub(wrapper).props("source")).toMatchObject({
+                    maxHeight: 360,
+                    maxHeightInPlace: true,
+                });
+                userDataSaverEnabled.value = false;
+                await flushPromises();
+                expect(controllerMock.setMaxHeight).toHaveBeenLastCalledWith(null);
+                expect(wrapper.vm.liftDataSaverCap()).toBe(false);
+                userDataSaverEnabled.value = true;
+                await flushPromises();
+                expect(controllerMock.setMaxHeight).toHaveBeenLastCalledWith(360);
+            });
+
             it("turns background chunk warming off under Data Saver, and leaves it on otherwise", async () => {
                 expect(stub(await mountPlayer()).props("controllerOptions")).toMatchObject({
                     prefetch: { enabled: true },
@@ -284,11 +308,19 @@ describe("MediaPlayerWrapper", () => {
                 expect(stub(await mountPlayer()).props("source").bandwidthEstimate).toBe(2_500_000);
             });
 
-            it("offers no estimate until a real reading exists, rather than the optimistic default", async () => {
+            it("always sends an estimate: the browser's downlink before a reading, else one megabit", async () => {
                 connectionSpeed.value = 10;
                 hasMeasuredConnectionSpeed.value = false;
+                expect(stub(await mountPlayer()).props("source").bandwidthEstimate).toBe(1_000_000);
 
-                expect(stub(await mountPlayer()).props("source").bandwidthEstimate).toBeUndefined();
+                vi.stubGlobal("navigator", { ...navigator, connection: { downlink: 4.5 } });
+                try {
+                    expect(stub(await mountPlayer()).props("source").bandwidthEstimate).toBe(
+                        4_500_000,
+                    );
+                } finally {
+                    vi.unstubAllGlobals();
+                }
             });
 
             it("does not reload the stream when a later probe changes the speed", async () => {
@@ -513,13 +545,14 @@ describe("MediaPlayerWrapper", () => {
             expect(setMediaProgressMock).not.toHaveBeenCalled();
         });
 
-        it("restores a saved position slightly behind where the viewer left", async () => {
+        it("loads from a saved position slightly behind where the viewer left, rather than seeking there", async () => {
             getMediaProgressMock.mockReturnValue(300);
             const wrapper = await mountPlayer();
 
             stub(wrapper).vm.$emit("loadedmetadata");
 
-            expect(seekMock).toHaveBeenCalledWith(270);
+            expect(stub(wrapper).props("source")).toMatchObject({ startPosition: 270 });
+            expect(seekMock).not.toHaveBeenCalled();
         });
 
         it("starts a finished media over instead of resuming it", async () => {
@@ -547,13 +580,13 @@ describe("MediaPlayerWrapper", () => {
             const wrapper = await mountPlayer({}, { autoplay: true });
             stub(wrapper).vm.$emit("loadedmetadata");
             expect(playMock).toHaveBeenCalledTimes(1);
-            expect(seekMock).toHaveBeenCalledTimes(1);
+            expect(stub(wrapper).props("source")).toMatchObject({ startPosition: 270 });
 
             // Audio to video, or back: the player loads again, and a paused video stays paused.
             stub(wrapper).vm.$emit("loadedmetadata");
             stub(wrapper).vm.$emit("loadedmetadata");
             expect(playMock).toHaveBeenCalledTimes(1);
-            expect(seekMock).toHaveBeenCalledTimes(1);
+            expect(seekMock).not.toHaveBeenCalled();
         });
 
         it("does not seek for a position not worth resuming", async () => {
@@ -663,6 +696,8 @@ describe("MediaPlayerWrapper", () => {
             expect(wrapper.findComponent(NativeStub).props("source")).toEqual({
                 masterUrl: ABSOLUTE,
                 keyHex: undefined,
+                maxHeightInPlace: true,
+                bandwidthEstimate: 1_000_000,
                 sidecars: {
                     chapters: [
                         { lang: "en", url: "https://bucket.example.com/media/abc/chapters/en.vtt" },
@@ -682,7 +717,7 @@ describe("MediaPlayerWrapper", () => {
             player.vm.$emit("loadedmetadata");
             player.vm.$emit("ended");
 
-            expect(seekMock).toHaveBeenCalledWith(270);
+            expect(player.props("source")).toMatchObject({ startPosition: 270 });
             expect(exitFullscreenMock).toHaveBeenCalled();
         });
 

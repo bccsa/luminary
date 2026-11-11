@@ -369,7 +369,8 @@ const pickFallbackImage = () =>
         Math.floor(new Rand(props.parentId).next() * fallbackImageUrls.length)
     ] as string;
 
-const fallbackImageUrl = ref<string | undefined>(pickFallbackImage());
+// Follows parentId: a reused instance must not keep the previous post's stand-in.
+const fallbackImageUrl = computed<string | undefined>(() => pickFallbackImage());
 
 // In modal mode we want the largest available original image (no aspect ratio coercion)
 const modalSrc = computed(() => {

@@ -119,7 +119,7 @@ watch(subtitlesOnVideo, (onVideo) => {
 
 /**
  * The subtitles the viewer last chose, carried to every video and audio opened after: `on` is whether they were left
- * on, `lang` the language picked. Persisted to localStorage.
+ * on, `lang` the language picked. On until the viewer turns them off. Persisted to localStorage.
  */
 export const subtitlePreference = ref<{ on: boolean; lang?: string }>(
     (() => {
@@ -129,7 +129,7 @@ export const subtitlePreference = ref<{ on: boolean; lang?: string }>(
         } catch {
             /* an unreadable value is no preference */
         }
-        return { on: false };
+        return { on: true };
     })(),
 );
 watch(subtitlePreference, (preference) => {

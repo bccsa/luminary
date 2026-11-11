@@ -83,10 +83,16 @@ const props = withDefaults(
         audioTracks: readonly { id: string; label: string; lang?: string }[];
         activeAudioTrackId: string | null;
         sleepTimer: SleepTimerState | null;
-        /** The Data Saver level in force, for the gear menu; with `autoplay`, absent leaves the gear out. */
+        /** The Data Saver level in force: an on / off switch at the foot of the quality menu (on is any level). */
         dataSaver?: "off" | "light" | "strict";
-        /** Whether the next video plays by itself at the end: the end panel counts down to it, else only replay shows. */
+        /**
+         * Whether the next video plays by itself at the end: the end panel counts down to it, else only replay shows.
+         * Given, a switch for it stands with the picture tools.
+         */
         autoplay?: boolean;
+        /** The video's cameras, for the camera menu; one or none and it is not offered. */
+        angles?: readonly { id: string; label: string }[];
+        activeAngleId?: string | null;
         /** Playback reached the end: the play button replays, and with autoplay the end panel offers `nextUp`. */
         ended?: boolean;
         /** The video the end panel counts down to. */
@@ -134,12 +140,14 @@ const props = withDefaults(
         /** The preview frame at a time, once the thumbnails are in: the chapters' pictures. */
         thumbnailAt?: (seconds: number) => ThumbnailSpriteCue | null;
     }>(),
-    // Left out, the gear has no Autoplay rows: not read as off, as an absent boolean would be.
+    // Left out, there is no autoplay switch: not read as off, as an absent boolean would be.
     { autoplay: undefined },
 );
 
 const emit = defineEmits<{
     exit: [];
+    /** The lyrics are opened out over the cover, or put away: someone may be reading them. */
+    lyrics: [shown: boolean];
     /** A menu or the chapters panel is over the screen, or is not any more. */
     covered: [open: boolean];
     "toggle-play": [];
@@ -156,6 +164,7 @@ const emit = defineEmits<{
     sleep: [option: SleepTimerOption | null];
     "data-saver": [level: "off" | "light" | "strict"];
     autoplay: [on: boolean];
+    angle: [id: string];
     "subtitle-track": [id: string | null];
     "picture-in-picture": [];
     fullscreen: [];
@@ -170,6 +179,7 @@ const isVideo = computed(() => props.stage === "video");
 /** Picture in picture and full screen, whichever apply, beside the line above the seek bar. */
 const pictureTools = computed(
     () =>
+        props.autoplay !== undefined ||
         (isVideo.value && !!props.canPictureInPicture) ||
         ((isVideo.value || !!props.fullscreenTool) && !props.fullscreenActive),
 );
@@ -183,13 +193,15 @@ const lyricsOn = computed(
 // The cover stays in view: the line being said sits under it, and the scrolling lyrics take its place only when asked for.
 const lyricsExpanded = ref(false);
 const showLyrics = computed(() => lyricsOn.value && lyricsExpanded.value);
+watch(showLyrics, (shown) => emit("lyrics", shown), { immediate: true });
+onBeforeUnmount(() => emit("lyrics", false));
 const cueLine = computed(
     () => lyricLines.value[activeLyric(lyricLines.value, props.currentTime)]?.text ?? "",
 );
 // In the cover's place, in a window of any shape, as on a phone.
 const lyricsInStage = showLyrics;
 
-type MenuId = "speed" | "language" | "sleep" | "subtitles" | "quality" | "settings";
+type MenuId = "speed" | "language" | "sleep" | "subtitles" | "quality" | "camera";
 const menu = ref<MenuId | null>(null);
 const rootEl = ref<HTMLElement | null>(null);
 
@@ -359,11 +371,12 @@ function framesReady(): boolean {
  * which the host drags itself, keeps it open until five seconds after it lifts.
  */
 function onRootDown(event: PointerEvent): void {
+    pressClosesOverlay = timelineScrub.isOpen || menu.value !== null || browseOpen.value;
     if (!timelineScrub.isOpen || !(event.target instanceof Element)) return;
     // The host's close button for its strip sits in the roster slot but is a press that closes it.
     if (event.target.closest(".lmpl-afs-stripclose")) return timelineScrub.tappedElsewhere();
     if (event.target.closest(".lmpl-afs-roster-slot")) return timelineScrub.touchBegan();
-    if (event.target.closest(".lmpl-afs-bar, .lmpl-afs-scrubzone")) return;
+    if (event.target.closest(".lmpl-afs-bar")) return;
     if (event.target.closest(".lmpl-afs-playbtn")) return;
     timelineScrub.tappedElsewhere();
 }
@@ -376,6 +389,30 @@ function onRootUp(event: PointerEvent): void {
     ) {
         timelineScrub.dragCancelled();
     }
+}
+
+/** The press under way began with the strip, a menu or the sheet up: it only puts them away. */
+let pressClosesOverlay = false;
+
+/** How far, and how long, a press on the picture may go and still be a tap. */
+const TAP_SLOP_PX = 10;
+const TAP_MS = 500;
+let stageTap: { id: number; x: number; y: number; at: number } | null = null;
+/** A tap on the picture plays or pauses it, as a video's own does; not while it is getting ready or at the end. */
+function onStageDown(event: PointerEvent): void {
+    stageTap =
+        isVideo.value && !props.fill && !pressClosesOverlay
+            ? { id: event.pointerId, x: event.clientX, y: event.clientY, at: event.timeStamp }
+            : null;
+}
+function onStageUp(event: PointerEvent): void {
+    const tap = stageTap;
+    stageTap = null;
+    if (!tap || event.pointerId !== tap.id || event.type !== "pointerup") return;
+    const moved = Math.hypot(event.clientX - tap.x, event.clientY - tap.y);
+    if (moved > TAP_SLOP_PX || event.timeStamp - tap.at > TAP_MS) return;
+    if (props.busy || props.ended) return;
+    emit("toggle-play");
 }
 
 function onPlayButton(): void {
@@ -436,20 +473,25 @@ function onBarDown(event: PointerEvent): void {
         timelineScrub.touchBegan();
         return;
     }
+    mouseDownX = event.clientX;
     dragTime.value = timeAt(event.clientX);
     announceScrub(dragTime.value);
 }
+/** Where a mouse's press on the bar came down: one that stays put is a click. */
+let mouseDownX: number | null = null;
 function onBarMove(event: PointerEvent): void {
     if (touchPress && event.pointerId === touchPress.id) {
         if (!touchPress.dragging && Math.abs(event.clientX - touchPress.x) > TOUCH_DRAG_SLOP_PX) {
             touchPress.dragging = true;
-            timelineScrub.dragBegan(framesReady(), props.playing);
+            // A drag is the thick bar with the dragged frame over the picture, never the strip: an open strip goes.
+            if (timelineScrub.mode === "strip") timelineScrub.reset();
+            timelineScrub.dragBegan(false, props.playing);
         }
         if (!touchPress.dragging) return;
     }
     if (dragTime.value === null && !touchPress?.dragging) return;
     dragTime.value = timeAt(event.clientX);
-    announceScrub(dragTime.value, !!touchPress);
+    announceScrub(dragTime.value);
 }
 function onBarUp(event?: PointerEvent): void {
     const press = touchPress;
@@ -461,18 +503,27 @@ function onBarUp(event?: PointerEvent): void {
         }
         const time = dragTime.value;
         dragTime.value = null;
-        // The strip stays up where the finger let go; the thick bar has none to keep.
-        if (stripOpen.value && time !== null) announceScrub(time, true);
-        else emit("scrub", null);
+        emit("scrub", null);
         if (event.type === "pointerup" && time !== null) timelineScrub.dragEnded(time);
         else timelineScrub.dragCancelled();
+        timelineScrub.reset();
         return;
     }
     if (dragTime.value === null) return;
+    const clicked =
+        event?.type === "pointerup" &&
+        mouseDownX !== null &&
+        Math.abs(event.clientX - mouseDownX) <= TOUCH_DRAG_SLOP_PX;
+    mouseDownX = null;
     holdSeek(dragTime.value);
     emit("seek", dragTime.value);
     dragTime.value = null;
     emit("scrub", null);
+    // A click seeks and, with frames, opens the strip there, as a finger's tap opens it; a drag leaves none.
+    if (clicked && framesReady()) {
+        if (timelineScrub.mode === "strip") timelineScrub.reset();
+        timelineScrub.tapped(true);
+    }
 }
 function onBarKey(event: KeyboardEvent): void {
     const step =
@@ -573,13 +624,22 @@ const sleepCaption = computed(() => {
 });
 
 const autoPicked = computed(() => !props.activeQualityId || props.activeQualityId === "auto");
+/** The renditions of what shows: the picture's with video, the sound's (no height) with sound alone. */
+const shownQualities = computed(() =>
+    (props.qualities ?? []).filter((quality) => (isVideo.value ? true : !quality.height)),
+);
+/** The quality menu: a choice of renditions, or the Data Saver switch at its foot; always with sound alone. */
+const qualityTool = computed(
+    () => shownQualities.value.length > 1 || props.dataSaver !== undefined,
+);
 const qualityBadgeText = computed(() => {
     const held = autoPicked.value
         ? undefined
-        : props.qualities?.find((quality) => quality.id === props.activeQualityId);
+        : shownQualities.value.find((quality) => quality.id === props.activeQualityId);
     if (held) return held.height ? qualityBadge(held.height, undefined) : held.label;
-    return qualityBadge(undefined, props.playingHeight);
+    return isVideo.value ? qualityBadge(undefined, props.playingHeight) : "";
 });
+const cameras = computed(() => (isVideo.value ? (props.angles ?? []) : []));
 const subtitlesBadgeText = computed(() =>
     languageBadge(
         subtitleTracks.value.find((track) => track.id === props.activeSubtitleTrackId)?.lang,
@@ -593,19 +653,12 @@ function chooseSleep(option: SleepTimerOption | null): void {
     emit("sleep", option);
     closeMenu();
 }
-const DATA_SAVER_LEVELS = ["off", "light", "strict"] as const;
-const settingsTool = computed(() => props.dataSaver !== undefined || props.autoplay !== undefined);
-function dataSaverLabel(level: (typeof DATA_SAVER_LEVELS)[number]): string {
-    if (level === "light") return props.messages.dataSaverLight;
-    if (level === "strict") return props.messages.dataSaverStrict;
-    return props.messages.dataSaverOff;
+/** On is Light; any level on (Strict included) reads as on, and off turns it off. The menu stays to show the change. */
+function toggleDataSaver(): void {
+    emit("data-saver", props.dataSaver === "off" ? "light" : "off");
 }
-function chooseDataSaver(level: (typeof DATA_SAVER_LEVELS)[number]): void {
-    emit("data-saver", level);
-    closeMenu();
-}
-function chooseAutoplay(on: boolean): void {
-    emit("autoplay", on);
+function chooseAngle(id: string): void {
+    emit("angle", id);
     closeMenu();
 }
 function chooseRate(rate: number): void {
@@ -831,6 +884,9 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                         v-show="isVideo"
                         class="lmpl-afs-stage"
                         data-test="afsStageSlot"
+                        @pointerdown="onStageDown"
+                        @pointerup="onStageUp"
+                        @pointercancel="onStageUp"
                     >
                         <slot name="stage"></slot>
                     </div>
@@ -841,17 +897,6 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                     >
                         {{ caption }}
                     </p>
-                    <!-- A drag along the picture's foot scrubs like the bar, for a thumb that lands short of it. Not
-                         when the picture fills the window: the player's own control row sits there. -->
-                    <div
-                        v-if="isVideo && knownDuration && !isLive && !fill"
-                        class="lmpl-afs-scrubzone"
-                        data-test="afsScrubZone"
-                        @pointerdown="onBarDown"
-                        @pointermove="onBarMove"
-                        @pointerup="onBarUp"
-                        @pointercancel="onBarUp"
-                    ></div>
                     <NowPlayingLyrics
                         v-if="lyricsInStage"
                         :lines="lyricLines"
@@ -1039,6 +1084,67 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                             class="lmpl-afs-picturetools"
                             data-test="afsPictureTools"
                         >
+                            <button
+                                v-if="autoplay !== undefined"
+                                type="button"
+                                role="switch"
+                                class="lmpl-afs-iconbtn lmpl-afs-autoplay"
+                                :aria-checked="autoplay"
+                                :aria-label="messages.autoplay"
+                                data-test="afsAutoplay"
+                                @click="emit('autoplay', !autoplay)"
+                            >
+                                <!-- On the picture tools' 18 grid (as PiP), stroke 1.8: a pill across the box, its 3.4 knob right
+                                     with a play mark when on, left with a pause mark when off (dimmed). -->
+                                <svg
+                                    viewBox="0 0 18 18"
+                                    width="24"
+                                    height="24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                    aria-hidden="true"
+                                >
+                                    <rect
+                                        x="0.9"
+                                        y="4.4"
+                                        width="16.2"
+                                        height="9.2"
+                                        rx="4.6"
+                                    />
+                                    <circle
+                                        :cx="autoplay ? 12.4 : 5.6"
+                                        cy="9"
+                                        r="3.4"
+                                        fill="currentColor"
+                                        stroke="none"
+                                        :mask="`url(#${uid}-autoplay-mark)`"
+                                    />
+                                    <mask
+                                        :id="`${uid}-autoplay-mark`"
+                                        maskUnits="userSpaceOnUse"
+                                    >
+                                        <rect
+                                            width="18"
+                                            height="18"
+                                            fill="#fff"
+                                            stroke="none"
+                                        />
+                                        <path
+                                            v-if="autoplay"
+                                            d="M11.5 7.5v3l2.4-1.5z"
+                                            fill="#000"
+                                            stroke="none"
+                                        />
+                                        <path
+                                            v-else
+                                            d="M4.5 7.6h0.8v2.8h-0.8zM5.9 7.6h0.8v2.8h-0.8z"
+                                            fill="#000"
+                                            stroke="none"
+                                        />
+                                    </mask>
+                                </svg>
+                            </button>
                             <button
                                 v-if="isVideo && canPictureInPicture"
                                 type="button"
@@ -1281,7 +1387,7 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                             </div>
 
                             <div
-                                v-if="isVideo && (qualities?.length ?? 0) > 1"
+                                v-if="qualityTool"
                                 class="lmpl-afs-tool"
                             >
                                 <button
@@ -1311,6 +1417,7 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                                     :aria-label="messages.qualityLabel"
                                 >
                                     <button
+                                        v-if="shownQualities.length > 1"
                                         type="button"
                                         role="menuitemradio"
                                         :aria-checked="autoPicked"
@@ -1318,10 +1425,19 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                                         data-test="afsQualityAuto"
                                         @click="chooseQuality('auto')"
                                     >
-                                        {{ autoQualityLabel(messages.qualityAuto, playingHeight) }}
+                                        {{
+                                            isVideo
+                                                ? autoQualityLabel(
+                                                      messages.qualityAuto,
+                                                      playingHeight,
+                                                  )
+                                                : messages.qualityAuto
+                                        }}
                                     </button>
                                     <button
-                                        v-for="quality in qualities"
+                                        v-for="quality in shownQualities.length > 1
+                                            ? shownQualities
+                                            : []"
                                         :key="quality.id"
                                         type="button"
                                         role="menuitemradio"
@@ -1330,6 +1446,21 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                                         @click="chooseQuality(quality.id)"
                                     >
                                         {{ quality.label }}
+                                    </button>
+                                    <button
+                                        v-if="dataSaver !== undefined"
+                                        type="button"
+                                        role="menuitemcheckbox"
+                                        :aria-checked="dataSaver !== 'off'"
+                                        class="lmpl-afs-menuitem lmpl-afs-menutoggle"
+                                        data-test="afsDataSaver"
+                                        @click="toggleDataSaver"
+                                    >
+                                        {{ messages.dataSaver }}
+                                        <span
+                                            class="lmpl-afs-switch"
+                                            aria-hidden="true"
+                                        ></span>
                                     </button>
                                 </div>
                             </div>
@@ -1569,22 +1700,18 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                                 </div>
                             </div>
 
-                            <slot name="audio-tool"></slot>
-
-                            <slot name="cast"></slot>
-
                             <div
-                                v-if="settingsTool"
+                                v-if="cameras.length > 1"
                                 class="lmpl-afs-tool"
                             >
                                 <button
                                     type="button"
                                     class="lmpl-afs-iconbtn"
-                                    :aria-label="messages.playbackSettings"
-                                    :aria-expanded="menu === 'settings'"
+                                    :aria-label="messages.cameraLabel"
+                                    :aria-expanded="menu === 'camera'"
                                     aria-haspopup="menu"
-                                    data-test="afsSettings"
-                                    @click="toggleMenu('settings')"
+                                    data-test="afsCamera"
+                                    @click="toggleMenu('camera')"
                                 >
                                     <svg
                                         viewBox="0 0 24 24"
@@ -1597,71 +1724,39 @@ const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src))
                                         stroke-linejoin="round"
                                         aria-hidden="true"
                                     >
-                                        <path
-                                            d="M10.3 3.6a1.7 1.7 0 0 1 3.4 0l.2 1a1.7 1.7 0 0 0 2.4 1.2l.9-.5a1.7 1.7 0 0 1 2.4 2.4l-.5.9a1.7 1.7 0 0 0 1.2 2.4l1 .2a1.7 1.7 0 0 1 0 3.4l-1 .2a1.7 1.7 0 0 0-1.2 2.4l.5.9a1.7 1.7 0 0 1-2.4 2.4l-.9-.5a1.7 1.7 0 0 0-2.4 1.2l-.2 1a1.7 1.7 0 0 1-3.4 0l-.2-1a1.7 1.7 0 0 0-2.4-1.2l-.9.5a1.7 1.7 0 0 1-2.4-2.4l.5-.9a1.7 1.7 0 0 0-1.2-2.4l-1-.2a1.7 1.7 0 0 1 0-3.4l1-.2a1.7 1.7 0 0 0 1.2-2.4l-.5-.9a1.7 1.7 0 0 1 2.4-2.4l.9.5a1.7 1.7 0 0 0 2.4-1.2z"
+                                        <rect
+                                            x="2.5"
+                                            y="6"
+                                            width="13"
+                                            height="12"
+                                            rx="2"
                                         />
-                                        <circle
-                                            cx="12"
-                                            cy="12"
-                                            r="3"
-                                        />
+                                        <path d="M15.5 10.5l6-3.5v10l-6-3.5" />
                                     </svg>
                                 </button>
                                 <div
-                                    v-if="menu === 'settings'"
+                                    v-if="menu === 'camera'"
                                     class="lmpl-afs-menu"
                                     role="menu"
-                                    :aria-label="messages.playbackSettings"
-                                    data-test="afsSettingsMenu"
+                                    :aria-label="messages.cameraLabel"
                                 >
-                                    <template v-if="dataSaver !== undefined">
-                                        <span
-                                            class="lmpl-afs-menuhead"
-                                            role="presentation"
-                                            >{{ messages.dataSaver }}</span
-                                        >
-                                        <button
-                                            v-for="level in DATA_SAVER_LEVELS"
-                                            :key="level"
-                                            type="button"
-                                            role="menuitemradio"
-                                            :aria-checked="dataSaver === level"
-                                            class="lmpl-afs-menuitem"
-                                            :data-test="`afsDataSaver-${level}`"
-                                            @click="chooseDataSaver(level)"
-                                        >
-                                            {{ dataSaverLabel(level) }}
-                                        </button>
-                                    </template>
-                                    <template v-if="autoplay !== undefined">
-                                        <span
-                                            class="lmpl-afs-menuhead"
-                                            role="presentation"
-                                            >{{ messages.autoplay }}</span
-                                        >
-                                        <button
-                                            type="button"
-                                            role="menuitemradio"
-                                            :aria-checked="autoplay"
-                                            class="lmpl-afs-menuitem"
-                                            data-test="afsAutoplayOn"
-                                            @click="chooseAutoplay(true)"
-                                        >
-                                            {{ messages.autoplayOn }}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            role="menuitemradio"
-                                            :aria-checked="!autoplay"
-                                            class="lmpl-afs-menuitem"
-                                            data-test="afsAutoplayOff"
-                                            @click="chooseAutoplay(false)"
-                                        >
-                                            {{ messages.autoplayOff }}
-                                        </button>
-                                    </template>
+                                    <button
+                                        v-for="camera in cameras"
+                                        :key="camera.id"
+                                        type="button"
+                                        role="menuitemradio"
+                                        :aria-checked="camera.id === activeAngleId"
+                                        class="lmpl-afs-menuitem"
+                                        @click="chooseAngle(camera.id)"
+                                    >
+                                        {{ camera.label }}
+                                    </button>
                                 </div>
                             </div>
+
+                            <slot name="audio-tool"></slot>
+
+                            <slot name="cast"></slot>
 
                             <button
                                 v-if="hasBrowse"

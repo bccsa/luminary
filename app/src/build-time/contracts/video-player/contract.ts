@@ -80,6 +80,7 @@ export type VideoNowPlayingTexts = Partial<
         | "playNow"
         | "cancel"
         | "closeScrub"
+        | "camera"
         | "exitFullscreen"
         | "allTags"
         | "noMoreWithTag"
@@ -127,7 +128,9 @@ export type VideoMiniPlayerBar = {
 };
 
 /** What the minimised player's buttons are called; one left out keeps the platform's English. */
-export type VideoMiniPlayerTexts = Partial<Record<"expand" | "play" | "pause" | "close" | "loading", string>>;
+export type VideoMiniPlayerTexts = Partial<
+    Record<"expand" | "play" | "pause" | "close" | "loading", string>
+>;
 
 /** What the viewer did on a platform's own minimised player: it is already done there. */
 export type VideoMiniPlayerAction = "expand" | "close";
@@ -196,6 +199,8 @@ export type VideoPlayerHandle = {
     /** The words of the subtitles that are on, timed, where the player can read them; for lyrics with sound alone. */
     readonly subtitleCues?: readonly { start: number; end: number; text: string }[];
     startPictureInPicture?(): void;
+    /** The moment a host's own strip of frames shows, so the player fetches its sprite sheets first; null when it goes. */
+    focusThumbnails?(time: number | null): void;
     /** Opens the system's AirPlay device list. */
     showAirPlayPicker?(): void;
     play(): Promise<void> | undefined;
@@ -219,7 +224,9 @@ export type VideoPlayerHandle = {
     readonly nativeMiniPlayer?: boolean | null;
     showMiniPlayer?(bar: VideoMiniPlayerBar, texts?: VideoMiniPlayerTexts): void;
     /** Where the page keeps room for it, in CSS pixels of the viewport; null takes it away for now. */
-    setMiniPlayerFrame?(frame: { x: number; y: number; width: number; height: number } | null): void;
+    setMiniPlayerFrame?(
+        frame: { x: number; y: number; width: number; height: number } | null,
+    ): void;
     hideMiniPlayer?(): void;
     /** The platform turns the picture off in place, the sound playing on: {@link setVideoOff} does something. */
     readonly canTurnVideoOff?: boolean;

@@ -1,5 +1,6 @@
 import { computed, ref, shallowRef, watch } from "vue";
 import type { ContentDto } from "luminary-shared";
+import type { SleepTimerOption } from "@luminary-media-converter/player-web";
 import { effectiveDataSaverLevel } from "@/globalConfig";
 
 const CHOSEN_MODE_KEY = "mediaPlayerMode";
@@ -46,14 +47,37 @@ function readChosenAudio(): boolean | null {
     }
 }
 
+const SLEEP_DEFAULT_KEY = "mediaPlayerSleepTimer";
+
+/** The sleep timer the viewer last chose (null: off), kept across restarts and started again with each session. */
+export const sleepTimerDefault = ref<SleepTimerOption | null>(readSleepTimerDefault());
+watch(sleepTimerDefault, (option) => {
+    try {
+        if (option) localStorage.setItem(SLEEP_DEFAULT_KEY, JSON.stringify(option));
+        else localStorage.removeItem(SLEEP_DEFAULT_KEY);
+    } catch {
+        // Storage refused: the choice lasts for this session only.
+    }
+});
+
+function readSleepTimerDefault(): SleepTimerOption | null {
+    try {
+        const stored = JSON.parse(localStorage.getItem(SLEEP_DEFAULT_KEY) ?? "null");
+        if (stored?.kind === "chapter") return { kind: "chapter" };
+        if (stored?.kind === "minutes" && Number(stored.minutes) > 0)
+            return { kind: "minutes", minutes: Number(stored.minutes) };
+    } catch {
+        // An unreadable value is no default.
+    }
+    return null;
+}
+
 /**
- * The mode a new item opens in. Strict data saving always opens as sound, whatever was asked or chosen before (the
- * viewer can still turn the picture on for the one playing); otherwise what was asked for the item, else the viewer's
- * last choice.
+ * The mode a new item opens in: what was asked for the item, else the viewer's last choice, else sound under strict
+ * data saving (its default holds only until the viewer has chosen a mode), else the picture.
  */
 export function opensAsAudio(item: Pick<MediaPlayerItem, "audio">): boolean {
-    if (startsAsAudio.value) return true;
-    return item.audio ?? chosenAudio.value ?? false;
+    return item.audio ?? chosenAudio.value ?? startsAsAudio.value;
 }
 
 /**

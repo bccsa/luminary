@@ -11,6 +11,7 @@ import {
     openMediaPlayer,
     opensAsAudio,
     chosenAudio,
+    sleepTimerDefault,
     startsAsAudio,
 } from "../mediaPlayer";
 
@@ -75,18 +76,27 @@ describe("the media player's store", () => {
         expect(startsAsAudio.value).toBe(true);
     });
 
-    it("opens as sound under strict Data Saver, whatever was chosen or asked; else as asked, else as last chosen", () => {
+    it("opens as asked, else as last chosen; strict Data Saver opens as sound only until a mode is chosen", () => {
         expect(opensAsAudio({})).toBe(false);
         userDataSaverEnabled.value = true;
         expect(opensAsAudio({})).toBe(true);
         chosenAudio.value = false;
-        expect(opensAsAudio({})).toBe(true);
-        expect(opensAsAudio({ audio: false })).toBe(true);
+        expect(opensAsAudio({})).toBe(false);
+        expect(opensAsAudio({ audio: true })).toBe(true);
         userDataSaverEnabled.value = false;
         expect(opensAsAudio({})).toBe(false);
         chosenAudio.value = true;
         expect(opensAsAudio({})).toBe(true);
         expect(opensAsAudio({ audio: false })).toBe(false);
+    });
+
+    it("keeps the last sleep timer chosen, off included", async () => {
+        sleepTimerDefault.value = { kind: "minutes", minutes: 15 };
+        await nextTick();
+        expect(JSON.parse(localStorage.getItem("mediaPlayerSleepTimer")!)).toEqual({ kind: "minutes", minutes: 15 });
+        sleepTimerDefault.value = null;
+        await nextTick();
+        expect(localStorage.getItem("mediaPlayerSleepTimer")).toBeNull();
     });
 
     it("keeps the viewer's choice of mode across restarts", async () => {

@@ -313,6 +313,84 @@ describe("AudioFullscreen — the transport", () => {
         expect(wrapper.emitted("seek")).toEqual([[360]]);
     });
 
+    describe("with frames, a finger's drag on the bar", () => {
+        const withFrames = async () => {
+            const wrapper = mountScreen();
+            await wrapper.setProps({
+                thumbnailAt: (() => ({ url: "sheet.jpg", x: 0, y: 0, w: 160, h: 90 })) as never,
+            });
+            const bar = find(wrapper, "afsBar");
+            bar.element.getBoundingClientRect = () => ({
+                left: 100,
+                width: 200,
+                top: 0,
+                height: 30,
+                right: 300,
+                bottom: 30,
+                x: 100,
+                y: 0,
+                toJSON: () => ({}),
+            });
+            return { wrapper, bar };
+        };
+        const scrubs = (wrapper: ReturnType<typeof mountScreen>) =>
+            (wrapper.emitted("scrub") ?? []).map(
+                ([position]) => position as { time: number; held?: boolean } | null,
+            );
+
+        it("asks only for the dragged frame, never the strip, and leaves no strip when it lets go", async () => {
+            const { wrapper, bar } = await withFrames();
+            await bar.trigger("pointerdown", { clientX: 200, pointerId: 7, pointerType: "touch" });
+            await bar.trigger("pointermove", { clientX: 250, pointerId: 7, pointerType: "touch" });
+            await bar.trigger("pointermove", { clientX: 260, pointerId: 7, pointerType: "touch" });
+            expect(scrubs(wrapper).map((position) => position?.time)).toEqual([360, 384]);
+            expect(scrubs(wrapper).some((position) => position?.held)).toBe(false);
+
+            await bar.trigger("pointerup", { clientX: 260, pointerId: 7, pointerType: "touch" });
+            expect(wrapper.emitted("seek")).toEqual([[384]]);
+            expect(scrubs(wrapper).at(-1)).toBeNull();
+            expect(scrubs(wrapper).some((position) => position?.held)).toBe(false);
+
+            // A tap afterwards still opens the strip.
+            await bar.trigger("pointerdown", { clientX: 250, pointerId: 8, pointerType: "touch" });
+            await bar.trigger("pointerup", { clientX: 250, pointerId: 8, pointerType: "touch" });
+            expect(scrubs(wrapper).at(-1)).toMatchObject({ held: true });
+        });
+
+        it("with a mouse, a click seeks and opens the strip there; a drag opens none", async () => {
+            const { wrapper, bar } = await withFrames();
+            await bar.trigger("pointerdown", { clientX: 250, pointerId: 11, pointerType: "mouse" });
+            await bar.trigger("pointerup", { clientX: 250, pointerId: 11, pointerType: "mouse" });
+            expect(wrapper.emitted("seek")).toEqual([[360]]);
+            expect(scrubs(wrapper).at(-1)).toMatchObject({ time: 360, held: true });
+
+            await bar.trigger("pointerdown", { clientX: 200, pointerId: 12, pointerType: "mouse" });
+            await bar.trigger("pointermove", { clientX: 260, pointerId: 12, pointerType: "mouse" });
+            await bar.trigger("pointerup", { clientX: 260, pointerId: 12, pointerType: "mouse" });
+            expect(wrapper.emitted("seek")?.at(-1)).toEqual([384]);
+            expect(scrubs(wrapper).at(-1)).toBeNull();
+        });
+
+        it("closes a strip a tap opened for the drag", async () => {
+            const { wrapper, bar } = await withFrames();
+            await bar.trigger("pointerdown", { clientX: 250, pointerId: 9, pointerType: "touch" });
+            await bar.trigger("pointerup", { clientX: 250, pointerId: 9, pointerType: "touch" });
+            expect(scrubs(wrapper).at(-1)).toMatchObject({ held: true });
+            const before = scrubs(wrapper).length;
+
+            await bar.trigger("pointerdown", { clientX: 250, pointerId: 10, pointerType: "touch" });
+            await bar.trigger("pointermove", { clientX: 200, pointerId: 10, pointerType: "touch" });
+            const during = scrubs(wrapper).slice(before);
+            expect(during[0]).toBeNull();
+            expect(during.slice(1)).toEqual([expect.objectContaining({ time: 240 })]);
+            expect(during.slice(1)[0]).not.toHaveProperty("held");
+
+            await bar.trigger("pointerup", { clientX: 200, pointerId: 10, pointerType: "touch" });
+            expect(wrapper.emitted("seek")).toEqual([[240]]);
+            expect(scrubs(wrapper).at(-1)).toBeNull();
+        });
+    });
+
     it("lets go of a seek the player never makes, after a moment", async () => {
         vi.useFakeTimers();
         try {
@@ -544,17 +622,39 @@ describe("AudioFullscreen — the menus", () => {
     });
 });
 
-describe("the picture filling the window", () => {
-    it("leaves the picture's foot to the player's own control row, rather than covering it with the scrub band", () => {
-        const stage = { stage: "<div />" };
-        expect(
-            mountScreen({ stage: "video" }, stage).find('[data-test="afsScrubZone"]').exists(),
-        ).toBe(true);
-        expect(
-            mountScreen({ stage: "video", fill: true }, stage)
-                .find('[data-test="afsScrubZone"]')
-                .exists(),
-        ).toBe(false);
+describe("a tap on the picture", () => {
+    const stage = { stage: "<div />" };
+    const tap = async (wrapper: ReturnType<typeof mountScreen>, moveTo = 0) => {
+        const slot = find(wrapper, "afsStageSlot");
+        await slot.trigger("pointerdown", { pointerId: 1, clientX: 100, clientY: 100 });
+        await slot.trigger("pointerup", { pointerId: 1, clientX: 100, clientY: 100 + moveTo });
+    };
+
+    it("plays or pauses it, with no scrub band over its foot", async () => {
+        const wrapper = mountScreen({ stage: "video" }, stage);
+        expect(wrapper.find('[data-test="afsScrubZone"]').exists()).toBe(false);
+        await tap(wrapper);
+        expect(wrapper.emitted("toggle-play")).toHaveLength(1);
+        wrapper.unmount();
+    });
+
+    it("is not a tap once the finger has travelled, or while the player gets ready", async () => {
+        const wrapper = mountScreen({ stage: "video" }, stage);
+        await tap(wrapper, 40);
+        await wrapper.setProps({ busy: true });
+        await tap(wrapper);
+        expect(wrapper.emitted("toggle-play")).toBeUndefined();
+        wrapper.unmount();
+    });
+
+    it("only closes a menu that is open", async () => {
+        const wrapper = mountScreen({ stage: "video" }, stage);
+        await find(wrapper, "afsSpeed").trigger("click");
+        await find(wrapper, "afsStageSlot").trigger("pointerdown", { pointerId: 1 });
+        await find(wrapper, "afsStageSlot").trigger("pointerup", { pointerId: 1 });
+        expect(wrapper.emitted("toggle-play")).toBeUndefined();
+        expect(wrapper.find("[role=menu]").exists()).toBe(false);
+        wrapper.unmount();
     });
 });
 
@@ -713,28 +813,86 @@ describe("AudioFullscreen: badges, gear menu, end panel, tool slots", () => {
         const video = order(wrapper).filter((id) => !id?.endsWith("Badge"));
         await wrapper.setProps({ stage: "cover" });
         const sound = order(wrapper).filter((id) => !id?.endsWith("Badge"));
-        expect(video.indexOf("afsLanguage")).toBe(2);
-        expect(sound.indexOf("afsLanguage")).toBe(2);
-        expect(sound[1]).toBe("afsSleep");
+        expect(video.slice(0, 3)).toEqual(["afsSpeed", "afsQuality", "afsLanguage"]);
+        expect(sound.slice(0, 4)).toEqual(["afsSpeed", "afsQuality", "afsSleep", "afsLanguage"]);
         wrapper.unmount();
     });
 
-    it("offers Data Saver and Autoplay in the gear menu and says what was picked", async () => {
-        const wrapper = mountScreen({ dataSaver: "off", autoplay: true });
-        await find(wrapper, "afsSettings").trigger("click");
-        expect(find(wrapper, "afsDataSaver-off").attributes("aria-checked")).toBe("true");
-        expect(find(wrapper, "afsAutoplayOn").attributes("aria-checked")).toBe("true");
-        await find(wrapper, "afsDataSaver-light").trigger("click");
+    it("switches Data Saver at the foot of the quality menu: on is Light, Strict reads as on", async () => {
+        const wrapper = mountScreen({
+            stage: "video",
+            dataSaver: "off",
+            qualities: [
+                { id: "720", label: "720p", height: 720 },
+                { id: "360", label: "360p", height: 360 },
+            ],
+        });
+        await find(wrapper, "afsQuality").trigger("click");
+        expect(find(wrapper, "afsDataSaver").attributes("aria-checked")).toBe("false");
+        await find(wrapper, "afsDataSaver").trigger("click");
         expect(wrapper.emitted("data-saver")).toEqual([["light"]]);
-        await find(wrapper, "afsSettings").trigger("click");
-        await find(wrapper, "afsAutoplayOff").trigger("click");
+        await wrapper.setProps({ dataSaver: "strict" });
+        expect(find(wrapper, "afsDataSaver").attributes("aria-checked")).toBe("true");
+        await find(wrapper, "afsDataSaver").trigger("click");
+        expect(wrapper.emitted("data-saver")?.at(-1)).toEqual(["off"]);
+        expect(wrapper.find('[data-test="afsSettings"]').exists()).toBe(false);
+        wrapper.unmount();
+    });
+
+    it("offers the sound's renditions and the Data Saver switch with sound alone", async () => {
+        const wrapper = mountScreen({
+            stage: "cover",
+            dataSaver: "light",
+            qualities: [
+                { id: "a128", label: "128 kbps" },
+                { id: "a64", label: "64 kbps" },
+                { id: "720", label: "720p", height: 720 },
+            ],
+        });
+        await find(wrapper, "afsQuality").trigger("click");
+        const rows = wrapper.findAll("[role=menu] .lmpl-afs-menuitem").map((row) => row.text());
+        expect(rows).toEqual(["Auto", "128 kbps", "64 kbps", "Data saver"]);
+        wrapper.unmount();
+    });
+
+    it("shows the quality tool with sound alone for the Data Saver switch, though there is one rendition", () => {
+        const wrapper = mountScreen({ stage: "cover", dataSaver: "off" });
+        expect(wrapper.find('[data-test="afsQuality"]').exists()).toBe(true);
+        wrapper.unmount();
+    });
+
+    it("flips autoplay with its switch beside the picture tools", async () => {
+        const wrapper = mountScreen({ autoplay: true });
+        const toggle = find(wrapper, "afsAutoplay");
+        expect(toggle.attributes("aria-checked")).toBe("true");
+        expect(toggle.element.closest('[data-test="afsPictureTools"]')).not.toBeNull();
+        await toggle.trigger("click");
         expect(wrapper.emitted("autoplay")).toEqual([[false]]);
         wrapper.unmount();
     });
 
-    it("has no gear when the host offers neither setting", () => {
+    it("has no autoplay switch when the host offers none", () => {
         const wrapper = mountScreen();
-        expect(wrapper.find('[data-test="afsSettings"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="afsAutoplay"]').exists()).toBe(false);
+        wrapper.unmount();
+    });
+
+    it("offers the cameras in portrait when there is more than one", async () => {
+        const wrapper = mountScreen({
+            stage: "video",
+            angles: [
+                { id: "wide", label: "Wide" },
+                { id: "close", label: "Close" },
+            ],
+            activeAngleId: "wide",
+        });
+        await find(wrapper, "afsCamera").trigger("click");
+        const rows = wrapper.findAll("[role=menu] .lmpl-afs-menuitem");
+        expect(rows[0]!.attributes("aria-checked")).toBe("true");
+        await rows[1]!.trigger("click");
+        expect(wrapper.emitted("angle")).toEqual([["close"]]);
+        await wrapper.setProps({ angles: [{ id: "wide", label: "Wide" }] });
+        expect(wrapper.find('[data-test="afsCamera"]').exists()).toBe(false);
         wrapper.unmount();
     });
 
