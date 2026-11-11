@@ -80,9 +80,9 @@ watch(
 </script>
 
 <template>
-    <div class="rounded-md border p-2 dark:border-slate-700 dark:bg-slate-800">
+    <div class="rounded-md border p-2 dark:border-slate-700 dark:bg-slate-800 bg-white border-zinc-200">
         <div class="mb-1 flex items-center justify-between">
-            <label class="block text-xs font-medium dark:text-zinc-100">Icon</label>
+            <label class="block text-xs font-medium dark:text-zinc-100 text-zinc-700">Icon</label>
             <LButton
                 v-if="isBucketSelected"
                 :icon="ArrowUpOnSquareIcon"
@@ -101,7 +101,7 @@ watch(
                 @change="handleFileChange"
             />
         </div>
-        <div class="rounded-md border p-2 dark:border-slate-700 dark:bg-slate-800">
+        <div class="rounded-md border p-2 dark:border-slate-700 dark:bg-slate-800 bg-white border-zinc-200">
             <ImageEditor
                 ref="imageEditorRef"
                 v-model:parent="provider as unknown as ContentParentDto"
@@ -111,7 +111,7 @@ watch(
             />
         </div>
         <div class="mt-2">
-            <label for="icon-opacity" class="mb-1 block text-xs font-medium dark:text-zinc-100">
+            <label for="icon-opacity" class="mb-1 block text-xs font-medium dark:text-zinc-100 text-zinc-700">
                 Icon Opacity
             </label>
             <div class="flex items-center gap-2">
@@ -122,10 +122,11 @@ watch(
                     max="1"
                     step="0.01"
                     :value="localOpacity"
-                    class="h-2 w-full flex-1 cursor-pointer appearance-none rounded-lg accent-yellow-400 dark:bg-slate-600"
+                    class="h-2 w-full flex-1 cursor-pointer appearance-none rounded-lg dark:accent-yellow-400 dark:bg-slate-600 accent-zinc-700 bg-zinc-200"
                     :disabled="disabled"
                     @input="localOpacity = ($event.target as HTMLInputElement).valueAsNumber"
                     @change="
+                    
                         emit(
                             'update:iconOpacity',
                             ($event.target as HTMLInputElement).valueAsNumber,
