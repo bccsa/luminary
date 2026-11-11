@@ -52,7 +52,7 @@ export async function readActiveProviderId(
     return page.evaluate((key) => {
         try {
             const raw = localStorage.getItem(key);
-            return raw ? JSON.parse(raw)._id ?? null : null;
+            return raw ? (JSON.parse(raw)._id ?? null) : null;
         } catch {
             return null;
         }
