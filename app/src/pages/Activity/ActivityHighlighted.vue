@@ -59,11 +59,7 @@ const sections = computed(() => groupByActivityDate(entries.value, (e) => e.upda
 
 <template>
     <div data-test="activity-highlighted">
-        <ActivitySection
-            v-for="section in sections"
-            :key="section.group"
-            :group="section.group"
-        >
+        <ActivitySection v-for="section in sections" :key="section.group" :group="section.group">
             <div class="flex flex-col gap-3">
                 <HighlightCard
                     v-for="entry in section.items"
@@ -75,10 +71,7 @@ const sections = computed(() => groupByActivityDate(entries.value, (e) => e.upda
                 />
             </div>
         </ActivitySection>
-        <div
-            v-if="!entries.length"
-            class="text-zinc-500 dark:text-slate-200"
-        >
+        <div v-if="!entries.length" class="text-zinc-500 dark:text-slate-200">
             {{ t("activity.highlighted.empty_page") }}
         </div>
     </div>

@@ -68,10 +68,7 @@ onMounted(async () => {
 </script>
 
 <template>
-    <BasePage
-        showBackButton
-        desktopTopBar
-    >
+    <BasePage showBackButton desktopTopBar>
         <template #topBarLeading>
             <ActivityFilterChips
                 :filters="filters"
@@ -97,10 +94,7 @@ onMounted(async () => {
                         @select="selectFilter($event as ActivityFilter)"
                     />
                 </div>
-                <div
-                    v-if="showColours"
-                    class="bg-white px-2 pb-3 pt-1 dark:bg-slate-900"
-                >
+                <div v-if="showColours" class="bg-white px-2 pb-3 pt-1 dark:bg-slate-900">
                     <ActivityColourChips
                         :colours="colours"
                         :active="colour"
@@ -121,14 +115,8 @@ onMounted(async () => {
                     @select="colour = $event"
                 />
             </div>
-            <div
-                role="tabpanel"
-                class="isolate min-h-[calc(100dvh+18rem)] xl:min-h-0"
-            >
-                <component
-                    :is="panels[activeFilter]"
-                    v-bind="panelProps"
-                />
+            <div role="tabpanel" class="isolate min-h-[calc(100dvh+18rem)] xl:min-h-0">
+                <component :is="panels[activeFilter]" v-bind="panelProps" />
             </div>
         </div>
     </BasePage>

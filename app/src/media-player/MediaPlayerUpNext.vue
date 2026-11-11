@@ -30,7 +30,11 @@ const { t } = useI18n();
 
 const sections = computed(() =>
     [
-        { id: "series", label: props.seriesTitle || t("media_player.in_series"), items: props.series },
+        {
+            id: "series",
+            label: props.seriesTitle || t("media_player.in_series"),
+            items: props.series,
+        },
         { id: "related", label: t("media_player.related"), items: props.related },
     ].filter((section) => section.items.length),
 );
@@ -96,11 +100,7 @@ const tagsFor = (content: ContentDto): ContentDto[] => {
                 :data-test="`mediaPlayerUpNextTag-${tag.id}`"
                 @click="chooseTag(tag.id)"
             >
-                <ListBulletIcon
-                    v-if="tag.series"
-                    class="h-4 w-4 shrink-0"
-                    aria-hidden="true"
-                />
+                <ListBulletIcon v-if="tag.series" class="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span class="truncate">{{ tag.title }}</span>
             </button>
         </div>
@@ -124,10 +124,7 @@ const tagsFor = (content: ContentDto): ContentDto[] => {
                 {{ section.label }}
             </h3>
             <ul class="flex flex-col gap-3 px-4">
-                <li
-                    v-for="item in section.items"
-                    :key="item._id"
-                >
+                <li v-for="item in section.items" :key="item._id">
                     <button
                         type="button"
                         class="group flex w-full gap-2 overflow-hidden rounded-lg bg-white text-left shadow ring-1 transition hover:shadow-lg dark:bg-slate-800"

@@ -1715,10 +1715,7 @@ function onKeydown(event: KeyboardEvent) {
                     @stagechange="nudgeInlineVideo"
                     @scrub="onNowPlayingScrub"
                 >
-                    <template
-                        v-if="nowPlayingRoster"
-                        #roster
-                    >
+                    <template v-if="nowPlayingRoster" #roster>
                         <ScrubRoster
                             :tiles="nowPlayingRoster.tiles"
                             :tile-width="nowPlayingRoster.tileWidth"
@@ -1734,10 +1731,7 @@ function onKeydown(event: KeyboardEvent) {
                             @pointercancel.stop="!nowPlayingScrub && onRosterUp($event)"
                         />
                     </template>
-                    <template
-                        v-if="content.slug"
-                        #under-title
-                    >
+                    <template v-if="content.slug" #under-title>
                         <button
                             type="button"
                             class="lmpl-afs-pill"
@@ -1807,14 +1801,8 @@ function onKeydown(event: KeyboardEvent) {
                         </div>
                     </template>
                     <template #stage>
-                        <div
-                            id="lmp-engine-screen"
-                            class="contents"
-                        />
-                        <div
-                            v-if="scrubPictureCue"
-                            class="absolute inset-0 z-[1]"
-                        >
+                        <div id="lmp-engine-screen" class="contents" />
+                        <div v-if="scrubPictureCue" class="absolute inset-0 z-[1]">
                             <ScrubPicture
                                 :cue="scrubPictureCue"
                                 data-test="mediaPlayerScrubPicture"
@@ -1940,14 +1928,8 @@ function onKeydown(event: KeyboardEvent) {
                 @pointerup="onPictureUp"
                 @pointercancel="onPictureUp"
             >
-                <div
-                    v-show="!audioMode"
-                    class="absolute inset-0"
-                >
-                    <div
-                        id="lmp-engine-card"
-                        class="contents"
-                    />
+                <div v-show="!audioMode" class="absolute inset-0">
+                    <div id="lmp-engine-card" class="contents" />
                 </div>
 
                 <!-- The frames around the dot while it is dragged, over the foot of the picture as in
@@ -2021,10 +2003,7 @@ function onKeydown(event: KeyboardEvent) {
                 :class="{ '!bg-transparent': wash }"
                 data-test="mediaPlayerScroll"
             >
-                <div
-                    class="max-h-10 min-h-0 flex-shrink flex-grow basis-6"
-                    aria-hidden="true"
-                />
+                <div class="max-h-10 min-h-0 flex-shrink flex-grow basis-6" aria-hidden="true" />
                 <div class="flex-none space-y-1 px-6 text-center">
                     <span
                         v-if="content.author"
@@ -2057,10 +2036,7 @@ function onKeydown(event: KeyboardEvent) {
                             handle?.airPlayAvailable ? 'gap-1 md:gap-2' : 'gap-2 md:gap-3',
                         ]"
                     >
-                        <div
-                            v-if="state.audioTracks.length > 1"
-                            class="relative flex-shrink-0"
-                        >
+                        <div v-if="state.audioTracks.length > 1" class="relative flex-shrink-0">
                             <button
                                 type="button"
                                 class="relative flex h-10 w-10 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] dark:text-slate-300 min-[420px]:h-11 min-[420px]:w-11 min-[420px]:after:inset-0 md:h-12 md:w-12"
@@ -2068,10 +2044,7 @@ function onKeydown(event: KeyboardEvent) {
                                 :aria-expanded="openMenu === 'language'"
                                 @click="toggleMenu('language')"
                             >
-                                <PlayerIcon
-                                    name="language"
-                                    class="h-5 w-5 md:h-6 md:w-6"
-                                />
+                                <PlayerIcon name="language" class="h-5 w-5 md:h-6 md:w-6" />
                             </button>
                             <MediaPlayerMenu
                                 v-if="openMenu === 'language'"
@@ -2086,10 +2059,7 @@ function onKeydown(event: KeyboardEvent) {
                                 />
                             </MediaPlayerMenu>
                         </div>
-                        <div
-                            v-if="!live && timeKnown"
-                            class="relative flex-shrink-0"
-                        >
+                        <div v-if="!live && timeKnown" class="relative flex-shrink-0">
                             <button
                                 type="button"
                                 class="relative flex h-10 items-center justify-center rounded-full border border-zinc-500/35 text-sm font-semibold text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] dark:text-slate-300 min-[420px]:h-11 min-[420px]:after:inset-0 md:h-12"
@@ -2104,10 +2074,7 @@ function onKeydown(event: KeyboardEvent) {
                                 @click="toggleMenu('speed')"
                             >
                                 <span class="flex items-center gap-1.5">
-                                    <PlayerIcon
-                                        name="speed"
-                                        class="h-5 w-5 md:h-6 md:w-6"
-                                    />
+                                    <PlayerIcon name="speed" class="h-5 w-5 md:h-6 md:w-6" />
                                     <!-- The rate is said only when it is not the normal one: a settled choice needs no label. -->
                                     <template v-if="state.playbackRate !== 1">{{
                                         rateLabel(state.playbackRate)
@@ -2127,10 +2094,7 @@ function onKeydown(event: KeyboardEvent) {
                                 />
                             </MediaPlayerMenu>
                         </div>
-                        <div
-                            v-if="audioMode"
-                            class="relative flex-shrink-0"
-                        >
+                        <div v-if="audioMode" class="relative flex-shrink-0">
                             <button
                                 type="button"
                                 class="relative flex h-10 items-center justify-center gap-1.5 rounded-full border border-zinc-500/35 text-sm font-semibold text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] dark:text-slate-300 min-[420px]:h-11 min-[420px]:after:inset-0 md:h-12"
@@ -2153,11 +2117,9 @@ function onKeydown(event: KeyboardEvent) {
                                         t("media_player.sleep_left", { minutes: sleepMinutesLeft })
                                     }}</span
                                 >
-                                <span
-                                    v-else-if="sleepTimer"
-                                    data-test="mediaPlayerSleepCaption"
-                                    >{{ t("media_player.sleep_end_of_chapter") }}</span
-                                >
+                                <span v-else-if="sleepTimer" data-test="mediaPlayerSleepCaption">{{
+                                    t("media_player.sleep_end_of_chapter")
+                                }}</span>
                             </button>
                             <MediaPlayerMenu
                                 v-if="openMenu === 'sleep'"
@@ -2238,10 +2200,7 @@ function onKeydown(event: KeyboardEvent) {
                                 data-test="mediaPlayerPictureInPicture"
                                 @click="handle?.startPictureInPicture?.()"
                             >
-                                <PlayerIcon
-                                    name="pip"
-                                    class="h-5 w-5 md:h-6 md:w-6"
-                                />
+                                <PlayerIcon name="pip" class="h-5 w-5 md:h-6 md:w-6" />
                             </button>
                         </template>
                         <button
@@ -2285,10 +2244,7 @@ function onKeydown(event: KeyboardEvent) {
                                 audioMode ? (audioFullscreen = true) : handle?.enterFullscreen()
                             "
                         >
-                            <PlayerIcon
-                                name="fullscreenEnter"
-                                class="h-5 w-5 md:h-6 md:w-6"
-                            />
+                            <PlayerIcon name="fullscreenEnter" class="h-5 w-5 md:h-6 md:w-6" />
                         </button>
 
                         <!-- A tap anywhere else closes the menu. -->
@@ -2310,10 +2266,7 @@ function onKeydown(event: KeyboardEvent) {
                         class="max-h-10 min-h-0 flex-shrink flex-grow basis-5"
                         aria-hidden="true"
                     />
-                    <div
-                        ref="seekArea"
-                        class="relative flex-none"
-                    >
+                    <div ref="seekArea" class="relative flex-none">
                         <div
                             class="flex flex-col px-10"
                             :class="{ invisible: !timeKnown || live }"
@@ -2384,10 +2337,7 @@ function onKeydown(event: KeyboardEvent) {
                             <span
                                 class="inline-flex items-center gap-2 rounded-full bg-red-600 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white"
                             >
-                                <span
-                                    class="h-2 w-2 rounded-full bg-white"
-                                    aria-hidden="true"
-                                />
+                                <span class="h-2 w-2 rounded-full bg-white" aria-hidden="true" />
                                 {{ t("media_player.live") }}
                             </span>
                         </div>
@@ -2404,10 +2354,7 @@ function onKeydown(event: KeyboardEvent) {
                             data-test="mediaPlayerPreviousChapter"
                             @click="skipChapter(-1)"
                         >
-                            <PlayerIcon
-                                name="previousChapter"
-                                class="h-6 w-6"
-                            />
+                            <PlayerIcon name="previousChapter" class="h-6 w-6" />
                         </PlayerButton>
                         <PlayerButton
                             round
@@ -2487,17 +2434,11 @@ function onKeydown(event: KeyboardEvent) {
                             data-test="mediaPlayerNextChapter"
                             @click="skipChapter(1)"
                         >
-                            <PlayerIcon
-                                name="nextChapter"
-                                class="h-6 w-6"
-                            />
+                            <PlayerIcon name="nextChapter" class="h-6 w-6" />
                         </PlayerButton>
                     </div>
                 </template>
-                <div
-                    class="max-h-10 min-h-0 flex-shrink flex-grow basis-6"
-                    aria-hidden="true"
-                />
+                <div class="max-h-10 min-h-0 flex-shrink flex-grow basis-6" aria-hidden="true" />
                 <div
                     v-if="tabs.length"
                     role="tablist"
@@ -2609,10 +2550,7 @@ function onKeydown(event: KeyboardEvent) {
             </div>
             <!-- One engine, moved between the screen and the card: a copy in each was a second player
                  that started from the last saved position whenever the card was minimised or expanded. -->
-            <Teleport
-                defer
-                :to="screen ? '#lmp-engine-screen' : '#lmp-engine-card'"
-            >
+            <Teleport defer :to="screen ? '#lmp-engine-screen' : '#lmp-engine-card'">
                 <MediaPlayerWrapper
                     ref="engine"
                     :content="content"
@@ -2711,10 +2649,7 @@ function onKeydown(event: KeyboardEvent) {
                                 : handle?.showCastPicker?.()
                         "
                     >
-                        <PlayerIcon
-                            :name="isMac ? 'airplay' : 'cast'"
-                            class="h-[22px] w-[22px]"
-                        />
+                        <PlayerIcon :name="isMac ? 'airplay' : 'cast'" class="h-[22px] w-[22px]" />
                     </button>
                 </template>
             </AudioFullscreen>
@@ -2803,11 +2738,9 @@ function onKeydown(event: KeyboardEvent) {
                 @click="expandMediaPlayer"
             >
                 <span class="block w-full truncate text-sm font-semibold">{{ content.title }}</span>
-                <span
-                    v-if="content.author"
-                    class="block w-full truncate text-xs text-white/75"
-                    >{{ content.author }}</span
-                >
+                <span v-if="content.author" class="block w-full truncate text-xs text-white/75">{{
+                    content.author
+                }}</span>
             </button>
             <span
                 v-if="playerBusy || !state"
@@ -2836,16 +2769,8 @@ function onKeydown(event: KeyboardEvent) {
                 data-test="mediaPlayerBarPlayPause"
                 @click="togglePlay"
             >
-                <PlayerIcon
-                    v-if="playing"
-                    name="pause"
-                    class="h-7 w-7"
-                />
-                <PlayerIcon
-                    v-else
-                    name="play"
-                    class="h-7 w-7 translate-x-[8%]"
-                />
+                <PlayerIcon v-if="playing" name="pause" class="h-7 w-7" />
+                <PlayerIcon v-else name="play" class="h-7 w-7 translate-x-[8%]" />
             </button>
             <button
                 type="button"

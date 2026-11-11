@@ -157,11 +157,7 @@ defineExpose({ hasFocus });
         @click.stop
     >
         <div class="lmpl-browse-head">
-            <div
-                class="lmpl-browse-tabs"
-                role="tablist"
-                :aria-label="messages.browse"
-            >
+            <div class="lmpl-browse-tabs" role="tablist" :aria-label="messages.browse">
                 <button
                     v-for="tab in tabs"
                     :id="tabId(tab.id)"
@@ -205,24 +201,15 @@ defineExpose({ hasFocus });
             role="tabpanel"
             :aria-labelledby="tabId(active)"
         >
-            <ol
-                v-if="active === 'chapters'"
-                class="lmpl-browse-list"
-            >
-                <li
-                    v-for="(chapter, index) in chapters"
-                    :key="`${chapter.startTime}-${index}`"
-                >
+            <ol v-if="active === 'chapters'" class="lmpl-browse-list">
+                <li v-for="(chapter, index) in chapters" :key="`${chapter.startTime}-${index}`">
                     <button
                         type="button"
                         class="lmpl-browse-row lmpl-chapter"
                         :aria-current="index === currentChapter ? 'true' : undefined"
                         @click="emit('pick-chapter', chapter)"
                     >
-                        <span
-                            class="lmpl-upnext-thumb lmpl-chapter-tile"
-                            aria-hidden="true"
-                        >
+                        <span class="lmpl-upnext-thumb lmpl-chapter-tile" aria-hidden="true">
                             <span
                                 v-if="chapterFrames[index]"
                                 class="lmpl-chapter-frame"
@@ -241,13 +228,7 @@ defineExpose({ hasFocus });
                                 stroke-linejoin="round"
                             >
                                 <path d="M10 6h10M10 12h10M10 18h10" />
-                                <rect
-                                    x="3.5"
-                                    y="4.5"
-                                    width="3"
-                                    height="3"
-                                    rx="0.8"
-                                />
+                                <rect x="3.5" y="4.5" width="3" height="3" rx="0.8" />
                                 <rect
                                     x="3.5"
                                     y="10.5"
@@ -256,13 +237,7 @@ defineExpose({ hasFocus });
                                     rx="0.8"
                                     fill="currentColor"
                                 />
-                                <rect
-                                    x="3.5"
-                                    y="16.5"
-                                    width="3"
-                                    height="3"
-                                    rx="0.8"
-                                />
+                                <rect x="3.5" y="16.5" width="3" height="3" rx="0.8" />
                             </svg>
                         </span>
                         <span class="lmpl-upnext-text">
@@ -274,19 +249,9 @@ defineExpose({ hasFocus });
                     </button>
                 </li>
             </ol>
-            <ul
-                v-else
-                class="lmpl-browse-list"
-            >
-                <template
-                    v-for="row in upNextRows"
-                    :key="row.item.id"
-                >
-                    <li
-                        v-if="row.heading"
-                        class="lmpl-browse-heading"
-                        role="presentation"
-                    >
+            <ul v-else class="lmpl-browse-list">
+                <template v-for="row in upNextRows" :key="row.item.id">
+                    <li v-if="row.heading" class="lmpl-browse-heading" role="presentation">
                         {{ row.heading }}
                     </li>
                     <li>
@@ -302,11 +267,9 @@ defineExpose({ hasFocus });
                             </span>
                             <span class="lmpl-upnext-text">
                                 <span class="lmpl-upnext-title">{{ row.item.title }}</span>
-                                <span
-                                    v-if="row.item.subtitle"
-                                    class="lmpl-upnext-subtitle"
-                                    >{{ row.item.subtitle }}</span
-                                >
+                                <span v-if="row.item.subtitle" class="lmpl-upnext-subtitle">{{
+                                    row.item.subtitle
+                                }}</span>
                             </span>
                         </button>
                     </li>

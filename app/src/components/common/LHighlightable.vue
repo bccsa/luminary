@@ -534,10 +534,7 @@ onUnmounted(() => {
         @touchcancel.passive="handleTouchCancel"
     >
         <!-- Content Container -->
-        <div
-            ref="prose"
-            class="prose max-w-none select-text"
-        >
+        <div ref="prose" class="prose max-w-none select-text">
             <slot />
         </div>
 
@@ -551,10 +548,7 @@ onUnmounted(() => {
                 @mousedown.stop.prevent
             >
                 <!-- Main Menu -->
-                <div
-                    v-if="!showColorPicker && !showShareMenu"
-                    class="flex flex-col items-center"
-                >
+                <div v-if="!showColorPicker && !showShareMenu" class="flex flex-col items-center">
                     <div class="flex items-center gap-0.5">
                         <!-- Highlight: also offered over an existing highlight, to recolour or extend it -->
                         <button
@@ -603,10 +597,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Color Picker -->
-                <div
-                    v-else-if="showColorPicker"
-                    class="flex items-center gap-2 px-1 py-0.5"
-                >
+                <div v-else-if="showColorPicker" class="flex items-center gap-2 px-1 py-0.5">
                     <button
                         @click="showColorPicker = false"
                         :aria-label="t('singlecontent.back')"
@@ -628,10 +619,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Share Targets -->
-                <div
-                    v-else
-                    class="flex items-center gap-1 px-1 py-0.5"
-                >
+                <div v-else class="flex items-center gap-1 px-1 py-0.5">
                     <button
                         @click="closeShareMenu"
                         :aria-label="t('singlecontent.back')"

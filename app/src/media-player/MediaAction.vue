@@ -65,13 +65,7 @@ const mediaProgress = computed(() => {
             <defs>
                 <!-- The ring lies on a photo of any brightness, so it is light with a halo: soft on the light
                      page, where a strong one reads as a black band, and strong in dark. -->
-                <filter
-                    :id="haloId"
-                    x="-10%"
-                    y="-10%"
-                    width="120%"
-                    height="120%"
-                >
+                <filter :id="haloId" x="-10%" y="-10%" width="120%" height="120%">
                     <feDropShadow
                         dx="0"
                         dy="0"
@@ -80,13 +74,7 @@ const mediaProgress = computed(() => {
                         class="[flood-opacity:0.25] dark:[flood-opacity:0.6]"
                     />
                 </filter>
-                <filter
-                    :id="shadowId"
-                    x="-25%"
-                    y="-25%"
-                    width="150%"
-                    height="150%"
-                >
+                <filter :id="shadowId" x="-25%" y="-25%" width="150%" height="150%">
                     <feDropShadow
                         dx="0"
                         dy="2"
@@ -142,30 +130,18 @@ const mediaProgress = computed(() => {
                     class="fill-yellow-500 stroke-zinc-600 dark:stroke-slate-950"
                 />
                 <!-- The triangle's weight sits left of its box: moved right so it looks centred. -->
-                <PlayerIcon
-                    name="play"
-                    x="23.92"
-                    y="22"
-                    width="24"
-                    height="24"
-                />
+                <PlayerIcon name="play" x="23.92" y="22" width="24" height="24" />
             </g>
         </svg>
     </button>
-    <div
-        v-else
-        class="mt-4 flex justify-center px-4"
-    >
+    <div v-else class="mt-4 flex justify-center px-4">
         <button
             type="button"
             class="flex h-11 items-center gap-2 rounded-full bg-yellow-500 px-5 text-base font-semibold text-zinc-900 shadow-sm hover:bg-yellow-400"
             data-test="mediaPlay"
             @click="open"
         >
-            <PlayerIcon
-                name="play"
-                class="h-5 w-5 translate-x-[8%]"
-            />
+            <PlayerIcon name="play" class="h-5 w-5 translate-x-[8%]" />
             {{ t("media_player.play") }}
         </button>
     </div>

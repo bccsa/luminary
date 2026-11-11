@@ -99,7 +99,9 @@ const readMoreItems = computed(() => {
     // The grid shows related articles only — the dedicated topic cards (props.tags) are no
     // longer mixed in, since the section is already topical. Already-seen articles are still
     // excluded (that filter is for read articles, not topic cards).
-    const candidates = relatedContent.value.filter((item) => !rankingViewedParentIds.value.has(item.parentId));
+    const candidates = relatedContent.value.filter(
+        (item) => !rankingViewedParentIds.value.has(item.parentId),
+    );
     return rank(candidates, [], rankingAffinity.value, {
         topicTagIds: topicTagIds.value,
         scoreScale,
@@ -113,19 +115,13 @@ const readMoreItems = computed(() => {
 </script>
 
 <template>
-    <section
-        v-if="showGhosts || readMoreItems.length"
-        class="w-full pb-2"
-    >
+    <section v-if="showGhosts || readMoreItems.length" class="w-full pb-2">
         <!-- Horizontal padding mirrors the list/grid inset in ReadMore so the heading
              lines up with the first card at every breakpoint. -->
         <h2 class="px-4 pb-3 text-xl text-zinc-800 dark:text-zinc-200 sm:px-8">
             {{ t("content.read_more") }}
         </h2>
         <ReadMoreGhost v-if="showGhosts" />
-        <ReadMore
-            v-else
-            :items="readMoreItems"
-        />
+        <ReadMore v-else :items="readMoreItems" />
     </section>
 </template>

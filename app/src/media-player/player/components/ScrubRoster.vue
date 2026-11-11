@@ -87,9 +87,6 @@ const markerStyle = computed(() => ({ left: `${props.markerX}px` }));
             ></div>
         </div>
         <div class="lmpl-roster-vignette"></div>
-        <div
-            class="lmpl-roster-marker"
-            :style="markerStyle"
-        ></div>
+        <div class="lmpl-roster-marker" :style="markerStyle"></div>
     </div>
 </template>

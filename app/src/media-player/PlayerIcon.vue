@@ -65,10 +65,7 @@ const skipPaths = computed(() => {
         class="drop-shadow"
         data-test="playerIcon"
     >
-        <template
-            v-for="(layer, i) in layers"
-            :key="i"
-        >
+        <template v-for="(layer, i) in layers" :key="i">
             <path
                 v-if="layer.strokeWidth > 0"
                 :d="layer.path"
@@ -79,11 +76,7 @@ const skipPaths = computed(() => {
                 stroke-linejoin="round"
                 :opacity="layer.alpha"
             />
-            <path
-                v-else
-                :d="layer.path"
-                :opacity="layer.alpha"
-            />
+            <path v-else :d="layer.path" :opacity="layer.alpha" />
         </template>
     </svg>
 </template>

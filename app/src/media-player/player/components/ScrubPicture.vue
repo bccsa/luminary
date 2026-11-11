@@ -57,13 +57,7 @@ const frameStyle = computed(() => {
 </script>
 
 <template>
-    <div
-        ref="root"
-        class="lmpl-scrub-picture"
-    >
-        <div
-            class="lmpl-scrub-picture-frame"
-            :style="frameStyle"
-        ></div>
+    <div ref="root" class="lmpl-scrub-picture">
+        <div class="lmpl-scrub-picture-frame" :style="frameStyle"></div>
     </div>
 </template>
