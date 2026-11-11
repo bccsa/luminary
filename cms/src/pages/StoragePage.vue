@@ -44,7 +44,7 @@ const createNew = () => {
 
         <div class="space-y-1">
             <div>
-                <p class="dark:text-zinc-100 text-zinc-600">
+                <p class="text-zinc-600 dark:text-zinc-100">
                     Manage S3 bucket configurations for file storage and uploads.
                 </p>
             </div>

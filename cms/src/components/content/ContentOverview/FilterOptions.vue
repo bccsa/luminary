@@ -282,7 +282,9 @@ watch(
                         <LButton
                             class="flex justify-stretch"
                             data-test="ascending-sort-toggle"
-                            :class="queryOptions.orderDirection == 'asc' ? 'bg-zinc-100' : 'bg-white'"
+                            :class="
+                                queryOptions.orderDirection == 'asc' ? 'bg-zinc-100' : 'bg-white'
+                            "
                             :icon="ArrowUpIcon"
                             @click="queryOptions.orderDirection = 'asc'"
                             >Ascending</LButton

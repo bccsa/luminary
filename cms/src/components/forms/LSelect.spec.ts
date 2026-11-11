@@ -47,6 +47,8 @@ describe("LSelect", () => {
 
     it("passes through non-prop attributes", () => {
         const wrapper = mount(LSelect, { props: { options }, attrs: { autocomplete: true } });
-        expect(wrapper.get('[data-test="l-select-trigger"]').attributes("autocomplete")).toBe("true");
+        expect(wrapper.get('[data-test="l-select-trigger"]').attributes("autocomplete")).toBe(
+            "true",
+        );
     });
 });
