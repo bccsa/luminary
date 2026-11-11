@@ -240,7 +240,7 @@ const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
             description="Try adjusting your search or filter criteria."
         />
 
-        <div v-else-if="filteredMappings.length" class="flex flex-col gap-[8px]">
+        <div v-else-if="filteredMappings.length" class="flex flex-col gap-[4px]">
             <AutoGroupMappingDisplayCard
                 v-for="mapping in filteredMappings"
                 :key="mapping._id"

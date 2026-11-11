@@ -117,7 +117,7 @@ defineExpose({
             />
         </template>
 
-        <div class="flex flex-col gap-[8px]">
+        <div class="flex flex-col gap-[4px]">
             <EmptyState
                 v-if="!hasAnyContent"
                 title="No auth provider configured"
