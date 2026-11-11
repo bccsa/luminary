@@ -73,6 +73,10 @@ export function usePlayerMessages() {
             replay: known("media_player.replay"),
             playNow: known("media_player.play_now"),
             cancel: known("media_player.cancel"),
+            speedShort: known("media_player.speed_label"),
+            sleepShort: known("media_player.sleep_label"),
+            more: known("media_player.more"),
+            backToLine: known("media_player.back_to_line"),
         }),
     }));
 }

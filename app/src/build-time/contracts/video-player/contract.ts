@@ -42,7 +42,11 @@ export type VideoNowPlayingScreen = {
 /** The words of a platform's now-playing screen, in the page's language; any left out stay English. */
 export type VideoNowPlayingTexts = Partial<
     Record<
-        | "minimise"
+        | "exitFullscreen"
+        | "backToLine"
+        | "speedLabel"
+        | "sleepLabel"
+| "minimise"
         | "play"
         | "pause"
         | "loading"
@@ -196,6 +200,8 @@ export type VideoPlayerHandle = {
     setVolume?(volume: number): void;
     /** The height of the picture playing now, in pixels, where the player knows it: what Auto quality has picked. */
     readonly playingHeight?: number;
+    /** The bitrate of the sound playing now, in bits per second, with sound alone: what Auto quality has picked. */
+    readonly playingBandwidth?: number;
     /** The words of the subtitles that are on, timed, where the player can read them; for lyrics with sound alone. */
     readonly subtitleCues?: readonly { start: number; end: number; text: string }[];
     startPictureInPicture?(): void;

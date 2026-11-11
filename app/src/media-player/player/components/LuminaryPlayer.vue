@@ -373,6 +373,21 @@ function readPlayingHeight(): void {
 }
 
 /**
+ * The bitrate of the sound playing now, with sound alone (levels without a picture); 0 before it is known and with a
+ * picture, whose quality is its height.
+ */
+const playingBandwidth = ref(0);
+function readPlayingBandwidth(): void {
+    const engine = (
+        mediaEl.value as unknown as {
+            engine?: { levels?: { bitrate?: number; height?: number }[]; currentLevel?: number } | null;
+        } | null
+    )?.engine;
+    const level = engine?.levels?.[engine.currentLevel ?? -1];
+    playingBandwidth.value = level && !level.height ? (level.bitrate ?? 0) : 0;
+}
+
+/**
  * The quality and language buttons of the control bar carry badges, as the now-playing screen's do. The bar is markup
  * the skin owns, so the badge text goes on the button as an attribute its CSS draws.
  */
@@ -515,7 +530,11 @@ onMounted(() => {
         if (props.nextUp?.length && isFullscreen.value && !nextUpClosed.value) selectNextUp();
         emit("ended");
     });
-    on("timeupdate", () => emit("timeupdate", media.currentTime || 0, media.duration || 0));
+    on("timeupdate", () => {
+        // hls.js says nothing on the element when it moves between bitrates: read with the time, a few times a second.
+        readPlayingBandwidth();
+        emit("timeupdate", media.currentTime || 0, media.duration || 0);
+    });
     on("loadedmetadata", () => {
         readPictureInPicture();
         readPlayingHeight();
@@ -523,7 +542,10 @@ onMounted(() => {
     });
     // A rendition switch changes the picture's size: Auto's badge follows it.
     on("resize", readPlayingHeight);
-    on("emptied", readPlayingHeight);
+    on("emptied", () => {
+        readPlayingHeight();
+        readPlayingBandwidth();
+    });
     on("loadeddata", applyPreferredLanguage);
 
     keepAlive = createKeepAlive(keepAliveEl.value);
@@ -2007,6 +2029,9 @@ defineExpose({
     },
     get playingHeight() {
         return playingHeight.value || undefined;
+    },
+    get playingBandwidth() {
+        return playingBandwidth.value || undefined;
     },
     setMuted,
     setVolume,

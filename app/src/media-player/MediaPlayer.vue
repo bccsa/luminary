@@ -1501,7 +1501,12 @@ const screenChapterMask = computed(() =>
 const screenQualities = computed(() =>
     [...(state.value?.qualities ?? [])]
         .sort((a, b) => (b.height ?? 0) - (a.height ?? 0))
-        .map((quality) => ({ id: quality.id, label: quality.label, height: quality.height })),
+        .map((quality) => ({
+            id: quality.id,
+            label: quality.label,
+            height: quality.height,
+            bandwidth: quality.bandwidth,
+        })),
 );
 const screenTracks = computed(() =>
     (state.value?.audioTracks ?? []).map((track) => ({
@@ -1767,6 +1772,9 @@ const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
             cancel: known("media_player.cancel"),
             closeScrub: known("media_player.close_frames"),
             camera: known("media_player.camera"),
+            backToLine: known("media_player.back_to_line"),
+            speedLabel: known("media_player.speed_label"),
+            sleepLabel: known("media_player.sleep_label"),
             exitFullscreen: known("video_player.exit_fullscreen"),
             allTags: known("media_player.all_tags"),
             noMoreWithTag: known("media_player.no_more_with_tag"),
@@ -1828,7 +1836,8 @@ const lyrics = computed(() => (audioMode.value ? (handle.value?.subtitleCues ?? 
 
 /**
  * Subtitles follow the viewer's last choice: left on once, every video and sound opens with them on, in the language
- * they picked when the new one has it, else the post's own, else its first.
+ * they picked when the new one has it, else the post's own, else its first. Applied again for each angle loaded (the
+ * sound alone is one), since a native player starts every load with subtitles off.
  */
 let automaticId: string | null | undefined;
 let tracksKey = "";
@@ -1836,7 +1845,7 @@ let appliedFor: string | undefined;
 watch(
     () =>
         [
-            item.value?.content._id,
+            `${item.value?.content._id}|${state.value?.activeAngleId ?? ""}`,
             (state.value?.subtitleTracks ?? []).map((t) => t.id).join(),
         ] as const,
     ([id, key]) => {
@@ -1859,12 +1868,15 @@ watch(
         controller.value?.setSubtitleTrack(pick.id);
     },
 );
-/** A change that is not the automatic one above, with the same tracks listed, is the viewer's own. */
+/**
+ * A change that is not the automatic one above, with the same tracks listed in the same angle, is the viewer's own;
+ * a load clearing the subtitles is not.
+ */
 watch(
     () =>
         [
             state.value?.activeSubtitleTrackId ?? null,
-            (state.value?.subtitleTracks ?? []).map((t) => t.id).join(),
+            `${state.value?.activeAngleId ?? ""}|${(state.value?.subtitleTracks ?? []).map((t) => t.id).join()}`,
         ] as const,
     ([active, key]) => {
         const sameTracks = key === tracksKey;
@@ -1874,7 +1886,7 @@ watch(
             automaticId = undefined;
             if (mine) return;
         }
-        if (!sameTracks || !key) return;
+        if (!sameTracks || !state.value?.subtitleTracks.length) return;
         const lang = state.value?.subtitleTracks.find((track) => track.id === active)?.lang;
         subtitlePreference.value = { on: !!active, lang: lang ?? subtitlePreference.value.lang };
     },
@@ -2225,6 +2237,7 @@ function onKeydown(event: KeyboardEvent) {
                     :qualities="screenQualities"
                     :active-quality-id="state?.activeQualityId ?? 'auto'"
                     :playing-height="handle?.playingHeight"
+                    :playing-bandwidth="handle?.playingBandwidth"
                     :audio-tracks="screenTracks"
                     :active-audio-track-id="state?.activeAudioTrackId ?? null"
                     :sleep-timer="sleepTimer"
@@ -2301,7 +2314,7 @@ function onKeydown(event: KeyboardEvent) {
                             type="button"
                             class="lmpl-afs-stripclose"
                             :style="{
-                                '--lmpl-strip-close-max': `calc(100% - ${nowPlayingRoster.bottom + nowPlayingRoster.height + 36}px)`,
+                                '--lmpl-strip-top-from-bottom': `${nowPlayingRoster.bottom + nowPlayingRoster.height}px`,
                             }"
                             :aria-label="known('media_player.close_frames') ?? 'Close the frames'"
                             data-test="mediaPlayerStripClose"
@@ -3276,6 +3289,11 @@ function onKeydown(event: KeyboardEvent) {
                 :subtitle-tracks="state.subtitleTracks"
                 :active-subtitle-track-id="state.activeSubtitleTrackId"
                 :lyrics="lyrics"
+                :qualities="screenQualities"
+                :active-quality-id="state?.activeQualityId ?? 'auto'"
+                :playing-height="handle?.playingHeight"
+                :playing-bandwidth="handle?.playingBandwidth"
+                :data-saver="effectiveDataSaverLevel"
                 fullscreen-active
                 @fullscreen="audioFullscreen = false"
                 @exit="audioFullscreen = false"
@@ -3292,6 +3310,8 @@ function onKeydown(event: KeyboardEvent) {
                 @audio-track="(id: string) => controller?.setAudioTrack(id)"
                 @sleep="setSleep"
                 @subtitle-track="(id: string | null) => controller?.setSubtitleTrack(id)"
+                @quality="(id) => controller?.setQuality(id)"
+                @data-saver="pickDataSaver"
             >
                 <template #audio-tool>
                     <MediaPlayerVolume
@@ -3307,7 +3327,7 @@ function onKeydown(event: KeyboardEvent) {
                     <button
                         v-if="handle?.airPlayAvailable || handle?.castAvailable"
                         type="button"
-                        class="lmpl-afs-iconbtn"
+                        class="lmpl-afs-toolcell"
                         :aria-label="t(isMac ? 'media_player.airplay' : 'media_player.cast')"
                         data-test="mediaPlayerAudioFullscreenCast"
                         @click="
@@ -3316,10 +3336,14 @@ function onKeydown(event: KeyboardEvent) {
                                 : handle?.showCastPicker?.()
                         "
                     >
+                        <span class="lmpl-afs-toolbadge"></span>
                         <PlayerIcon
                             :name="isMac ? 'airplay' : 'cast'"
-                            class="h-[22px] w-[22px]"
+                            class="lmpl-afs-toolglyph"
                         />
+                        <span class="lmpl-afs-toollabel">{{
+                            t(isMac ? "media_player.airplay" : "media_player.cast")
+                        }}</span>
                     </button>
                 </template>
             </AudioFullscreen>

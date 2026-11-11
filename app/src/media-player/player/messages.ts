@@ -141,6 +141,14 @@ export interface PlayerMessages {
     sleepEndOfChapter: string;
     /** What the sleep timer button says while one runs; `{minutes}` is the minutes left. */
     sleepLeft: string;
+    /** The word under the speed tool; its name for a screen reader stays `speedLabel`. */
+    speedShort: string;
+    /** The word under the sleep tool; its name for a screen reader stays `sleepTimer`. */
+    sleepShort: string;
+    /** The word under the browse tool when the item has no chapters. */
+    more: string;
+    /** Name of the arrow that takes the lyrics back to the line being said. */
+    backToLine: string;
 }
 
 /** Built-in English strings. Merged under any partial the host supplies. */
@@ -207,6 +215,10 @@ export const DEFAULT_MESSAGES: PlayerMessages = {
     sleepMinutes: "{minutes} minutes",
     sleepEndOfChapter: "End of chapter",
     sleepLeft: "{minutes} min left",
+    speedShort: "Speed",
+    sleepShort: "Sleep",
+    more: "More",
+    backToLine: "Back to the current line",
 };
 
 /**

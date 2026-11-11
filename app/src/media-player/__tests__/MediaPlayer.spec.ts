@@ -1641,6 +1641,20 @@ describe("MediaPlayer", () => {
             expect(subtitlePreference.value).toEqual({ on: false, lang: "fr" });
         });
 
+        it("puts the subtitles back when a load of the sound alone clears them, and keeps the viewer's choice", async () => {
+            subtitlePreference.value = { on: true, lang: "fr" };
+            await playing();
+            engine.state.activeSubtitleTrackId = "sub-fr";
+            await flushPromises();
+            engine.controller.setSubtitleTrack.mockClear();
+            // A native player starts every load with the subtitles off.
+            engine.state.activeAngleId = "__audio__";
+            engine.state.activeSubtitleTrackId = null;
+            await flushPromises();
+            expect(subtitlePreference.value).toEqual({ on: true, lang: "fr" });
+            expect(engine.controller.setSubtitleTrack).toHaveBeenLastCalledWith("sub-fr");
+        });
+
         it("leaves the subtitles the viewer chose alone", async () => {
             const wrapper = await playing();
             engine.state.activeSubtitleTrackId = "sub-fr";

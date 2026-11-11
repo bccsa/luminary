@@ -173,22 +173,31 @@ describe("the now-playing view for a host", () => {
     });
 
     describe("with sound alone", () => {
-        it("shows the line being said under the cover, and the scrolling lyrics in its place when expanded", async () => {
+        it("shows the line being said on the cover, and the scrolling lyrics in its place when expanded", async () => {
             const tracks = [{ id: "en", label: "English" }];
             const wrapper = mountView({
                 lyrics,
                 subtitleTracks: tracks,
                 activeSubtitleTrackId: null,
             });
-            expect(find(wrapper, "afsCueLine").exists()).toBe(false);
+            expect(find(wrapper, "afsCoverCue").exists()).toBe(false);
             await wrapper.setProps({ activeSubtitleTrackId: "en" });
-            expect(find(wrapper, "afsCueLine").exists()).toBe(true);
+            // On the cover itself, in the picture's place, with the button that opens the lyrics.
+            const onCover = find(wrapper, "afsStage").find("[data-test='afsCoverCue']");
+            expect(onCover.exists()).toBe(true);
+            expect(onCover.find("[data-test='afsCue']").exists()).toBe(true);
+            expect(onCover.find("[data-test='afsLyricsExpand']").attributes("aria-pressed")).toBe(
+                "false",
+            );
             expect(find(wrapper, "afsCover").exists()).toBe(true);
             expect(find(wrapper, "afsLyrics").exists()).toBe(false);
 
             await find(wrapper, "afsLyricsExpand").trigger("click");
             expect(find(wrapper, "afsLyrics").exists()).toBe(true);
             expect(find(wrapper, "afsCover").exists()).toBe(false);
+            // Open, the words leave the cover's place to the list, and the same button puts them away.
+            expect(find(wrapper, "afsCue").exists()).toBe(false);
+            expect(find(wrapper, "afsLyricsExpand").attributes("aria-pressed")).toBe("true");
 
             await find(wrapper, "afsLyrics").findAll("[data-lyric]")[0]!.trigger("click");
             expect(wrapper.emitted("seek")).toEqual([[10]]);
@@ -240,9 +249,9 @@ describe("the now-playing view for a host", () => {
 
             // The French words on their way: the line waits for them.
             await wrapper.setProps({ lyrics: [], activeSubtitleTrackId: "fr" });
-            expect(find(wrapper, "afsCueLine").exists()).toBe(false);
+            expect(find(wrapper, "afsCoverCue").exists()).toBe(false);
             await wrapper.setProps({ lyrics });
-            expect(find(wrapper, "afsCueLine").exists()).toBe(true);
+            expect(find(wrapper, "afsCoverCue").exists()).toBe(true);
         });
 
         it("turns the lyrics off from the same menu", async () => {
