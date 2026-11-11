@@ -1669,6 +1669,8 @@
     row-gap: 0;
 }
 
+
+
 .lmpl-afs-timeline > .lmpl-afs-bar {
     grid-column: 1 / -1;
     grid-row: 1;
@@ -2238,6 +2240,10 @@
  * whenever sound and picture are switched.
  */
 @container lmpl-afs (max-aspect-ratio: 6/5) {
+    .lmpl-afs-video.lmpl-afs-live .lmpl-afs-timeline {
+        display: none;
+   }
+    
     .lmpl-afs-main {
         justify-content: space-evenly;
     }

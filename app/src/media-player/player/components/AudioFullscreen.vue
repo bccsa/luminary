@@ -598,6 +598,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
             `lmpl-afs-${appearance}`,
             {
                 'lmpl-afs-video': isVideo,
+                'lmpl-afs-live': isLive,
                 'lmpl-afs-fill': fill && isVideo,
                 'lmpl-afs-hole': isVideo && stageHole,
                 'lmpl-afs-captions': isVideo && captionBand,
