@@ -98,7 +98,9 @@ class FakeClause<T extends Record<string, any>> {
     startsWith(prefix: string) {
         this.setOp("startsWith");
         return new FakeCollection(
-            this.v.filter((d) => typeof d[this.field] === "string" && d[this.field].startsWith(prefix)),
+            this.v.filter(
+                (d) => typeof d[this.field] === "string" && d[this.field].startsWith(prefix),
+            ),
         );
     }
     between(lower: any, upper: any, includeLower = true, includeUpper = false) {
@@ -120,10 +122,18 @@ class FakeTable<T extends Record<string, any>> {
     public lastWhereArg?: Record<string, any>;
     public lastWhereField?: string;
     public lastClauseOp?: string;
-    public lastBetweenArgs?: { lower: any; upper: any; includeLower: boolean; includeUpper: boolean };
+    public lastBetweenArgs?: {
+        lower: any;
+        upper: any;
+        includeLower: boolean;
+        includeUpper: boolean;
+    };
     public lastBulkGetKeys?: any[];
     public schema: { primKey: { keyPath: string }; indexes: Array<{ keyPath: string | string[] }> };
-    constructor(public data: T[], primaryKey = "id") {
+    constructor(
+        public data: T[],
+        primaryKey = "id",
+    ) {
         // Collect all unique field names from data to simulate "all fields indexed"
         const fieldSet = new Set<string>();
         for (const row of data) {
@@ -197,7 +207,7 @@ describe("mangoToDexie", () => {
             // Add compound index for the multiEq pushdown on [a, b, c]
             table.schema.indexes.push({ keyPath: ["a", "b", "c"] });
             const query = { selector: { a: 1, b: "x", $and: [{ c: 3 }, { active: true }] } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastWhereArg).toEqual({ a: 1, b: "x", c: 3 });
             expect(res.map((d) => d.id)).toEqual([1]);
@@ -212,7 +222,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { name: "Alice", active: true } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastWhereArg).toEqual({ name: "Alice" });
             expect(res.map((d) => d.id)).toEqual([1]);
@@ -233,7 +243,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { a: { $in: [1, 2] }, d: { $gt: 5 } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastWhereField).toBe("a");
             expect(table.lastClauseOp).toBe("anyOf");
@@ -249,7 +259,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { status: { $in: [1, 2, 3], $gte: 2 } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastWhereField).toBe("status");
             expect(table.lastClauseOp).toBe("anyOf");
@@ -270,7 +280,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { id: { $in: [1, 3] } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastBulkGetKeys).toEqual([1, 3]);
             expect(table.lastWhereField).toBeUndefined();
@@ -285,7 +295,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { id: { $in: [1, 2, 3] }, active: true } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastBulkGetKeys).toEqual([1, 2, 3]);
             expect(res.map((d) => d.id)).toEqual([1, 3]);
@@ -298,7 +308,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { id: { $in: [1, 2, 3] } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastBulkGetKeys).toEqual([1, 2, 3]);
             expect(res.map((d) => d.id)).toEqual([1, 3]);
@@ -315,7 +325,7 @@ describe("mangoToDexie", () => {
                 selector: { id: { $in: [1, 2, 3] } },
                 $sort: [{ age: "asc" }],
             };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastBulkGetKeys).toEqual([1, 2, 3]);
             expect(res.map((d) => d.id)).toEqual([2, 3, 1]);
@@ -332,7 +342,7 @@ describe("mangoToDexie", () => {
                 selector: { id: { $in: [1, 2, 3] } },
                 $sort: [{ age: "desc" }],
             };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastBulkGetKeys).toEqual([1, 2, 3]);
             expect(res.map((d) => d.id)).toEqual([1, 3, 2]);
@@ -346,7 +356,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { id: { $in: [1, 2, 3] } }, $limit: 2 };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastBulkGetKeys).toEqual([1, 2, 3]);
             expect(res).toHaveLength(2);
@@ -364,7 +374,7 @@ describe("mangoToDexie", () => {
                 $sort: [{ age: "asc" }],
                 $limit: 2,
             };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastBulkGetKeys).toEqual([1, 2, 3]);
             expect(res.map((d) => d.id)).toEqual([2, 3]);
@@ -379,7 +389,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { a: { $in: [1, 2] } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastBulkGetKeys).toBeUndefined();
             expect(table.lastWhereField).toBe("a");
@@ -388,12 +398,10 @@ describe("mangoToDexie", () => {
         });
 
         it("short-circuits an empty $in (provably empty) without touching the table", async () => {
-            const docs: Doc[] = [
-                { id: 1, name: "Alice" },
-            ];
+            const docs: Doc[] = [{ id: 1, name: "Alice" }];
             const table = new FakeTable(docs);
             const query = { selector: { id: { $in: [] } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res).toHaveLength(0);
             // isProvablyEmpty returns [] before any bulkGet / where clause runs.
@@ -415,7 +423,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { age: { $gte: 30 } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastWhereField).toBe("age");
             expect(table.lastClauseOp).toBe("aboveOrEqual");
@@ -430,7 +438,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { age: { $gt: 20 } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastClauseOp).toBe("above");
             expect(res.map((d) => d.id)).toEqual([2, 3]);
@@ -444,7 +452,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { age: { $lt: 30 } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastClauseOp).toBe("below");
             expect(res.map((d) => d.id)).toEqual([1]);
@@ -458,7 +466,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { age: { $lte: 30 } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastClauseOp).toBe("belowOrEqual");
             expect(res.map((d) => d.id)).toEqual([1, 2]);
@@ -472,7 +480,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { name: { $ne: "Bob" } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastClauseOp).toBe("notEqual");
             expect(res.map((d) => d.id)).toEqual([1, 3]);
@@ -513,7 +521,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { name: { $eq: "Alice" } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             // multiEq is preferred over single equals, both are functionally equivalent
             expect(table.lastWhereArg).toEqual({ name: "Alice" });
@@ -535,7 +543,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { title: { $beginsWith: "The " } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastWhereField).toBe("title");
             expect(table.lastClauseOp).toBe("startsWith");
@@ -550,7 +558,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { title: { $beginsWith: "The " }, score: { $gte: 80 } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastClauseOp).toBe("startsWith");
             expect(res.map((d) => d.id)).toEqual([1, 2]);
@@ -572,7 +580,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { score: { $gte: 70, $lte: 90 } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastWhereField).toBe("score");
             expect(table.lastClauseOp).toBe("between");
@@ -593,7 +601,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { score: { $gt: 70, $lt: 90 } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastClauseOp).toBe("between");
             expect(table.lastBetweenArgs).toEqual({
@@ -613,7 +621,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { score: { $gte: 70, $lt: 90 } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(table.lastBetweenArgs).toEqual({
                 lower: 70,
@@ -643,7 +651,7 @@ describe("mangoToDexie", () => {
                 $sort: [{ age: "desc" }],
                 $limit: 1,
             };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([2]);
         });
@@ -659,7 +667,7 @@ describe("mangoToDexie", () => {
                 selector: {},
                 $sort: [{ age: "asc" }],
             };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([2, 1, 3]);
         });
@@ -675,7 +683,7 @@ describe("mangoToDexie", () => {
                 selector: {},
                 $sort: [{ age: "desc" }],
             };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([3, 1, 2]);
         });
@@ -692,7 +700,7 @@ describe("mangoToDexie", () => {
                 selector: { name: "Alice" },
                 $sort: [{ age: "asc" }],
             };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             // Should use pushdown for name="Alice", then sort by age
             expect(table.lastWhereArg).toEqual({ name: "Alice" });
@@ -713,7 +721,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { $or: [{ name: "Alice" }, { name: "Charlie" }] } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             // No pushdown for $or
             expect(table.lastWhereArg).toBeUndefined();
@@ -728,7 +736,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { $not: { name: "Alice" } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([2]);
         });
@@ -741,7 +749,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { $nor: [{ name: "Alice" }, { name: "Bob" }] } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([3]);
         });
@@ -754,20 +762,16 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { status: { $nin: [1, 2] } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([3]);
         });
 
         it("handles $exists in memory", async () => {
-            const docs: Doc[] = [
-                { id: 1, name: "Alice" },
-                { id: 2 },
-                { id: 3, name: "Charlie" },
-            ];
+            const docs: Doc[] = [{ id: 1, name: "Alice" }, { id: 2 }, { id: 3, name: "Charlie" }];
             const table = new FakeTable(docs);
             const query = { selector: { name: { $exists: true } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([1, 3]);
         });
@@ -780,7 +784,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { a: { $type: "number" } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([1, 3]);
         });
@@ -793,7 +797,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { name: { $regex: "^Ali" } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([1, 3]);
         });
@@ -807,7 +811,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { a: { $mod: [10, 1] } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([2, 4]);
         });
@@ -820,7 +824,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { tags: { $size: 2 } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([2]);
         });
@@ -833,7 +837,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { tags: { $all: ["a", "b"] } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([1, 3]);
         });
@@ -845,7 +849,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { tags: { $elemMatch: { $eq: "horror" } } } };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([1]);
         });
@@ -871,7 +875,7 @@ describe("mangoToDexie", () => {
                     active: true,
                 },
             };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             // Should push type: "post" as multiEq, filter the rest in memory
             expect(res.map((d) => d.id)).toEqual([1, 2]);
@@ -886,7 +890,7 @@ describe("mangoToDexie", () => {
             ];
             const table = new FakeTable(docs);
             const query = { selector: { a: 1 }, $limit: 2 };
-            const res = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             expect(res).toHaveLength(2);
         });
@@ -961,10 +965,10 @@ describe("mangoToDexie", () => {
             const query = { selector: { name: "Alice", score: { $gte: 80 } } };
 
             // First call
-            const res1 = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res1 = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             // Second call (from cache)
-            const res2 = await mangoToDexie(table as any, query as any) as unknown as Doc[];
+            const res2 = (await mangoToDexie(table as any, query as any)) as unknown as Doc[];
 
             // Both should return the same results
             expect(res1.map((d) => d.id)).toEqual([1]);
@@ -1100,14 +1104,15 @@ describe("mangoToDexie", () => {
             const table = tableWithIndexes(docs, ["name"]); // status is NOT indexed
             const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-            const res = (await mangoToDexie(table as any, {
-                selector: { status: 1 },
-            } as any)) as unknown as Doc[];
+            const res = (await mangoToDexie(
+                table as any,
+                {
+                    selector: { status: 1 },
+                } as any,
+            )) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([1]);
-            expect(warnSpy).toHaveBeenCalledWith(
-                expect.stringContaining("Missing index"),
-            );
+            expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Missing index"));
             expect(warnSpy).toHaveBeenCalledWith(
                 expect.stringContaining("Falling back to full table scan"),
             );
@@ -1123,9 +1128,12 @@ describe("mangoToDexie", () => {
             const table = tableWithIndexes(docs, ["name"]);
             const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-            const res = (await mangoToDexie(table as any, {
-                selector: { name: "Alice" },
-            } as any)) as unknown as Doc[];
+            const res = (await mangoToDexie(
+                table as any,
+                {
+                    selector: { name: "Alice" },
+                } as any,
+            )) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([1]);
             expect(warnSpy).not.toHaveBeenCalled();
@@ -1142,14 +1150,15 @@ describe("mangoToDexie", () => {
             const table = tableWithIndexes(docs, ["status", "type"]);
             const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-            const res = (await mangoToDexie(table as any, {
-                selector: { status: 1, type: "post" },
-            } as any)) as unknown as Doc[];
+            const res = (await mangoToDexie(
+                table as any,
+                {
+                    selector: { status: 1, type: "post" },
+                } as any,
+            )) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([1]);
-            expect(warnSpy).toHaveBeenCalledWith(
-                expect.stringContaining("Consider adding index"),
-            );
+            expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Consider adding index"));
 
             warnSpy.mockRestore();
         });
@@ -1162,9 +1171,12 @@ describe("mangoToDexie", () => {
             const table = tableWithIndexes(docs, [["status", "type"]]);
             const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-            const res = (await mangoToDexie(table as any, {
-                selector: { status: 1, type: "post" },
-            } as any)) as unknown as Doc[];
+            const res = (await mangoToDexie(
+                table as any,
+                {
+                    selector: { status: 1, type: "post" },
+                } as any,
+            )) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([1]);
             expect(warnSpy).not.toHaveBeenCalled();
@@ -1181,9 +1193,12 @@ describe("mangoToDexie", () => {
             const table = tableWithIndexes(docs, []); // no indexes at all
             const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-            const res = (await mangoToDexie(table as any, {
-                selector: { status: 1 },
-            } as any)) as unknown as Doc[];
+            const res = (await mangoToDexie(
+                table as any,
+                {
+                    selector: { status: 1 },
+                } as any,
+            )) as unknown as Doc[];
 
             expect(res.map((d) => d.id)).toEqual([1, 2]);
             expect(warnSpy).toHaveBeenCalled();
@@ -1219,9 +1234,7 @@ describe("mangoToDexie", () => {
             const dexieBenefitWarning =
                 'The query {"type":"post","postType":"blog"} on docs ' +
                 "would benefit from a compound index [type+postType]";
-            expect(INDEXING_WARNING_PATTERNS.some((p) => p.test(dexieBenefitWarning))).toBe(
-                true,
-            );
+            expect(INDEXING_WARNING_PATTERNS.some((p) => p.test(dexieBenefitWarning))).toBe(true);
         });
     });
 });

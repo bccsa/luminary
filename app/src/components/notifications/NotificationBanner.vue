@@ -81,10 +81,7 @@ const handleNotificationClick = (notification: Notification) => {
             :data-notification-id="notification.id"
         >
             <div class="banner-grid-content">
-                <div
-                    class="mb-4 rounded-lg text-zinc-900"
-                    :class="color"
-                >
+                <div class="mb-4 rounded-lg text-zinc-900" :class="color">
                     <div
                         class="flex items-center justify-between px-3 py-3"
                         @click="() => handleNotificationClick(notification)"
@@ -106,20 +103,12 @@ const handleNotificationClick = (notification: Notification) => {
                             class="flex w-full items-center gap-2"
                             :class="{ 'cursor-pointer': notification.link }"
                         >
-                            <component
-                                :is="icon"
-                                class="h-5 w-5 min-w-5"
-                            />
+                            <component :is="icon" class="h-5 w-5 min-w-5" />
                             <div class="flex flex-col md:inline-block md:align-middle">
-                                <span
-                                    v-if="title"
-                                    class="text-md font-medium md:text-sm"
-                                    >{{ title }}</span
-                                >
-                                <span
-                                    v-if="description"
-                                    class="text-xs md:ml-3"
-                                >
+                                <span v-if="title" class="text-md font-medium md:text-sm">{{
+                                    title
+                                }}</span>
+                                <span v-if="description" class="text-xs md:ml-3">
                                     {{ description }}
                                 </span>
                             </div>
@@ -138,10 +127,7 @@ const handleNotificationClick = (notification: Notification) => {
                             v-if="notification.closable"
                         >
                             <span class="sr-only">Close</span>
-                            <XMarkIcon
-                                class="h-5 w-5"
-                                aria-hidden="true"
-                            />
+                            <XMarkIcon class="h-5 w-5" aria-hidden="true" />
                         </button>
                     </div>
                 </div>

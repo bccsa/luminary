@@ -102,10 +102,7 @@ const imageStyle = computed(() => {
             aria-hidden="true"
             data-test="mediaPlayerChapterFrame"
         >
-            <span
-                class="block"
-                :style="imageStyle"
-            />
+            <span class="block" :style="imageStyle" />
             <span
                 v-if="progress !== undefined"
                 class="absolute bottom-0 left-0 h-[3px] bg-white"

@@ -68,25 +68,11 @@ const boxStyle = computed(() => {
 </script>
 
 <template>
-    <div
-        class="lmpl-thumb"
-        aria-hidden="true"
-    >
-        <div
-            v-if="cue"
-            class="lmpl-thumb-box"
-            :style="boxStyle"
-        >
-            <div
-                class="lmpl-thumb-frame"
-                :style="frameStyle"
-            ></div>
+    <div class="lmpl-thumb" aria-hidden="true">
+        <div v-if="cue" class="lmpl-thumb-box" :style="boxStyle">
+            <div class="lmpl-thumb-frame" :style="frameStyle"></div>
         </div>
         <span class="lmpl-thumb-time">{{ label }}</span>
-        <span
-            v-if="chapter"
-            class="lmpl-thumb-chapter"
-            >{{ chapter }}</span
-        >
+        <span v-if="chapter" class="lmpl-thumb-chapter">{{ chapter }}</span>
     </div>
 </template>

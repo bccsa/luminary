@@ -33,10 +33,7 @@ describe("scale-invariant ranking", () => {
     it("affinityScoreScale is a no-op at the nominal completion weight", () => {
         expect(affinityScoreScale(NOMINAL_COMPLETION_WEIGHT)).toBe(1);
         // A 100x smaller completion weight (the rescaled default) maps back x100.
-        expect(affinityScoreScale(NOMINAL_COMPLETION_WEIGHT / 100)).toBeCloseTo(
-            100,
-            10,
-        );
+        expect(affinityScoreScale(NOMINAL_COMPLETION_WEIGHT / 100)).toBeCloseTo(100, 10);
     });
 
     it("affinityScoreScale falls back to a neutral scale for a non-positive completion weight", () => {
@@ -55,11 +52,7 @@ describe("scale-invariant ranking", () => {
             1, // nominal scale (default config)
         );
         // Same engagement profile expressed on the 100x finer scale, normalized back x100.
-        const richnessRescaled = computeRichness(
-            { [TAG_A]: 0.004, [TAG_B]: 0.002 },
-            tags,
-            100,
-        );
+        const richnessRescaled = computeRichness({ [TAG_A]: 0.004, [TAG_B]: 0.002 }, tags, 100);
         expect(richnessRescaled).toBeCloseTo(richnessNominal, 10);
         expect(richnessNominal).toBeCloseTo(0.3, 10); // mean(0.4,0.2)
     });
@@ -73,18 +66,28 @@ describe("scale-invariant ranking", () => {
         const topicTagIds = new Set([TAG_A, TAG_B]);
 
         // Nominal: scores on the 0-1 scale, no scoreScale (default config).
-        const nominal = rank(candidates, [], { [TAG_A]: 0.5, [TAG_B]: 0.2 }, {
-            topicTagIds,
-            scoreScale: 1,
-            limit: 3,
-        }).map((d) => d._id);
+        const nominal = rank(
+            candidates,
+            [],
+            { [TAG_A]: 0.5, [TAG_B]: 0.2 },
+            {
+                topicTagIds,
+                scoreScale: 1,
+                limit: 3,
+            },
+        ).map((d) => d._id);
 
         // Rescaled: same relative engagement on the 100x finer scale, normalized back x100.
-        const rescaled = rank(candidates, [], { [TAG_A]: 0.005, [TAG_B]: 0.002 }, {
-            topicTagIds,
-            scoreScale: 100,
-            limit: 3,
-        }).map((d) => d._id);
+        const rescaled = rank(
+            candidates,
+            [],
+            { [TAG_A]: 0.005, [TAG_B]: 0.002 },
+            {
+                topicTagIds,
+                scoreScale: 100,
+                limit: 3,
+            },
+        ).map((d) => d._id);
 
         expect(rescaled).toEqual(nominal);
         // tagAffinity = 0.5*max + 0.5*mean, so the single strong tag (a-only) outranks the

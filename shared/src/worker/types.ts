@@ -35,5 +35,4 @@ export type WorkerCancelMessage = { kind: "cancel"; id: number };
 export type WorkerMessage = WorkerInitMessage | WorkerRunMessage | WorkerCancelMessage;
 
 export type WorkerResponse =
-    | { id: number; ok: true; result: unknown }
-    | { id: number; ok: false; error: string };
+    { id: number; ok: true; result: unknown } | { id: number; ok: false; error: string };

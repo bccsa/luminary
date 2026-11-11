@@ -617,11 +617,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
         @click="onClick"
     >
         <!-- The picture, blurred, as the screen's colour: lighter in `light`, darker in `dark`. -->
-        <div
-            class="lmpl-afs-bg"
-            :class="{ 'lmpl-afs-bg-hash': wash }"
-            aria-hidden="true"
-        >
+        <div class="lmpl-afs-bg" :class="{ 'lmpl-afs-bg-hash': wash }" aria-hidden="true">
             <img
                 v-if="washSrc"
                 class="lmpl-afs-wash"
@@ -689,24 +685,14 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                     data-test="afsCloseFullscreen"
                     @click="emit('fullscreen')"
                 >
-                    <media-icon
-                        name="close"
-                        class="media-button-icon"
-                    ></media-icon>
+                    <media-icon name="close" class="media-button-icon"></media-icon>
                 </button>
             </div>
-            <span
-                v-else
-                class="lmpl-afs-iconbtn lmpl-afs-spacer"
-                aria-hidden="true"
-            ></span>
+            <span v-else class="lmpl-afs-iconbtn lmpl-afs-spacer" aria-hidden="true"></span>
         </div>
 
         <div class="lmpl-afs-main">
-            <div
-                class="lmpl-afs-artwrap"
-                :class="{ 'lmpl-afs-artwrap-lyrics': lyricsInStage }"
-            >
+            <div class="lmpl-afs-artwrap" :class="{ 'lmpl-afs-artwrap-lyrics': lyricsInStage }">
                 <div
                     ref="stageEl"
                     class="lmpl-afs-art"
@@ -722,11 +708,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                     >
                         <slot name="stage"></slot>
                     </div>
-                    <p
-                        v-if="isVideo && caption"
-                        class="lmpl-afs-caption"
-                        data-test="afsCaption"
-                    >
+                    <p v-if="isVideo && caption" class="lmpl-afs-caption" data-test="afsCaption">
                         {{ caption }}
                     </p>
                     <!-- A drag along the picture's foot scrubs like the bar, for a thumb that lands short of it. Not
@@ -765,27 +747,15 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                         class="lmpl-afs-cover lmpl-afs-cover-empty"
                         aria-hidden="true"
                     >
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="40%"
-                            height="40%"
-                            fill="currentColor"
-                        >
+                        <svg viewBox="0 0 24 24" width="40%" height="40%" fill="currentColor">
                             <path
                                 d="M19.952 1.651a.75.75 0 0 1 .298.599V16.303a3 3 0 0 1-2.176 2.884l-1.32.377a2.553 2.553 0 1 1-1.403-4.909l2.311-.66a1.5 1.5 0 0 0 1.088-1.442V6.994l-9 2.572v9.737a3 3 0 0 1-2.176 2.884l-1.32.377a2.553 2.553 0 1 1-1.403-4.909l2.311-.66a1.5 1.5 0 0 0 1.088-1.442V5.25a.75.75 0 0 1 .544-.721l10.5-3a.75.75 0 0 1 .658.122Z"
                             />
                         </svg>
                     </div>
                 </div>
-                <div
-                    v-if="lyricsOn"
-                    class="lmpl-afs-cueline"
-                    data-test="afsCueLine"
-                >
-                    <span
-                        class="lmpl-afs-cuegap"
-                        aria-hidden="true"
-                    ></span>
+                <div v-if="lyricsOn" class="lmpl-afs-cueline" data-test="afsCueLine">
+                    <span class="lmpl-afs-cuegap" aria-hidden="true"></span>
                     <p
                         class="lmpl-afs-cue"
                         data-test="afsCue"
@@ -826,16 +796,10 @@ const washSrc = computed(() => props.wash || cover.value?.src);
 
             <div class="lmpl-afs-info">
                 <div class="lmpl-afs-titles">
-                    <h2
-                        class="lmpl-afs-title"
-                        data-test="afsTitle"
-                    >
+                    <h2 class="lmpl-afs-title" data-test="afsTitle">
                         {{ title }}
                     </h2>
-                    <p
-                        v-if="subtitle"
-                        class="lmpl-afs-subtitle"
-                    >
+                    <p v-if="subtitle" class="lmpl-afs-subtitle">
                         {{ subtitle }}
                     </p>
                     <span
@@ -850,10 +814,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                         · {{ chapters[chapterIndex]?.title }}
                     </span>
                     <!-- Under the title, the host's own way on from what plays (back to its page, say). -->
-                    <div
-                        v-if="slots['under-title'] || pictureTools"
-                        class="lmpl-afs-undertitle"
-                    >
+                    <div v-if="slots['under-title'] || pictureTools" class="lmpl-afs-undertitle">
                         <slot name="under-title"></slot>
                         <!-- What acts on the picture, on the right just above the seek bar: in the thumb's reach, out of the tools' row. -->
                         <div
@@ -870,10 +831,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                 data-lmpl-press="activation"
                                 @click="emit('picture-in-picture')"
                             >
-                                <media-icon
-                                    name="pip-enter"
-                                    class="media-button-icon"
-                                ></media-icon>
+                                <media-icon name="pip-enter" class="media-button-icon"></media-icon>
                             </button>
                             <button
                                 v-if="(isVideo || fullscreenTool) && !fullscreenActive"
@@ -934,12 +892,9 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                 ></div>
                             </div>
                         </div>
-                        <span
-                            v-if="isLive"
-                            class="lmpl-time lmpl-afs-live"
-                            data-test="afsLive"
-                            >{{ messages.live }}</span
-                        >
+                        <span v-if="isLive" class="lmpl-time lmpl-afs-live" data-test="afsLive">{{
+                            messages.live
+                        }}</span>
                         <span
                             v-else
                             class="lmpl-time lmpl-time-end"
@@ -1043,10 +998,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                             ></button>
                         </div>
 
-                        <div
-                            class="lmpl-afs-tools"
-                            data-afs-tools
-                        >
+                        <div class="lmpl-afs-tools" data-afs-tools>
                             <div class="lmpl-afs-tool">
                                 <button
                                     type="button"
@@ -1057,15 +1009,10 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                     data-test="afsSpeed"
                                     @click="toggleMenu('speed')"
                                 >
-                                    <media-icon
-                                        name="speed"
-                                        class="media-button-icon"
-                                    ></media-icon>
-                                    <span
-                                        v-if="playbackRate !== 1"
-                                        class="lmpl-afs-badge"
-                                        >{{ speedText(playbackRate) }}</span
-                                    >
+                                    <media-icon name="speed" class="media-button-icon"></media-icon>
+                                    <span v-if="playbackRate !== 1" class="lmpl-afs-badge">{{
+                                        speedText(playbackRate)
+                                    }}</span>
                                 </button>
                                 <div
                                     v-if="menu === 'speed'"
@@ -1144,10 +1091,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                 </div>
                             </div>
 
-                            <div
-                                v-if="audioTracks.length > 1"
-                                class="lmpl-afs-tool"
-                            >
+                            <div v-if="audioTracks.length > 1" class="lmpl-afs-tool">
                                 <button
                                     type="button"
                                     class="lmpl-afs-iconbtn"
@@ -1182,10 +1126,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                 </div>
                             </div>
 
-                            <div
-                                v-if="!isVideo"
-                                class="lmpl-afs-tool"
-                            >
+                            <div v-if="!isVideo" class="lmpl-afs-tool">
                                 <button
                                     type="button"
                                     class="lmpl-afs-iconbtn"
@@ -1259,10 +1200,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                 </div>
                             </div>
 
-                            <div
-                                v-if="!isVideo && subtitleTracks.length > 0"
-                                class="lmpl-afs-tool"
-                            >
+                            <div v-if="!isVideo && subtitleTracks.length > 0" class="lmpl-afs-tool">
                                 <button
                                     type="button"
                                     class="lmpl-afs-iconbtn"
@@ -1285,11 +1223,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                         aria-hidden="true"
                                     >
                                         <path d="M4 6h16M4 10h10M4 14h16M4 18h7" />
-                                        <circle
-                                            cx="18"
-                                            cy="18"
-                                            r="2"
-                                        />
+                                        <circle cx="18" cy="18" r="2" />
                                     </svg>
                                 </button>
                                 <div
@@ -1322,10 +1256,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                 </div>
                             </div>
 
-                            <div
-                                v-if="isVideo && subtitleTracks.length > 0"
-                                class="lmpl-afs-tool"
-                            >
+                            <div v-if="isVideo && subtitleTracks.length > 0" class="lmpl-afs-tool">
                                 <button
                                     type="button"
                                     class="lmpl-afs-iconbtn"

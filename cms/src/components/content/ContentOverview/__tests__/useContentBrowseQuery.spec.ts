@@ -296,7 +296,9 @@ describe("useContentBrowseQuery", () => {
                 contentDoc({ _id: "mid", updatedTimeUtc: 200 }),
             ]);
 
-            const asc = await run(baseOptions({ orderBy: "updatedTimeUtc", orderDirection: "asc" }));
+            const asc = await run(
+                baseOptions({ orderBy: "updatedTimeUtc", orderDirection: "asc" }),
+            );
             await waitForExpect(() => {
                 expect(asc.api.docs.value.map((d) => d._id)).toEqual(["old", "mid", "new"]);
             });

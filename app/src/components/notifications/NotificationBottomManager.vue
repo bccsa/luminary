@@ -14,15 +14,9 @@ const firstBanner = computed(() => {
 </script>
 
 <template>
-    <div
-        aria-live="assertive"
-        class="sticky inset-x-0 flex items-end sm:items-start"
-    >
+    <div aria-live="assertive" class="sticky inset-x-0 flex items-end sm:items-start">
         <div class="w-full">
-            <Transition
-                name="bottom-banner"
-                mode="out-in"
-            >
+            <Transition name="bottom-banner" mode="out-in">
                 <!-- pb: stays above the overlaying mobile menu; only occupies that
                      space while a banner is actually showing. -->
                 <div

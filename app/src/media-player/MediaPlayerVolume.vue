@@ -41,10 +41,7 @@ const level = () => (props.muted ? 0 : props.volume);
             data-test="mediaPlayerVolumeMute"
             @click="emit('mute', !muted)"
         >
-            <PlayerIcon
-                :name="muted ? 'volumeOff' : 'volumeHigh'"
-                class="h-6 w-6"
-            />
+            <PlayerIcon :name="muted ? 'volumeOff' : 'volumeHigh'" class="h-6 w-6" />
         </button>
         <!-- Padded below rather than spaced off, so the pointer crossing to the card stays over the tool. -->
         <div

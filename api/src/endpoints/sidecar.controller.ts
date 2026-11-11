@@ -60,12 +60,18 @@ export class SidecarController {
         const readGate = this.rateLimiter.checkRead(identityKey);
         if (!readGate.allowed) {
             reply.header("Retry-After", String(Math.ceil(readGate.retryAfterMs / 1000)));
-            throw new HttpException("Too many key requests; retry later", HttpStatus.TOO_MANY_REQUESTS);
+            throw new HttpException(
+                "Too many key requests; retry later",
+                HttpStatus.TOO_MANY_REQUESTS,
+            );
         }
         const probeGate = this.rateLimiter.checkProbe(identityKey);
         if (!probeGate.allowed) {
             reply.header("Retry-After", String(Math.ceil(probeGate.retryAfterMs / 1000)));
-            throw new HttpException("Too many failed requests; retry later", HttpStatus.TOO_MANY_REQUESTS);
+            throw new HttpException(
+                "Too many failed requests; retry later",
+                HttpStatus.TOO_MANY_REQUESTS,
+            );
         }
 
         // 403/404 below are the probe limiter's target (parent-id / permission probing); 400 and

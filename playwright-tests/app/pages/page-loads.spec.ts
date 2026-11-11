@@ -35,9 +35,7 @@ async function expectPageLoaded(page: Page, route: AppRoute) {
             // Feeds may legitimately be empty (the local seed has no videos).
             // The desktop sidebar uses custom RouterLinks without aria-current.
             // The URL and completed render state above establish the active route.
-            await expect(
-                page.locator(`a[href="${route}"]:visible`).first(),
-            ).toBeVisible();
+            await expect(page.locator(`a[href="${route}"]:visible`).first()).toBeVisible();
     }
 }
 

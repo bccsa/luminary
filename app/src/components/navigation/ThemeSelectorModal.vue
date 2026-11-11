@@ -18,11 +18,7 @@ const emit = defineEmits(["close"]);
 </script>
 
 <template>
-    <LModal
-        :heading="t('select_theme.title')"
-        :is-visible="isVisible"
-        @close="emit('close')"
-    >
+    <LModal :heading="t('select_theme.title')" :is-visible="isVisible" @close="emit('close')">
         <div class="divide-y divide-zinc-200 dark:divide-slate-600">
             <button
                 class="flex h-10 w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"

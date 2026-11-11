@@ -338,10 +338,7 @@ const sidebarNavigation = computed(() =>
     </button>
 
     <!-- Shared slide-in panel (avatar + bars triggers only) -->
-    <LSidePanel
-        v-if="trigger !== 'sidebar'"
-        v-model:open="menuOpen"
-    >
+    <LSidePanel v-if="trigger !== 'sidebar'" v-model:open="menuOpen">
         <template #header="{ close }">
             <!-- Close toggle — mirrors the desktop sidebar's collapse button, on the
                  left edge since this panel slides in from the right -->
@@ -351,10 +348,7 @@ const sidebarNavigation = computed(() =>
                 class="absolute left-0 top-1/2 z-20 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100"
                 @click="close()"
             >
-                <ChevronRightIcon
-                    class="h-4 w-4 translate-x-0.5"
-                    aria-hidden="true"
-                />
+                <ChevronRightIcon class="h-4 w-4 translate-x-0.5" aria-hidden="true" />
             </button>
         </template>
 
@@ -415,11 +409,7 @@ const sidebarNavigation = computed(() =>
                 </span>
 
                 <!-- My Activity -->
-                <RouterLink
-                    :to="{ name: 'activity' }"
-                    v-slot="{ isActive, navigate }"
-                    custom
-                >
+                <RouterLink :to="{ name: 'activity' }" v-slot="{ isActive, navigate }" custom>
                     <span
                         class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
                         :class="
@@ -452,10 +442,7 @@ const sidebarNavigation = computed(() =>
                             close();
                         "
                     >
-                        <ArrowDownTrayIcon
-                            class="h-5 w-5 flex-shrink-0"
-                            aria-hidden="true"
-                        />
+                        <ArrowDownTrayIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
                         <span class="text-sm font-medium">{{
                             t("profile_menu.update_available")
                         }}</span>
@@ -469,10 +456,7 @@ const sidebarNavigation = computed(() =>
                             close();
                         "
                     >
-                        <SunIcon
-                            class="h-5 w-5 flex-shrink-0"
-                            aria-hidden="true"
-                        />
+                        <SunIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
                         <span class="text-sm font-medium">{{ t("profile_menu.theme") }}</span>
                     </span>
 
@@ -484,10 +468,7 @@ const sidebarNavigation = computed(() =>
                             close();
                         "
                     >
-                        <LanguageIcon
-                            class="h-5 w-5 flex-shrink-0"
-                            aria-hidden="true"
-                        />
+                        <LanguageIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
                         <div class="flex flex-col leading-none">
                             <span class="text-sm font-medium">{{
                                 t("profile_menu.language")
@@ -501,11 +482,7 @@ const sidebarNavigation = computed(() =>
                     </span>
 
                     <!-- Settings -->
-                    <RouterLink
-                        :to="{ name: 'settings' }"
-                        v-slot="{ isActive, navigate }"
-                        custom
-                    >
+                    <RouterLink :to="{ name: 'settings' }" v-slot="{ isActive, navigate }" custom>
                         <span
                             class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
                             :class="
@@ -543,10 +520,7 @@ const sidebarNavigation = computed(() =>
                         close();
                     "
                 >
-                    <ShieldCheckIcon
-                        class="h-5 w-5 flex-shrink-0"
-                        aria-hidden="true"
-                    />
+                    <ShieldCheckIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
                     <span class="text-sm font-medium">{{ t("profile_menu.privacy_policy") }}</span>
                 </button>
 
@@ -574,10 +548,7 @@ const sidebarNavigation = computed(() =>
                 </button>
 
                 <!-- Profile display -->
-                <div
-                    v-if="isAuthenticated"
-                    class="flex items-center gap-3 rounded-md px-3 py-1.5"
-                >
+                <div v-if="isAuthenticated" class="flex items-center gap-3 rounded-md px-3 py-1.5">
                     <img
                         v-if="user?.picture"
                         class="h-8 w-8 flex-shrink-0 rounded-full bg-slate-50"
@@ -601,14 +572,8 @@ const sidebarNavigation = computed(() =>
     </LSidePanel>
 
     <template v-if="isMounted">
-        <LanguageModal
-            :isVisible="showLanguageModal"
-            @close="showLanguageModal = false"
-        />
-        <ThemeSelectorModal
-            :isVisible="showThemeSelector"
-            @close="showThemeSelector = false"
-        />
+        <LanguageModal :isVisible="showLanguageModal" @close="showLanguageModal = false" />
+        <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
 
         <LDialog
             v-model:open="showLogoutDialog"

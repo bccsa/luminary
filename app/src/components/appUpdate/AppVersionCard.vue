@@ -25,11 +25,7 @@ const { installedVersion, available, checkedAt, applyUpdate } = useAppUpdate();
             >
                 {{ t("settings.app_version.update_available", { version: available.version }) }}
             </div>
-            <LButton
-                variant="primary"
-                data-test="appVersionUpdateButton"
-                @click="applyUpdate"
-            >
+            <LButton variant="primary" data-test="appVersionUpdateButton" @click="applyUpdate">
                 {{ t("app_update.button_update") }}
             </LButton>
         </template>

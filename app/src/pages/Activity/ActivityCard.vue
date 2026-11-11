@@ -52,10 +52,7 @@ const onClick = (event: MouseEvent) => {
             :show-publish-date="false"
             class="h-full w-full"
         >
-            <template
-                v-if="excerpt"
-                #summary
-            >
+            <template v-if="excerpt" #summary>
                 <p class="line-clamp-3 text-sm leading-7">
                     <mark
                         class="bg-transparent box-decoration-clone px-1.5 py-1 pr-3.5 text-zinc-800 dark:text-slate-100"

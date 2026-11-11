@@ -28,10 +28,11 @@ export const contentByTag = (
 
             const isPinned = !!tag.parentPinned && tag.parentPinned > 0;
 
-            const sorted = [...filtered].sort((a, b) =>
-                isPinned
-                    ? (b.publishDate ?? 0) - (a.publishDate ?? 0) // Pinned: descending (newest first)
-                    : (a.publishDate ?? 0) - (b.publishDate ?? 0), // Unpinned: ascending (oldest first)
+            const sorted = [...filtered].sort(
+                (a, b) =>
+                    isPinned
+                        ? (b.publishDate ?? 0) - (a.publishDate ?? 0) // Pinned: descending (newest first)
+                        : (a.publishDate ?? 0) - (b.publishDate ?? 0), // Unpinned: ascending (oldest first)
             );
 
             // Always the actual newest (highest) date, regardless of pinned sort order.

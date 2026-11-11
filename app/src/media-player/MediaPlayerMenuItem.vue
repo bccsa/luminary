@@ -24,11 +24,7 @@ defineEmits<{ pick: [] }>();
             @click="$emit('pick')"
         >
             <span class="truncate">{{ label }}</span>
-            <PlayerIcon
-                v-if="selected"
-                name="check"
-                class="h-[18px] w-[18px] flex-shrink-0"
-            />
+            <PlayerIcon v-if="selected" name="check" class="h-[18px] w-[18px] flex-shrink-0" />
         </button>
     </li>
 </template>

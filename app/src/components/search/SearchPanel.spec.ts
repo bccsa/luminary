@@ -24,7 +24,9 @@ const resetMock = vi.hoisted(() => vi.fn());
 const runSearchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("vue-router", () => ({
-    useRouter: vi.fn().mockImplementation(() => ({ push: routePushMock, replace: routeReplaceMock })),
+    useRouter: vi
+        .fn()
+        .mockImplementation(() => ({ push: routePushMock, replace: routeReplaceMock })),
     useRoute: vi.fn().mockImplementation(() => routeMock),
     onBeforeRouteLeave: vi.fn(),
 }));

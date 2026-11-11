@@ -216,10 +216,7 @@ describe("LHighlightable", () => {
         // Wait for restoreHighlights to be called (async in onMounted)
         await vi.advanceTimersByTimeAsync(100);
 
-        expect(consoleSpy).toHaveBeenCalledWith(
-            "[highlights] restore failed:",
-            expect.any(Error),
-        );
+        expect(consoleSpy).toHaveBeenCalledWith("[highlights] restore failed:", expect.any(Error));
 
         wrapper.unmount();
         consoleSpy.mockRestore();

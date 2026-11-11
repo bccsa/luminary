@@ -108,10 +108,7 @@ onBeforeUnmount(() => {
         @touchstart.passive="touched"
         @pointerdown="touched"
     >
-        <li
-            v-for="(line, i) in lines"
-            :key="`${line.start}-${i}`"
-        >
+        <li v-for="(line, i) in lines" :key="`${line.start}-${i}`">
             <button
                 type="button"
                 class="lmpl-afs-lyric"
