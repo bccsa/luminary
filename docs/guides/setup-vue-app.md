@@ -125,4 +125,6 @@ npm run lint:fix
 
 #### Prettier
 
-We use [Prettier](https://prettier.io) to format our code in a common way. Configure your editor to automatically format files on save with Prettier. Any issues from Prettier will be treated as errors in CI to ensure that the code is always styled in the correct way.
+We use [Prettier](https://prettier.io) to format our code in a common way. Configure your editor to automatically format files on save with Prettier. Any issues from Prettier will be treated as errors in CI (`npm run format:check`) to ensure that the code is always styled in the correct way.
+
+The shared options live in the root `.prettierrc.json`. Each package keeps its own copy because Prettier uses only the nearest config file, so change an option in every `.prettierrc*` together. Formatting-only commits are listed in `.git-blame-ignore-revs`; run `git config blame.ignoreRevsFile .git-blame-ignore-revs` to skip them in `git blame`.

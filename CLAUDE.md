@@ -38,6 +38,10 @@ peerDependencies and the consumers' own deps). Consequence:
   (After pulling shared changes that alter its API, rebuild `shared/` so consumer
   type-checks see the new `dist/index.d.ts`.)
 
+## Formatting
+
+Prettier options are pinned in the root `.prettierrc.json`, and each package carries a copy (Prettier does not merge configs, so edit them together). `prettier` is pinned to an exact version; CI runs `npm run format:check` per package. Formatting-only commits go in `.git-blame-ignore-revs`.
+
 ## Default local ports
 
 3000 (api), 4174 (app), 4175 (cms), 5984 (CouchDB), 9000/9001 (MinIO S3 + console).
