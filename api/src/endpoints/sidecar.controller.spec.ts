@@ -63,7 +63,8 @@ function contentCr(
             status: opts.status ?? PublishStatus.Published,
             slug: id,
             title: id,
-            publishDate: opts.status === PublishStatus.Draft ? undefined : (opts.publishDate ?? PAST),
+            publishDate:
+                opts.status === PublishStatus.Draft ? undefined : (opts.publishDate ?? PAST),
             expiryDate: opts.expiryDate,
         } as ContentDto,
     };
@@ -249,7 +250,10 @@ describe("SidecarController", () => {
     }
 
     it("returns the masked key for a permitted caller whose parent has live published content", async () => {
-        const res = await get({ parentId: "post-sc-live", sidecarType: SidecarType.HlsEncryptionKey });
+        const res = await get({
+            parentId: "post-sc-live",
+            sidecarType: SidecarType.HlsEncryptionKey,
+        });
 
         expect(res.status).toBe(200);
         expect(res.headers["cache-control"]).toBe("no-store");
@@ -266,7 +270,10 @@ describe("SidecarController", () => {
 
     it("returns 404 for a caller without View on the parent's groups", async () => {
         requestUser = { groups: [], userId: "test-user" };
-        const res = await get({ parentId: "post-sc-live", sidecarType: SidecarType.HlsEncryptionKey });
+        const res = await get({
+            parentId: "post-sc-live",
+            sidecarType: SidecarType.HlsEncryptionKey,
+        });
         expect(res.status).toBe(404);
     });
 
@@ -402,14 +409,20 @@ describe("SidecarController", () => {
 
         it("returns 429 with Retry-After when the read limiter denies the request", async () => {
             rateLimiter.checkRead.mockReturnValueOnce({ allowed: false, retryAfterMs: 4200 });
-            const res = await get({ parentId: "post-sc-live", sidecarType: SidecarType.HlsEncryptionKey });
+            const res = await get({
+                parentId: "post-sc-live",
+                sidecarType: SidecarType.HlsEncryptionKey,
+            });
             expect(res.status).toBe(429);
             expect(res.headers["retry-after"]).toBe("5"); // ceil(4200/1000)
         });
 
         it("returns 429 when the probe limiter denies, even for a request that would otherwise succeed", async () => {
             rateLimiter.checkProbe.mockReturnValueOnce({ allowed: false, retryAfterMs: 1000 });
-            const res = await get({ parentId: "post-sc-live", sidecarType: SidecarType.HlsEncryptionKey });
+            const res = await get({
+                parentId: "post-sc-live",
+                sidecarType: SidecarType.HlsEncryptionKey,
+            });
             expect(res.status).toBe(429);
             expect(res.headers["retry-after"]).toBe("1");
         });
@@ -426,7 +439,10 @@ describe("SidecarController", () => {
             requestUser = { groups: [], userId: "test-user" };
             rateLimiter.recordReadStrike.mockClear();
             rateLimiter.recordProbeStrike.mockClear();
-            const res = await get({ parentId: "post-sc-live", sidecarType: SidecarType.HlsEncryptionKey });
+            const res = await get({
+                parentId: "post-sc-live",
+                sidecarType: SidecarType.HlsEncryptionKey,
+            });
             expect(res.status).toBe(404);
             expect(rateLimiter.recordProbeStrike).toHaveBeenCalledWith("test-user");
             expect(rateLimiter.recordReadStrike).not.toHaveBeenCalled();

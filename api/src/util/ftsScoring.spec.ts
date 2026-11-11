@@ -62,17 +62,14 @@ describe("ftsScoring", () => {
                 ["xyz", 2.0],
             ]);
             const withMissing = bm25Score(new Map([["abc", 2]]), 10, idfMap, 10);
-            const onlyPresent = bm25Score(
-                new Map([["abc", 2]]),
-                10,
-                new Map([["abc", 1.5]]),
-                10,
-            );
+            const onlyPresent = bm25Score(new Map([["abc", 2]]), 10, new Map([["abc", 1.5]]), 10);
             expect(withMissing).toBeCloseTo(onlyPresent, 6);
         });
 
         it("guards against zero document length", () => {
-            expect(() => bm25Score(new Map([["abc", 1]]), 0, new Map([["abc", 1]]), 10)).not.toThrow();
+            expect(() =>
+                bm25Score(new Map([["abc", 1]]), 0, new Map([["abc", 1]]), 10),
+            ).not.toThrow();
         });
     });
 
