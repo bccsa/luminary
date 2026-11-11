@@ -107,6 +107,15 @@ describe("useTranslationSwitcher: the translation-available banner", () => {
         expect(bannerShown()).toBe(false);
     });
 
+    it("does not appear when the reader leaves just as it is being shown", async () => {
+        const { page } = openArticle(french);
+        // Past the banner's own delay, inside the notification store's.
+        await vi.advanceTimersByTimeAsync(850);
+        page.unmount();
+        await vi.advanceTimersByTimeAsync(500);
+        expect(bannerShown()).toBe(false);
+    });
+
     it("stays gone when the translations reload while the old article is still showing", async () => {
         const { fetched, translations } = openArticle(french);
         await vi.advanceTimersByTimeAsync(1000);

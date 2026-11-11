@@ -115,6 +115,14 @@ export const useNotificationStore = defineStore("notification", () => {
 
     const persist = () => persistNotifications(notifications.value);
 
+    // A new notification goes in after a short delay. Until then it is held here, so removing
+    // it in that time cancels it, and adding it again replaces it rather than adding a copy.
+    const pendingInserts = new Map<number | string, ReturnType<typeof setTimeout>>();
+    const cancelPendingInsert = (notificationId: number | string) => {
+        clearTimeout(pendingInserts.get(notificationId));
+        pendingInserts.delete(notificationId);
+    };
+
     const addNotification = (notification: Notification) => {
         // Set default values
         if (notification.closable == undefined) notification.closable = true;
@@ -149,14 +157,19 @@ export const useNotificationStore = defineStore("notification", () => {
             notificationId = id.value;
         }
 
-        setTimeout(() => {
-            notifications.value.push({
-                ...notification,
-                id: notificationId,
-            });
-            notifications.value.sort((a, b) => a.priority! - b.priority!);
-            persist();
-        }, 100);
+        cancelPendingInsert(notificationId);
+        pendingInserts.set(
+            notificationId,
+            setTimeout(() => {
+                pendingInserts.delete(notificationId!);
+                notifications.value.push({
+                    ...notification,
+                    id: notificationId,
+                });
+                notifications.value.sort((a, b) => a.priority! - b.priority!);
+                persist();
+            }, 100),
+        );
 
         if (notification.type == "toast") {
             setTimeout(() => {
@@ -179,6 +192,7 @@ export const useNotificationStore = defineStore("notification", () => {
     // (e.g. App.vue's condition watchers) clearing a notification because the situation
     // it represented has resolved, so it's free to reappear if the situation recurs.
     const removeNotification = (notificationId: number | string) => {
+        cancelPendingInsert(notificationId);
         notifications.value = notifications.value.filter((n) => n.id !== notificationId);
         persist();
         if (typeof notificationId === "string" && dismissedIds.value.delete(notificationId)) {
@@ -189,6 +203,7 @@ export const useNotificationStore = defineStore("notification", () => {
     // Removes a notification and remembers it as user-dismissed, so it stays gone
     // across reloads even while the situation it represents is still ongoing.
     const dismissNotification = (notificationId: number | string) => {
+        cancelPendingInsert(notificationId);
         const dismissed = notifications.value.find((n) => n.id === notificationId);
         notifications.value = notifications.value.filter((n) => n.id !== notificationId);
         persist();
