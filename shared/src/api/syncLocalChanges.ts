@@ -67,8 +67,7 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>): SyncLocal
                 try {
                     while (isConnected.value) {
                         const change = (await db.localChanges.toCollection().first()) as
-                            | LocalChangeDto
-                            | undefined;
+                            LocalChangeDto | undefined;
                         if (!change) return;
                         activeChange = change;
 
