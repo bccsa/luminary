@@ -3,6 +3,7 @@ import { mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { removeMediaProgress, setMediaProgress } from "@/contentProgress";
+import { PLAYER_ICONS } from "../playerIcons";
 import MediaAction from "../MediaAction.vue";
 import { mediaPlayerItem, mediaPlayerView } from "../mediaPlayer";
 
@@ -50,7 +51,10 @@ describe("MediaAction", () => {
             expect.arrayContaining(["absolute", "-bottom-[34px]", "right-3.5", "rounded-full"]),
         );
         expect(play.attributes("aria-label")).toBe("Play");
-        expect(play.find("[data-test='playerIcon']").exists()).toBe(true);
+        // The player's own play glyph, drawn into the button's one drawing.
+        expect(play.find("[data-test='mediaPlayDisc'] path").attributes("d")).toBe(
+            PLAYER_ICONS.play[0]!.path,
+        );
 
         await play.trigger("click");
         expect(mediaPlayerView.value).toBe("expanded");
@@ -61,55 +65,81 @@ describe("MediaAction", () => {
         expect(play.classes().some((c) => /^(dark:)?bg-/.test(c))).toBe(false);
     });
 
-    it("shows the ring's track, with no progress on it, before the video is started", () => {
-        const ring = mountAction(true).find("[data-test='mediaPlayProgress']");
-        expect(ring.exists()).toBe(true);
-        expect(ring.findAll("circle")).toHaveLength(1);
-    });
-
-    it("gives the ring a halo in both themes, soft in light so it shows no dark band", () => {
-        const ring = mountAction(true).find("[data-test='mediaPlayProgress']");
-        const halos = ring.classes().filter((c) => c.includes("drop-shadow-"));
-        expect(halos).toContain("drop-shadow-[0_0_1.5px_rgba(0,0,0,0.25)]");
-        expect(halos).toContain("dark:drop-shadow-[0_0_1.5px_rgba(0,0,0,0.6)]");
-    });
-
-    it("draws the progress in its own colour per theme", () => {
+    it("is one vector drawing, with nothing the browser would rasterise", () => {
+        const play = mountAction(true).find("[data-test='mediaPlay']");
+        expect(play.findAll("svg")).toHaveLength(1);
+        const classes = play.findAll("*").flatMap((el) => el.classes());
+        expect(
+            classes.filter((c) => /(drop-shadow|^shadow-|^ring-|rotate-|scale-)/.test(c)),
+        ).toEqual([]);
+        // The progress starts at the top by the drawing's own rotation.
         setMediaProgress(videoUrl, mockEnglishContentDto._id, 300, 1200);
-        const progress = mountAction(true).findAll("[data-test='mediaPlayProgress'] circle")[1];
-        expect(progress.classes()).toContain("stroke-yellow-500");
-        expect(progress.classes()).toContain("dark:stroke-yellow-300");
+        expect(mountAction(true).find("[data-test='mediaPlayArc']").attributes("transform")).toBe(
+            "rotate(-90 34 34)",
+        );
     });
 
-    it("squishes the yellow disc while pressed, not the ring, unless motion is reduced", async () => {
+    it("shows the ring's track, with no progress on it, before the video is started", () => {
         const wrapper = mountAction(true);
-        const play = wrapper.find("[data-test='mediaPlay']");
-        const disc = () => wrapper.find("[data-test='mediaPlayDisc']");
-        expect(disc().classes()).not.toContain("motion-safe:scale-[0.92]");
+        expect(wrapper.find("[data-test='mediaPlayTrack']").exists()).toBe(true);
+        expect(wrapper.find("[data-test='mediaPlayArc']").exists()).toBe(false);
+    });
 
-        await play.trigger("pointerdown");
-        expect(disc().classes()).toContain("motion-safe:scale-[0.92]");
-        expect(play.classes()).not.toContain("motion-safe:scale-[0.92]");
+    it("gives the ring a soft halo in both themes, lighter in light so it shows no dark band", () => {
+        const ring = mountAction(true).find("[data-test='mediaPlayProgress']");
+        const halo = ring.findAll("circle")[0]!;
+        expect(halo.classes()).toEqual(
+            expect.arrayContaining(["stroke-black/25", "dark:stroke-black/60"]),
+        );
+        expect(halo.attributes("filter")).toMatch(/^url\(#.+-halo\)$/);
+        expect(ring.findAll("filter")).toHaveLength(2);
+    });
 
-        await play.trigger("pointerup");
-        expect(disc().classes()).not.toContain("motion-safe:scale-[0.92]");
+    it("draws the progress in mustard over a light track, and the brownish yellow over a slate one in dark", () => {
+        setMediaProgress(videoUrl, mockEnglishContentDto._id, 300, 1200);
+        const wrapper = mountAction(true);
+        const progress = wrapper.find("[data-test='mediaPlayArc']");
+        expect(progress.classes()).toEqual(["stroke-yellow-600", "dark:stroke-yellow-700"]);
+        expect(wrapper.find("[data-test='mediaPlayTrack']").classes()).toEqual(
+            expect.arrayContaining(["stroke-zinc-200", "dark:stroke-slate-700"]),
+        );
+    });
 
-        await play.trigger("pointerdown");
-        await play.trigger("pointercancel");
-        expect(disc().classes()).not.toContain("motion-safe:scale-[0.92]");
+    it("outlines the disc in both themes, with a shadow, right up to the ring with no gap", async () => {
+        const wrapper = mountAction(true);
+        await wrapper.find("[data-test='mediaPlay']").trigger("pointerdown");
+        const outline = wrapper.find("[data-test='mediaPlayOutline']");
+        // The ring's inner edge: radius 31 less half its 5 stroke.
+        expect(outline.attributes("r")).toBe("28.5");
+        expect(outline.classes()).toEqual(["fill-zinc-900"]);
+        expect(outline.attributes("filter")).toMatch(/-shadow\)$/);
+        const disc = wrapper.findAll("[data-test='mediaPlayDisc'] circle")[1]!;
+        expect(disc.attributes("r")).toBe("25.5");
+        expect(disc.classes()).toEqual(["fill-yellow-500"]);
+        // Still under a press: no squish.
+        expect(wrapper.find("[data-test='mediaPlayDisc']").attributes("transform")).toBeUndefined();
+    });
+
+    it("centres the triangle by the circle around it, not by its box", () => {
+        const glyph = mountAction(true).find("[data-test='mediaPlayDisc'] path");
+        const [, tx, ty, scale] = glyph
+            .attributes("transform")!
+            .match(/translate\(([\d.]+) ([\d.]+)\) scale\(([\d.]+)\)/)!
+            .map(Number);
+        // The play glyph's enclosing circle is centred at (7.43, 9) on its 18-unit grid.
+        expect(tx! + 7.43 * scale!).toBeCloseTo(34, 2);
+        expect(ty! + 9 * scale!).toBeCloseTo(34, 2);
     });
 
     it("rings the button with how far the video was watched", async () => {
         setMediaProgress(videoUrl, mockEnglishContentDto._id, 300, 1200);
         const wrapper = mountAction(true);
-
-        const ring = wrapper.find("[data-test='mediaPlayProgress']");
-        expect(ring.exists()).toBe(true);
-        expect(ring.findAll("circle")[1].attributes("stroke-dasharray")).toBe("25 100");
+        const arc = () => wrapper.find("[data-test='mediaPlayArc']");
+        expect(arc().attributes("stroke-dasharray")).toBe("25 100");
 
         setMediaProgress(videoUrl, mockEnglishContentDto._id, 900, 1200);
         await wrapper.vm.$nextTick();
-        expect(ring.findAll("circle")[1].attributes("stroke-dasharray")).toBe("75 100");
+        expect(arc().attributes("stroke-dasharray")).toBe("75 100");
     });
 
     it("uses the player's play icon under the title too", () => {
