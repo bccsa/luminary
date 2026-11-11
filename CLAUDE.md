@@ -40,7 +40,7 @@ peerDependencies and the consumers' own deps). Consequence:
 
 ## Formatting
 
-Prettier options are pinned in the root `.prettierrc.json`, and each package carries a copy (Prettier does not merge configs, so edit them together). `prettier` is pinned to an exact version; CI runs `npm run format:check` per package. Formatting-only commits go in `.git-blame-ignore-revs`.
+Prettier options are pinned in the root `.prettierrc.json`, and each package carries a copy (Prettier does not merge configs, so edit them together). `prettier` is pinned to an exact version; CI runs `npm run format:check` per package.
 
 ## Default local ports
 
