@@ -65,7 +65,29 @@ describe("MediaAction", () => {
         expect(play.classes().some((c) => /^(dark:)?bg-/.test(c))).toBe(false);
     });
 
-    it("is one vector drawing, with nothing the browser would rasterise", () => {
+    it("squishes the whole button, ring and progress too, while pressed, unless motion is reduced", async () => {
+        setMediaProgress(videoUrl, mockEnglishContentDto._id, 300, 1200);
+        const wrapper = mountAction(true);
+        const play = wrapper.find("[data-test='mediaPlay']");
+        const drawing = () => wrapper.find("[data-test='mediaPlayProgress']");
+        expect(drawing().classes()).not.toContain("motion-safe:scale-[0.92]");
+        // The ring and the progress are in the drawing that squishes.
+        expect(drawing().find("[data-test='mediaPlayArc']").exists()).toBe(true);
+
+        await play.trigger("pointerdown");
+        expect(drawing().classes()).toContain("motion-safe:scale-[0.92]");
+        // The button itself keeps its size, so the press stays on it.
+        expect(play.classes()).not.toContain("motion-safe:scale-[0.92]");
+
+        await play.trigger("pointerup");
+        expect(drawing().classes()).not.toContain("motion-safe:scale-[0.92]");
+
+        await play.trigger("pointerdown");
+        await play.trigger("pointercancel");
+        expect(drawing().classes()).not.toContain("motion-safe:scale-[0.92]");
+    });
+
+    it("is one vector drawing, with nothing the browser would rasterise at rest", () => {
         const play = mountAction(true).find("[data-test='mediaPlay']");
         expect(play.findAll("svg")).toHaveLength(1);
         const classes = play.findAll("*").flatMap((el) => el.classes());
@@ -107,7 +129,6 @@ describe("MediaAction", () => {
 
     it("outlines the disc in both themes, with a shadow, right up to the ring with no gap", async () => {
         const wrapper = mountAction(true);
-        await wrapper.find("[data-test='mediaPlay']").trigger("pointerdown");
         const outline = wrapper.find("[data-test='mediaPlayOutline']");
         // The ring's inner edge: radius 31 less half its 5 stroke.
         expect(outline.attributes("r")).toBe("28.5");
@@ -116,8 +137,6 @@ describe("MediaAction", () => {
         const disc = wrapper.findAll("[data-test='mediaPlayDisc'] circle")[1]!;
         expect(disc.attributes("r")).toBe("25.5");
         expect(disc.classes()).toEqual(["fill-yellow-500"]);
-        // Still under a press: no squish.
-        expect(wrapper.find("[data-test='mediaPlayDisc']").attributes("transform")).toBeUndefined();
     });
 
     it("centres the triangle by the circle around it, not by its box", () => {

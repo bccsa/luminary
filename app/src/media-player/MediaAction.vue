@@ -6,7 +6,7 @@
  * the same with or without it; pressing it opens the app-wide media player, which does the playing, and where
  * sound and picture are switched.
  */
-import { computed, useId } from "vue";
+import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import type { ContentDto } from "luminary-shared";
 import { getMediaDuration, getMediaProgress } from "@/contentProgress";
@@ -27,6 +27,9 @@ const { t } = useI18n();
 const open = () => openMediaPlayer(props.content, props.language);
 
 const PLAY_PATH = PLAYER_ICONS.play[0]!.path;
+
+/** Set from pointer events because iOS WebKit gives a touch no `:active` without a touch listener. */
+const pressed = ref(false);
 /** Filter ids are page-wide: each button names its own, the same in the prerender and the page. */
 const uid = useId();
 
@@ -47,14 +50,23 @@ const mediaProgress = computed(() => {
         class="absolute -bottom-[34px] right-3.5 flex h-[68px] w-[68px] items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-500 lg:-bottom-[42px] lg:right-6 lg:h-[84px] lg:w-[84px]"
         :aria-label="t('media_player.play')"
         data-test="mediaPlay"
+        @pointerdown="pressed = true"
+        @pointerup="pressed = false"
+        @pointercancel="pressed = false"
+        @pointerleave="pressed = false"
         @click.stop="open"
     >
-        <!-- One vector drawing, so it stays sharp at any pixel ratio: no CSS filter, transform or box shadow
-             to be rasterised. The ring shows before the video is started too. It lies on a photo of any
+        <!-- One vector drawing, so it stays sharp at any pixel ratio: no CSS filter or box shadow to be rasterised,
+             and a transform only while pressed, when the whole button, ring and all, squishes. The ring shows before the video is started too. It lies on a photo of any
              brightness, so it has a halo: soft on the light page, where a strong one reads as a black band. -->
         <svg
             viewBox="0 0 68 68"
-            class="absolute inset-0 h-full w-full overflow-visible"
+            class="absolute inset-0 h-full w-full overflow-visible motion-safe:transition-transform"
+            :class="
+                pressed
+                    ? 'motion-safe:scale-[0.92] motion-safe:duration-75 motion-safe:ease-out'
+                    : 'motion-safe:duration-[120ms] motion-safe:ease-out'
+            "
             aria-hidden="true"
             data-test="mediaPlayProgress"
         >
