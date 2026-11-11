@@ -99,12 +99,14 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
             <LButton
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
                 variant="primary"
-                class="bg-zinc-100 hover:bg-zinc-300 hover:text-zinc-700 text-zinc-500"
+                class="max-lg:gap-x-0"
                 :icon="PlusIcon"
+                icon-class="max-lg:ml-0"
                 @click="isCreateOrEditModalVisible = true"
                 name="createLanguageBtn"
+                aria-label="Create redirect"
             >
-                Create redirect
+                <span class="hidden lg:inline">Create redirect</span>
             </LButton>
         </template>
 

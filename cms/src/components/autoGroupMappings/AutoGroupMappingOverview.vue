@@ -175,11 +175,13 @@ const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
             <LButton
                 v-if="autoGroupMappings.canEdit && hasAnyContent && isSmallScreen"
                 variant="primary"
-                class="bg-zinc-100 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                class="max-lg:gap-x-0"
                 :icon="PlusIcon"
+                icon-class="max-lg:ml-0"
                 @click="openCreate"
+                aria-label="Create mapping"
             >
-                Create mapping
+                <span class="hidden lg:inline">Create mapping</span>
             </LButton>
         </template>
 

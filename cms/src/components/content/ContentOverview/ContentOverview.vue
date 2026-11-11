@@ -245,13 +245,15 @@ const createNew = () => {
             <!-- Same button as on large screens, so styling stays with the same styling and size when the page shrinks -->
             <LButton
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
-                class="bg-zinc-100 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
                 variant="primary"
+                class="max-lg:gap-x-0"
                 :icon="PlusIcon"
+                icon-class="max-lg:ml-0"
                 data-test="create-button"
                 @click="createNew"
+                :aria-label="`Create ${docType}`"
             >
-                Create {{ docType }}
+                <span class="hidden lg:inline">Create {{ docType }}</span>
             </LButton>
         </template>
 

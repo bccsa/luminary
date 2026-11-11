@@ -167,12 +167,14 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
             <LButton
                 v-if="canCreateNew && isConnected && hasAnyContent && isSmallScreen"
                 variant="primary"
-                class="bg-zinc-100 hover:bg-zinc-300 hover:text-zinc-700 text-zinc-500"
+                class="max-lg:gap-x-0"
                 :icon="PlusIcon"
+                icon-class="max-lg:ml-0"
                 @click="openCreateUserModal"
                 name="createUserBtn"
+                aria-label="Create user"
             >
-                Create user
+                <span class="hidden lg:inline">Create user</span>
             </LButton>
         </template>
         <template v-if="hasAnyContent" #internalPageHeader>

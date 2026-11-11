@@ -13,10 +13,10 @@ const isVisible = defineModel<boolean>("isVisible", { required: true });
     <LModal heading="Select Theme" v-model:is-visible="isVisible">
         <div class="divide-y divide-zinc-200 dark:divide-slate-600 dark:text-zinc-100">
             <button
-                class="flex h-10 w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
+                class="flex h-10 w-full cursor-pointer items-center rounded-md p-3 hover:bg-zinc-300/40 dark:hover:bg-slate-600"
                 :class="
                     theme === 'light'
-                        ? 'bg-zinc-200 hover:bg-zinc-200 dark:bg-slate-700 dark:hover:bg-slate-600'
+                        ? 'rounded-md bg-zinc-200/60 dark:rounded-md dark:bg-slate-700 dark:hover:bg-slate-600'
                         : ''
                 "
                 @click="theme = 'light'"
@@ -31,10 +31,10 @@ const isVisible = defineModel<boolean>("isVisible", { required: true });
                 />
             </button>
             <button
-                class="flex h-10 w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
+                class="flex h-10 w-full cursor-pointer items-center rounded-md p-3 hover:bg-zinc-300/40 dark:hover:bg-slate-600"
                 :class="
                     theme === 'dark'
-                        ? 'bg-zinc-200 hover:bg-zinc-200 dark:bg-slate-700 dark:hover:bg-slate-600'
+                        ? 'rounded-md bg-zinc-200/60 dark:rounded-md dark:bg-slate-700 dark:hover:bg-slate-600'
                         : ''
                 "
                 @click="theme = 'dark'"
@@ -49,10 +49,10 @@ const isVisible = defineModel<boolean>("isVisible", { required: true });
                 />
             </button>
             <button
-                class="flex h-10 w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
+                class="flex h-10 w-full cursor-pointer items-center rounded-md p-3 hover:bg-zinc-300/40 dark:hover:bg-slate-600"
                 :class="
                     theme === 'system'
-                        ? 'bg-zinc-200 hover:bg-zinc-200 dark:bg-slate-700 dark:hover:bg-slate-600'
+                        ? 'rounded-md bg-zinc-200/60 dark:rounded-md dark:bg-slate-700 dark:hover:bg-slate-600'
                         : ''
                 "
                 @click="theme = 'system'"
@@ -69,7 +69,7 @@ const isVisible = defineModel<boolean>("isVisible", { required: true });
         </div>
         <template #footer>
             <LButton
-                variant="secondary"
+                variant="primary"
                 size="lg"
                 rounding="less"
                 class="w-full"

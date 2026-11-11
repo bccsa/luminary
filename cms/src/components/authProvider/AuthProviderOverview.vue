@@ -97,12 +97,14 @@ defineExpose({
             <LButton
                 v-if="authProviders.canEdit && hasAnyContent && isSmallScreen"
                 variant="primary"
-                class="bg-zinc-100 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                class="max-lg:gap-x-0"
                 :icon="PlusIcon"
+                icon-class="max-lg:ml-0"
                 data-test="create-auth-provider"
                 @click="authProviders.openCreateModal"
+                aria-label="Create provider"
             >
-                Create provider
+                <span class="hidden lg:inline">Create provider</span>
             </LButton>
         </template>
 
