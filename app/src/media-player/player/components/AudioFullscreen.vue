@@ -886,11 +886,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
         @click="onClick"
     >
         <!-- The picture, blurred, as the screen's colour: lighter in `light`, darker in `dark`. -->
-        <div
-            class="lmpl-afs-bg"
-            :class="{ 'lmpl-afs-bg-hash': thumbHash }"
-            aria-hidden="true"
-        >
+        <div class="lmpl-afs-bg" :class="{ 'lmpl-afs-bg-hash': thumbHash }" aria-hidden="true">
             <ThumbHashWash
                 v-if="thumbHash"
                 :hash="thumbHash"
@@ -918,13 +914,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                 :hash="thumbHash"
                 :tone="appearance === 'light' ? 'light' : 'dark'"
             />
-            <img
-                v-else
-                class="lmpl-afs-wash"
-                :src="washSrc"
-                alt=""
-                draggable="false"
-            />
+            <img v-else class="lmpl-afs-wash" :src="washSrc" alt="" draggable="false" />
         </div>
 
         <div class="lmpl-afs-roster-slot"><slot name="roster"></slot></div>
@@ -967,24 +957,14 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                     data-test="afsCloseFullscreen"
                     @click="emit('fullscreen')"
                 >
-                    <media-icon
-                        name="close"
-                        class="media-button-icon"
-                    ></media-icon>
+                    <media-icon name="close" class="media-button-icon"></media-icon>
                 </button>
             </div>
-            <span
-                v-else
-                class="lmpl-afs-iconbtn lmpl-afs-spacer"
-                aria-hidden="true"
-            ></span>
+            <span v-else class="lmpl-afs-iconbtn lmpl-afs-spacer" aria-hidden="true"></span>
         </div>
 
         <div class="lmpl-afs-main">
-            <div
-                class="lmpl-afs-artwrap"
-                :class="{ 'lmpl-afs-artwrap-lyrics': lyricsInStage }"
-            >
+            <div class="lmpl-afs-artwrap" :class="{ 'lmpl-afs-artwrap-lyrics': lyricsInStage }">
                 <div
                     ref="stageEl"
                     class="lmpl-afs-art"
@@ -1003,11 +983,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                     >
                         <slot name="stage"></slot>
                     </div>
-                    <p
-                        v-if="isVideo && caption"
-                        class="lmpl-afs-caption"
-                        data-test="afsCaption"
-                    >
+                    <p v-if="isVideo && caption" class="lmpl-afs-caption" data-test="afsCaption">
                         {{ caption }}
                     </p>
                     <NowPlayingLyrics
@@ -1039,12 +1015,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                         class="lmpl-afs-cover lmpl-afs-cover-empty"
                         aria-hidden="true"
                     >
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="40%"
-                            height="40%"
-                            fill="currentColor"
-                        >
+                        <svg viewBox="0 0 24 24" width="40%" height="40%" fill="currentColor">
                             <path
                                 d="M19.952 1.651a.75.75 0 0 1 .298.599V16.303a3 3 0 0 1-2.176 2.884l-1.32.377a2.553 2.553 0 1 1-1.403-4.909l2.311-.66a1.5 1.5 0 0 0 1.088-1.442V6.994l-9 2.572v9.737a3 3 0 0 1-2.176 2.884l-1.32.377a2.553 2.553 0 1 1-1.403-4.909l2.311-.66a1.5 1.5 0 0 0 1.088-1.442V5.25a.75.75 0 0 1 .544-.721l10.5-3a.75.75 0 0 1 .658.122Z"
                             />
@@ -1058,10 +1029,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                         :class="{ 'lmpl-afs-covercue-open': lyricsExpanded }"
                         data-test="afsCoverCue"
                     >
-                        <div
-                            v-if="!lyricsExpanded"
-                            class="lmpl-afs-covercue-line"
-                        >
+                        <div v-if="!lyricsExpanded" class="lmpl-afs-covercue-line">
                             <p
                                 class="lmpl-afs-cue"
                                 data-test="afsCue"
@@ -1094,15 +1062,8 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                     >
                         <span class="lmpl-afs-endpanel-label">{{ messages.nextUp }}</span>
                         <span class="lmpl-afs-endpanel-title">{{ offer.title }}</span>
-                        <span
-                            class="lmpl-afs-endpanel-ring"
-                            aria-hidden="true"
-                        >
-                            <svg
-                                viewBox="0 0 48 48"
-                                width="48"
-                                height="48"
-                            >
+                        <span class="lmpl-afs-endpanel-ring" aria-hidden="true">
+                            <svg viewBox="0 0 48 48" width="48" height="48">
                                 <circle
                                     cx="24"
                                     cy="24"
@@ -1151,20 +1112,11 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
             <div class="lmpl-afs-info">
                 <!-- Behind the host's strip of frames it would show half hidden: it steps away while the strip is up,
                      and a press where it was only closes the strip. -->
-                <div
-                    class="lmpl-afs-titles"
-                    :class="{ 'lmpl-afs-titles-away': !!$slots.roster }"
-                >
-                    <h2
-                        class="lmpl-afs-title"
-                        data-test="afsTitle"
-                    >
+                <div class="lmpl-afs-titles" :class="{ 'lmpl-afs-titles-away': !!$slots.roster }">
+                    <h2 class="lmpl-afs-title" data-test="afsTitle">
                         {{ title }}
                     </h2>
-                    <p
-                        v-if="subtitle"
-                        class="lmpl-afs-subtitle"
-                    >
+                    <p v-if="subtitle" class="lmpl-afs-subtitle">
                         {{ subtitle }}
                     </p>
                     <span
@@ -1179,10 +1131,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                         · {{ chapters[chapterIndex]?.title }}
                     </span>
                     <!-- Under the title, the host's own way on from what plays (back to its page, say). -->
-                    <div
-                        v-if="slots['under-title'] || pictureTools"
-                        class="lmpl-afs-undertitle"
-                    >
+                    <div v-if="slots['under-title'] || pictureTools" class="lmpl-afs-undertitle">
                         <slot name="under-title"></slot>
                         <!-- What acts on the picture, on the right just above the seek bar: in the thumb's reach, out of the tools' row. -->
                         <div
@@ -1214,10 +1163,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                 data-lmpl-press="activation"
                                 @click="emit('picture-in-picture')"
                             >
-                                <media-icon
-                                    name="pip-enter"
-                                    class="media-button-icon"
-                                ></media-icon>
+                                <media-icon name="pip-enter" class="media-button-icon"></media-icon>
                             </button>
                             <button
                                 v-if="(isVideo || fullscreenTool) && !fullscreenActive"
@@ -1278,12 +1224,9 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                 ></div>
                             </div>
                         </div>
-                        <span
-                            v-if="isLive"
-                            class="lmpl-time lmpl-afs-live"
-                            data-test="afsLive"
-                            >{{ messages.live }}</span
-                        >
+                        <span v-if="isLive" class="lmpl-time lmpl-afs-live" data-test="afsLive">{{
+                            messages.live
+                        }}</span>
                         <span
                             v-else
                             class="lmpl-time lmpl-time-end"
@@ -1404,11 +1347,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
 
                         <!-- Labelled cells of one width (at most a full cell), sharing the row as the app's bottom menu
                              does. Every cell keeps the badge's room over its glyph, so the glyphs stand level. -->
-                        <div
-                            ref="toolsEl"
-                            class="lmpl-afs-tools"
-                            data-afs-tools
-                        >
+                        <div ref="toolsEl" class="lmpl-afs-tools" data-afs-tools>
                             <div class="lmpl-afs-tool">
                                 <button
                                     type="button"
@@ -1420,11 +1359,9 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                     @click="toggleMenu('speed')"
                                 >
                                     <span class="lmpl-afs-toolbadge">
-                                        <span
-                                            v-if="playbackRate !== 1"
-                                            class="lmpl-afs-badge"
-                                            >{{ speedText(playbackRate) }}</span
-                                        >
+                                        <span v-if="playbackRate !== 1" class="lmpl-afs-badge">{{
+                                            speedText(playbackRate)
+                                        }}</span>
                                     </span>
                                     <media-icon
                                         name="speed"
@@ -1454,10 +1391,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                 </div>
                             </div>
 
-                            <div
-                                v-if="qualityTool"
-                                class="lmpl-afs-tool"
-                            >
+                            <div v-if="qualityTool" class="lmpl-afs-tool">
                                 <button
                                     type="button"
                                     class="lmpl-afs-toolcell"
@@ -1532,18 +1466,12 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                         @click="toggleDataSaver"
                                     >
                                         {{ messages.dataSaver }}
-                                        <span
-                                            class="lmpl-afs-switch"
-                                            aria-hidden="true"
-                                        ></span>
+                                        <span class="lmpl-afs-switch" aria-hidden="true"></span>
                                     </button>
                                 </div>
                             </div>
 
-                            <div
-                                v-if="!isVideo"
-                                class="lmpl-afs-tool"
-                            >
+                            <div v-if="!isVideo" class="lmpl-afs-tool">
                                 <button
                                     type="button"
                                     class="lmpl-afs-toolcell"
@@ -1616,10 +1544,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                 </div>
                             </div>
 
-                            <div
-                                v-if="audioTracks.length > 1"
-                                class="lmpl-afs-tool"
-                            >
+                            <div v-if="audioTracks.length > 1" class="lmpl-afs-tool">
                                 <button
                                     type="button"
                                     class="lmpl-afs-toolcell"
@@ -1666,10 +1591,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                             </div>
 
                             <!-- Subtitles, and with sound alone the lyrics: one tool, named for what it shows. -->
-                            <div
-                                v-if="subtitleTracks.length > 0"
-                                class="lmpl-afs-tool"
-                            >
+                            <div v-if="subtitleTracks.length > 0" class="lmpl-afs-tool">
                                 <button
                                     type="button"
                                     class="lmpl-afs-toolcell"
@@ -1733,10 +1655,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                 </div>
                             </div>
 
-                            <div
-                                v-if="cameras.length > 1"
-                                class="lmpl-afs-tool"
-                            >
+                            <div v-if="cameras.length > 1" class="lmpl-afs-tool">
                                 <button
                                     type="button"
                                     class="lmpl-afs-toolcell"
@@ -1757,13 +1676,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                         stroke-linejoin="round"
                                         aria-hidden="true"
                                     >
-                                        <rect
-                                            x="2.5"
-                                            y="6"
-                                            width="13"
-                                            height="12"
-                                            rx="2"
-                                        />
+                                        <rect x="2.5" y="6" width="13" height="12" rx="2" />
                                         <path d="M15.5 10.5l6-3.5v10l-6-3.5" />
                                     </svg>
                                     <span class="lmpl-afs-toollabel">{{
@@ -1803,10 +1716,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                 @click="openChapters()"
                             >
                                 <span class="lmpl-afs-toolbadge"></span>
-                                <NowPlayingGlyph
-                                    class="lmpl-afs-toolglyph"
-                                    :glyph="browseGlyph"
-                                />
+                                <NowPlayingGlyph class="lmpl-afs-toolglyph" :glyph="browseGlyph" />
                                 <span class="lmpl-afs-toollabel">{{
                                     chapters.length > 0 ? messages.chapters : messages.more
                                 }}</span>

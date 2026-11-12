@@ -201,10 +201,7 @@ onBeforeUnmount(() => sizeObserver?.disconnect());
             @pointercancel="onRelease"
             @keydown="onKeydown"
         >
-            <li
-                v-for="(line, i) in lines"
-                :key="`${line.start}-${i}`"
-            >
+            <li v-for="(line, i) in lines" :key="`${line.start}-${i}`">
                 <button
                     type="button"
                     class="lmpl-afs-lyric"
@@ -227,10 +224,7 @@ onBeforeUnmount(() => sizeObserver?.disconnect());
             data-test="afsLyricsBack"
             @click="returnToLine"
         >
-            <NowPlayingGlyph
-                :glyph="arrow === 'up' ? arrowUp : arrowDown"
-                :size="22"
-            />
+            <NowPlayingGlyph :glyph="arrow === 'up' ? arrowUp : arrowDown" :size="22" />
         </button>
     </div>
 </template>

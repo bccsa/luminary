@@ -223,20 +223,14 @@ defineExpose({
 </script>
 
 <template>
-    <div
-        class="relative aspect-video w-full overflow-hidden bg-black"
-        data-test="youtubeEmbed"
-    >
+    <div class="relative aspect-video w-full overflow-hidden bg-black" data-test="youtubeEmbed">
         <div
             v-if="!online"
             class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-800 p-6 text-center text-white"
             role="status"
             data-test="youtubeOffline"
         >
-            <SignalSlashIcon
-                class="h-8 w-8"
-                aria-hidden="true"
-            />
+            <SignalSlashIcon class="h-8 w-8" aria-hidden="true" />
             <p class="text-sm font-bold sm:text-base">
                 {{ t("youtube.offline_title", "You're offline") }}
             </p>

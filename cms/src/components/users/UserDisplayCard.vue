@@ -73,9 +73,11 @@ const userProviderLabel = computed(() => {
                     >
                     <div
                         v-if="usersDoc.lastLogin"
-                        class="flex items-center gap-1 text-xs text-zinc-400"
+                        class="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400"
                     >
-                        <KeyIcon class="h-4 w-4 text-zinc-400 max-sm:h-3 max-sm:w-3" />
+                        <KeyIcon
+                            class="h-4 w-4 text-zinc-500 dark:text-zinc-400 max-sm:h-3 max-sm:w-3"
+                        />
                         <span title="Last logged in" class="whitespace-nowrap">
                             {{
                                 db
@@ -88,7 +90,7 @@ const userProviderLabel = computed(() => {
                             }}
                         </span>
                     </div>
-                    <div v-else class="whitespace-nowrap text-xs text-zinc-400">
+                    <div v-else class="whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
                         Has not logged in yet
                     </div>
                 </div>
@@ -96,7 +98,9 @@ const userProviderLabel = computed(() => {
             <template #content>
                 <div class="flex justify-between pb-1 min-[1500px]:pt-0">
                     <div>
-                        <span class="text-xs text-zinc-500 sm:text-sm">{{ usersDoc.email }}</span>
+                        <span class="text-xs text-zinc-700 dark:text-zinc-500 sm:text-sm">{{
+                            usersDoc.email
+                        }}</span>
                     </div>
                 </div>
             </template>
@@ -113,7 +117,7 @@ const userProviderLabel = computed(() => {
                         {{ userProviderLabel }}
                     </LBadge>
                     <div class="flex items-center gap-1">
-                        <UserGroupIcon class="h-4 w-4 text-zinc-400" />
+                        <UserGroupIcon class="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                         <div class="flex flex-wrap gap-1">
                             <LBadge
                                 v-for="group in userGroups"
@@ -123,7 +127,10 @@ const userProviderLabel = computed(() => {
                             >
                                 {{ group.name }}
                             </LBadge>
-                            <span v-if="userGroups.length === 0" class="text-xs text-zinc-400">
+                            <span
+                                v-if="userGroups.length === 0"
+                                class="text-xs text-zinc-500 dark:text-zinc-400"
+                            >
                                 No groups
                             </span>
                         </div>
@@ -143,7 +150,7 @@ const userProviderLabel = computed(() => {
                         {{ userProviderLabel }}
                     </LBadge>
                     <div class="flex flex-1 flex-wrap items-center gap-1">
-                        <UserGroupIcon class="h-4 w-4 text-zinc-400" />
+                        <UserGroupIcon class="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                         <LBadge
                             v-for="group in userGroups"
                             :key="group._id"
@@ -152,7 +159,10 @@ const userProviderLabel = computed(() => {
                         >
                             {{ group.name }}
                         </LBadge>
-                        <span v-if="userGroups.length === 0" class="text-xs text-zinc-400">
+                        <span
+                            v-if="userGroups.length === 0"
+                            class="text-xs text-zinc-500 dark:text-zinc-400"
+                        >
                             No groups
                         </span>
                     </div>

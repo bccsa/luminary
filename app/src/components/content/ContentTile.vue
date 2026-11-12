@@ -140,33 +140,27 @@ const summaryText = computed(() => props.content.summary?.trim() ?? "");
                     size="thumbnailCompact"
                     :rounded="false"
                 >
-                    <template #imageOverlay>
-                        <div
-                            v-if="isComingSoon"
-                            class="absolute inset-0 z-20 flex items-center justify-center bg-black/50"
-                        >
-                            <span
-                                class="rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-semibold text-white shadow"
-                            >
-                                {{ t("content.coming_soon") }}
-                            </span>
-                        </div>
-                        <div
-                            v-else-if="hasVideo"
-                            class="absolute inset-0 z-20 flex items-center justify-center"
-                        >
-                            <span class="rounded-full bg-black/50 p-1.5">
-                                <PlayIcon class="h-5 w-5 text-white" />
-                            </span>
-                        </div>
-                    </template>
                 </LImage>
+                <div
+                    v-if="isComingSoon"
+                    class="absolute inset-0 z-20 flex items-center justify-center bg-black/50"
+                >
+                    <span
+                        class="rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-semibold text-white shadow"
+                    >
+                        {{ t("content.coming_soon") }}
+                    </span>
+                </div>
+                <div
+                    v-else-if="hasVideo"
+                    class="absolute inset-0 z-20 flex items-center justify-center"
+                >
+                    <PlayIcon class="absolute h-9 w-9 text-white blur-sm" />
+                    <PlayIcon class="relative h-9 w-9 text-white" />
+                </div>
             </div>
 
-            <div
-                data-card-text
-                class="flex min-w-0 flex-1 flex-col justify-start gap-1 py-2 pr-3"
-            >
+            <div data-card-text class="flex min-w-0 flex-1 flex-col justify-start gap-1 py-2 pr-3">
                 <h3
                     class="line-clamp-2 font-semibold leading-snug text-zinc-800 dark:text-slate-50"
                 >
@@ -199,17 +193,11 @@ const summaryText = computed(() => props.content.summary?.trim() ?? "");
                 aria-valuemin="0"
                 aria-valuemax="100"
             >
-                <div
-                    class="h-full bg-yellow-500"
-                    :style="{ width: `${displayProgress}%` }"
-                ></div>
+                <div class="h-full bg-yellow-500" :style="{ width: `${displayProgress}%` }"></div>
             </div>
         </template>
 
-        <div
-            v-else
-            class="avoid-inside ease-out-expo -m-2 p-2 active:shadow-inner"
-        >
+        <div v-else class="avoid-inside ease-out-expo -m-2 p-2 active:shadow-inner">
             <div class="relative">
                 <LImage
                     :image="content.parentImageData"
@@ -219,10 +207,7 @@ const summaryText = computed(() => props.content.summary?.trim() ?? "");
                     :size="imageSize"
                 >
                     <template #default>
-                        <div
-                            class="w-full"
-                            v-if="titlePosition === 'bottom'"
-                        >
+                        <div class="w-full" v-if="titlePosition === 'bottom'">
                             <h3 class="mt-2 truncate text-sm text-zinc-800 dark:text-slate-50">
                                 {{ content.title }}
                             </h3>

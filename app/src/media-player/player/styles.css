@@ -1779,11 +1779,11 @@
     text-align: end;
 }
 
-/* No gap of its own: the tools' inset around their glyphs already spaces them from the transport. */
+/* The tools' inset alone left them crowding the transport: a gap of their own sets them apart. */
 .lmpl-afs-bottomrow {
     display: flex;
     flex-direction: column;
-    row-gap: 0;
+    row-gap: calc(12px * var(--lmpl-s));
 }
 
 .lmpl-afs-transport {

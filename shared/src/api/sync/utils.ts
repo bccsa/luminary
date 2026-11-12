@@ -245,9 +245,7 @@ export function getLanguages(): string[] {
  * to different publishDate windows are treated as separate columns.
  */
 export const filterByTypeMemberOf = (options: SyncBaseOptions) => (entry: SyncListEntry) => {
-    const { type, subType, alwaysOffline: entryOffline } = splitChunkTypeString(
-        entry.chunkType,
-    );
+    const { type, subType, alwaysOffline: entryOffline } = splitChunkTypeString(entry.chunkType);
     if ((entryOffline ?? false) !== (options.alwaysOffline ?? false)) return false;
 
     if (type !== options.type) return false;

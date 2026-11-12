@@ -55,16 +55,16 @@ describe("BucketCredentialsForm", () => {
         });
 
         const inputs = wrapper.findAllComponents(LInput);
-        
+
         // Endpoint
         expect(inputs[0].props("modelValue")).toBe("http://localhost:9000");
-        
+
         // Bucket Name
         expect(inputs[1].props("modelValue")).toBe("test-bucket");
-        
+
         // Access Key
         expect(inputs[2].props("modelValue")).toBe("testAccessKey");
-        
+
         // Secret Key
         expect(inputs[3].props("modelValue")).toBe("testSecretKey");
     });
@@ -211,10 +211,10 @@ describe("BucketCredentialsForm", () => {
         await endpointInput.vm.$emit("update:modelValue", "https://new-endpoint.com");
 
         const emittedValue = wrapper.emitted("update:credentials")![0][0] as S3CredentialDto;
-        
+
         // Updated field
         expect(emittedValue.endpoint).toBe("https://new-endpoint.com");
-        
+
         // Preserved fields
         expect(emittedValue.bucketName).toBe("test-bucket");
         expect(emittedValue.accessKey).toBe("testAccessKey");
@@ -239,4 +239,3 @@ describe("BucketCredentialsForm", () => {
         });
     });
 });
-

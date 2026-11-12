@@ -158,11 +158,7 @@ const triggerOffsetX = computed(() => {
 </script>
 
 <template>
-    <div
-        ref="rootRef"
-        class="relative"
-        v-bind="$attrs"
-    >
+    <div ref="rootRef" class="relative" v-bind="$attrs">
         <div
             ref="triggerRef"
             class="cursor-pointer outline-none"
@@ -185,10 +181,7 @@ const triggerOffsetX = computed(() => {
                 :class="[originClass, panelClass]"
                 :style="panelStyle"
             >
-                <slot
-                    :triggerOffsetX="triggerOffsetX"
-                    :above="above"
-                />
+                <slot :triggerOffsetX="triggerOffsetX" :above="above" />
             </div>
         </LTeleport>
     </div>

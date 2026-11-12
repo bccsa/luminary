@@ -36,8 +36,7 @@ const dbName: string = "luminary-db";
  * every write, so an equal timestamp means an identical doc.
  */
 const isSameDoc = (stored: BaseDocumentDto | undefined, doc: BaseDocumentDto): boolean =>
-    stored !== undefined &&
-    stored.updatedTimeUtc === doc.updatedTimeUtc;
+    stored !== undefined && stored.updatedTimeUtc === doc.updatedTimeUtc;
 
 /** The access map `deleteRevoked` last completed against, kept in luminaryInternals. */
 const RECONCILED_ACCESS_MAP_KEY = "reconciledAccessMap";
@@ -205,8 +204,7 @@ class Database extends Dexie {
             localChanges: "++id, reqId, docId, status",
             luminaryInternals: "id",
             retention: "docId, retainUntil",
-            userActivity:
-                "_id, type, parentId, contentId, updatedTimeUtc, [type+updatedTimeUtc]",
+            userActivity: "_id, type, parentId, contentId, updatedTimeUtc, [type+updatedTimeUtc]",
         };
 
         const version: number = bumpDBVersion(

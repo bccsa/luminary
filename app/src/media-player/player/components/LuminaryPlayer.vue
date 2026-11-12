@@ -878,7 +878,7 @@ interface ScrubState {
     chapter: string;
     /** While the press is held, the strip of frames around the playhead that replaces the single frame. */
     roster: {
-        tiles: { key: string; left: number; cue: ThumbnailSpriteCue | null }[];
+        tiles: { key: string; left: number; width: number; cue: ThumbnailSpriteCue | null }[];
         /** Where the marker sits, in px from the roster's left. */
         markerX: number;
         tileWidth: number;
@@ -1306,7 +1306,7 @@ function buildRoster(
     step: number,
     gap: number,
 ): {
-    tiles: { key: string; left: number; cue: ThumbnailSpriteCue | null }[];
+    tiles: { key: string; left: number; width: number; cue: ThumbnailSpriteCue | null }[];
     markerX: number;
     tileWidth: number;
     height: number;
@@ -1322,6 +1322,7 @@ function buildRoster(
         // A different step makes the same index a different slot, so the step is part of the identity.
         key: `${step}:${tile.index}`,
         left: tile.left,
+        width: tile.width,
         cue: instance.thumbnailAt(tile.time),
     }));
     return { tiles, markerX, tileWidth, height, step };
@@ -2096,11 +2097,7 @@ defineExpose({
             '--lmpl-scrub-at': barScrub ? String(scrubAt) : undefined,
         }"
     >
-        <video-player
-            ref="playerEl"
-            class="lmpl-video-player"
-            :lang="lang"
-        >
+        <video-player ref="playerEl" class="lmpl-video-player" :lang="lang">
             <media-container
                 ref="containerEl"
                 class="media-skin media-container lmpl-container"
@@ -2169,10 +2166,7 @@ defineExpose({
                     pointer="touch"
                 ></media-gesture>
 
-                <media-controls
-                    class="lmpl-controls"
-                    v-html="controlsHtml"
-                ></media-controls>
+                <media-controls class="lmpl-controls" v-html="controlsHtml"></media-controls>
 
                 <!-- Inside the container, so it goes fullscreen with the picture, in the play button's place. -->
                 <div
@@ -2258,11 +2252,7 @@ defineExpose({
                 </AudioFullscreen>
 
                 <!-- While held, the frame being scrubbed over the picture: a fast-forward, VHS style. -->
-                <ScrubPicture
-                    v-if="pictureCue"
-                    :cue="pictureCue"
-                    aria-hidden="true"
-                />
+                <ScrubPicture v-if="pictureCue" :cue="pictureCue" aria-hidden="true" />
 
                 <div
                     v-if="scrub && !scrub.roster && !barScrub"
@@ -2299,11 +2289,9 @@ defineExpose({
                     >
                         <span class="lmpl-thumb-time"
                             >{{ pinnedView.label
-                            }}<span
-                                v-if="pinnedView.chapter"
-                                class="lmpl-thumb-chapter"
-                                >{{ pinnedView.chapter }}</span
-                            ></span
+                            }}<span v-if="pinnedView.chapter" class="lmpl-thumb-chapter">{{
+                                pinnedView.chapter
+                            }}</span></span
                         >
                     </div>
                 </template>
@@ -2324,11 +2312,9 @@ defineExpose({
                     >
                         <span class="lmpl-thumb-time"
                             >{{ scrub.label
-                            }}<span
-                                v-if="scrub.chapter"
-                                class="lmpl-thumb-chapter"
-                                >{{ scrub.chapter }}</span
-                            ></span
+                            }}<span v-if="scrub.chapter" class="lmpl-thumb-chapter">{{
+                                scrub.chapter
+                            }}</span></span
                         >
                     </div>
                 </template>
@@ -2401,15 +2387,8 @@ defineExpose({
                             </svg>
                         </button>
                     </div>
-                    <ul
-                        class="lmpl-nextup-strip"
-                        @wheel="onNextUpWheel"
-                    >
-                        <li
-                            v-for="item in nextUpItems"
-                            :key="item.id"
-                            class="lmpl-nextup-item"
-                        >
+                    <ul class="lmpl-nextup-strip" @wheel="onNextUpWheel">
+                        <li v-for="item in nextUpItems" :key="item.id" class="lmpl-nextup-item">
                             <button
                                 type="button"
                                 class="lmpl-nextup-card"
@@ -2418,11 +2397,9 @@ defineExpose({
                                 <span class="lmpl-nextup-thumb">
                                     <NextUpThumb :item="item" />
                                 </span>
-                                <span
-                                    v-if="item.section"
-                                    class="lmpl-nextup-section"
-                                    >{{ item.section }}</span
-                                >
+                                <span v-if="item.section" class="lmpl-nextup-section">{{
+                                    item.section
+                                }}</span>
                                 <span class="lmpl-nextup-title">{{ item.title }}</span>
                             </button>
                         </li>
@@ -2442,17 +2419,11 @@ defineExpose({
         ></audio>
 
         <div class="lmpl-slot">
-            <slot
-                :state="state"
-                :controller="controller"
-            ></slot>
+            <slot :state="state" :controller="controller"></slot>
         </div>
 
         <template v-if="state.lifecycle === 'waiting-for-master'">
-            <slot
-                name="coming-soon"
-                :state="state"
-            >
+            <slot name="coming-soon" :state="state">
                 <div class="lmpl-panel lmpl-coming-soon">
                     <p class="lmpl-panel-text">{{ msg.comingSoon }}</p>
                 </div>
@@ -2460,19 +2431,10 @@ defineExpose({
         </template>
 
         <template v-else-if="state.lifecycle === 'error' || sourceError">
-            <slot
-                name="error"
-                :state="state"
-                :error="displayedError"
-                :retry="retry"
-            >
+            <slot name="error" :state="state" :error="displayedError" :retry="retry">
                 <div class="lmpl-panel lmpl-error">
                     <p class="lmpl-panel-text">{{ errorText }}</p>
-                    <button
-                        type="button"
-                        class="lmpl-btn lmpl-retry"
-                        @click="retry"
-                    >
+                    <button type="button" class="lmpl-btn lmpl-retry" @click="retry">
                         {{ msg.retry }}
                     </button>
                 </div>

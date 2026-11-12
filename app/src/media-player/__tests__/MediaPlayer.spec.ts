@@ -13,6 +13,7 @@ import { ScreenWakeKey } from "@/build-time/contracts/screen-wake/token";
 import {
     chosenAudio,
     closeMediaPlayer,
+    expandMediaPlayer,
     mediaPlayerItem,
     minimiseMediaPlayer,
     mediaPlayerView,
@@ -308,7 +309,11 @@ vi.mock("@/media-player/MediaPlayerWrapper.vue", async () => {
 const wrappers: VueWrapper[] = [];
 
 async function mountPlayer(provide: Record<symbol, unknown> = {}) {
-    const wrapper = mount(MediaPlayer, { global: { stubs: { LImage: true }, provide } });
+    // On the page, as in the app: the engine is teleported to its place there by id.
+    const wrapper = mount(MediaPlayer, {
+        attachTo: document.body,
+        global: { stubs: { LImage: true }, provide },
+    });
     wrappers.push(wrapper);
     await flushPromises();
     return wrapper;
@@ -405,6 +410,20 @@ describe("MediaPlayer", () => {
     it("shows nothing while nothing plays", async () => {
         const wrapper = await mountPlayer();
         expect(find(wrapper, "mediaPlayer").exists()).toBe(false);
+    });
+
+    it("keeps one engine through minimising and expanding on a wide screen, so playback carries on where it is", async () => {
+        // Expanded, the card shows the now-playing screen; minimised, the bar. A copy of the engine in each
+        // started a second player from the last saved position at every change.
+        await playing();
+        minimiseMediaPlayer();
+        await flushPromises();
+        expandMediaPlayer();
+        await flushPromises();
+        minimiseMediaPlayer();
+        await flushPromises();
+
+        expect(engine.mounts).toBe(1);
     });
 
     it("plays the content opened, starting on the video, autoplaying", async () => {

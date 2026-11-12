@@ -98,9 +98,7 @@ describe("SelectionModal.vue", () => {
             expect(wrapper.html()).toContain("Acme Corp");
         });
 
-        const providerBtn = wrapper
-            .findAll("button")
-            .find((b) => b.text().includes("Acme Corp"));
+        const providerBtn = wrapper.findAll("button").find((b) => b.text().includes("Acme Corp"));
         await providerBtn!.trigger("click");
 
         expect(loginWithProvider).toHaveBeenCalledTimes(1);
@@ -122,9 +120,7 @@ describe("SelectionModal.vue", () => {
             expect(wrapper.html()).toContain("Beta Inc");
         });
 
-        const providerBtn = wrapper
-            .findAll("button")
-            .find((b) => b.text().includes("Beta Inc"));
+        const providerBtn = wrapper.findAll("button").find((b) => b.text().includes("Beta Inc"));
         expect(providerBtn!.attributes("style")).toContain("background-color");
     });
 

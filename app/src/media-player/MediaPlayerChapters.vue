@@ -19,10 +19,7 @@ const current = computed(() => chapterIndexAt(props.chapters, props.currentTime)
 
 <template>
     <ol class="flex-1 space-y-1 overflow-y-auto px-3 pb-8 pt-2">
-        <li
-            v-for="(chapter, index) in chapters"
-            :key="`${chapter.startTime}-${index}`"
-        >
+        <li v-for="(chapter, index) in chapters" :key="`${chapter.startTime}-${index}`">
             <ChapterRow
                 :chapter="chapter"
                 :current="index === current"

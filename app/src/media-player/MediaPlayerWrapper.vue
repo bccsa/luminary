@@ -39,7 +39,7 @@ import {
 import { getMediaProgress, isMediaFinished, setMediaProgress } from "@/contentProgress";
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
-import { markSeen } from "@/recommendation/seenStore";
+import { ensureUserActivity } from "@/userActivity/store";
 import { fallbackArtworkDataUrl } from "@/util/fallbackArtwork";
 import { deviceOnline, offlineArtworkDataUrl } from "./cachedArtwork";
 import { audioLanguageFor, audioLanguagePreference } from "./audioLanguage";
@@ -564,8 +564,8 @@ function applyCompletion() {
     recordAffinity(props.content.parentTags, affinityConfig.value.eventWeight.completion);
 
     // mediaProgress is a 10-slot ring buffer used only to resume playback, not a
-    // history — record completion in the durable seen store instead.
-    markSeen(props.content._id);
+    // history — record completion in the activity history instead.
+    void ensureUserActivity({ type: "viewed", parentId: props.content.parentId });
 }
 
 /** Each save rewrites localStorage and re-renders every progress tile, so `timeupdate`'s rate is too often. */
@@ -765,10 +765,7 @@ function onEnded() {
 <template>
     <!-- Square, as the player around it: the poster shows at its corners until the video draws. -->
     <div class="relative bg-transparent">
-        <div
-            v-if="inlineActive"
-            class="aspect-video w-full"
-        />
+        <div v-if="inlineActive" class="aspect-video w-full" />
         <LImage
             v-else
             :image="content.parentImageData"
@@ -779,10 +776,7 @@ function onEnded() {
             :parent-image-bucket-id="content.parentImageBucketId"
         />
 
-        <div
-            ref="playerWrapper"
-            class="video-player absolute bottom-0 left-0 right-0 top-0"
-        >
+        <div ref="playerWrapper" class="video-player absolute bottom-0 left-0 right-0 top-0">
             <YouTubeWrapper
                 v-if="youtubeUrl"
                 ref="player"

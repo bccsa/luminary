@@ -126,13 +126,13 @@ const handleFileChange = () => {
                     />
                 </div>
                 <button
-                    class="flex cursor-pointer items-center gap-1 rounded-md text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
+                    class="flex cursor-pointer items-center gap-1 rounded-md dark:text-zinc-400 dark:hover:text-zinc-300"
                     @click.stop="showHelp = !showHelp"
                 >
                     <QuestionMarkCircleIcon class="h-5 w-5" />
                 </button>
             </template>
-            <div v-if="showHelp" class="text-zinc-600 dark:text-zinc-400">
+            <div v-if="showHelp" class="dark:text-zinc-400">
                 <p class="my-2 text-xs">
                     You can upload several files in different aspect ratios. The most suitable image
                     will automatically be displayed based on the aspect ratio of the image element
@@ -174,7 +174,7 @@ const handleFileChange = () => {
                         <span class="hidden text-sm sm:inline">Upload</span>
                     </LButton>
                     <button
-                        class="flex cursor-pointer items-center gap-1 rounded-md text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
+                        class="flex cursor-pointer items-center gap-1 rounded-md dark:text-zinc-400 dark:hover:text-zinc-300"
                         @click.stop="showHelp = !showHelp"
                         aria-label="Image help"
                         type="button"
@@ -193,7 +193,7 @@ const handleFileChange = () => {
                 @change="handleFileChange"
             />
 
-            <div v-if="showHelp" class="mt-2 text-zinc-600 dark:text-zinc-400">
+            <div v-if="showHelp" class="mt-2 dark:text-zinc-400">
                 <p class="my-2 text-xs">
                     You can upload several files in different aspect ratios. The most suitable image
                     will automatically be displayed based on the aspect ratio of the image element

@@ -122,10 +122,7 @@ const deleteLocalData = async () => {
                 <div class="mb-4 text-sm text-zinc-600 dark:text-slate-100">
                     {{ t("settings.clear_activity.description") }}
                 </div>
-                <LButton
-                    @click="showClearActivityDialog = true"
-                    data-test="clearUserActivity"
-                >
+                <LButton @click="showClearActivityDialog = true" data-test="clearUserActivity">
                     {{ t("settings.clear_activity.button") }}
                 </LButton>
             </LCard>
@@ -209,10 +206,7 @@ const deleteLocalData = async () => {
                     <div class="text-sm text-zinc-600 dark:text-slate-100">
                         {{ t("settings.subtitles.description") }}
                     </div>
-                    <LToggle
-                        v-model="subtitlesOnVideo"
-                        data-test="subtitlesOnVideoToggle"
-                    />
+                    <LToggle v-model="subtitlesOnVideo" data-test="subtitlesOnVideoToggle" />
                 </div>
             </LCard>
             <LCard :title="t('settings.youtube.title')">
@@ -220,10 +214,7 @@ const deleteLocalData = async () => {
                     <div class="text-sm text-zinc-600 dark:text-slate-100">
                         {{ t("settings.youtube.description") }}
                     </div>
-                    <LToggle
-                        v-model="youtubeAlwaysAllow"
-                        data-test="youtubeAllowToggle"
-                    />
+                    <LToggle v-model="youtubeAlwaysAllow" data-test="youtubeAllowToggle" />
                 </div>
             </LCard>
         </div>

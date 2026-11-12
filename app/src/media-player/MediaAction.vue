@@ -71,22 +71,10 @@ const mediaProgress = computed(() => {
             data-test="mediaPlayProgress"
         >
             <defs>
-                <filter
-                    :id="`${uid}-halo`"
-                    x="-20%"
-                    y="-20%"
-                    width="140%"
-                    height="140%"
-                >
+                <filter :id="`${uid}-halo`" x="-20%" y="-20%" width="140%" height="140%">
                     <feGaussianBlur stdDeviation="1.5" />
                 </filter>
-                <filter
-                    :id="`${uid}-shadow`"
-                    x="-30%"
-                    y="-30%"
-                    width="160%"
-                    height="160%"
-                >
+                <filter :id="`${uid}-shadow`" x="-30%" y="-30%" width="160%" height="160%">
                     <feDropShadow
                         dx="0"
                         dy="2"
@@ -139,12 +127,7 @@ const mediaProgress = computed(() => {
                     class="fill-zinc-900"
                     data-test="mediaPlayOutline"
                 />
-                <circle
-                    cx="34"
-                    cy="34"
-                    r="25.5"
-                    class="fill-yellow-500"
-                />
+                <circle cx="34" cy="34" r="25.5" class="fill-yellow-500" />
                 <!-- The play glyph (18-unit grid) at 4/3, centred by the circle that encloses it (centre 7.43, 9 on its
                      grid), so it sits in the middle of the disc as a round shape would, not by its box. -->
                 <path
@@ -155,20 +138,14 @@ const mediaProgress = computed(() => {
             </g>
         </svg>
     </button>
-    <div
-        v-else
-        class="mt-4 flex justify-center px-4"
-    >
+    <div v-else class="mt-4 flex justify-center px-4">
         <button
             type="button"
             class="flex h-11 items-center gap-2 rounded-full bg-yellow-500 px-5 text-base font-semibold text-zinc-900 shadow-sm hover:bg-yellow-400"
             data-test="mediaPlay"
             @click="open"
         >
-            <PlayerIcon
-                name="play"
-                class="h-5 w-5 translate-x-[8%]"
-            />
+            <PlayerIcon name="play" class="h-5 w-5 translate-x-[8%]" />
             {{ t("media_player.play") }}
         </button>
     </div>

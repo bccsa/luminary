@@ -73,9 +73,14 @@ describe("FtsSearchService", () => {
             executeFindQuery: jest.fn().mockResolvedValue({ docs: [] }),
             on: jest.fn(),
             ftsCorpusStats: jest.fn().mockResolvedValue({ docCount: 100, totalTokenCount: 1000 }),
-            ftsTrigramDf: jest
-                .fn()
-                .mockResolvedValue(new Map([["gar", 3], ["ard", 3], ["rde", 3], ["den", 3]])),
+            ftsTrigramDf: jest.fn().mockResolvedValue(
+                new Map([
+                    ["gar", 3],
+                    ["ard", 3],
+                    ["rde", 3],
+                    ["den", 3],
+                ]),
+            ),
             ftsTrigramCandidates: jest.fn().mockResolvedValue([]),
             ftsAuxTrigramDf: jest
                 .fn()
@@ -117,7 +122,9 @@ describe("FtsSearchService", () => {
     });
 
     it("throws 403 when the user has no view groups for the requested types", async () => {
-        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce({} as any);
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(
+            {} as any,
+        );
         await expect(service.search(makeReq(), mockUser)).rejects.toEqual(
             new HttpException("Forbidden", HttpStatus.FORBIDDEN),
         );
@@ -455,10 +462,7 @@ describe("FtsSearchService", () => {
             ]);
             echoDocs();
 
-            const res = await service.search(
-                makeReq({ cms: true, matchAllWords: true }),
-                mockUser,
-            );
+            const res = await service.search(makeReq({ cms: true, matchAllWords: true }), mockUser);
             expect(res.map((r) => r.docId)).toEqual(["byauthor"]);
         });
 

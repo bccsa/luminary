@@ -158,7 +158,9 @@ vi.mock("@/components/images/ImageModal.vue", () => ({ default: voidStub("ImageM
 vi.mock("@/components/images/LImageProvider.vue", () => ({
     activeImageCollection: () => 0,
 }));
-vi.mock("@/media-player/MediaPlayerWrapper.vue", () => ({ default: voidStub("MediaPlayerWrapper") }));
+vi.mock("@/media-player/MediaPlayerWrapper.vue", () => ({
+    default: voidStub("MediaPlayerWrapper"),
+}));
 vi.mock("@/components/content/CopyrightBanner.vue", () => ({
     default: voidStub("CopyrightBanner"),
 }));
