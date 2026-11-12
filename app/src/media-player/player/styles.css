@@ -1091,11 +1091,12 @@
     display: flex;
     flex: 1;
     min-width: 0;
-    gap: calc(4px * var(--lmpl-s));
+    gap: calc(20px * var(--lmpl-s));
 }
 
+/* No inline padding: the label lines up with the rows' left edge and the underline is as wide as the label. */
 .lmpl-root .lmpl-browse-tab {
-    padding: calc(10px * var(--lmpl-s)) calc(12px * var(--lmpl-s));
+    padding: calc(10px * var(--lmpl-s)) 0;
     border: 0;
     border-bottom: 2px solid transparent;
     background: transparent;
@@ -1116,6 +1117,11 @@
     outline-offset: -2px;
 }
 
+/* Outside the label, which now reaches the tab's edges. */
+.lmpl-root .lmpl-browse-tab:focus-visible {
+    outline-offset: 2px;
+}
+
 .lmpl-root .lmpl-browse-close {
     flex: none;
     margin-bottom: calc(4px * var(--lmpl-s));
@@ -1126,6 +1132,23 @@
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
+    /* A classic scrollbar (desktop with a mouse) is otherwise grey on a white track against the dark panel. */
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.3) transparent;
+}
+
+/* Safari ignores scrollbar-color; Chrome ignores these once scrollbar-color is set. */
+.lmpl-browse-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.lmpl-browse-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.lmpl-browse-body::-webkit-scrollbar-thumb {
+    border-radius: 3px;
+    background: rgb(255 255 255 / 0.3);
 }
 
 .lmpl-browse-list {
