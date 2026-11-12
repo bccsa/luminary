@@ -67,6 +67,7 @@ import LDialog from "@/components/common/LDialog.vue";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { fallbackImageFor } from "@/util/fallbackArtwork";
 import {
+    coverImageSizes,
     coverImageSrcset,
     coverImageUrl,
     posterImageUrl,
@@ -1462,8 +1463,15 @@ const screenArtwork = computed(() => {
     const srcset = content.value
         ? coverImageSrcset(content.value, coverBucketBaseUrl.value)
         : undefined;
+    const sizes = srcset && content.value ? coverImageSizes(content.value) : undefined;
     const fallback = fallbackImageFor(content.value?.parentId);
-    if (src) return { src, ...(srcset ? { srcset } : {}), ...(fallback ? { fallback } : {}) };
+    if (src)
+        return {
+            src,
+            ...(srcset ? { srcset } : {}),
+            ...(sizes ? { sizes } : {}),
+            ...(fallback ? { fallback } : {}),
+        };
     return fallback ? { src: fallback } : null;
 });
 /** The cover as data while the device is offline, for the platform's screen; see `offlineArtworkDataUrl`. */

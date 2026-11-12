@@ -1,5 +1,6 @@
 import type { ContentDto } from "luminary-shared";
 import { washAverage, washOf } from "./wash/thumbHashWash";
+import { imageSizes } from "@/components/images/LImageProvider.vue";
 
 const COVER_TARGET_WIDTH = 640;
 
@@ -23,6 +24,16 @@ export function coverImageSrcset(content: ContentDto, bucketBaseUrl?: string): s
         .sort((a, b) => a.width - b.width)
         .map((file) => `${base}/${file.filename} ${file.width}w`)
         .join(", ");
+}
+
+/**
+ * The `sizes` for {@link coverImageSrcset}: the post page picture's own, so the browser picks the file that page
+ * already loaded and the cover is drawn from cache. Undefined when the post has no image.
+ */
+export function coverImageSizes(content: ContentDto): string | undefined {
+    const collection = collectionNear(content, 1);
+    if (!collection?.imageFiles?.length) return undefined;
+    return imageSizes("post", "video", collection.aspectRatio);
 }
 
 /**

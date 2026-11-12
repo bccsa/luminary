@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { rgbaToThumbHash } from "thumbhash";
 import type { ContentDto } from "luminary-shared";
 import {
+    coverImageSizes,
     coverImageSrcset,
     coverImageUrl,
     imageFileUrls,
@@ -9,6 +10,7 @@ import {
     thumbHashOf,
     thumbHashTint,
 } from "../coverImage";
+import { imageSizes } from "@/components/images/LImageProvider.vue";
 
 /** A real ThumbHash of a small two-colour picture, base64 as the API stores it. */
 function hashOf(width: number, height: number): string {
@@ -143,5 +145,18 @@ describe("offline-friendly addresses", () => {
             `${base}/square-640.webp`,
             `${base}/square-180.webp`,
         ]);
+    });
+});
+
+describe("coverImageSizes", () => {
+    it("asks for the post page picture's sizes, so the file that page loaded is reused", () => {
+        const content = withCollections([
+            { aspectRatio: 2, imageFiles: [{ width: 1280, filename: "wide-1280.webp" }] },
+        ]);
+        expect(coverImageSizes(content)).toBe(imageSizes("post", "video", 2));
+    });
+
+    it("is undefined for a post without an image", () => {
+        expect(coverImageSizes(withCollections([]))).toBeUndefined();
     });
 });

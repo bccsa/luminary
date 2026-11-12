@@ -1,6 +1,9 @@
 <script lang="ts">
 import { computed } from "vue";
 import { type ContentDto } from "luminary-shared";
+import { dataSaverOn } from "@/globalConfig";
+import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
+import { isPrerender } from "@/ssg/isPrerender";
 
 export const aspectRatiosCSS = {
     original: "aspect-auto",
@@ -72,6 +75,82 @@ export const sizesReducedMap: Record<ImageSize, string> = {
     icon: "",
 };
 
+// "Reduced data" mode lowers image weight on any of four signals (slow connection, user toggle, OS Data Saver, SSG prerendering). Forced on during SSG so the prerendered HTML advertises the smallest slot, not the full-res `sizes` a real device's DPR would pull in.
+const reducedData = (): boolean => isPrerender() || isSlowConnection.value || dataSaverOn.value;
+
+// `object-cover` scales the source up until it fills the slot's aspect-ratio box, cropping the
+// overflow. When the displayed collection is WIDER than the box (e.g. a landscape image in a
+// portrait/vertical tile), the browser still picks a srcset variant from the slot WIDTH alone and
+// under-fetches, so the cover-cropped image is upscaled and looks soft. Inflate the advertised
+// `sizes` width by how much the cover-crop over-scales — `sourceAspect / containerAspect` — so the
+// browser fetches a high-enough variant. Ratio ≤ 1 (source same/narrower than the box) → no change.
+const coverScaleFactor = (aspectRatio: AspectRatio, sourceAspect: number): number => {
+    const containerAspect = aspectRatioNumbers[aspectRatio];
+    if (!containerAspect || !sourceAspect) return 1; // `original` aspect / no collections
+    return Math.max(1, sourceAspect / containerAspect);
+};
+
+// Multiply only the length values (not media-query breakpoints) in a `sizes` string by `factor`.
+// Each comma-separated segment is `[<media-condition>] <length>`; only the trailing length scales,
+// so `(min-width: 768px)` breakpoints are left untouched. Non-px lengths (e.g. `vw`) pass through.
+const inflateSizes = (sizesStr: string, factor: number): string => {
+    if (factor <= 1) return sizesStr;
+    return sizesStr
+        .split(",")
+        .map((part) =>
+            part.replace(
+                /(\d+(?:\.\d+)?)px(\s*)$/,
+                (_full, n, ws) => `${Math.round(Number(n) * factor)}px${ws}`,
+            ),
+        )
+        .join(",");
+};
+
+// In reduced-data mode we cap the *effective* device pixel ratio at this. `sizes` is otherwise
+// DPR-blind (the browser multiplies by DPR itself), so a "reduced" slot equal to the rendered width
+// still fetches a 2–3x variant on a retina phone. Dividing the slot width by DPR (down to this cap)
+// makes the browser fetch a ~1x image instead. 1 = max savings / softest; bump to 1.5 for a balance.
+const REDUCED_DPR_CAP = 1;
+
+// Multiply one CSS length token (px/vw) by `factor`, rounded. Used to divide the reduced slot width
+// down by the device pixel ratio so the browser fetches a lower-density variant. factor >= 1 is a
+// no-op (e.g. a 1x display, where there's nothing to undercut).
+const scaleLength = (length: string, factor: number): string =>
+    factor >= 1
+        ? length
+        : length.replace(
+              /(\d+(?:\.\d+)?)(px|vw)/,
+              (_full, n, unit) => `${Math.round(Number(n) * factor)}${unit}`,
+          );
+
+/**
+ * The HTML `sizes` attribute for a slot (undefined for icon mode, which uses a direct src), inflated
+ * for cover-crop over-scaling (see `coverScaleFactor`). Exported so another picture of the same image
+ * can ask for the very file LImage already loaded. Drops to the smaller, DPR-capped slot when:
+ *   1. `reducedData` (slow connection, the user's toggle, or the OS/browser `saveData` flag): force
+ *      the smaller slot — also covers Chromium browsers that expose the flag but not the media query.
+ *   2. `(prefers-reduced-data: reduce)`: advertise the smaller slot declaratively so supporting
+ *      browsers downshift live; everyone else falls through to the full slot.
+ */
+export function imageSizes(
+    size: ImageSize,
+    aspectRatio: AspectRatio,
+    sourceAspect: number,
+): string | undefined {
+    const base = sizesMap[size];
+    if (!base) return undefined; // icon mode
+    const baseInflated = inflateSizes(base, coverScaleFactor(aspectRatio, sourceAspect));
+    const reduced = sizesReducedMap[size];
+    if (!reduced) return baseInflated;
+    // Divide the reduced slot width by DPR (down to REDUCED_DPR_CAP) so the browser fetches a lower-
+    // density image. DPR is known at render time, so this is also correct for the declarative branch.
+    // Reduced mode is deliberately NOT cover-crop-inflated — lower quality is the accepted trade.
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    const reducedCapped = scaleLength(reduced, Math.min(1, REDUCED_DPR_CAP / dpr));
+    if (reducedData()) return reducedCapped;
+    return `(prefers-reduced-data: reduce) ${reducedCapped}, ${baseInflated}`;
+}
+
 export const activeImageCollection = computed(() => (content: ContentDto) => {
     if (!content.parentImageData?.fileCollections?.length) return 0;
 
@@ -94,13 +173,11 @@ export const activeImageCollection = computed(() => (content: ContentDto) => {
 </script>
 
 <script setup lang="ts">
-import { dataSaverOn, fallbackImageUrls } from "@/globalConfig";
-import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
+import { fallbackImageUrls } from "@/globalConfig";
 import { type ImageDto, type ImageFileDto, type Uuid } from "luminary-shared";
 import Rand from "rand-seed";
 import { thumbHashToDataURL } from "thumbhash";
 import { onMounted, ref } from "vue";
-import { isPrerender } from "@/ssg/isPrerender";
 
 type Props = {
     image?: ImageDto;
@@ -135,9 +212,6 @@ const resolvedAlt = computed(() => {
 });
 
 const baseUrl = computed(() => props.bucketPublicUrl);
-
-// "Reduced data" mode lowers image weight on any of four signals (slow connection, user toggle, OS Data Saver, SSG prerendering). Forced on during SSG so the prerendered HTML advertises the smallest slot, not the full-res `sizes` a real device's DPR would pull in.
-const reducedData = computed(() => isPrerender() || isSlowConnection.value || dataSaverOn.value);
 
 // All collections for this image, unfiltered. We deliberately hand the browser the FULL srcset ladder
 // (never pre-filtering variants by width) plus a correct `sizes` attribute, so it can pick the variant
@@ -175,73 +249,9 @@ const displayCollection = computed(() =>
     allFileCollections.value.find((c) => c.aspectRatio === closestAspectRatio.value),
 );
 
-// `object-cover` scales the source up until it fills the slot's aspect-ratio box, cropping the
-// overflow. When the displayed collection is WIDER than the box (e.g. a landscape image in a
-// portrait/vertical tile), the browser still picks a srcset variant from the slot WIDTH alone and
-// under-fetches, so the cover-cropped image is upscaled and looks soft. Inflate the advertised
-// `sizes` width by how much the cover-crop over-scales — `sourceAspect / containerAspect` — so the
-// browser fetches a high-enough variant. Ratio ≤ 1 (source same/narrower than the box) → no change.
-const coverScaleFactor = computed(() => {
-    const containerAspect = aspectRatioNumbers[props.aspectRatio];
-    const sourceAspect = closestAspectRatio.value;
-    if (!containerAspect || !sourceAspect) return 1; // `original` aspect / no collections
-    return Math.max(1, sourceAspect / containerAspect);
-});
-
-// Multiply only the length values (not media-query breakpoints) in a `sizes` string by `factor`.
-// Each comma-separated segment is `[<media-condition>] <length>`; only the trailing length scales,
-// so `(min-width: 768px)` breakpoints are left untouched. Non-px lengths (e.g. `vw`) pass through.
-const inflateSizes = (sizesStr: string, factor: number): string => {
-    if (factor <= 1) return sizesStr;
-    return sizesStr
-        .split(",")
-        .map((part) =>
-            part.replace(
-                /(\d+(?:\.\d+)?)px(\s*)$/,
-                (_full, n, ws) => `${Math.round(Number(n) * factor)}px${ws}`,
-            ),
-        )
-        .join(",");
-};
-
-// In reduced-data mode we cap the *effective* device pixel ratio at this. `sizes` is otherwise
-// DPR-blind (the browser multiplies by DPR itself), so a "reduced" slot equal to the rendered width
-// still fetches a 2–3x variant on a retina phone. Dividing the slot width by DPR (down to this cap)
-// makes the browser fetch a ~1x image instead. 1 = max savings / softest; bump to 1.5 for a balance.
-const REDUCED_DPR_CAP = 1;
-
-// Multiply one CSS length token (px/vw) by `factor`, rounded. Used to divide the reduced slot width
-// down by the device pixel ratio so the browser fetches a lower-density variant. factor >= 1 is a
-// no-op (e.g. a 1x display, where there's nothing to undercut).
-const scaleLength = (length: string, factor: number): string =>
-    factor >= 1
-        ? length
-        : length.replace(
-              /(\d+(?:\.\d+)?)(px|vw)/,
-              (_full, n, unit) => `${Math.round(Number(n) * factor)}${unit}`,
-          );
-
-// The HTML `sizes` attribute for the current slot (undefined for icon mode, which uses a direct src),
-// inflated for cover-crop over-scaling (see `coverScaleFactor`). Drops to the smaller, DPR-capped slot
-// when:
-//   1. `reducedData` (slow connection, the user's toggle, or the OS/browser `saveData` flag): force
-//      the smaller slot — also covers Chromium browsers that expose the flag but not the media query.
-//   2. `(prefers-reduced-data: reduce)`: advertise the smaller slot declaratively so supporting
-//      browsers downshift live; everyone else falls through to the full slot.
-const sizesAttr = computed(() => {
-    const base = sizesMap[props.size];
-    if (!base) return undefined; // icon mode
-    const baseInflated = inflateSizes(base, coverScaleFactor.value);
-    const reduced = sizesReducedMap[props.size];
-    if (!reduced) return baseInflated;
-    // Divide the reduced slot width by DPR (down to REDUCED_DPR_CAP) so the browser fetches a lower-
-    // density image. DPR is known at render time, so this is also correct for the declarative branch.
-    // Reduced mode is deliberately NOT cover-crop-inflated — lower quality is the accepted trade.
-    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const reducedCapped = scaleLength(reduced, Math.min(1, REDUCED_DPR_CAP / dpr));
-    if (reducedData.value) return reducedCapped;
-    return `(prefers-reduced-data: reduce) ${reducedCapped}, ${baseInflated}`;
-});
+const sizesAttr = computed(() =>
+    imageSizes(props.size, props.aspectRatio, closestAspectRatio.value),
+);
 
 // Decode the collection's base64 ThumbHash into a blurred data URL, shown as the <img> background so
 // a preview of the *correct* photo appears instantly (and offline) until the real image paints over.
