@@ -76,18 +76,22 @@ describe("the media player's store", () => {
         expect(startsAsAudio.value).toBe(true);
     });
 
-    it("opens as asked, else as last chosen; strict Data Saver opens as sound only until a mode is chosen", () => {
+    it("opens as asked, else as sound under strict Data Saver, else as last chosen", () => {
         expect(opensAsAudio({})).toBe(false);
         userDataSaverEnabled.value = true;
         expect(opensAsAudio({})).toBe(true);
-        chosenAudio.value = false;
-        expect(opensAsAudio({})).toBe(false);
-        expect(opensAsAudio({ audio: true })).toBe(true);
+        expect(opensAsAudio({ audio: false })).toBe(false);
         userDataSaverEnabled.value = false;
-        expect(opensAsAudio({})).toBe(false);
         chosenAudio.value = true;
         expect(opensAsAudio({})).toBe(true);
         expect(opensAsAudio({ audio: false })).toBe(false);
+    });
+
+    it("opens as sound under strict Data Saver though the viewer once chose the picture", () => {
+        chosenAudio.value = false;
+        expect(opensAsAudio({})).toBe(false);
+        userDataSaverEnabled.value = true;
+        expect(opensAsAudio({})).toBe(true);
     });
 
     it("keeps the last sleep timer chosen, off included", async () => {

@@ -26,7 +26,7 @@ export const startsAsAudio = computed(() => effectiveDataSaverLevel.value === "s
 
 /**
  * The mode the viewer last chose (true: sound only), kept across restarts; null until they choose. Every item opens
- * in it, by whatever way it was opened, ahead of Data Saver's default.
+ * in it, by whatever way it was opened, except under strict Data Saver, which opens as sound.
  */
 export const chosenAudio = ref<boolean | null>(readChosenAudio());
 watch(chosenAudio, (audio) => {
@@ -73,11 +73,12 @@ function readSleepTimerDefault(): SleepTimerOption | null {
 }
 
 /**
- * The mode a new item opens in: what was asked for the item, else the viewer's last choice, else sound under strict
- * data saving (its default holds only until the viewer has chosen a mode), else the picture.
+ * The mode a new item opens in: what was asked for the item, else sound under strict data saving, else the viewer's
+ * last choice, else the picture. Strict promises sound first and asks before the picture, so a Video tap kept from
+ * before it was picked does not override it.
  */
 export function opensAsAudio(item: Pick<MediaPlayerItem, "audio">): boolean {
-    return item.audio ?? chosenAudio.value ?? startsAsAudio.value;
+    return item.audio ?? (startsAsAudio.value || (chosenAudio.value ?? false));
 }
 
 /**
