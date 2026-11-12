@@ -4,6 +4,7 @@ import { mount } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import LHighlightable from "./LHighlightable.vue";
+import * as luminaryShared from "luminary-shared";
 import { db } from "luminary-shared";
 
 // Mock teleport to render in place
@@ -16,12 +17,13 @@ vi.mock("vue", async (importOriginal) => {
 
 const mountHighlightable = (
     contentId = "test-content-1",
+    parentId = "test-post-1",
     title = "Test Article",
     copyright?: string,
     canShare?: boolean,
 ) =>
     mount(LHighlightable, {
-        props: { contentId, title, copyright, canShare },
+        props: { contentId, parentId, title, copyright, canShare },
         slots: { default: "<p>Some highlighted text content</p>" },
         attachTo: document.body,
     });
@@ -207,22 +209,22 @@ describe("LHighlightable", () => {
     });
 
     it("handles save highlights error gracefully", async () => {
-        const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-        vi.spyOn(db, "getLuminaryInternals").mockRejectedValue(new Error("DB error"));
-        vi.spyOn(db, "setLuminaryInternals").mockRejectedValue(new Error("DB error"));
+        const reportErrorSpy = vi.spyOn(luminaryShared, "reportError");
+        vi.spyOn(db.userActivity, "where").mockImplementation(() => {
+            throw new Error("DB error");
+        });
 
         const wrapper = mountHighlightable("error-test");
 
         // Wait for restoreHighlights to be called (async in onMounted)
         await vi.advanceTimersByTimeAsync(100);
 
-        expect(consoleSpy).toHaveBeenCalledWith(
-            "[highlights] restore failed:",
-            expect.any(Error),
-        );
+        expect(reportErrorSpy).toHaveBeenCalledWith(expect.any(Error), {
+            area: "highlights",
+            op: "restore",
+        });
 
         wrapper.unmount();
-        consoleSpy.mockRestore();
     });
 
     it("handles document-level contextmenu on content element", async () => {
@@ -326,7 +328,7 @@ describe("LHighlightable", () => {
     });
 
     it("shows share targets and opens the correct URL for the selected text", async () => {
-        const wrapper = mountHighlightable("share-test", "Test Article");
+        const wrapper = mountHighlightable("share-test", "test-post-1", "Test Article");
         // Let the async onMounted (restoreHighlights) finish before dispatching
         // selectionchange — the listener isn't registered until it resolves.
         await vi.advanceTimersByTimeAsync(50);
@@ -404,7 +406,12 @@ describe("LHighlightable", () => {
         const writeText = vi.fn().mockResolvedValue(undefined);
         Object.assign(navigator, { clipboard: { writeText } });
 
-        const wrapper = mountHighlightable("copy-format-test", "Test Article", "© Test Publisher");
+        const wrapper = mountHighlightable(
+            "copy-format-test",
+            "test-post-1",
+            "Test Article",
+            "© Test Publisher",
+        );
         await vi.advanceTimersByTimeAsync(50);
         const prose = wrapper.find(".prose");
 
@@ -454,7 +461,13 @@ describe("LHighlightable", () => {
     });
 
     it("hides the share trigger and ignores openShareMenu when canShare is false", async () => {
-        const wrapper = mountHighlightable("no-share-test", "Test Article", undefined, false);
+        const wrapper = mountHighlightable(
+            "no-share-test",
+            "test-post-1",
+            "Test Article",
+            undefined,
+            false,
+        );
         await vi.advanceTimersByTimeAsync(50);
         const prose = wrapper.find(".prose");
 
@@ -499,7 +512,11 @@ describe("LHighlightable", () => {
         const writeText = vi.fn().mockResolvedValue(undefined);
         Object.assign(navigator, { clipboard: { writeText } });
 
-        const wrapper = mountHighlightable("share-instagram-test", "Test Article");
+        const wrapper = mountHighlightable(
+            "share-instagram-test",
+            "test-post-1",
+            "Test Article",
+        );
         await vi.advanceTimersByTimeAsync(50);
         const prose = wrapper.find(".prose");
 
@@ -552,21 +569,31 @@ describe("LHighlightable", () => {
     describe("highlight model", () => {
         const ARTICLE = "<p>Some highlighted text content.</p>";
         const settle = (ms = 50) => new Promise((r) => setTimeout(r, ms));
-        const mockSave = () =>
-            vi.spyOn(db, "setLuminaryInternals").mockResolvedValue(undefined as any);
-        let setSpy: ReturnType<typeof mockSave>;
 
         beforeEach(() => {
             vi.useRealTimers();
-            setSpy = mockSave();
+            return db.userActivity.clear();
         });
 
-        const mountWith = async (saved?: unknown) => {
-            vi.spyOn(db, "getLuminaryInternals").mockResolvedValue(
-                saved === undefined ? {} : { "model-test": saved },
-            );
+        const seedRanges = async (ranges: Array<{ start: number; end: number; color: string; text: string }>) => {
+            for (const [index, range] of ranges.entries()) {
+                await db.userActivity.put({
+                    _id: `highlighted:model-test:${range.start}-${range.end}`,
+                    type: "highlighted",
+                    parentId: "post-test",
+                    contentId: "model-test",
+                    updatedTimeUtc: index + 1,
+                    payload: { range: range as any },
+                });
+            }
+        };
+
+        const mountWith = async (
+            saved?: Array<{ start: number; end: number; color: "yellow" | "green" | "blue" | "pink" | "purple"; text: string }>,
+        ) => {
+            if (saved?.length) await seedRanges(saved);
             const wrapper = mount(LHighlightable, {
-                props: { contentId: "model-test", title: "Test Article" },
+                props: { contentId: "model-test", parentId: "post-test", title: "Test Article" },
                 slots: { default: ARTICLE },
                 attachTo: document.body,
             });
@@ -611,7 +638,7 @@ describe("LHighlightable", () => {
         const marks = (wrapper: ReturnType<typeof mount>) =>
             wrapper.findAll("mark[data-highlight]").map((m) => m.text());
 
-        it("highlights whole words to the end of the phrase when the selection slips, and saves them as ranges", async () => {
+        it("highlights whole words to the end of the phrase and saves one highlighted row per passage", async () => {
             const wrapper = await mountWith();
             await select(wrapper, "ome", "highl");
 
@@ -622,37 +649,35 @@ describe("LHighlightable", () => {
 
             expect(marks(wrapper)).toEqual(["Some highlighted text content."]);
             expect(wrapper.emitted("highlighted")).toHaveLength(1);
-            expect(setSpy).toHaveBeenCalledWith("highlights", {
-                "model-test": {
-                    ranges: [
-                        {
-                            start: 0,
-                            end: 30,
-                            color: "yellow",
-                            text: "Some highlighted text content.",
-                        },
-                    ],
-                    updatedAt: expect.any(Number),
+
+            const rows = await db.userActivity.where("type").equals("highlighted").toArray();
+            expect(rows).toHaveLength(1);
+            expect(rows[0]._id).toBe("highlighted:model-test:0-30");
+            expect(rows[0].payload).toEqual({
+                range: {
+                    start: 0,
+                    end: 30,
+                    color: "yellow",
+                    text: "Some highlighted text content.",
                 },
             });
             wrapper.unmount();
         });
 
-        it("restores an old HTML snapshot onto the current article instead of replacing it", async () => {
-            const wrapper = await mountWith(
-                '<p>Some <mark style="background-color: rgba(253, 224, 71, 0.5)">highlighted</mark> older text</p>',
-            );
+        it("restores saved highlighted activity rows onto the current article", async () => {
+            const wrapper = await mountWith([
+                { start: 5, end: 16, color: "yellow", text: "highlighted" },
+            ]);
 
             expect(marks(wrapper)).toEqual(["highlighted"]);
             expect(wrapper.find(".prose").text()).toBe("Some highlighted text content.");
             wrapper.unmount();
         });
 
-        it("removes the whole highlight the selection touches and drops the saved entry", async () => {
-            const wrapper = await mountWith({
-                ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
-                updatedAt: 1,
-            });
+        it("removes the touched highlight row by tombstoning it", async () => {
+            const wrapper = await mountWith([
+                { start: 5, end: 16, color: "blue", text: "highlighted" },
+            ]);
             await select(wrapper, "light", "light");
 
             removeButton().click();
@@ -662,15 +687,15 @@ describe("LHighlightable", () => {
             expect(wrapper.find(".prose").text()).toBe("Some highlighted text content.");
             expect(wrapper.emitted("highlightRemoved")).toHaveLength(1);
             expect(wrapper.emitted("highlighted")).toBeFalsy();
-            expect(setSpy).toHaveBeenCalledWith("highlights", {});
+            const row = await db.userActivity.get("highlighted:model-test:5-16");
+            expect(row?.deleted).toBe(true);
             wrapper.unmount();
         });
 
         it("removes nothing when the selection is gone by the time Remove is pressed", async () => {
-            const wrapper = await mountWith({
-                ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
-                updatedAt: 1,
-            });
+            const wrapper = await mountWith([
+                { start: 5, end: 16, color: "blue", text: "highlighted" },
+            ]);
             const selection = await select(wrapper, "highlighted", "highlighted");
             selection.mockReturnValue(null);
 
@@ -683,10 +708,9 @@ describe("LHighlightable", () => {
         });
 
         it("offers both Highlight and Remove over an existing highlight", async () => {
-            const wrapper = await mountWith({
-                ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
-                updatedAt: 1,
-            });
+            const wrapper = await mountWith([
+                { start: 5, end: 16, color: "blue", text: "highlighted" },
+            ]);
             await select(wrapper, "light", "light");
 
             expect(document.body.querySelector("[data-test='highlightStart']")).toBeTruthy();
@@ -704,10 +728,9 @@ describe("LHighlightable", () => {
         });
 
         it("can still remove a stray highlight on punctuation saved before snapping", async () => {
-            const wrapper = await mountWith({
-                ranges: [{ start: 29, end: 30, color: "green", text: "." }],
-                updatedAt: 1,
-            });
+            const wrapper = await mountWith([
+                { start: 29, end: 30, color: "green", text: "." },
+            ]);
             expect(marks(wrapper)).toEqual(["."]);
             await select(wrapper, ".", ".");
 
@@ -719,10 +742,9 @@ describe("LHighlightable", () => {
         });
 
         it("repaints highlights when the article is re-rendered", async () => {
-            const wrapper = await mountWith({
-                ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
-                updatedAt: 1,
-            });
+            const wrapper = await mountWith([
+                { start: 5, end: 16, color: "blue", text: "highlighted" },
+            ]);
 
             // What a v-html update does: the marks go with the old markup.
             wrapper.find(".prose").element.innerHTML = "<p>Now, some highlighted text content</p>";

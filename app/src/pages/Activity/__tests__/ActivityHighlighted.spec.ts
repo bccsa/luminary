@@ -47,8 +47,9 @@ describe("ActivityHighlighted", () => {
                 type: "highlighted",
                 contentId: mockEnglishContentDto._id,
                 parentId: mockEnglishContentDto.parentId,
+                range: { start: 0, end: 5, color: "yellow" as const, text: "first" },
             },
-            { ranges: [{ start: 0, end: 5, color: "yellow" as const, text: "first" }] },
+            { range: { start: 0, end: 5, color: "yellow" as const, text: "first" } },
         );
 
         const wrapper = mount(ActivityHighlighted);
@@ -78,16 +79,18 @@ describe("ActivityHighlighted", () => {
                 type: "highlighted",
                 contentId: mockEnglishContentDto._id,
                 parentId: mockEnglishContentDto.parentId,
+                range: { start: 0, end: 5, color: "yellow" as const, text: "first" },
             },
-            { ranges: [{ start: 0, end: 5, color: "yellow" as const, text: "first" }] },
+            { range: { start: 0, end: 5, color: "yellow" as const, text: "first" } },
         );
         await recordUserActivity(
             {
                 type: "highlighted",
                 contentId: french._id,
                 parentId: french.parentId,
+                range: { start: 0, end: 5, color: "yellow" as const, text: "first" },
             },
-            { ranges: [{ start: 0, end: 5, color: "yellow" as const, text: "first" }] },
+            { range: { start: 0, end: 5, color: "yellow" as const, text: "first" } },
         );
 
         const wrapper = mount(ActivityHighlighted);
@@ -103,14 +106,17 @@ describe("ActivityHighlighted", () => {
             { start: 0, end: 5, color: "yellow" as const, text: "first" },
             { start: 10, end: 16, color: "green" as const, text: "second" },
         ];
-        await recordUserActivity(
-            {
-                type: "highlighted",
-                contentId: mockEnglishContentDto._id,
-                parentId: mockEnglishContentDto.parentId,
-            },
-            { ranges },
-        );
+        for (const range of ranges) {
+            await recordUserActivity(
+                {
+                    type: "highlighted",
+                    contentId: mockEnglishContentDto._id,
+                    parentId: mockEnglishContentDto.parentId,
+                    range,
+                },
+                { range },
+            );
+        }
         const wrapper = mount(ActivityHighlighted);
 
         await waitForExpect(() => {

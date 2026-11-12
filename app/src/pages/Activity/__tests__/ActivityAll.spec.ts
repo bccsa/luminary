@@ -80,8 +80,9 @@ describe("ActivityAll", () => {
                 type: "highlighted",
                 contentId: mockEnglishContentDto._id,
                 parentId: mockEnglishContentDto.parentId,
+                range: range("a passage"),
             },
-            { ranges: [range("a passage")] },
+            { range: range("a passage") },
         );
 
         const wrapper = mount(ActivityAll);
@@ -135,8 +136,18 @@ describe("ActivityAll", () => {
                 type: "highlighted",
                 contentId: mockEnglishContentDto._id,
                 parentId: mockEnglishContentDto.parentId,
+                range: range("first passage"),
             },
-            { ranges: [range("first passage"), range("second passage")] },
+            { range: range("first passage") },
+        );
+        await recordUserActivity(
+            {
+                type: "highlighted",
+                contentId: mockEnglishContentDto._id,
+                parentId: mockEnglishContentDto.parentId,
+                range: range("second passage"),
+            },
+            { range: range("second passage") },
         );
 
         const wrapper = mount(ActivityAll);
@@ -152,8 +163,9 @@ describe("ActivityAll", () => {
                 type: "highlighted",
                 contentId: mockEnglishContentDto._id,
                 parentId: mockEnglishContentDto.parentId,
+                range: range("the passage they kept"),
             },
-            { ranges: [range("the passage they kept")] },
+            { range: range("the passage they kept") },
         );
 
         const wrapper = mount(ActivityAll);
@@ -170,8 +182,9 @@ describe("ActivityAll", () => {
                 type: "highlighted",
                 contentId: mockEnglishContentDto._id,
                 parentId: mockEnglishContentDto.parentId,
+                range: { start: 0, end: 5, color: "green", text: "green passage" },
             },
-            { ranges: [{ start: 0, end: 5, color: "green", text: "green passage" }] },
+            { range: { start: 0, end: 5, color: "green", text: "green passage" } },
         );
 
         const wrapper = mount(ActivityAll);

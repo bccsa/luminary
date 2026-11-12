@@ -385,6 +385,6 @@ export type UserActivityEntry = {
     contentId?: Uuid;
     updatedTimeUtc: number;
     deleted?: boolean;
-    /** The passages a `highlighted` entry saved. Other types carry no payload. */
-    payload?: { ranges: HighlightRange[] };
+    /** The saved passage of a `highlighted` entry. Other types carry no payload. */
+    payload?: { range: HighlightRange };
 };

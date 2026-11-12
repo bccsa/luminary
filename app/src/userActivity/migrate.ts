@@ -17,6 +17,12 @@ import { getHighlightRanges, getLegacyHighlightHtml } from "@/recommendation/hig
 import { rangesFromLegacyHtml } from "@/util/highlightRanges";
 import { userActivityId, userActivityVersion } from "./store";
 
+function legacyRangesOfPayload(payload: unknown): HighlightRange[] {
+    if (!payload || typeof payload !== "object" || !("ranges" in payload)) return [];
+    const parsed = getHighlightRanges(payload);
+    return parsed ?? [];
+}
+
 /** A like as `userPreferences` stored it. */
 export type LegacyLike = { id: Uuid; ts: number };
 
@@ -78,16 +84,75 @@ export async function migrateHighlightsToUserActivity(): Promise<number> {
         }))
         .filter((row): row is { entry: (typeof entries)[number]; parentId: Uuid } => !!row.parentId)
         .map(({ entry, parentId }) => ({
-            _id: userActivityId({ type: "highlighted", contentId: entry.contentId, parentId }),
-            type: "highlighted" as const,
-            contentId: entry.contentId,
             parentId,
-            // Entries predating timestamps sort last rather than claiming to be new.
+            contentId: entry.contentId,
             updatedTimeUtc: updatedAtOf(entry.value),
-            payload: { ranges: entry.ranges },
+            ranges: entry.ranges,
+        }))
+        .flatMap(({ parentId, contentId, updatedTimeUtc, ranges }) =>
+            ranges.map((range) => ({
+                _id: userActivityId({ type: "highlighted", contentId, parentId, range }),
+                type: "highlighted" as const,
+                contentId,
+                parentId,
+                // Entries predating timestamps sort last rather than claiming to be new.
+                updatedTimeUtc,
+                payload: { range },
+            })),
+        );
+
+    const added = await addMissing(rows);
+
+    // Keep only unresolved entries (missing parent/content); remove key when fully migrated.
+    const unresolved = entries.filter((_, i) => {
+        const row = contentDocs[i] as BaseDocumentDto | undefined;
+        return !parentIdOf(entries[i].value) && !row?.parentId;
+    });
+    if (!unresolved.length) {
+        await db.setLuminaryInternals("highlights", undefined);
+    } else {
+        await db.setLuminaryInternals(
+            "highlights",
+            Object.fromEntries(unresolved.map((entry) => [entry.contentId, entry.value])),
+        );
+    }
+
+    return added;
+}
+
+/** Expand legacy one-row-per-content highlights into one-row-per-passage rows. */
+export async function migrateLegacyHighlightRowsToPassages(): Promise<number> {
+    const legacy = await db.userActivity
+        .where("type")
+        .equals("highlighted")
+        .filter((row) => !row.deleted && !!row.contentId && legacyRangesOfPayload(row.payload).length > 0)
+        .toArray();
+
+    if (!legacy.length) return 0;
+
+    let added = 0;
+
+    for (const row of legacy) {
+        const ranges = legacyRangesOfPayload(row.payload);
+        const expanded = ranges.map((range) => ({
+            _id: userActivityId({
+                type: "highlighted",
+                contentId: row.contentId as Uuid,
+                parentId: row.parentId,
+                range,
+            }),
+            type: "highlighted" as const,
+            contentId: row.contentId,
+            parentId: row.parentId,
+            updatedTimeUtc: row.updatedTimeUtc,
+            payload: { range },
         }));
 
-    return addMissing(rows);
+        added += await addMissing(expanded);
+        await db.userActivity.delete(row._id);
+    }
+
+    return added;
 }
 
 /** Reads either stored shape, converting a legacy HTML snapshot to ranges over its own text. */
@@ -118,6 +183,7 @@ function updatedAtOf(value: unknown): number {
 
 /** Both passes, for the app to run once. */
 export async function migrateToUserActivity(likes?: LegacyLike[]): Promise<void> {
+    await migrateLegacyHighlightRowsToPassages();
     await migrateLikesToUserActivity(likes);
     await migrateHighlightsToUserActivity();
 }

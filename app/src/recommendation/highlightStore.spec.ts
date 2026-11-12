@@ -69,20 +69,42 @@ describe("extractHighlightQueries", () => {
 
 describe("loadHighlightQueriesFor", () => {
     afterEach(async () => {
-        await db.setLuminaryInternals("highlights", undefined);
+        await db.userActivity.clear();
     });
 
     it("returns only the requested content's own highlight(s), not other saved highlights", async () => {
-        await db.setLuminaryInternals("highlights", {
-            "content-this-article": {
-                html: "<p><mark>This article's own highlight</mark></p>",
-                updatedAt: 5,
+        await db.userActivity.bulkPut([
+            {
+                _id: "highlighted:content-this-article:0-29",
+                type: "highlighted",
+                parentId: "post-this",
+                contentId: "content-this-article",
+                updatedTimeUtc: 5,
+                payload: {
+                    range: {
+                        start: 0,
+                        end: 29,
+                        color: "yellow",
+                        text: "This article's own highlight",
+                    },
+                },
             },
-            "content-other-article": {
-                html: "<p><mark>A different article's highlight</mark></p>",
-                updatedAt: 10,
+            {
+                _id: "highlighted:content-other-article:0-28",
+                type: "highlighted",
+                parentId: "post-other",
+                contentId: "content-other-article",
+                updatedTimeUtc: 10,
+                payload: {
+                    range: {
+                        start: 0,
+                        end: 28,
+                        color: "yellow",
+                        text: "A different article's highlight",
+                    },
+                },
             },
-        });
+        ] as any);
 
         const queries = await loadHighlightQueriesFor("content-this-article");
 
@@ -92,9 +114,14 @@ describe("loadHighlightQueriesFor", () => {
     it("returns an empty array when nothing is stored, or the content id has no highlight", async () => {
         expect(await loadHighlightQueriesFor("content-none")).toEqual([]);
 
-        await db.setLuminaryInternals("highlights", {
-            "content-other-article": { html: "<mark>Something</mark>", updatedAt: 1 },
-        });
+        await db.userActivity.put({
+            _id: "highlighted:content-other-article:0-9",
+            type: "highlighted",
+            parentId: "post-other",
+            contentId: "content-other-article",
+            updatedTimeUtc: 1,
+            payload: { range: { start: 0, end: 9, color: "yellow", text: "Something" } },
+        } as any);
 
         expect(await loadHighlightQueriesFor("content-this-article")).toEqual([]);
     });

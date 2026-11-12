@@ -35,12 +35,9 @@ const entries = computed<Entry[]>(() =>
     highlighted.value
         .flatMap((row) => {
             const translation = content.value.find((c) => c._id === row.contentId);
-            return translation
-                ? (row.payload?.ranges ?? []).map((range) => ({
-                      content: translation,
-                      range,
-                      updatedTimeUtc: row.updatedTimeUtc,
-                  }))
+            const range = row.payload?.range;
+            return translation && range
+                ? [{ content: translation, range, updatedTimeUtc: row.updatedTimeUtc }]
                 : [];
         })
         .filter((entry) => !props.colour || entry.range.color === props.colour),
@@ -59,7 +56,7 @@ const sections = computed(() => groupByActivityDate(entries.value, (e) => e.upda
             <div class="flex flex-col gap-3">
                 <HighlightCard
                     v-for="entry in section.items"
-                    :key="`${entry.content._id}-${entry.range.start}`"
+                    :key="`${entry.content._id}-${entry.range.start}-${entry.range.end}`"
                     :content="entry.content"
                     :range="entry.range"
                     @open="openHighlight(router, entry.content.slug, entry.range)"

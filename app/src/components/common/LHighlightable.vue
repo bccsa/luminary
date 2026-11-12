@@ -11,18 +11,12 @@ import { useI18n } from "vue-i18n";
 import { db, reportError, type HighlightColor, type HighlightRange } from "luminary-shared";
 import { recordUserActivity, removeUserActivity } from "@/userActivity/store";
 import {
-    getHighlightRanges,
-    getLegacyHighlightHtml,
-    type SavedHighlight,
-} from "@/recommendation/highlightStore";
-import {
     HIGHLIGHT_COLORS,
     addHighlight,
     anchorHighlights,
     extendToPunctuation,
     overlaps,
     paintHighlights,
-    rangesFromLegacyHtml,
     removeHighlights,
     snapToWords,
     textOffset,
@@ -44,8 +38,8 @@ import { useNotificationStore } from "@/stores/notification";
 const props = withDefaults(
     defineProps<{
         contentId: string;
-        /** The post the translation belongs to, stored with the highlights. */
-        parentId?: string;
+        /** The post the translation belongs to. */
+        parentId: string;
         title: string;
         copyright?: string;
         /** Gates the share targets on the ACL Share permission; defaults open for callers that don't check it. */
@@ -369,48 +363,72 @@ async function shareHighlightToInstagram() {
 // Persistence
 
 /**
- * Mirrors this content's highlights into the activity table, which is what the activity page reads.
- * The entry above stays the painting source; this is the record of the activity itself.
+ * Canonical row id suffix for one highlighted passage.
+ */
+function rangeKey(range: HighlightRange): string {
+    return `${range.start}-${range.end}`;
+}
+
+/** Every active highlight row for this content, oldest first by activity time. */
+async function loadHighlightRowsForContent() {
+    return db.userActivity
+        .where("type")
+        .equals("highlighted")
+        .filter((row) => row.contentId === props.contentId && !row.deleted)
+        .sortBy("updatedTimeUtc");
+}
+
+/**
+ * Persist highlights as one row per passage.
+ *
+ * Unchanged passages are left untouched, vanished passages are tombstoned, and new passages are
+ * added as new rows, so local edits remain a sequence of independent highlight activities.
  */
 async function recordHighlightActivity(): Promise<void> {
-    // Without the post there is nothing the activity page could render the highlight against.
-    if (!props.parentId) return;
+    const existingRows = await loadHighlightRowsForContent();
+    const existing = new Map(
+        existingRows
+            .map((row) => {
+                const range = row.payload?.range;
+                return range ? [rangeKey(range), row] : undefined;
+            })
+            .filter((entry): entry is [string, (typeof existingRows)[number]] => !!entry),
+    );
 
-    const ref = {
-        type: "highlighted",
-        contentId: props.contentId,
-        parentId: props.parentId,
-    } as const;
+    const next = new Map(highlights.map((range) => [rangeKey(range), range] as const));
 
-    if (highlights.length) {
-        await recordUserActivity(ref, { ranges: [...highlights] });
-    } else {
-        await removeUserActivity(ref);
+    for (const [key, range] of next) {
+        const row = existing.get(key);
+        if (row?.payload?.range?.color === range.color && row.payload.range.text === range.text) {
+            continue;
+        }
+        await recordUserActivity(
+            {
+                type: "highlighted",
+                contentId: props.contentId,
+                parentId: props.parentId,
+                range,
+            },
+            { range },
+        );
+    }
+
+    for (const row of existingRows) {
+        const range = row.payload?.range;
+        if (!range) continue;
+        if (next.has(rangeKey(range))) continue;
+        await removeUserActivity({
+            type: "highlighted",
+            contentId: props.contentId,
+            parentId: props.parentId,
+            range,
+        });
     }
 }
 
-/** Persists this content's highlights (with an update time for newest-first recommendation reads). */
+/** Persists this content's highlights into per-passage activity rows. */
 async function saveHighlights(): Promise<boolean> {
     try {
-        const existingData = (await db.getLuminaryInternals("highlights")) || {};
-        const data: Record<string, unknown> =
-            typeof existingData === "object" &&
-            existingData !== null &&
-            !Array.isArray(existingData)
-                ? { ...existingData }
-                : {};
-
-        if (highlights.length) {
-            data[props.contentId] = {
-                ranges: highlights,
-                updatedAt: Date.now(),
-                parentId: props.parentId,
-            } satisfies SavedHighlight;
-        } else {
-            delete data[props.contentId];
-        }
-
-        await db.setLuminaryInternals("highlights", data);
         await recordHighlightActivity();
         return true;
     } catch (error) {
@@ -426,18 +444,24 @@ async function restoreHighlights() {
     const generation = ++restoreGeneration;
     highlights = [];
     try {
-        const data = (await db.getLuminaryInternals("highlights")) || {};
-        const entry =
-            typeof data === "object" && data !== null && !Array.isArray(data)
-                ? data[props.contentId]
-                : undefined;
-        const legacyHtml = getLegacyHighlightHtml(entry);
-        const saved =
-            getHighlightRanges(entry) ?? (legacyHtml ? rangesFromLegacyHtml(legacyHtml) : []);
+        const rows = await loadHighlightRowsForContent();
 
         if (generation !== restoreGeneration) return; // the article changed mid-load
-        if (saved.length && prose.value) {
-            highlights = anchorHighlights(saved, prose.value.textContent ?? "");
+        if (rows.length && prose.value) {
+            const articleText = prose.value.textContent ?? "";
+            for (const row of rows) {
+                const range = row.payload?.range;
+                if (!range) continue;
+                const anchored = anchorHighlights([range], articleText)[0];
+                if (!anchored) continue;
+                highlights = addHighlight(
+                    highlights,
+                    articleText,
+                    anchored.start,
+                    anchored.end,
+                    anchored.color,
+                );
+            }
             paintHighlights(prose.value, highlights);
         }
     } catch (error) {

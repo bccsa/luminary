@@ -3,6 +3,7 @@ import { describe, it, beforeEach, expect } from "vitest";
 import { db, DocType, type ContentDto, type HighlightRange } from "luminary-shared";
 
 import {
+    migrateLegacyHighlightRowsToPassages,
     migrateLikesToUserActivity,
     migrateHighlightsToUserActivity,
     migrateToUserActivity,
@@ -84,14 +85,14 @@ describe("migration to userActivity", () => {
 
             expect(await migrateHighlightsToUserActivity()).toBe(1);
 
-            const row = await db.userActivity.get("highlighted:content-1");
-            expect(row).toMatchObject({
+            const first = await db.userActivity.get("highlighted:content-1:0-2");
+            expect(first).toMatchObject({
                 type: "highlighted",
                 contentId: "content-1",
                 parentId: "post-1",
                 updatedTimeUtc: 1234,
+                payload: { range: range("hi") },
             });
-            expect(row!.payload).toEqual({ ranges: [range("hi")] });
         });
 
         it("takes the post stored with the entry without a lookup", async () => {
@@ -101,7 +102,9 @@ describe("migration to userActivity", () => {
 
             expect(await migrateHighlightsToUserActivity()).toBe(1);
 
-            expect((await db.userActivity.get("highlighted:content-1"))!.parentId).toBe("post-1");
+            expect((await db.userActivity.get("highlighted:content-1:0-2"))!.parentId).toBe(
+                "post-1",
+            );
         });
 
         it("skips an entry whose post cannot be found, leaving it to a later run", async () => {
@@ -115,7 +118,7 @@ describe("migration to userActivity", () => {
             // The source is untouched, so the entry is picked up once its document syncs.
             await db.docs.bulkPut([contentDoc("content-unsynced", "post-9")]);
             expect(await migrateHighlightsToUserActivity()).toBe(1);
-            expect((await db.userActivity.get("highlighted:content-unsynced"))!.parentId).toBe(
+            expect((await db.userActivity.get("highlighted:content-unsynced:0-2"))!.parentId).toBe(
                 "post-9",
             );
         });
@@ -128,14 +131,12 @@ describe("migration to userActivity", () => {
 
             await migrateHighlightsToUserActivity();
 
-            const row = await db.userActivity.get("highlighted:content-legacy");
-            const ranges = row!.payload!.ranges;
+            const row = await db.userActivity.get("highlighted:content-legacy:7-10");
             expect(row!.updatedTimeUtc).toBe(0);
-            expect(ranges).toHaveLength(1);
-            expect(ranges[0].text).toBe("old");
+            expect(row!.payload?.range.text).toBe("old");
         });
 
-        it("leaves the source in place and stays safe to re-run", async () => {
+        it("removes migrated source entries and stays safe to re-run", async () => {
             await db.docs.bulkPut([contentDoc("content-1", "post-1")]);
             await db.setLuminaryInternals("highlights", {
                 "content-1": { ranges: [range("hi")], updatedAt: 1234 },
@@ -144,7 +145,7 @@ describe("migration to userActivity", () => {
             await migrateHighlightsToUserActivity();
             expect(await migrateHighlightsToUserActivity()).toBe(0);
 
-            expect(await db.getLuminaryInternals("highlights")).toBeDefined();
+            expect(await db.getLuminaryInternals("highlights")).toBeUndefined();
             expect(await db.userActivity.count()).toBe(1);
         });
 
@@ -152,6 +153,24 @@ describe("migration to userActivity", () => {
             await db.setLuminaryInternals("highlights", { "content-1": { updatedAt: 1 } });
 
             expect(await migrateHighlightsToUserActivity()).toBe(0);
+        });
+    });
+
+    describe("legacy highlighted rows", () => {
+        it("splits a legacy ranges row into one row per passage", async () => {
+            await db.userActivity.put({
+                _id: "highlighted:content-1",
+                type: "highlighted",
+                parentId: "post-1",
+                contentId: "content-1",
+                updatedTimeUtc: 100,
+                payload: { ranges: [range("first", 0), range("second", 10)] } as any,
+            } as any);
+
+            expect(await migrateLegacyHighlightRowsToPassages()).toBe(2);
+            expect(await db.userActivity.get("highlighted:content-1")).toBeUndefined();
+            expect(await db.userActivity.get("highlighted:content-1:0-5")).toBeDefined();
+            expect(await db.userActivity.get("highlighted:content-1:10-16")).toBeDefined();
         });
     });
 

@@ -38,7 +38,7 @@ type Entry = { row: UserActivityEntry; content: ContentDto; range?: HighlightRan
 
 /**
  * One card per activity, in the order the table returned — so the same post appears once
- * per thing the reader did to it. A highlight gets one card per saved passage. An activity
+ * per thing the reader did to it. Highlight rows already carry one passage each. An activity
  * whose content is not available is left out.
  */
 const entries = computed<Entry[]>(() =>
@@ -48,7 +48,7 @@ const entries = computed<Entry[]>(() =>
             : posts.value.find((c) => c.parentId === row.parentId);
         if (!content) return [];
         if (row.type !== "highlighted") return [{ row, content }];
-        return (row.payload?.ranges ?? []).map((range) => ({ row, content, range }));
+        return row.payload?.range ? [{ row, content, range: row.payload.range }] : [];
     }),
 );
 
