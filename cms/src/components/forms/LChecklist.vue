@@ -68,8 +68,8 @@ onClickOutside(checklist, () => {
             <component
                 :is="icon"
                 :class="{
-                    'text-zinc-400': !disabled,
-                    'text-zinc-300': disabled,
+                    'dark:text-zinc-500': !disabled,
+                    'dark:text-zinc-600': disabled,
                 }"
                 class="h-5 w-5"
             />
@@ -80,7 +80,7 @@ onClickOutside(checklist, () => {
             v-model="query"
             @focus="openOptions = true"
             placeholder="Type to select..."
-            class="h-10 w-full rounded-md border-0 bg-white py-1.5 pl-10 pr-10 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-zinc-950 sm:text-sm sm:leading-6"
+            class="h-10 w-full rounded-md border-0 dark:bg-slate-800 py-1.5 pl-10 pr-10 dark:text-zinc-100 shadow-sm ring-1 ring-inset dark:ring-slate-600 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-inset dark:focus:ring-zinc-400 sm:text-sm sm:leading-6"
             :class="icon ? 'pl-10' : 'pl-2'"
             :disabled="disabled"
         />
@@ -88,14 +88,14 @@ onClickOutside(checklist, () => {
             class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none"
             @click="openOptions = !openOptions"
         >
-            <ChevronUpDownIcon class="h-5 w-5 text-zinc-400" aria-hidden="true" />
+            <ChevronUpDownIcon class="h-5 w-5 dark:text-zinc-500" aria-hidden="true" />
         </button>
 
         <div v-if="openOptions" class="relative">
             <ul
                 v-if="filtered.length > 0"
                 data-test="options"
-                class="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+                class="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md dark:bg-slate-800 py-1 text-base shadow-lg ring-1 ring-white ring-opacity-5 focus:outline-none sm:text-sm"
             >
                 <li
                     v-for="content in filtered"
@@ -103,10 +103,10 @@ onClickOutside(checklist, () => {
                     data-test="option"
                     @click="onClick(content)"
                     :class="[
-                        'cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-zinc-100',
-                        { 'bg-zinc-100': isSelected(content) },
-                        { 'text-zinc-900': !isSelected(content) },
-                        { 'text-zinc-500': isSelected(content) },
+                        'cursor-pointer select-none py-2 pl-3 pr-9 dark:hover:bg-slate-800',
+                        { 'dark:bg-slate-800': isSelected(content) },
+                        { 'dark:text-zinc-100': !isSelected(content) },
+                        { 'dark:text-zinc-400': isSelected(content) },
                     ]"
                 >
                     {{ content.label }}
