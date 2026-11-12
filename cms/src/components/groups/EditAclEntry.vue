@@ -66,17 +66,19 @@ onMounted(() => {
 <template>
     <div v-if="aclEntry" class="contents">
         <div
-            class="flex h-full items-center border-b border-zinc-200 pr-2 font-medium"
+            class="flex h-full items-center border-b border-zinc-200 pr-2 font-medium dark:border-slate-700"
             :class="isMobileScreen ? 'text-[13px]' : 'text-sm'"
         >
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </div>
-        <div class="relative min-w-0 border-x border-b border-zinc-200 px-1 py-1.5">
+        <div
+            class="relative min-w-0 border-x border-b border-zinc-200 px-1 py-1.5 dark:border-slate-700"
+        >
             <div
                 v-if="canScrollLeft"
-                class="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-9 items-center justify-start bg-gradient-to-r from-white to-transparent pl-1"
+                class="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-9 items-center justify-start bg-gradient-to-r from-white to-transparent pl-1 dark:from-slate-800"
             >
-                <ChevronLeftIcon class="h-3 w-3 text-gray-500" />
+                <ChevronLeftIcon class="h-3 w-3 text-gray-500 dark:text-zinc-400" />
             </div>
             <div
                 ref="scrollContainer"
@@ -86,7 +88,7 @@ onMounted(() => {
                 <div
                     v-for="aclPermission in activePermissions"
                     :key="aclPermission"
-                    class="flex-shrink-0 rounded-md bg-zinc-200 px-1 py-0.5 text-xs"
+                    class="flex-shrink-0 rounded-md bg-zinc-200 px-1 py-0.5 text-xs dark:bg-slate-700"
                     data-test="active-permissions"
                 >
                     {{ capitaliseFirstLetter(aclPermission) }}
@@ -94,12 +96,12 @@ onMounted(() => {
             </div>
             <div
                 v-if="canScrollRight"
-                class="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-9 items-center justify-end bg-gradient-to-l from-white to-transparent pr-1"
+                class="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-9 items-center justify-end bg-gradient-to-l from-white to-transparent pr-1 dark:from-slate-800"
             >
-                <ChevronRightIcon class="h-3 w-3 text-gray-500" />
+                <ChevronRightIcon class="h-3 w-3 text-gray-500 dark:text-zinc-400" />
             </div>
         </div>
-        <div class="flex h-full items-center border-b border-zinc-200 pl-1">
+        <div class="flex h-full items-center border-b border-zinc-200 pl-1 dark:border-slate-700">
             <LDropdown
                 class="relative"
                 padding="none"
@@ -108,7 +110,7 @@ onMounted(() => {
                 width="auto"
             >
                 <template #trigger>
-                    <button class="text-zinc-700">
+                    <button class="text-zinc-700 dark:text-zinc-300">
                         <PencilSquareIcon class="h-4 w-4" />
                     </button>
                 </template>
@@ -122,7 +124,7 @@ onMounted(() => {
                         }
                     "
                     :disabled="disabled"
-                    class="flex items-center gap-1 rounded-md border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors"
+                    class="flex items-center gap-1 rounded-md border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-200"
                 >
                     <CheckCircleIcon
                         v-if="aclEntry.permission.includes(aclPermission)"
@@ -130,12 +132,15 @@ onMounted(() => {
                             'inline h-3 w-3',
                             isPermissionAvailable(aclEntry.type, aclPermission)
                                 ? disabled
-                                    ? 'text-zinc-300'
-                                    : 'text-zinc-500'
-                                : 'text-zinc-200',
+                                    ? 'text-zinc-300 dark:text-zinc-600'
+                                    : 'text-zinc-500 dark:text-zinc-400'
+                                : 'text-zinc-200 dark:text-zinc-700',
                         ]"
                     />
-                    <div v-else class="h-2.5 w-2.5 rounded-md border border-zinc-400"></div>
+                    <div
+                        v-else
+                        class="h-2.5 w-2.5 rounded-md border border-zinc-400 dark:border-slate-500"
+                    ></div>
                     {{ capitaliseFirstLetter(aclPermission) }}
                 </button>
             </LDropdown>
