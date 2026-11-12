@@ -6,15 +6,16 @@ import { type ContentDto, type HighlightRange, type UserActivityEntry } from "lu
 import ActivityCard from "./ActivityCard.vue";
 import ActivitySection from "./ActivitySection.vue";
 import { groupByActivityDate } from "./activityGroups";
-import { useContentQuery } from "@/composables/useContentQuery";
-import { useUserActivity } from "@/userActivity/useUserActivity";
+import { useContentQueryWithState } from "@/composables/useContentQuery";
+import { useUserActivityWithState } from "@/userActivity/useUserActivity";
+import { hasAnswered, useShownOnceLoaded } from "./useShownOnceLoaded";
 import { openHighlight } from "@/util/openHighlight";
 import { highlightExcerpts } from "@/util/highlightExcerpt";
 
 const { t } = useI18n();
 const router = useRouter();
 
-const activity = useUserActivity("all");
+const { rows: activity, loaded } = useUserActivityWithState("all");
 
 const parentIds = computed(() => activity.value.map((row) => row.parentId));
 const highlightedIds = computed(() =>
@@ -24,16 +25,24 @@ const highlightedIds = computed(() =>
 // Likes and views name a post, highlights name one of its translations, so the two are
 // looked up separately. The first follows the reader's languages; the second cannot, since
 // they read that translation whether or not they still display its language.
-const posts = useContentQuery(() => [{ parentId: { $in: parentIds.value } }], {
+const postsQuery = useContentQueryWithState(() => [{ parentId: { $in: parentIds.value } }], {
     includeScheduled: false,
     keepPreviousResult: true,
 });
 
-const translations = useContentQuery(() => [{ _id: { $in: highlightedIds.value } }], {
+const translationsQuery = useContentQueryWithState(() => [{ _id: { $in: highlightedIds.value } }], {
     includeScheduled: false,
     languageFilter: false,
     keepPreviousResult: true,
 });
+const posts = postsQuery.output;
+const translations = translationsQuery.output;
+
+// Drawn once both lookups have answered: the highlights alone would otherwise show first and
+// then be pushed down by the views and likes, which come back later.
+const shown = useShownOnceLoaded(
+    () => loaded.value && hasAnswered(postsQuery) && hasAnswered(translationsQuery),
+);
 
 type Entry = {
     row: UserActivityEntry;
@@ -65,23 +74,31 @@ const sections = computed(() => groupByActivityDate(entries.value, (e) => e.row.
 
 <template>
     <div data-test="activity-all">
-        <ActivitySection v-for="section in sections" :key="section.group" :group="section.group">
-            <div class="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-3">
-                <ActivityCard
-                    v-for="entry in section.items"
-                    :key="`${entry.row._id}-${entry.range?.start ?? ''}`"
-                    :content="entry.content"
-                    :type="entry.row.type"
-                    :excerpt="entry.excerpt"
-                    :excerpt-color="entry.range?.color"
-                    :opens-passage="!!entry.range"
-                    @open="entry.range && openHighlight(router, entry.content.slug, entry.range)"
-                />
-            </div>
-        </ActivitySection>
+        <template v-if="shown">
+            <ActivitySection
+                v-for="section in sections"
+                :key="section.group"
+                :group="section.group"
+            >
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-3">
+                    <ActivityCard
+                        v-for="entry in section.items"
+                        :key="`${entry.row._id}-${entry.range?.start ?? ''}`"
+                        :content="entry.content"
+                        :type="entry.row.type"
+                        :excerpt="entry.excerpt"
+                        :excerpt-color="entry.range?.color"
+                        :opens-passage="!!entry.range"
+                        @open="
+                            entry.range && openHighlight(router, entry.content.slug, entry.range)
+                        "
+                    />
+                </div>
+            </ActivitySection>
 
-        <div v-if="!entries.length" class="text-zinc-500 dark:text-slate-200">
-            {{ t("activity.all.empty_page") }}
-        </div>
+            <div v-if="!entries.length" class="text-zinc-500 dark:text-slate-200">
+                {{ t("activity.all.empty_page") }}
+            </div>
+        </template>
     </div>
 </template>

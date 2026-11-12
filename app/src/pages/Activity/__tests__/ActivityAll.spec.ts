@@ -56,9 +56,12 @@ describe("ActivityAll", () => {
     it("displays a message when there is no activity", async () => {
         const wrapper = mount(ActivityAll);
 
-        expect(wrapper.text()).toContain(
-            "Everything you read, like or highlight will show up here.",
-        );
+        // Only once the stored activity has been read: before that, nothing is not yet known.
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(
+                "Everything you read, like or highlight will show up here.",
+            );
+        });
     });
 
     it("shows one card per activity, so a post read and liked appears twice", async () => {
