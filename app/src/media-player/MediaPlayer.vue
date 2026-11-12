@@ -1670,10 +1670,15 @@ const nativeOwnsScreen = computed(
 );
 /** The lyrics are opened out on this screen (it reports it); a platform's own screen keeps itself on. */
 const lyricsShown = ref(false);
-/** Someone reading the lyrics keeps the screen on, playing or paused, in either orientation, until they close or minimise. */
+/** Someone reading along keeps the screen on in either orientation; paused, it sleeps as it normally would (#2557). */
 const lyricsWake = useScreenWakeHold("lyrics");
 watch(
-    () => lyricsShown.value && expanded.value && audioMode.value && !nativeOwnsScreen.value,
+    () =>
+        playing.value &&
+        lyricsShown.value &&
+        expanded.value &&
+        audioMode.value &&
+        !nativeOwnsScreen.value,
     (on) => (on ? lyricsWake.hold() : lyricsWake.release()),
     { immediate: true },
 );

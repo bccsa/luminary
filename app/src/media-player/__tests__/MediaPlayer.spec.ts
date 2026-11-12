@@ -1630,13 +1630,12 @@ describe("MediaPlayer", () => {
             expect(screen(wrapper).props().lyrics).toEqual(engine.handle.subtitleCues);
         });
 
-        it("keeps the screen on while the lyrics are opened out with sound alone, paused too", async () => {
+        it("keeps the screen on while the lyrics are opened out with sound alone, and lets it sleep while paused", async () => {
             const screenWake = { setKeepAwake: vi.fn() };
             openMediaPlayer(mockEnglishContentDto, "en");
             const wrapper = await mountPlayer({ [ScreenWakeKey]: screenWake });
             await find(wrapper, "mediaPlayerAudio").trigger("click");
             await flushPromises();
-            engine.handle.pause();
             screen(wrapper).vm.$emit("lyrics", true);
             await flushPromises();
             expect(screenWake.setKeepAwake).toHaveBeenLastCalledWith(true);
@@ -1657,6 +1656,12 @@ describe("MediaPlayer", () => {
             await flushPromises();
             expect(subtitlePreference.value).toEqual({ on: true, lang: "fr" });
             engine.state.activeSubtitleTrackId = null;
+            engine.state.playing = false;
+            await flushPromises();
+            expect(screenWake.setKeepAwake).toHaveBeenLastCalledWith(false);
+            engine.state.playing = true;
+            await flushPromises();
+            expect(screenWake.setKeepAwake).toHaveBeenLastCalledWith(true);
             await flushPromises();
             expect(subtitlePreference.value).toEqual({ on: false, lang: "fr" });
         });
