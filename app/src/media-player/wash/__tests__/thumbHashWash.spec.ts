@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { rgbaToThumbHash, thumbHashToRGBA } from "thumbhash";
 import cases from "../cases.json";
-import { WASH_CHROMA, WASH_FLATTEN, luma, lpqToRgb, washAt, washAverage, washOf, type WashTone } from "../thumbHashWash";
+import {
+    WASH_CHROMA,
+    WASH_FLATTEN,
+    luma,
+    lpqToRgb,
+    washAt,
+    washAverage,
+    washOf,
+    type WashTone,
+} from "../thumbHashWash";
 
 const bytesOf = (hash: string) => Uint8Array.from(atob(hash), (char) => char.charCodeAt(0));
 
@@ -11,10 +20,15 @@ describe("thumbHashWash", () => {
             const wash = washOf(bytesOf(c.hash), c.tone as WashTone)!;
             expect(Math.abs(wash.gain - c.gain), c.name).toBeLessThanOrEqual(cases.tolerance);
             expect(Math.abs(wash.aspect - c.aspect), c.name).toBeLessThanOrEqual(cases.tolerance);
-            washAverage(wash).forEach((v, i) => expect(Math.abs(v - c.average[i]!)).toBeLessThanOrEqual(cases.tolerance));
+            washAverage(wash).forEach((v, i) =>
+                expect(Math.abs(v - c.average[i]!)).toBeLessThanOrEqual(cases.tolerance),
+            );
             for (const [surface, u, v, ...rgb] of c.samples) {
                 washAt(wash, u!, v!, surface!).forEach((value, i) =>
-                    expect(Math.abs(value - rgb[i]!), `${c.name} on ${surface} at ${u},${v}`).toBeLessThanOrEqual(cases.tolerance),
+                    expect(
+                        Math.abs(value - rgb[i]!),
+                        `${c.name} on ${surface} at ${u},${v}`,
+                    ).toBeLessThanOrEqual(cases.tolerance),
                 );
             }
         }
@@ -48,8 +62,16 @@ describe("thumbHashWash", () => {
                 for (let x = 0; x < reference.w; x += 3) {
                     const u = (x + 0.5) / reference.w;
                     const v = (y + 0.5) / reference.h;
-                    let [l, p, q] = [wash.base[0], wash.base[1] / WASH_CHROMA, wash.base[2] / WASH_CHROMA];
-                    for (const [cx, cy, w] of wash.l) l += (w / WASH_FLATTEN) * Math.cos(Math.PI * cx * u) * Math.cos(Math.PI * cy * v);
+                    let [l, p, q] = [
+                        wash.base[0],
+                        wash.base[1] / WASH_CHROMA,
+                        wash.base[2] / WASH_CHROMA,
+                    ];
+                    for (const [cx, cy, w] of wash.l)
+                        l +=
+                            (w / WASH_FLATTEN) *
+                            Math.cos(Math.PI * cx * u) *
+                            Math.cos(Math.PI * cy * v);
                     for (const [cx, cy, wp, wq] of wash.pq) {
                         const f = Math.cos(Math.PI * cx * u) * Math.cos(Math.PI * cy * v);
                         p += (wp / WASH_CHROMA) * f;
@@ -57,7 +79,11 @@ describe("thumbHashWash", () => {
                     }
                     const rgb = lpqToRgb(l, p, q);
                     const i = (y * reference.w + x) * 4;
-                    rgb.forEach((value, c) => expect(Math.abs(Math.floor(value * 255) - reference.rgba[i + c]!)).toBeLessThanOrEqual(1));
+                    rgb.forEach((value, c) =>
+                        expect(
+                            Math.abs(Math.floor(value * 255) - reference.rgba[i + c]!),
+                        ).toBeLessThanOrEqual(1),
+                    );
                 }
             }
         }

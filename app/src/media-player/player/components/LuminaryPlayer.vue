@@ -351,7 +351,8 @@ function restoreVolume(media: { volume: number; muted: boolean }): void {
     if (!remembersVolume()) return;
     try {
         const stored = JSON.parse(localStorage.getItem(VOLUME_KEY) ?? "null");
-        if (typeof stored?.volume === "number") media.volume = Math.min(1, Math.max(0, stored.volume));
+        if (typeof stored?.volume === "number")
+            media.volume = Math.min(1, Math.max(0, stored.volume));
         if (typeof stored?.muted === "boolean") media.muted = stored.muted;
     } catch {
         // An unreadable value is no setting.
@@ -360,7 +361,10 @@ function restoreVolume(media: { volume: number; muted: boolean }): void {
 function saveVolume(media: { volume: number; muted: boolean }): void {
     if (!remembersVolume()) return;
     try {
-        localStorage.setItem(VOLUME_KEY, JSON.stringify({ volume: media.volume, muted: media.muted }));
+        localStorage.setItem(
+            VOLUME_KEY,
+            JSON.stringify({ volume: media.volume, muted: media.muted }),
+        );
     } catch {
         // Storage refused: the setting lasts for this session only.
     }
@@ -381,7 +385,10 @@ const playingBandwidth = ref(0);
 function readPlayingBandwidth(): void {
     const engine = (
         mediaEl.value as unknown as {
-            engine?: { levels?: { bitrate?: number; height?: number }[]; currentLevel?: number } | null;
+            engine?: {
+                levels?: { bitrate?: number; height?: number }[];
+                currentLevel?: number;
+            } | null;
         } | null
     )?.engine;
     const level = engine?.levels?.[engine.currentLevel ?? -1];

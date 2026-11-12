@@ -93,7 +93,10 @@ describe("the media player's store", () => {
     it("keeps the last sleep timer chosen, off included", async () => {
         sleepTimerDefault.value = { kind: "minutes", minutes: 15 };
         await nextTick();
-        expect(JSON.parse(localStorage.getItem("mediaPlayerSleepTimer")!)).toEqual({ kind: "minutes", minutes: 15 });
+        expect(JSON.parse(localStorage.getItem("mediaPlayerSleepTimer")!)).toEqual({
+            kind: "minutes",
+            minutes: 15,
+        });
         sleepTimerDefault.value = null;
         await nextTick();
         expect(localStorage.getItem("mediaPlayerSleepTimer")).toBeNull();

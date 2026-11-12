@@ -19,7 +19,7 @@ export const WASH_FADE = 0.5;
 export const WASH_PEAK_GRID = 16;
 
 /** How dark: `dark` under white text on the player, `light` for a lighter screen. */
-export type WashTone = 'dark' | 'light';
+export type WashTone = "dark" | "light";
 
 /** Luma (of sRGB values) the hash's average is brought down to, at most, and the brightest point of it. */
 export const WASH_LUMA: Record<WashTone, { average: number; peak: number }> = {
@@ -64,7 +64,7 @@ export function lpqToRgb(l: number, p: number, q: number, gain = 1): [number, nu
 }
 
 /** The hash's bytes made ready to draw; null when they are not a ThumbHash. */
-export function washOf(hash: Uint8Array, tone: WashTone = 'dark'): Wash | null {
+export function washOf(hash: Uint8Array, tone: WashTone = "dark"): Wash | null {
     if (hash.length < 5) return null;
     const header24 = hash[0]! | (hash[1]! << 8) | (hash[2]! << 16);
     const header16 = hash[3]! | (hash[4]! << 8);
@@ -100,33 +100,47 @@ export function washOf(hash: Uint8Array, tone: WashTone = 'dark'): Wash | null {
     const q = channel(3, 3, qScale * 1.25);
     if (short || l.length > WASH_MAX_L_TERMS || p.length !== WASH_PQ_TERMS) return null;
 
-    const base: Wash['base'] = [lDc, pDc * WASH_CHROMA, qDc * WASH_CHROMA];
+    const base: Wash["base"] = [lDc, pDc * WASH_CHROMA, qDc * WASH_CHROMA];
     const terms = {
         base,
         l: l.map(([cx, cy, w]): WashTerm => [cx, cy, w * WASH_FLATTEN]),
-        pq: p.map(([cx, cy, w], i): Wash['pq'][number] => [cx, cy, w * WASH_CHROMA, q[i]![2] * WASH_CHROMA]),
+        pq: p.map(([cx, cy, w], i): Wash["pq"][number] => [
+            cx,
+            cy,
+            w * WASH_CHROMA,
+            q[i]![2] * WASH_CHROMA,
+        ]),
     };
     // One gain for the whole wash, so its light and shade keep their proportions: found by a few fixed steps, as the
     // clamp comes after it, against the average and the brightest point on a fixed grid.
     const { average, peak } = WASH_LUMA[tone];
     const grid: [number, number, number][] = [];
     for (let y = 0; y <= WASH_PEAK_GRID; y++) {
-        for (let x = 0; x <= WASH_PEAK_GRID; x++) grid.push(sum(terms, x / WASH_PEAK_GRID, y / WASH_PEAK_GRID));
+        for (let x = 0; x <= WASH_PEAK_GRID; x++)
+            grid.push(sum(terms, x / WASH_PEAK_GRID, y / WASH_PEAK_GRID));
     }
     let gain = 1;
     for (let step = 0; step < 8; step++) {
         const mean = luma(...lpqToRgb(...base, gain));
         const brightest = Math.max(...grid.map((lpq) => luma(...lpqToRgb(...lpq, gain))));
         if (mean <= average && brightest <= peak) break;
-        gain *= Math.min(mean > average ? average / mean : 1, brightest > peak ? peak / brightest : 1);
+        gain *= Math.min(
+            mean > average ? average / mean : 1,
+            brightest > peak ? peak / brightest : 1,
+        );
     }
     return { ...terms, gain, aspect: lx / ly };
 }
 
 /** L, P and Q of the picture at (u, v), each 0–1 across and down it. */
-function sum(wash: Pick<Wash, 'base' | 'l' | 'pq'>, u: number, v: number): [number, number, number] {
+function sum(
+    wash: Pick<Wash, "base" | "l" | "pq">,
+    u: number,
+    v: number,
+): [number, number, number] {
     let [l, p, q] = wash.base;
-    for (const [cx, cy, w] of wash.l) l += w * Math.cos(Math.PI * cx * u) * Math.cos(Math.PI * cy * v);
+    for (const [cx, cy, w] of wash.l)
+        l += w * Math.cos(Math.PI * cx * u) * Math.cos(Math.PI * cy * v);
     for (const [cx, cy, wp, wq] of wash.pq) {
         const f = Math.cos(Math.PI * cx * u) * Math.cos(Math.PI * cy * v);
         p += wp * f;
@@ -154,7 +168,12 @@ export function smoothstep(edge0: number, edge1: number, x: number): number {
  * The wash at (u, v), each 0–1 across and down a surface [surfaceAspect] wide for its height, as RGB 0–1, before any
  * dither. Past the picture's edge it is the edge's colour fading into the average over [WASH_FADE].
  */
-export function washAt(wash: Wash, su: number, sv: number, surfaceAspect: number): [number, number, number] {
+export function washAt(
+    wash: Wash,
+    su: number,
+    sv: number,
+    surfaceAspect: number,
+): [number, number, number] {
     const [u, v] = placeUv(wash, su, sv, surfaceAspect);
     const past = Math.max(-u, u - 1, -v, v - 1, 0);
     const [l, p, q] = sum(wash, Math.max(0, Math.min(1, u)), Math.max(0, Math.min(1, v)));

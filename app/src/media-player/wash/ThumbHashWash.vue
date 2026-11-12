@@ -5,9 +5,20 @@
  * Static: it draws again only when its size or hash changes.
  */
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { WASH_FADE, WASH_MAX_L_TERMS, WASH_PQ_TERMS, washAt, washOf, type Wash, type WashTone } from "./thumbHashWash";
+import {
+    WASH_FADE,
+    WASH_MAX_L_TERMS,
+    WASH_PQ_TERMS,
+    washAt,
+    washOf,
+    type Wash,
+    type WashTone,
+} from "./thumbHashWash";
 
-const props = withDefaults(defineProps<{ hash?: string; tone?: WashTone }>(), { hash: undefined, tone: "dark" });
+const props = withDefaults(defineProps<{ hash?: string; tone?: WashTone }>(), {
+    hash: undefined,
+    tone: "dark",
+});
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 let gl: WebGLRenderingContext | null = null;
@@ -63,7 +74,10 @@ const VERTEX = `attribute vec2 at; void main() { gl_Position = vec4(at, 0.0, 1.0
 function decoded(): Wash | null {
     if (!props.hash) return null;
     try {
-        return washOf(Uint8Array.from(atob(props.hash), (char) => char.charCodeAt(0)), props.tone);
+        return washOf(
+            Uint8Array.from(atob(props.hash), (char) => char.charCodeAt(0)),
+            props.tone,
+        );
     } catch {
         return null;
     }

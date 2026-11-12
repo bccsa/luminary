@@ -46,7 +46,7 @@ export type VideoNowPlayingTexts = Partial<
         | "backToLine"
         | "speedLabel"
         | "sleepLabel"
-| "minimise"
+        | "minimise"
         | "play"
         | "pause"
         | "loading"
@@ -107,14 +107,7 @@ export type VideoNowPlayingTexts = Partial<
  * `off`, `light` or `strict`; `autoplay` with `on` or `off`.
  */
 export type VideoNowPlayingAction =
-    | "minimise"
-    | "read"
-    | "audio"
-    | "video"
-    | "sleep"
-    | "tag"
-    | "dataSaver"
-    | "autoplay";
+    "minimise" | "read" | "audio" | "video" | "sleep" | "tag" | "dataSaver" | "autoplay";
 
 /** What a platform's own minimised player shows of the item, as the page's bar does. */
 export type VideoMiniPlayerBar = {
