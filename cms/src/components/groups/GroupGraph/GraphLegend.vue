@@ -29,47 +29,55 @@ const showLegend = ref(false);
         <div class="legend-drawer w-[calc(100vw-1.5rem)] px-3 py-2 text-xs sm:w-max sm:max-w-2xl">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <div class="text-sm font-semibold text-zinc-900">Info</div>
-                    <div class="mt-0.5 text-zinc-500">
+                    <div class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Info</div>
+                    <div class="mt-0.5 text-zinc-500 dark:text-zinc-300">
                         Select a group to see who can access it and what it can access.
                     </div>
                 </div>
             </div>
-            <div class="mt-2 grid gap-4 border-t border-zinc-100 pt-2 sm:grid-cols-2">
+            <div
+                class="mt-2 grid gap-4 border-t border-zinc-100 pt-2 dark:border-slate-700 sm:grid-cols-2"
+            >
                 <div class="text-[11px]">
-                    <div class="font-bold text-zinc-600">Keys</div>
-                    <dl class="mt-2 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-zinc-500">
-                        <dt class="font-medium text-zinc-600">Space</dt>
+                    <div class="font-bold text-zinc-600 dark:text-zinc-100">Keys</div>
+                    <dl
+                        class="mt-2 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-zinc-500 dark:text-zinc-300"
+                    >
+                        <dt class="font-medium text-zinc-600 dark:text-zinc-100">Space</dt>
                         <dd>Hold to drag</dd>
-                        <dt class="font-medium text-zinc-600">Middle mouse</dt>
+                        <dt class="font-medium text-zinc-600 dark:text-zinc-100">Middle mouse</dt>
                         <dd>Drag</dd>
-                        <dt class="font-medium text-zinc-600">Arrow keys</dt>
+                        <dt class="font-medium text-zinc-600 dark:text-zinc-100">Arrow keys</dt>
                         <dd>Pan</dd>
-                        <dt class="font-medium text-zinc-600">+ / -</dt>
+                        <dt class="font-medium text-zinc-600 dark:text-zinc-100">+ / -</dt>
                         <dd>Zoom</dd>
-                        <dt class="font-medium text-zinc-600">0</dt>
+                        <dt class="font-medium text-zinc-600 dark:text-zinc-100">0</dt>
                         <dd>Fit view</dd>
-                        <dt class="font-medium text-zinc-600">Tab</dt>
+                        <dt class="font-medium text-zinc-600 dark:text-zinc-100">Tab</dt>
                         <dd>Move through groups</dd>
-                        <dt class="font-medium text-zinc-600">Enter</dt>
+                        <dt class="font-medium text-zinc-600 dark:text-zinc-100">Enter</dt>
                         <dd>Select group</dd>
-                        <dt class="font-medium text-zinc-600">Esc</dt>
+                        <dt class="font-medium text-zinc-600 dark:text-zinc-100">Esc</dt>
                         <dd>Close or clear</dd>
-                        <dt class="font-medium text-zinc-600">
+                        <dt class="font-medium text-zinc-600 dark:text-zinc-100">
                             {{ isMac ? "⌘+K" : "Ctrl+K" }}
                         </dt>
                         <dd>Search groups</dd>
-                        <dt class="font-medium text-zinc-600">
+                        <dt class="font-medium text-zinc-600 dark:text-zinc-100">
                             {{ isMac ? "⌘+F" : "Ctrl+F" }}
                         </dt>
                         <dd>Open fullscreen</dd>
                     </dl>
                 </div>
                 <div class="text-[11px]">
-                    <div class="font-bold text-zinc-600">Legend</div>
-                    <dl class="mt-2 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-zinc-500">
+                    <div class="font-bold text-zinc-600 dark:text-zinc-100">Legend</div>
+                    <dl
+                        class="mt-2 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-zinc-500 dark:text-zinc-300"
+                    >
                         <dt class="flex h-4 items-center">
-                            <span class="h-3 w-4 rounded-sm border-2 border-zinc-900"></span>
+                            <span
+                                class="h-3 w-4 rounded-sm border-2 border-zinc-900 dark:border-zinc-100"
+                            ></span>
                         </dt>
                         <dd>Selected group</dd>
                         <dt class="flex h-4 items-center">
@@ -84,12 +92,12 @@ const showLegend = ref(false);
                             <span class="h-0 w-5 border-t-2 border-dashed border-zinc-500"></span>
                         </dt>
                         <dd>Inherited access</dd>
-                        <dt class="flex h-4 items-center opacity-50">
+                        <dt class="flex h-4 items-center opacity-50 dark:opacity-80">
                             <span
-                                class="h-3 w-4 rounded-sm border border-zinc-300 bg-zinc-50"
+                                class="h-3 w-4 rounded-sm border border-zinc-300 bg-zinc-50 dark:border-slate-400 dark:bg-slate-600"
                             ></span>
                         </dt>
-                        <dd class="opacity-50">Not in path</dd>
+                        <dd class="opacity-50 dark:opacity-80">Not in path</dd>
                     </dl>
                 </div>
             </div>
