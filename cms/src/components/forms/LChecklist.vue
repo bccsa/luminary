@@ -103,7 +103,7 @@ onClickOutside(checklist, () => {
                     data-test="option"
                     @click="onClick(content)"
                     :class="[
-                        'cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-zinc-100',
+                        'cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-zinc-100 dark:hover:bg-slate-700',
                         { 'dark:bg-slate-800 hover:bg-zinc-100 bg-zinc-100': isSelected(content) },
                         { 'dark:text-zinc-100 text-zinc-900': !isSelected(content) },
                         { 'dark:text-zinc-400 text-zinc-500': isSelected(content) },
