@@ -10,7 +10,7 @@ import LButton from "../button/LButton.vue";
 import LInput from "../forms/LInput.vue";
 import LCombobox from "../forms/LCombobox.vue";
 import LSelect from "../forms/LSelect.vue";
-import { TrashIcon, UserGroupIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import { MagnifyingGlassIcon, TrashIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { PencilSquareIcon, CheckIcon } from "@heroicons/vue/20/solid";
 
 const props = defineProps<{
@@ -301,9 +301,10 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
         <LInput
             v-if="mappings.length > 3"
             name="group-mapping-search"
-            :icon="UserGroupIcon"
+            :icon="MagnifyingGlassIcon"
             v-model="searchQuery"
-            placeholder="Filter by group name..."
+            placeholder="Search groups..."
+            autocomplete="off"
             size="sm"
             class="mt-1"
         />
