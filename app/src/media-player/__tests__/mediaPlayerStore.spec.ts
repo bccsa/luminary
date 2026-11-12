@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { nextTick } from "vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { userDataSaverEnabled } from "@/globalConfig";
 import {
@@ -8,6 +9,9 @@ import {
     mediaPlayerView,
     minimiseMediaPlayer,
     openMediaPlayer,
+    opensAsAudio,
+    chosenAudio,
+    sleepTimerDefault,
     startsAsAudio,
 } from "../mediaPlayer";
 
@@ -16,6 +20,7 @@ const other = { ...mockEnglishContentDto, _id: "content-other" };
 beforeEach(() => {
     closeMediaPlayer();
     userDataSaverEnabled.value = false;
+    chosenAudio.value = null;
 });
 
 describe("the media player's store", () => {
@@ -69,5 +74,47 @@ describe("the media player's store", () => {
         expect(startsAsAudio.value).toBe(false);
         userDataSaverEnabled.value = true;
         expect(startsAsAudio.value).toBe(true);
+    });
+
+    it("opens as asked, else as sound under strict Data Saver, else as last chosen", () => {
+        expect(opensAsAudio({})).toBe(false);
+        userDataSaverEnabled.value = true;
+        expect(opensAsAudio({})).toBe(true);
+        expect(opensAsAudio({ audio: false })).toBe(false);
+        userDataSaverEnabled.value = false;
+        chosenAudio.value = true;
+        expect(opensAsAudio({})).toBe(true);
+        expect(opensAsAudio({ audio: false })).toBe(false);
+    });
+
+    it("opens as sound under strict Data Saver though the viewer once chose the picture", () => {
+        chosenAudio.value = false;
+        expect(opensAsAudio({})).toBe(false);
+        userDataSaverEnabled.value = true;
+        expect(opensAsAudio({})).toBe(true);
+    });
+
+    it("keeps the last sleep timer chosen, off included", async () => {
+        sleepTimerDefault.value = { kind: "minutes", minutes: 15 };
+        await nextTick();
+        expect(JSON.parse(localStorage.getItem("mediaPlayerSleepTimer")!)).toEqual({
+            kind: "minutes",
+            minutes: 15,
+        });
+        sleepTimerDefault.value = null;
+        await nextTick();
+        expect(localStorage.getItem("mediaPlayerSleepTimer")).toBeNull();
+    });
+
+    it("keeps the viewer's choice of mode across restarts", async () => {
+        chosenAudio.value = false;
+        await nextTick();
+        expect(localStorage.getItem("mediaPlayerMode")).toBe("video");
+        chosenAudio.value = true;
+        await nextTick();
+        expect(localStorage.getItem("mediaPlayerMode")).toBe("audio");
+        chosenAudio.value = null;
+        await nextTick();
+        expect(localStorage.getItem("mediaPlayerMode")).toBeNull();
     });
 });

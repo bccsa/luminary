@@ -15,7 +15,7 @@ import { useI18n } from "vue-i18n";
 import { type ContentDto } from "luminary-shared";
 import { SignalSlashIcon } from "@heroicons/vue/24/outline";
 import LImage from "@/components/images/LImage.vue";
-import { isDataSaverEnabled, userDataSaverEnabled, youtubeAlwaysAllow } from "@/globalConfig";
+import { dataSaverOn, youtubeAlwaysAllow } from "@/globalConfig";
 import { isNativeApp } from "@/util/inAppBrowser";
 import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 import { publicUrl } from "@/seo/publicSite";
@@ -31,7 +31,7 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const id = computed(() => youTubeIdOf(props.url));
-const dataSaver = computed(() => userDataSaverEnabled.value || isDataSaverEnabled());
+const dataSaver = dataSaverOn;
 
 /** Pressed Play on this video, in this view. */
 const chosen = ref(false);
@@ -209,6 +209,9 @@ defineExpose({
     canPictureInPicture: false,
     airPlayAvailable: false,
     airPlayActive: false,
+    // The embed has no platform screens: an unset flag would read as "not yet known" and hide the page's own.
+    nativeNowPlaying: false,
+    nativeMiniPlayer: false,
     setMuted: youtube.setMuted,
     play: async () => youtube.play(),
     pause: () => youtube.pause(),

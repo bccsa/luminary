@@ -35,13 +35,15 @@ const level = () => (props.muted ? 0 : props.volume);
     >
         <button
             type="button"
-            class="lmpl-afs-iconbtn"
+            class="lmpl-afs-toolcell"
             :aria-label="muted ? t('media_player.unmute') : t('media_player.mute')"
             :aria-pressed="muted"
             data-test="mediaPlayerVolumeMute"
             @click="emit('mute', !muted)"
         >
-            <PlayerIcon :name="muted ? 'volumeOff' : 'volumeHigh'" class="h-6 w-6" />
+            <span class="lmpl-afs-toolbadge"></span>
+            <PlayerIcon :name="muted ? 'volumeOff' : 'volumeHigh'" class="lmpl-afs-toolglyph" />
+            <span class="lmpl-afs-toollabel">{{ t("media_player.volume") }}</span>
         </button>
         <!-- Padded below rather than spaced off, so the pointer crossing to the card stays over the tool. -->
         <div

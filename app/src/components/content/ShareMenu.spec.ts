@@ -17,6 +17,11 @@ const { dataSaver } = vi.hoisted(() => ({ dataSaver: { on: false } }));
 vi.mock("@/globalConfig", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/globalConfig")>()),
     isDataSaverEnabled: () => dataSaver.on,
+    dataSaverOn: {
+        get value() {
+            return dataSaver.on;
+        },
+    },
 }));
 vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({ bucket: ref(null), bucketBaseUrl: computed(() => bucket.url) }),

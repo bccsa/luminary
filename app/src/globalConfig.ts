@@ -56,14 +56,56 @@ export const isDataSaverEnabled = (): boolean => {
 };
 
 /**
- * User-controlled "Data Saver" preference, persisted to localStorage and toggled from the Settings
- * page. Independent of the OS/browser `saveData` flag (`isDataSaverEnabled`) and the measured
- * connection speed (`useNetworkSpeedEstimator`) — any of the three being on reduces image quality. A
- * module-level singleton ref so every consumer (Settings toggle, image provider) shares one value.
+ * How much data to save: `light` keeps video but holds it to its lowest quality and lightens images;
+ * `strict` also starts media with the sound only. Chosen on the Settings page.
  */
-export const userDataSaverEnabled = ref(localStorage.getItem("dataSaver") === "true");
-watch(userDataSaverEnabled, (enabled) => {
-    localStorage.setItem("dataSaver", String(enabled));
+export type DataSaverLevel = "off" | "light" | "strict";
+
+const DATA_SAVER_LEVEL_KEY = "dataSaverLevel";
+const DATA_SAVER_LEVELS: readonly DataSaverLevel[] = ["off", "light", "strict"];
+
+/** The level stored, else the on/off switch it replaced (on meant what `strict` does); null until chosen. */
+function readDataSaverLevel(): DataSaverLevel | null {
+    const stored = localStorage.getItem(DATA_SAVER_LEVEL_KEY) as DataSaverLevel | null;
+    if (stored && DATA_SAVER_LEVELS.includes(stored)) return stored;
+    const legacy = localStorage.getItem("dataSaver");
+    if (legacy === "true") return "strict";
+    if (legacy === "false") return "off";
+    return null;
+}
+
+/** The level the user chose on the Settings page; null until they choose one. */
+export const dataSaverLevel = ref<DataSaverLevel | null>(readDataSaverLevel());
+watch(dataSaverLevel, (level) => {
+    if (level === null) localStorage.removeItem(DATA_SAVER_LEVEL_KEY);
+    else localStorage.setItem(DATA_SAVER_LEVEL_KEY, level);
+    localStorage.removeItem("dataSaver");
+});
+
+/**
+ * The level in force: the user's choice, else `light` while the device's own Data Saver is on. The
+ * measured connection speed (`useNetworkSpeedEstimator`) lightens images on its own, apart from this.
+ */
+export const effectiveDataSaverLevel = computed<DataSaverLevel>(
+    () => dataSaverLevel.value ?? (isDataSaverEnabled() ? "light" : "off"),
+);
+
+/** Any data saving is in force (light or strict). */
+export const dataSaverOn = computed(() => effectiveDataSaverLevel.value !== "off");
+
+/** The user chose to save data (light or strict); setting it picks `strict` or `off`. */
+export const userDataSaverEnabled = computed<boolean>({
+    get: () => dataSaverLevel.value === "light" || dataSaverLevel.value === "strict",
+    set: (enabled) => (dataSaverLevel.value = enabled ? "strict" : "off"),
+});
+
+/**
+ * Whether the next video plays by itself when one ends (a short countdown first). On unless the user turns it off,
+ * on the Settings page or the now-playing screen. Persisted to localStorage.
+ */
+export const autoplayNext = ref(localStorage.getItem("autoplay") !== "false");
+watch(autoplayNext, (on) => {
+    localStorage.setItem("autoplay", String(on));
 });
 
 /**
@@ -77,7 +119,7 @@ watch(subtitlesOnVideo, (onVideo) => {
 
 /**
  * The subtitles the viewer last chose, carried to every video and audio opened after: `on` is whether they were left
- * on, `lang` the language picked. Persisted to localStorage.
+ * on, `lang` the language picked. On until the viewer turns them off. Persisted to localStorage.
  */
 export const subtitlePreference = ref<{ on: boolean; lang?: string }>(
     (() => {
@@ -87,7 +129,7 @@ export const subtitlePreference = ref<{ on: boolean; lang?: string }>(
         } catch {
             /* an unreadable value is no preference */
         }
-        return { on: false };
+        return { on: true };
     })(),
 );
 watch(subtitlePreference, (preference) => {
