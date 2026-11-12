@@ -8,7 +8,8 @@ import {
     ShareIcon,
 } from "@heroicons/vue/24/outline";
 import { useI18n } from "vue-i18n";
-import { db, reportError } from "luminary-shared";
+import { db, reportError, type HighlightColor, type HighlightRange } from "luminary-shared";
+import { recordUserActivity, removeUserActivity } from "@/userActivity/store";
 import {
     getHighlightRanges,
     getLegacyHighlightHtml,
@@ -18,15 +19,12 @@ import {
     HIGHLIGHT_COLORS,
     addHighlight,
     anchorHighlights,
-    extendToPunctuation,
     overlaps,
     paintHighlights,
     rangesFromLegacyHtml,
     removeHighlights,
     snapToWords,
     textOffset,
-    type HighlightColor,
-    type HighlightRange,
 } from "@/util/highlightRanges";
 import TelegramIcon from "@/components/icons/TelegramIcon.vue";
 import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
@@ -45,6 +43,8 @@ import { useNotificationStore } from "@/stores/notification";
 const props = withDefaults(
     defineProps<{
         contentId: string;
+        /** The post the translation belongs to, stored with the highlights. */
+        parentId?: string;
         title: string;
         copyright?: string;
         /** Gates the share targets on the ACL Share permission; defaults open for callers that don't check it. */
@@ -185,26 +185,10 @@ function selectionBounds(): { start: number; end: number; text: string } | undef
     };
 }
 
-const BLOCKS = "p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, td, th, dd, dt, figcaption";
-
-/** What a new highlight would cover: whole words, running on to the end of the phrase. */
+/** What a new highlight would cover: the words the selection touches, widened to whole words. */
 function selectedWords() {
     const bounds = selectionBounds();
-    const snapped = bounds && snapToWords(bounds.text, bounds.start, bounds.end);
-    if (!snapped || !prose.value) return snapped;
-
-    // The phrase can't run past the paragraph the selection ends in.
-    const range = window.getSelection()!.getRangeAt(0);
-    const endEl =
-        range.endContainer instanceof Element
-            ? range.endContainer
-            : range.endContainer.parentElement;
-    const block = endEl?.closest(BLOCKS);
-    const limit =
-        block && prose.value.contains(block)
-            ? textOffset(prose.value, block, block.childNodes.length)
-            : bounds.text.length;
-    return { start: snapped.start, end: extendToPunctuation(bounds.text, snapped.end, limit) };
+    return bounds && snapToWords(bounds.text, bounds.start, bounds.end);
 }
 
 /** Highlights the raw selection touches — unsnapped, so a stray mark on punctuation can still be removed. */
@@ -367,6 +351,27 @@ async function shareHighlightToInstagram() {
 
 // Persistence
 
+/**
+ * Mirrors this content's highlights into the activity table, which is what the activity page reads.
+ * The entry above stays the painting source; this is the record of the activity itself.
+ */
+async function recordHighlightActivity(): Promise<void> {
+    // Without the post there is nothing the activity page could render the highlight against.
+    if (!props.parentId) return;
+
+    const ref = {
+        type: "highlighted",
+        contentId: props.contentId,
+        parentId: props.parentId,
+    } as const;
+
+    if (highlights.length) {
+        await recordUserActivity(ref, { ranges: [...highlights] });
+    } else {
+        await removeUserActivity(ref);
+    }
+}
+
 /** Persists this content's highlights (with an update time for newest-first recommendation reads). */
 async function saveHighlights(): Promise<boolean> {
     try {
@@ -382,12 +387,14 @@ async function saveHighlights(): Promise<boolean> {
             data[props.contentId] = {
                 ranges: highlights,
                 updatedAt: Date.now(),
+                parentId: props.parentId,
             } satisfies SavedHighlight;
         } else {
             delete data[props.contentId];
         }
 
         await db.setLuminaryInternals("highlights", data);
+        await recordHighlightActivity();
         return true;
     } catch (error) {
         reportError(error, { area: "highlights", op: "save" });
@@ -527,10 +534,7 @@ onUnmounted(() => {
         @touchcancel.passive="handleTouchCancel"
     >
         <!-- Content Container -->
-        <div
-            ref="prose"
-            class="prose max-w-none select-text"
-        >
+        <div ref="prose" class="prose max-w-none select-text">
             <slot />
         </div>
 
@@ -544,10 +548,7 @@ onUnmounted(() => {
                 @mousedown.stop.prevent
             >
                 <!-- Main Menu -->
-                <div
-                    v-if="!showColorPicker && !showShareMenu"
-                    class="flex flex-col items-center"
-                >
+                <div v-if="!showColorPicker && !showShareMenu" class="flex flex-col items-center">
                     <div class="flex items-center gap-0.5">
                         <!-- Highlight: also offered over an existing highlight, to recolour or extend it -->
                         <button
@@ -596,10 +597,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Color Picker -->
-                <div
-                    v-else-if="showColorPicker"
-                    class="flex items-center gap-2 px-1 py-0.5"
-                >
+                <div v-else-if="showColorPicker" class="flex items-center gap-2 px-1 py-0.5">
                     <button
                         @click="showColorPicker = false"
                         :aria-label="t('singlecontent.back')"
@@ -621,10 +619,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Share Targets -->
-                <div
-                    v-else
-                    class="flex items-center gap-1 px-1 py-0.5"
-                >
+                <div v-else class="flex items-center gap-1 px-1 py-0.5">
                     <button
                         @click="closeShareMenu"
                         :aria-label="t('singlecontent.back')"

@@ -505,9 +505,7 @@ describe("processContentDto", () => {
         expect(await db.getDocsBySlug("reversion-a", DocType.Redirect)).toHaveLength(1);
         // previousSlugs is a purely additive, denormalized copy of the same history —
         // it does not replace or affect the Redirect doc above.
-        expect((await db.getDoc(original.doc._id)).docs[0].previousSlugs).toEqual([
-            "reversion-a",
-        ]);
+        expect((await db.getDoc(original.doc._id)).docs[0].previousSlugs).toEqual(["reversion-a"]);
 
         await processChangeRequest(
             "test-user",

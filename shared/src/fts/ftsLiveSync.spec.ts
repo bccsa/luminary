@@ -67,7 +67,10 @@ describe("attachFtsLiveSync", () => {
 
     it("removes a result when a matching DeleteCmd arrives on the socket", () => {
         const scope = effectScope();
-        const results = ref([{ _id: "u1", name: "Ada" }, { _id: "u2", name: "Bob" }]);
+        const results = ref([
+            { _id: "u1", name: "Ada" },
+            { _id: "u2", name: "Bob" },
+        ]);
 
         scope.run(() =>
             attachFtsLiveSync(
@@ -174,9 +177,38 @@ describe("attachFtsLiveSync", () => {
         mocks.liveRefs[0]!.ref.value = [{ _id: "c2", title: "Two updated" }];
         await nextTick();
 
-        expect(results.value).toEqual([
-            { docId: "c2", doc: { _id: "c2", title: "Two updated" } },
+        expect(results.value).toEqual([{ docId: "c2", doc: { _id: "c2", title: "Two updated" } }]);
+        scope.stop();
+    });
+
+    it("does not re-run the Dexie query when its answer only patches the rows", async () => {
+        const scope = effectScope();
+        const results = ref([
+            { docId: "c1", doc: { _id: "c1", title: "One" } },
+            { docId: "c2", doc: { _id: "c2", title: "Two" } },
         ]);
+
+        scope.run(() =>
+            attachFtsLiveSync(
+                results,
+                {
+                    getId: (r) => r.docId,
+                    patch: (r, live) => ({ ...r, doc: live as any }),
+                },
+                { docType: DocType.Content, watchDexie: true },
+            ),
+        );
+
+        const ids = mocks.liveRefs[0]!.options.deps[0];
+        const before = ids.value;
+        mocks.liveRefs[0]!.ref.value = [
+            { _id: "c1", title: "One" },
+            { _id: "c2", title: "Two" },
+        ];
+        await nextTick();
+
+        expect(results.value[0]!.doc).toEqual({ _id: "c1", title: "One" });
+        expect(ids.value).toBe(before);
         scope.stop();
     });
 

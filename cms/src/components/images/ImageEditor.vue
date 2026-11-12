@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, toRaw, watchEffect } from "vue";
-import { ExclamationCircleIcon } from "@heroicons/vue/24/solid";
+import { ref, computed, toRaw, shallowReactive, watchEffect } from "vue";
+import { ExclamationCircleIcon, ExclamationTriangleIcon } from "@heroicons/vue/24/solid";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
 import LSelect from "../forms/LSelect.vue";
 import {
@@ -25,6 +25,24 @@ const emit = defineEmits<{
 
 const parent = defineModel<ContentParentDto>("parent");
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
+
+// Images below this width look soft in tall, cover-cropped tiles on high-density screens, and the
+// API discards the original after processing, so a small upload can never be improved later.
+const MIN_RECOMMENDED_IMAGE_WIDTH = 1280;
+// Tracked per upload object (not filename) so same-named files don't share state.
+const smallUploads = shallowReactive(new Set<ImageUploadDto>());
+
+const hasSmallImage = computed(() => {
+    const imageData = parent.value?.imageData;
+    if (!imageData) return false;
+    const smallExisting = imageData.fileCollections.some(
+        (c) =>
+            c.imageFiles.length > 0 &&
+            Math.max(...c.imageFiles.map((f) => f.width)) < MIN_RECOMMENDED_IMAGE_WIDTH,
+    );
+    const smallUpload = (imageData.uploadData ?? []).some((u) => smallUploads.has(u));
+    return smallExisting || smallUpload;
+});
 
 // Bucket selection (simplified approach using existing database data)
 const bucketSelection = storageSelection();
@@ -229,6 +247,20 @@ const processFiles = (files: File[]) => {
             } as ImageUploadDto;
 
             parent.value.imageData.uploadData.push(uploadData);
+
+            if (typeof createImageBitmap === "function") {
+                createImageBitmap(file)
+                    .then((bitmap) => {
+                        // The API upscales by up to 10%, so only warn below that tolerance
+                        const stillPresent = parent.value?.imageData?.uploadData?.some(
+                            (u) => toRaw(u) === uploadData,
+                        );
+                        if (stillPresent && bitmap.width < MIN_RECOMMENDED_IMAGE_WIDTH / 1.1)
+                            smallUploads.add(uploadData);
+                        bitmap.close();
+                    })
+                    .catch(() => {});
+            }
         };
 
         reader.readAsArrayBuffer(file);
@@ -250,6 +282,8 @@ const removeFileCollection = (collection: ImageFileCollectionDto) => {
 
 const removeFileUploadData = (uploadData: ImageUploadDto) => {
     if (!parent.value?.imageData?.uploadData) return;
+
+    smallUploads.delete(toRaw(uploadData));
 
     parent.value.imageData.uploadData = parent.value.imageData.uploadData
         .filter((f) => f !== uploadData)
@@ -332,9 +366,19 @@ defineExpose({
             </div>
         </div>
 
+        <p
+            v-if="hasSmallImage"
+            class="my-2 flex items-start gap-1 text-xs dark:text-amber-700"
+            data-test="small-image-warning"
+        >
+            <ExclamationTriangleIcon class="h-4 w-4 shrink-0" />
+            This image is quite small and may look blurry on some screens. For best results, use an
+            image at least {{ MIN_RECOMMENDED_IMAGE_WIDTH }} pixels wide.
+        </p>
+
         <!-- Full-width Drag and Drop Area -->
         <div
-            class="-mx-4 flex w-screen flex-col justify-center transition duration-150 ease-in-out scrollbar-hide dark:bg-slate-900 sm:mx-0 sm:w-full"
+            class="-mx-4 flex w-screen flex-col justify-center bg-white transition duration-150 ease-in-out scrollbar-hide dark:bg-slate-900 sm:mx-0 sm:w-full"
             @dragenter="handleDragEnter"
             @dragover="handleDragOver"
             @dragleave="handleDragLeave"

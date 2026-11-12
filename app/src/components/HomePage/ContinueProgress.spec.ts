@@ -52,6 +52,37 @@ describe("ContinueProgress", () => {
         localStorage.clear();
     });
 
+    it("hides content that is finished from 95%", async () => {
+        await db.docs.bulkPut([mockEnglishContentDto]);
+        setMediaProgress(`media-${mockEnglishContentDto._id}`, mockEnglishContentDto._id, 290, 300);
+
+        const wrapper = mount(ContinueProgress);
+
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(wrapper.text()).not.toContain(mockEnglishContentDto.title);
+    });
+
+    it("shows only the 10 most recent unfinished items", async () => {
+        const docs: ContentDto[] = Array.from({ length: 12 }, (_, i) => ({
+            ...mockEnglishContentDto,
+            _id: `content-many-${i}`,
+            title: `Many Article ${i}`,
+            video: undefined,
+            text: "<p>Hello world</p>",
+        }));
+        await db.docs.bulkPut(docs);
+        docs.forEach((doc) => setReadingProgress(doc._id, 40));
+
+        const wrapper = mount(ContinueProgress);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Many Article 11");
+        });
+        expect(wrapper.text()).toContain("Many Article 2");
+        expect(wrapper.text()).not.toContain("Many Article 1 ");
+        expect(wrapper.text()).not.toContain("Many Article 0");
+    });
+
     it("displays content with only video progress", async () => {
         await db.docs.bulkPut([mockEnglishContentDto]);
         setMediaProgress(`media-${mockEnglishContentDto._id}`, mockEnglishContentDto._id, 60, 300);

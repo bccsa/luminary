@@ -115,6 +115,26 @@ export function resolveCollectionPrefix(
     return { prefix, playlist };
 }
 
+/**
+ * The collection's object keys, and the prefix they were found under.
+ *
+ * A bucket whose public URL is the server root puts the bucket name in the URL
+ * path, which S3 keys never contain, so that is tried when the path finds nothing.
+ */
+export async function listCollection(
+    s3: S3Service,
+    prefix: string,
+): Promise<{ keyPrefix: string; keys: string[] }> {
+    const keys = await s3.listObjectsUnder(`${prefix}/`);
+    if (keys.length > 0) return { keyPrefix: prefix, keys };
+
+    const bucketName = s3.getBucketName();
+    if (!bucketName || !prefix.startsWith(`${bucketName}/`)) return { keyPrefix: prefix, keys };
+
+    const keyPrefix = prefix.slice(bucketName.length + 1);
+    return { keyPrefix, keys: await s3.listObjectsUnder(`${keyPrefix}/`) };
+}
+
 /** Whose collection is being deleted, and what replaces it on that document. */
 export type DeleteMediaOptions = {
     /** The document the collection belonged to; it never counts as another user. */
@@ -233,7 +253,7 @@ export async function deleteMediaCollection(
 
     try {
         const s3 = await S3Service.create(bucketId, db);
-        const keys = await s3.listObjectsUnder(`${resolved.prefix}/`);
+        const { keyPrefix, keys } = await listCollection(s3, resolved.prefix);
 
         if (keys.length === 0) {
             // Already gone, or never uploaded. Not worth a warning: the caller
@@ -244,7 +264,7 @@ export async function deleteMediaCollection(
         // Named before removal, so a deletion that turns out to be wrong can be
         // reconstructed from the log rather than guessed at.
         console.log(
-            `Deleting ${keys.length} media object(s) under ${resolved.prefix}/ ` +
+            `Deleting ${keys.length} media object(s) under ${keyPrefix}/ ` +
                 `in bucket ${bucket.name ?? bucketId}: ${keys.join(", ")}`,
         );
 

@@ -80,9 +80,11 @@ watch(
 </script>
 
 <template>
-    <div class="rounded-md border p-2 dark:border-slate-700 dark:bg-slate-800">
+    <div
+        class="rounded-md border border-zinc-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-800"
+    >
         <div class="mb-1 flex items-center justify-between">
-            <label class="block text-xs font-medium dark:text-zinc-100">Icon</label>
+            <label class="block text-xs font-medium text-zinc-700 dark:text-zinc-100">Icon</label>
             <LButton
                 v-if="isBucketSelected"
                 :icon="ArrowUpOnSquareIcon"
@@ -101,7 +103,9 @@ watch(
                 @change="handleFileChange"
             />
         </div>
-        <div class="rounded-md border p-2 dark:border-slate-700 dark:bg-slate-800">
+        <div
+            class="rounded-md border border-zinc-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-800"
+        >
             <ImageEditor
                 ref="imageEditorRef"
                 v-model:parent="provider as unknown as ContentParentDto"
@@ -111,7 +115,10 @@ watch(
             />
         </div>
         <div class="mt-2">
-            <label for="icon-opacity" class="mb-1 block text-xs font-medium dark:text-zinc-100">
+            <label
+                for="icon-opacity"
+                class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-100"
+            >
                 Icon Opacity
             </label>
             <div class="flex items-center gap-2">
@@ -122,7 +129,7 @@ watch(
                     max="1"
                     step="0.01"
                     :value="localOpacity"
-                    class="h-2 w-full flex-1 cursor-pointer appearance-none rounded-lg bg-zinc-200 accent-zinc-700"
+                    class="h-2 w-full flex-1 cursor-pointer appearance-none rounded-lg bg-zinc-200 accent-zinc-700 dark:bg-slate-600 dark:accent-yellow-400"
                     :disabled="disabled"
                     @input="localOpacity = ($event.target as HTMLInputElement).valueAsNumber"
                     @change="

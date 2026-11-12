@@ -60,12 +60,13 @@ vi.mock("@/globalConfig", () => ({
     cmsLanguages: ref([]),
     queryParams: { get: vi.fn() },
     cmsUrl: ref(""),
-    userPreferencesAsRef: ref({ bookmarks: [] }),
+    userPreferencesAsRef: ref({ likes: [] }),
     appLanguageIdsAsRef: ref(["lang-eng"]),
     appLanguageAsRef: ref(undefined),
     initLanguage: vi.fn(),
     userDataSaverEnabled: ref(false),
     isDataSaverEnabled: () => false,
+    dataSaverOn: ref(false),
 }));
 
 vi.mock("@/seo/contentHead", () => ({ useContentHead: () => {} }));
@@ -80,6 +81,7 @@ vi.mock("@/composables/useTranslationSwitcher", () => ({
 vi.mock("@/composables/useReadingProgressTracker", () => ({
     useReadingProgressTracker: () => ({
         hasResumableProgress: ref(false),
+        hasResumableProgressOnOpen: ref(false),
         savedProgressPercent: ref(0),
         readingProgressPercent: ref(0),
         scrollProgressPercent: ref(0),
@@ -156,7 +158,9 @@ vi.mock("@/components/images/ImageModal.vue", () => ({ default: voidStub("ImageM
 vi.mock("@/components/images/LImageProvider.vue", () => ({
     activeImageCollection: () => 0,
 }));
-vi.mock("@/components/content/VideoPlayer.vue", () => ({ default: voidStub("VideoPlayer") }));
+vi.mock("@/media-player/MediaPlayerWrapper.vue", () => ({
+    default: voidStub("MediaPlayerWrapper"),
+}));
 vi.mock("@/components/content/CopyrightBanner.vue", () => ({
     default: voidStub("CopyrightBanner"),
 }));

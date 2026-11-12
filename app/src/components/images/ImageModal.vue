@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick, computed } from "vue";
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from "vue";
 import LImage from "./LImage.vue";
 import type { ImageDto, ImageFileCollectionDto, Uuid } from "luminary-shared";
 import {
@@ -204,6 +204,10 @@ function onTouchEndWithDoubleTap(e: TouchEvent) {
 function onMouseDown(e: MouseEvent) {
     if (scale.value <= 1) return;
     isMouseDragging = true;
+    // Listen on window: the cursor can leave the container mid-drag and the mouseup would be missed
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("blur", onMouseUp);
     lastMouse = {
         x: e.clientX - translateX.value,
         y: e.clientY - translateY.value,
@@ -219,7 +223,12 @@ function onMouseMove(e: MouseEvent) {
 
 function onMouseUp() {
     isMouseDragging = false;
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp);
+    window.removeEventListener("blur", onMouseUp);
 }
+
+onBeforeUnmount(onMouseUp);
 
 function handleWheel(e: WheelEvent) {
     if (!e.ctrlKey) return;
@@ -314,10 +323,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <BaseModal
-        :isVisible="true"
-        @close="closeModal"
-    >
+    <BaseModal :isVisible="true" @close="closeModal">
         <!-- Close -->
         <XCircleIcon
             class="fixed right-8 top-8 z-40 h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"
@@ -375,8 +381,6 @@ onMounted(() => {
             @touchend="onTouchEndWithDoubleTap"
             @touchcancel="onTouchEndWithDoubleTap"
             @mousedown="onMouseDown"
-            @mousemove="onMouseMove"
-            @mouseup="onMouseUp"
             @keydown="onKeyDown"
         >
             <LImage

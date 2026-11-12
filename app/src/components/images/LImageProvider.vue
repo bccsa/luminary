@@ -94,7 +94,7 @@ export const activeImageCollection = computed(() => (content: ContentDto) => {
 </script>
 
 <script setup lang="ts">
-import { fallbackImageUrls, isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import { dataSaverOn, fallbackImageUrls } from "@/globalConfig";
 import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
 import { type ImageDto, type ImageFileDto, type Uuid } from "luminary-shared";
 import Rand from "rand-seed";
@@ -137,13 +137,7 @@ const resolvedAlt = computed(() => {
 const baseUrl = computed(() => props.bucketPublicUrl);
 
 // "Reduced data" mode lowers image weight on any of four signals (slow connection, user toggle, OS Data Saver, SSG prerendering). Forced on during SSG so the prerendered HTML advertises the smallest slot, not the full-res `sizes` a real device's DPR would pull in.
-const reducedData = computed(
-    () =>
-        isPrerender() ||
-        isSlowConnection.value ||
-        userDataSaverEnabled.value ||
-        isDataSaverEnabled(),
-);
+const reducedData = computed(() => isPrerender() || isSlowConnection.value || dataSaverOn.value);
 
 // All collections for this image, unfiltered. We deliberately hand the browser the FULL srcset ladder
 // (never pre-filtering variants by width) plus a correct `sizes` attribute, so it can pick the variant
@@ -264,10 +258,18 @@ const decodeThumbHash = (base64?: string): string | undefined => {
 // A decode encodes a PNG in JS, wasted on a cached image that paints over the preview unseen, so
 // decode only while the image is still loading. onMounted runs before first paint: no blank frame.
 const imageElement1 = ref<HTMLImageElement>();
+const imageElement2 = ref<HTMLImageElement>();
 const showThumbHash = ref(isPrerender());
 onMounted(() => {
     const img = imageElement1.value;
     showThumbHash.value = !(img?.complete && img.naturalWidth > 0);
+
+    // Hydration keeps the prerendered (reduced, uninflated) `sizes` because Vue doesn't patch plain
+    // attributes, and nothing re-renders it afterwards — so correct it once on mount.
+    const el = img ?? imageElement2.value;
+    if (el && sizesAttr.value && el.getAttribute("sizes") !== sizesAttr.value) {
+        el.setAttribute("sizes", sizesAttr.value);
+    }
 });
 const thumbHashDataUrl = computed(() =>
     showThumbHash.value ? decodeThumbHash(displayCollection.value?.thumbHash) : undefined,
@@ -367,7 +369,8 @@ const pickFallbackImage = () =>
         Math.floor(new Rand(props.parentId).next() * fallbackImageUrls.length)
     ] as string;
 
-const fallbackImageUrl = ref<string | undefined>(pickFallbackImage());
+// Follows parentId: a reused instance must not keep the previous post's stand-in.
+const fallbackImageUrl = computed<string | undefined>(() => pickFallbackImage());
 
 // In modal mode we want the largest available original image (no aspect ratio coercion)
 const modalSrc = computed(() => {
@@ -457,6 +460,7 @@ const modalSrcset = computed(() => {
     <!-- Show fallback image should the preferred aspect ratio not load. Also used for images shown in the original aspect ratio -->
     <img
         v-else-if="showImageElement2 && srcset2"
+        ref="imageElement2"
         :srcset="srcset2"
         :sizes="sizesAttr"
         :class="[

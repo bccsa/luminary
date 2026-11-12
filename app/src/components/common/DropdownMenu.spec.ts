@@ -37,6 +37,27 @@ describe("DropdownMenu", () => {
         expect(wrapper.text()).toContain("Toggle");
     });
 
+    it("shows one panel when the same menu is rendered twice and one copy is hidden", async () => {
+        const host = mount(
+            {
+                components: { DropdownMenu },
+                data: () => ({ open: false }),
+                template: `
+                    <div>
+                        <div data-test="shown"><DropdownMenu v-model:open="open"><template #trigger><span>A</span></template><div>Menu</div></DropdownMenu></div>
+                        <div style="display: none"><DropdownMenu v-model:open="open"><template #trigger><span>B</span></template><div>Menu</div></DropdownMenu></div>
+                    </div>`,
+            },
+            { attachTo: document.body },
+        );
+        await host.find("[data-test='shown'] [role='button']").trigger("click");
+        await nextTick();
+        const panels = [...document.body.querySelectorAll<HTMLElement>("[role='menu']")];
+        expect(panels).toHaveLength(2);
+        expect(panels.filter((panel) => panel.style.display !== "none")).toHaveLength(1);
+        host.unmount();
+    });
+
     it("hides menu panel when closed", () => {
         const wrapper = mountMenu({ open: false });
         const panel = wrapper.find("[role='menu']");

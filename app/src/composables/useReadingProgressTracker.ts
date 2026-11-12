@@ -1,6 +1,6 @@
 import { computed, nextTick, onUnmounted, ref, watch, type Ref } from "vue";
 import { useEventListener, useIntersectionObserver, type MaybeElement } from "@vueuse/core";
-import { getReadingProgress, removeReadingProgress, setReadingProgress } from "@/contentProgress";
+import { getReadingProgress, isReadingFinished, setReadingProgress } from "@/contentProgress";
 import { isPrerender } from "@/ssg/isPrerender";
 import {
     READING_MIN_SCROLL_SAMPLE_MS,
@@ -355,14 +355,25 @@ export function useReadingProgressTracker(options: {
         computeMaxScrollWordsPerSec(options.averageReadingSpeed.value),
     );
 
+    /** A finished article is read again from the start, so its saved progress counts as none. */
+    function savedReadingProgress(id: Uuid): number {
+        const saved = getReadingProgress(id);
+        return isReadingFinished(saved) ? 0 : saved;
+    }
+
     const savedProgressPercent = computed(() => {
         const id = options.contentId.value;
         if (!id) return 0;
-        return getReadingProgress(id);
+        return savedReadingProgress(id);
     });
 
+    const initialSavedProgressPercent = ref(0);
     const hasResumableProgress = computed(() => {
         const p = savedProgressPercent.value;
+        return p > 0 && p < 100;
+    });
+    const hasResumableProgressOnOpen = computed(() => {
+        const p = initialSavedProgressPercent.value;
         return p > 0 && p < 100;
     });
 
@@ -386,6 +397,7 @@ export function useReadingProgressTracker(options: {
             isRestoring,
             savedProgressPercent,
             hasResumableProgress,
+            hasResumableProgressOnOpen,
             readingProgressPercent,
             scrollProgressPercent,
             restoreScrollPosition,
@@ -478,6 +490,7 @@ export function useReadingProgressTracker(options: {
         scrollRafPending = false;
         visibilityRafPending = false;
         isRestoring.value = false;
+        initialSavedProgressPercent.value = 0;
     }
 
     function collectSegments() {
@@ -621,19 +634,11 @@ export function useReadingProgressTracker(options: {
         const id = options.contentId.value;
         if (!id || segments.value.length === 0) return;
 
-        const saved = getReadingProgress(id);
+        const saved = savedReadingProgress(id);
         if (saved <= 0) return;
 
         readingProgressPercent.value = saved;
         confirmedSegments.clear();
-
-        if (saved >= 100) {
-            for (const segment of segments.value) {
-                confirmedSegments.add(segment.id);
-            }
-            lastSavedProgress = 100;
-            return;
-        }
 
         const count = Math.round((saved / 100) * segments.value.length);
         for (let i = 0; i < count && i < segments.value.length; i++) {
@@ -647,19 +652,15 @@ export function useReadingProgressTracker(options: {
         if (!id || segments.value.length === 0) return;
 
         const computedProgress = Math.round((confirmedSegments.size / segments.value.length) * 100);
-        const existing = getReadingProgress(id);
+        const existing = savedReadingProgress(id);
         const progress = Math.max(existing, computedProgress);
         readingProgressPercent.value = progress;
 
         if (progress === lastSavedProgress) return;
         lastSavedProgress = progress;
 
-        if (progress >= 100) {
-            removeReadingProgress(id);
-        } else if (progress > 0) {
-            if (!options.disableSaving?.value) {
-                setReadingProgress(id, progress);
-            }
+        if (progress > 0 && !options.disableSaving?.value) {
+            setReadingProgress(id, progress);
         }
     }
 
@@ -866,8 +867,8 @@ export function useReadingProgressTracker(options: {
         const id = options.contentId.value;
         if (!id) return;
 
-        const percent = getReadingProgress(id);
-        if (!percent || percent >= 100) return;
+        const percent = savedReadingProgress(id);
+        if (!percent) return;
 
         setTimeout(() => {
             const container = options.scrollContainer.value;
@@ -917,6 +918,8 @@ export function useReadingProgressTracker(options: {
         if (!options.enabled.value) return;
 
         if (contentChanged) {
+            const id = options.contentId.value;
+            initialSavedProgressPercent.value = id ? getReadingProgress(id) : 0;
             if (segments.value.length > 0) {
                 seedConfirmedFromSavedProgress();
             }
@@ -978,6 +981,7 @@ export function useReadingProgressTracker(options: {
         isRestoring,
         savedProgressPercent,
         hasResumableProgress,
+        hasResumableProgressOnOpen,
         readingProgressPercent,
         scrollProgressPercent,
         restoreScrollPosition,

@@ -1,19 +1,13 @@
-/** Highlight colours offered to the reader, keyed by the name that is persisted. */
-export const HIGHLIGHT_COLORS = {
+import type { HighlightColor, HighlightRange } from "luminary-shared";
+
+/** The CSS colour of each highlight colour. Typed by the shared names, so a new one cannot go unpainted. */
+export const HIGHLIGHT_COLORS: Record<HighlightColor, string> = {
     yellow: "rgba(253, 224, 71, 0.5)",
     green: "rgba(74, 222, 128, 0.5)",
     blue: "rgba(96, 165, 250, 0.5)",
     pink: "rgba(244, 114, 182, 0.5)",
     purple: "rgba(192, 132, 252, 0.5)",
-} as const;
-
-export type HighlightColor = keyof typeof HIGHLIGHT_COLORS;
-
-/**
- * A highlight as character offsets into the article's text. `text` is the quoted passage,
- * used to find the highlight again after the article has been edited.
- */
-export type HighlightRange = { start: number; end: number; color: HighlightColor; text: string };
+};
 
 const WORD_CHAR = /[\p{L}\p{N}\p{M}'’_-]/u;
 const SPACE = /\s/;
@@ -35,37 +29,6 @@ export function snapToWords(
     while (isWord(text, start) && isWord(text, start - 1)) start--;
     while (isWord(text, end - 1) && isWord(text, end)) end++;
     return { start, end };
-}
-
-const TERMINATOR = /[.,;:!?…]/;
-const DASH = /[–—]/;
-const CLOSER = /["'”’»)\]]/;
-
-/**
- * Runs a highlight's end on to the next punctuation mark (and any closing quote after it),
- * so it ends where the phrase does rather than wherever the finger lifted. Never passes
- * `limit` (the end of the paragraph), stops short of a dash, and ignores a mark inside a
- * word such as "3.5".
- */
-export function extendToPunctuation(text: string, end: number, limit = text.length): number {
-    const backOffSpace = (i: number) => {
-        while (i > end && SPACE.test(text[i - 1])) i--;
-        return i;
-    };
-    let k = end;
-    while (k > 0 && CLOSER.test(text[k - 1])) k--;
-    if (k > 0 && TERMINATOR.test(text[k - 1])) return end;
-
-    for (let i = end; i < limit; i++) {
-        const c = text[i];
-        if (c === "\n" || DASH.test(c)) return backOffSpace(i);
-        if (TERMINATOR.test(c) && !isWord(text, i + 1)) {
-            let j = i + 1;
-            while (j < limit && CLOSER.test(text[j])) j++;
-            return j;
-        }
-    }
-    return backOffSpace(Math.max(limit, end));
 }
 
 const byStart = (a: HighlightRange, b: HighlightRange) => a.start - b.start;

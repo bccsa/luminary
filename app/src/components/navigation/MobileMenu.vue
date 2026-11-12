@@ -5,6 +5,7 @@ import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import ProfileMenu from "./ProfileMenu.vue";
+import { keyboardOpen } from "@/composables/useKeyboardOpen";
 
 // `closeSearch` still closes the desktop modal if it happens to be open; mobile navigates to
 // the dedicated /search page rather than opening the overlay.
@@ -49,20 +50,26 @@ const publishHeight = (height: number) => {
     document.documentElement.style.setProperty("--mobile-menu-h", `${height}px`);
 };
 
+const measure = () => {
+    if (rootRef.value) publishHeight(rootRef.value.getBoundingClientRect().height);
+};
+
 onMounted(() => {
     if (!rootRef.value) return;
-    const measure = () => {
-        if (rootRef.value) publishHeight(rootRef.value.getBoundingClientRect().height);
-    };
     measure();
     if (typeof ResizeObserver !== "undefined") {
         resizeObserver = new ResizeObserver(measure);
-        resizeObserver.observe(rootRef.value);
+        // The border box: turning the phone changes only the safe-area padding, which the content box
+        // never sees, and whatever rides on the menu would be left floating above it.
+        resizeObserver.observe(rootRef.value, { box: "border-box" });
     }
+    // iOS before 15.4 ignores `box`; a turn resizes the window, so the menu is measured then too.
+    window.addEventListener("resize", measure);
 });
 
 onUnmounted(() => {
     resizeObserver?.disconnect();
+    window.removeEventListener("resize", measure);
     document.documentElement.style.removeProperty("--mobile-menu-h");
 });
 </script>
@@ -70,7 +77,8 @@ onUnmounted(() => {
 <template>
     <div
         ref="rootRef"
-        class="flex flex-row justify-center gap-3 bg-zinc-100 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.625rem),calc(var(--native-inset-bottom,0px)+0.5rem))] pt-3 dark:bg-slate-800"
+        v-show="!keyboardOpen"
+        class="flex flex-row bg-zinc-100 px-1 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.625rem),calc(var(--native-inset-bottom,0px)+0.5rem))] pt-3 dark:bg-slate-800"
     >
         <!-- Older Android WebViews report a 0 bottom env() inset under 3-button navigation; the
              Android build publishes the opaque bar's height as --native-inset-bottom. -->
@@ -80,7 +88,7 @@ onUnmounted(() => {
             :key="item.name"
             :to="item.to"
             v-slot="{ isActive }"
-            class="flex cursor-pointer flex-col items-center rounded-md px-2 py-1"
+            class="flex min-w-0 flex-1 basis-0 cursor-pointer flex-col items-center gap-0.5 rounded-md px-0.5 py-1"
             @click="closeSearch"
         >
             <component
@@ -93,7 +101,7 @@ onUnmounted(() => {
             />
             <span
                 :class="[
-                    'text-sm font-medium',
+                    'max-w-full truncate text-xs font-medium tracking-tight',
                     { 'text-zinc-600 dark:text-slate-100': !isNavItemActive(isActive) },
                     { 'text-yellow-700 dark:text-yellow-400': isNavItemActive(isActive) },
                 ]"
@@ -104,7 +112,7 @@ onUnmounted(() => {
 
         <!-- Search item - opens overlay (last item) -->
         <div
-            class="flex cursor-pointer flex-col items-center rounded-md px-2 py-1"
+            class="flex min-w-0 flex-1 basis-0 cursor-pointer flex-col items-center gap-0.5 rounded-md px-0.5 py-1"
             @click="handleSearchClick"
         >
             <component
@@ -121,7 +129,7 @@ onUnmounted(() => {
             />
             <span
                 :class="[
-                    'text-sm font-medium',
+                    'max-w-full truncate text-xs font-medium tracking-tight',
                     { 'text-zinc-600 dark:text-slate-100': !isSearchActive },
                     { 'text-yellow-700 dark:text-yellow-400': isSearchActive },
                 ]"

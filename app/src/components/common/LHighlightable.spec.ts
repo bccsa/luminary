@@ -216,10 +216,7 @@ describe("LHighlightable", () => {
         // Wait for restoreHighlights to be called (async in onMounted)
         await vi.advanceTimersByTimeAsync(100);
 
-        expect(consoleSpy).toHaveBeenCalledWith(
-            "[highlights] restore failed:",
-            expect.any(Error),
-        );
+        expect(consoleSpy).toHaveBeenCalledWith("[highlights] restore failed:", expect.any(Error));
 
         wrapper.unmount();
         consoleSpy.mockRestore();
@@ -611,7 +608,7 @@ describe("LHighlightable", () => {
         const marks = (wrapper: ReturnType<typeof mount>) =>
             wrapper.findAll("mark[data-highlight]").map((m) => m.text());
 
-        it("highlights whole words to the end of the phrase when the selection slips, and saves them as ranges", async () => {
+        it("widens a slipped selection to the whole words it touches, and saves them as ranges", async () => {
             const wrapper = await mountWith();
             await select(wrapper, "ome", "highl");
 
@@ -620,16 +617,16 @@ describe("LHighlightable", () => {
             document.body.querySelector<HTMLElement>(".fixed.z-50 button[style]")!.click();
             await settle();
 
-            expect(marks(wrapper)).toEqual(["Some highlighted text content."]);
+            expect(marks(wrapper)).toEqual(["Some highlighted"]);
             expect(wrapper.emitted("highlighted")).toHaveLength(1);
             expect(setSpy).toHaveBeenCalledWith("highlights", {
                 "model-test": {
                     ranges: [
                         {
                             start: 0,
-                            end: 30,
+                            end: 16,
                             color: "yellow",
-                            text: "Some highlighted text content.",
+                            text: "Some highlighted",
                         },
                     ],
                     updatedAt: expect.any(Number),

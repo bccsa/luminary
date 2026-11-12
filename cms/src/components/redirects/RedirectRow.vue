@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import {
-    db,
-    DocType,
-    AclPermission,
-    verifyAccess,
-    type RedirectDto,
-} from "luminary-shared";
+import { db, DocType, AclPermission, verifyAccess, type RedirectDto } from "luminary-shared";
 import LBadge from "../common/LBadge.vue";
 import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";

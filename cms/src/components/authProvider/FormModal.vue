@@ -4,7 +4,15 @@ order. The app and CMS selection modals apply the sort inside their live query (
 without a value fall to the end), and the CMS FormModal exposes a number input for editing it. New
 providers default to sortIndex 1.
 <script setup lang="ts">
-import { type AuthProviderDto, type GroupDto } from "luminary-shared";
+import {
+    DocType,
+    useSharedHybridQuery,
+    type AuthProviderDto,
+    type GroupDto,
+} from "luminary-shared";
+import { storageSelection } from "@/composables/storageSelection";
+import { groupsMissingDependencyAccess } from "@/components/groups/groupAccess";
+import MissingAccessBanner from "@/components/groups/MissingAccessBanner.vue";
 import { computed, ref, watch } from "vue";
 import LModal from "../modals/LModal.vue";
 import LDialog from "../common/LDialog.vue";
@@ -27,6 +35,24 @@ const props = defineProps<{
     canDelete: boolean;
     providerIsEdited: boolean;
 }>();
+
+const allGroups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
+const { getBucketById } = storageSelection();
+
+/** Groups that can view this provider but cannot read the bucket its login icon is in. */
+const groupsWithoutIconAccess = computed(() => {
+    const p = provider.value;
+    if (!p?.imageBucketId || !p.imageData?.fileCollections?.length) return [];
+    return groupsMissingDependencyAccess(
+        p.memberOf ?? [],
+        DocType.AuthProvider,
+        getBucketById(p.imageBucketId)?.memberOf ?? [],
+        DocType.Storage,
+        allGroups.value,
+    );
+});
 
 const isDisabled = computed(() => props.isLoading || !props.canEdit);
 
@@ -219,10 +245,12 @@ const handleRevert = () => {
 
                 <LabelAndType v-model:provider="provider" :disabled="isDisabled" />
 
-                <div class="rounded-md border border-zinc-400 p-2 dark:bg-slate-800">
+                <div
+                    class="rounded-md border border-zinc-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-800"
+                >
                     <label
                         for="provider-sort-index"
-                        class="mb-1 block text-xs font-medium dark:text-zinc-100"
+                        class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-100"
                     >
                         Sort Index
                     </label>
@@ -242,12 +270,14 @@ const handleRevert = () => {
                             }
                         "
                     />
-                    <p class="mt-1 text-[11px] text-zinc-500">
+                    <p class="mt-1 text-[11px] text-zinc-500 dark:text-zinc-300">
                         Lower values appear first in the provider selection list.
                     </p>
                 </div>
 
-                <div class="rounded-md border border-zinc-400 p-2 dark:bg-slate-800">
+                <div
+                    class="rounded-md border border-zinc-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-800"
+                >
                     <LCombobox
                         v-model:selected-options="provider.memberOf as string[]"
                         :label="`Group Membership`"
@@ -261,6 +291,12 @@ const handleRevert = () => {
                         {{ memberOfError }}
                     </p>
                 </div>
+
+                <MissingAccessBanner
+                    :groups="groupsWithoutIconAccess"
+                    subject="the storage bucket this login icon is stored in, so they will not see the icon on the login screen"
+                    data-test="icon-access-banner"
+                />
 
                 <AuthConfig
                     v-model:provider="provider"

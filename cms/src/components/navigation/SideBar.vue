@@ -255,7 +255,7 @@ const navItemClass = computed(() => [
         <!-- Collapse toggle — sits on the right edge, vertically centred. Desktop only. -->
         <button
             type="button"
-            class="absolute right-0 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-400 shadow-md transition-colors hover:bg-zinc-500 dark:bg-slate-700 dark:text-zinc-300 dark:hover:text-zinc-100 lg:flex"
+            class="absolute right-0 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:bg-slate-700 dark:text-zinc-300 dark:hover:text-zinc-100 lg:flex"
             :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
             data-test="sidebar-collapse-toggle"
             @click="onToggleCollapsed"
@@ -336,7 +336,7 @@ const navItemClass = computed(() => [
             </ul>
 
             <!-- Preferences: language, settings -->
-            <div class="mt-2 border-t border-zinc-200 pt-3">
+            <div class="mt-2 border-t border-zinc-200 pt-3 dark:border-slate-700">
                 <button
                     type="button"
                     :class="[navItemClass, 'w-full text-left']"
@@ -428,11 +428,11 @@ const navItemClass = computed(() => [
                     v-if="user?.picture"
                     :src="user.picture"
                     alt=""
-                    class="h-5 w-5 shrink-0 rounded-full object-cover dark:bg-zinc-50"
+                    class="h-5 w-5 shrink-0 rounded-full bg-zinc-50 object-cover dark:bg-zinc-50"
                 />
                 <div
                     v-else
-                    class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full dark:bg-zinc-300"
+                    class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-300 dark:bg-zinc-300"
                 >
                     <UserIcon class="h-3.5 w-3.5 text-zinc-600" />
                 </div>
@@ -466,10 +466,10 @@ const navItemClass = computed(() => [
                 data-test="shared-device-toggle"
             />
             <span class="text-sm">
-                <span class="block font-medium dark:text-zinc-200">
+                <span class="block font-medium text-zinc-900 dark:text-zinc-200">
                     This is a shared or public device
                 </span>
-                <span class="mt-0.5 block dark:text-zinc-200">
+                <span class="mt-0.5 block text-zinc-500 dark:text-zinc-200">
                     Require signing in again next time, so no one else can continue using your
                     account here.
                 </span>

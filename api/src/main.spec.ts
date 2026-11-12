@@ -31,6 +31,7 @@ import { bootstrap } from "./main";
 
 describe("bootstrap", () => {
     let mockApp: any;
+    let mockFastify: any;
     let originalArgv: string[];
     let originalEnv: NodeJS.ProcessEnv;
 
@@ -44,6 +45,7 @@ describe("bootstrap", () => {
         process.env.CORS_ORIGIN = '["http://localhost"]';
         process.env.PORT = "3000";
 
+        mockFastify = { addHook: jest.fn() };
         mockApp = {
             register: jest.fn().mockResolvedValue(undefined),
             get: jest.fn().mockReturnValue({ on: jest.fn() }),
@@ -51,6 +53,7 @@ describe("bootstrap", () => {
             useGlobalPipes: jest.fn(),
             useGlobalFilters: jest.fn(),
             listen: jest.fn().mockResolvedValue(undefined),
+            getHttpAdapter: jest.fn().mockReturnValue({ getInstance: () => mockFastify }),
         };
 
         (NestFactory.create as jest.Mock).mockResolvedValue(mockApp);
@@ -73,6 +76,7 @@ describe("bootstrap", () => {
         expect(upgradeDbSchema).toHaveBeenCalled();
         expect(reconcileLanguageTranslationSeeds).toHaveBeenCalled();
         expect(mockApp.enableCors).toHaveBeenCalled();
+        expect(mockFastify.addHook).toHaveBeenCalledWith("onSend", expect.any(Function));
         expect(mockApp.listen).toHaveBeenCalledWith("3000", "0.0.0.0");
     });
 

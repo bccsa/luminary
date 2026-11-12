@@ -147,30 +147,10 @@ function formatDocDetails(doc: BaseDocumentDto): string {
                         class="border-b border-slate-200 text-[10px] uppercase text-slate-500 dark:border-slate-700 dark:text-slate-400"
                     >
                         <tr>
-                            <th
-                                scope="col"
-                                class="px-2 py-1.5"
-                            >
-                                Rank
-                            </th>
-                            <th
-                                scope="col"
-                                class="px-2 py-1.5"
-                            >
-                                Title
-                            </th>
-                            <th
-                                scope="col"
-                                class="px-2 py-1.5"
-                            >
-                                Score
-                            </th>
-                            <th
-                                scope="col"
-                                class="px-2 py-1.5"
-                            >
-                                Tier
-                            </th>
+                            <th scope="col" class="px-2 py-1.5">Rank</th>
+                            <th scope="col" class="px-2 py-1.5">Title</th>
+                            <th scope="col" class="px-2 py-1.5">Score</th>
+                            <th scope="col" class="px-2 py-1.5">Tier</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
@@ -238,24 +218,9 @@ function formatDocDetails(doc: BaseDocumentDto): string {
                                 class="border-b border-slate-200 text-[10px] uppercase text-slate-500 dark:border-slate-700 dark:text-slate-400"
                             >
                                 <tr>
-                                    <th
-                                        scope="col"
-                                        class="px-2 py-1.5"
-                                    >
-                                        Title
-                                    </th>
-                                    <th
-                                        scope="col"
-                                        class="px-2 py-1.5"
-                                    >
-                                        Type
-                                    </th>
-                                    <th
-                                        scope="col"
-                                        class="px-2 py-1.5"
-                                    >
-                                        Status
-                                    </th>
+                                    <th scope="col" class="px-2 py-1.5">Title</th>
+                                    <th scope="col" class="px-2 py-1.5">Type</th>
+                                    <th scope="col" class="px-2 py-1.5">Status</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
@@ -327,24 +292,13 @@ function formatDocDetails(doc: BaseDocumentDto): string {
                             >
                                 All tags resolved
                             </p>
-                            <table
-                                v-else
-                                class="w-full text-left text-xs"
-                            >
+                            <table v-else class="w-full text-left text-xs">
                                 <thead
                                     class="border-b border-slate-200 text-[10px] uppercase text-slate-500 dark:border-slate-700 dark:text-slate-400"
                                 >
                                     <tr>
-                                        <th
-                                            scope="col"
-                                            class="px-2 py-1.5"
-                                        >
-                                            Tag ID
-                                        </th>
-                                        <th
-                                            scope="col"
-                                            class="px-2 py-1.5"
-                                        >
+                                        <th scope="col" class="px-2 py-1.5">Tag ID</th>
+                                        <th scope="col" class="px-2 py-1.5">
                                             Local Storage Status
                                         </th>
                                     </tr>
@@ -368,10 +322,7 @@ function formatDocDetails(doc: BaseDocumentDto): string {
                                             >
                                                 Nothing found locally
                                             </span>
-                                            <div
-                                                v-else
-                                                class="space-y-1"
-                                            >
+                                            <div v-else class="space-y-1">
                                                 <div
                                                     v-for="doc in unresolvedDocsMap.get(id)"
                                                     :key="doc._id"

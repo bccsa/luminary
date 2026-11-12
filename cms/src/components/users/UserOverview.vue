@@ -167,11 +167,14 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
             <LButton
                 v-if="canCreateNew && isConnected && hasAnyContent && isSmallScreen"
                 variant="primary"
+                class="max-lg:gap-x-0"
                 :icon="PlusIcon"
+                icon-class="max-lg:ml-0"
                 @click="openCreateUserModal"
                 name="createUserBtn"
+                aria-label="Create user"
             >
-                Create user
+                <span class="hidden lg:inline">Create user</span>
             </LButton>
         </template>
         <template v-if="hasAnyContent" #internalPageHeader>
@@ -183,7 +186,7 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
                 submit-search
             />
         </template>
-        <div class="flex flex-col gap-[3px]">
+        <div class="flex flex-col gap-[4px] text-zinc-500">
             <p v-if="hasAnyContent" class="mb-2 px-2 py-1 dark:text-zinc-100">
                 Users only need to be created when they require special permissions that are not
                 already automatically granted. It's possible to add multiple user objects with the

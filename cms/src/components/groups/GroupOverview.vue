@@ -220,11 +220,14 @@ const hasAnyContent = computed(() => editable.value.length > 0);
             <LButton
                 v-if="canCreateGroup && hasAnyContent && isSmallScreen"
                 variant="primary"
+                class="max-lg:gap-x-0"
                 :icon="PlusIcon"
+                icon-class="max-lg:ml-0"
                 @click="createGroup"
                 data-test="createGroupButton"
+                aria-label="Create group"
             >
-                Create group
+                <span class="hidden lg:inline">Create group</span>
             </LButton>
         </template>
 
@@ -238,7 +241,7 @@ const hasAnyContent = computed(() => editable.value.length > 0);
             />
         </template>
 
-        <div v-show="currentTab === 'overview'" class="flex flex-col gap-[3px]">
+        <div v-show="currentTab === 'overview'" class="flex flex-col gap-[4px]">
             <p v-if="hasAnyContent" class="mb-2 px-2 py-1 text-sm text-zinc-500">
                 <span>
                     Configure access permissions for the groups listed below to control who can

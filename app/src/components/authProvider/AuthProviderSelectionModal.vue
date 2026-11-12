@@ -21,7 +21,10 @@ const providers = computed(() =>
     [...allProviders.value].sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0)),
 );
 const resolveProviderLabel = (provider: AuthProviderDto) =>
-    resolveI18nEmbedded(provider.label || provider.displayName || provider.domain || provider._id, t);
+    resolveI18nEmbedded(
+        provider.label || provider.displayName || provider.domain || provider._id,
+        t,
+    );
 
 const hasIcon = (provider: AuthProviderDto) =>
     provider.imageData?.fileCollections?.some((fc) => fc.imageFiles?.length > 0) ?? false;
@@ -36,11 +39,7 @@ const handleClose = () => {
 </script>
 
 <template>
-    <LModal
-        :heading="t('auth.sign_in')"
-        v-model:isVisible="isVisible"
-        @close="handleClose"
-    >
+    <LModal :heading="t('auth.sign_in')" v-model:isVisible="isVisible" @close="handleClose">
         <!-- Provider list -->
         <div class="flex flex-col gap-3 py-2">
             <button

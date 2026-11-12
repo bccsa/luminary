@@ -2128,7 +2128,12 @@ describe("HybridQuery", () => {
                 // Live mode (SingleContent's actual query mode): seed the local side with a
                 // stripped doc — same id/updatedTimeUtc as the doc the live Dexie read
                 // returns, differing only by the field the SSR cache write omitted.
-                const Lstripped = { _id: "L1", updatedTimeUtc: 5, publishDate: 2000, type: "content" };
+                const Lstripped = {
+                    _id: "L1",
+                    updatedTimeUtc: 5,
+                    publishDate: 2000,
+                    type: "content",
+                };
                 writeResponseCache(
                     structuralCacheKey(contentQuery),
                     { local: [Lstripped], remote: [] },
@@ -2714,6 +2719,116 @@ describe("HybridQuery", () => {
         });
     });
 
+    describe("waitForRemote", () => {
+        const doc = (id: string, publishDate: number) => ({
+            _id: id,
+            updatedTimeUtc: 1,
+            publishDate,
+            type: "content",
+        });
+        const local = [doc("new1", 3000), doc("new2", 2000)];
+        const tail = [doc("old1", 900), doc("old2", 800)];
+        const query = () => ({
+            selector: { type: "content" },
+            $sort: [{ publishDate: "desc" as const }],
+            $limit: 10,
+        });
+        const record = (q: HybridQuery<any>) => {
+            const emissions: string[][] = [];
+            watch(q.output, (v) => emissions.push(v.map((d: any) => d._id)), { flush: "sync" });
+            return emissions;
+        };
+
+        it("without it, a supplement publishes the local subset first, then the merged list", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            postHttpMock.mockResolvedValueOnce({ docs: tail });
+            const q = new HybridQuery(query());
+            const emissions = record(q);
+            await flush();
+
+            expect(emissions).toEqual([
+                ["new1", "new2"],
+                ["new1", "new2", "old1", "old2"],
+            ]);
+        });
+
+        it("publishes the merged list once, after the supplement settles", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            let resolvePost!: (v: unknown) => void;
+            postHttpMock.mockReturnValueOnce(new Promise((r) => (resolvePost = r)));
+            const q = new HybridQuery(query(), { waitForRemote: true });
+            const emissions = record(q);
+            await flush();
+
+            // Local landed, supplement in flight: nothing published, still fetching.
+            expect(q.output.value).toEqual([]);
+            expect(q.isFetching.value).toBe(true);
+
+            resolvePost({ docs: tail });
+            await flush();
+
+            expect(emissions).toEqual([["new1", "new2", "old1", "old2"]]);
+            expect(q.isFetching.value).toBe(false);
+        });
+
+        it("publishes the local result when the supplement fails", async () => {
+            vi.spyOn(console, "error").mockImplementation(() => {});
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            postHttpMock.mockRejectedValueOnce(new Error("boom"));
+            const q = new HybridQuery(query(), { waitForRemote: true });
+            const emissions = record(q);
+            await flush();
+
+            expect(emissions).toEqual([["new1", "new2"]]);
+        });
+
+        it("publishes the local result straight away when offline", async () => {
+            mocks.isConnected.value = false;
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            const q = new HybridQuery(query(), { waitForRemote: true });
+            const emissions = record(q);
+            await flush();
+
+            expect(postHttpMock).not.toHaveBeenCalled();
+            expect(emissions).toEqual([["new1", "new2"]]);
+        });
+
+        it("does not hold when no supplement is owed (full-corpus sync)", async () => {
+            mocks.cutoff = OPEN_MIN;
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            const q = new HybridQuery(query(), { waitForRemote: true });
+            const emissions = record(q);
+            await flush();
+
+            expect(postHttpMock).not.toHaveBeenCalled();
+            expect(emissions).toEqual([["new1", "new2"]]);
+        });
+
+        it("keeps a cache seed on screen until the merged list replaces it", async () => {
+            const opts = { cache: true, cacheId: "wait-seed", waitForRemote: true };
+            writeResponseCache(
+                structuralCacheKey(query(), "wait-seed"),
+                { local: [doc("seed1", 2500)], remote: [] },
+                10,
+            );
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            let resolvePost!: (v: unknown) => void;
+            postHttpMock.mockReturnValueOnce(new Promise((r) => (resolvePost = r)));
+            const q = new HybridQuery(query(), opts);
+            expect(q.output.value.map((d) => d._id)).toEqual(["seed1"]);
+            const emissions = record(q);
+            await flush();
+
+            // The local read must not replace the seed with the local-only subset.
+            expect(q.output.value.map((d) => d._id)).toEqual(["seed1"]);
+
+            resolvePost({ docs: tail });
+            await flush();
+
+            expect(emissions).toEqual([["new1", "new2", "old1", "old2"]]);
+        });
+    });
+
     describe("isFetching / error", () => {
         it("content one-shot: isFetching true (output empty) before flush, false after local + POST settle", async () => {
             mocks.mangoToDexieMock.mockResolvedValueOnce([
@@ -2950,6 +3065,62 @@ describe("HybridQuery", () => {
             errSpy.mockRestore();
         });
 
+        it("one-shot local read: does not retry when disposed during the retry delay", async () => {
+            const transient = new DOMException("Transaction aborted", "AbortError");
+            mocks.mangoToDexieMock.mockRejectedValueOnce(transient);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+            vi.useFakeTimers({ toFake: ["setTimeout"] });
+            const q = new HybridQuery({ selector: { type: "content" } });
+            await nextTick();
+            q.dispose();
+            await vi.advanceTimersByTimeAsync(100);
+
+            expect(mocks.mangoToDexieMock).toHaveBeenCalledTimes(1);
+            errSpy.mockRestore();
+            vi.useRealTimers();
+        });
+
+        it("one-shot local read: retries once and recovers on a transient WebKit IndexedDB error, never setting error", async () => {
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            const transient = new DOMException("Transaction aborted", "AbortError");
+            const local = [{ _id: "a", type: "content", updatedTimeUtc: 1, publishDate: 2000 }];
+            mocks.mangoToDexieMock.mockRejectedValueOnce(transient).mockResolvedValueOnce(local);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            vi.useFakeTimers({ toFake: ["setTimeout"] });
+            const q = new HybridQuery({ selector: { type: "content" } });
+            await nextTick();
+            await vi.advanceTimersByTimeAsync(100); // past the retry delay
+
+            expect(mocks.mangoToDexieMock).toHaveBeenCalledTimes(2);
+            expect(q.error.value).toBeUndefined();
+            expect(errSpy).not.toHaveBeenCalled();
+            errSpy.mockRestore();
+            vi.useRealTimers();
+        });
+
+        it("one-shot local read: retries once, then falls back to empty + error, when the transient error persists", async () => {
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            const transient = () => new DOMException("Transaction aborted", "AbortError");
+            mocks.mangoToDexieMock
+                .mockRejectedValueOnce(transient())
+                .mockRejectedValueOnce(transient());
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            vi.useFakeTimers({ toFake: ["setTimeout"] });
+            const q = new HybridQuery({ selector: { type: "content" } });
+            await nextTick();
+            await vi.advanceTimersByTimeAsync(100);
+
+            expect(mocks.mangoToDexieMock).toHaveBeenCalledTimes(2);
+            expect(q.error.value).toEqual(expect.objectContaining({ name: "AbortError" }));
+            expect(q.output.value).toEqual([]);
+            errSpy.mockRestore();
+            vi.useRealTimers();
+        });
+
         it("a superseded generation's late POST does not clear the new generation's isFetching", async () => {
             const cats = ref(["A"]);
             mocks.mangoToDexieMock.mockResolvedValue([
@@ -2993,7 +3164,6 @@ describe("HybridQuery", () => {
             expect(q.isFetching.value).toBe(false);
         });
     });
-
 });
 
 describe("queryRemote", () => {

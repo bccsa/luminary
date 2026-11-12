@@ -5,7 +5,7 @@ import {
     UserIcon,
     ArrowRightEndOnRectangleIcon,
     ArrowLeftEndOnRectangleIcon,
-    BookmarkIcon as FilledBookmarkIcon,
+    HeartIcon as FilledHeartIcon,
     Cog6ToothIcon as FilledCog6ToothIcon,
 } from "@heroicons/vue/20/solid";
 import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
@@ -15,7 +15,7 @@ import { computed, onMounted, ref, type ComputedRef } from "vue";
 import {
     ArrowDownTrayIcon,
     ShieldCheckIcon,
-    BookmarkIcon,
+    HeartIcon,
     Bars3Icon,
     Cog6ToothIcon,
     LanguageIcon,
@@ -33,7 +33,7 @@ import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
 import LToggle from "../form/LToggle.vue";
-import MobileSidebar from "../common/MobileSidebar.vue";
+import LSidePanel from "../common/LSidePanel.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
@@ -156,20 +156,18 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
             },
         },
         {
-            name: t("profile_menu.bookmarks"),
-            icon: BookmarkIcon,
-            action: () => router.push({ name: "bookmarks" }),
+            name: t("profile_menu.activity"),
+            icon: HeartIcon,
+            action: () => router.push({ name: "activity" }),
         },
     ];
 });
 
-const privacyPolicyNavigationItem = computed(
-    (): NavigationItems => ({
-        name: t("profile_menu.privacy_policy"),
-        icon: ShieldCheckIcon,
-        action: () => (showPrivacyPolicyModal.value = true),
-    }),
-);
+const privacyPolicyNavigationItem = computed((): NavigationItems => ({
+    name: t("profile_menu.privacy_policy"),
+    icon: ShieldCheckIcon,
+    action: () => (showPrivacyPolicyModal.value = true),
+}));
 
 const userNavigation = computed(() => {
     const authItem = isAuthenticated.value
@@ -208,7 +206,7 @@ const userNavigation = computed(() => {
 const sidebarNavigation = computed(() =>
     userNavigation.value.filter(
         (item) =>
-            item.name !== t("profile_menu.settings") && item.name !== t("profile_menu.bookmarks"),
+            item.name !== t("profile_menu.settings") && item.name !== t("profile_menu.activity"),
     ),
 );
 </script>
@@ -222,7 +220,6 @@ const sidebarNavigation = computed(() =>
         aria-label="Open user menu"
         class="-m-1.5 flex items-center gap-1 rounded-md px-2 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-600"
         @click="menuOpen = !menuOpen"
-
     >
         <img
             v-if="isAuthenticated && user?.picture"
@@ -316,7 +313,7 @@ const sidebarNavigation = computed(() =>
         type="button"
         name="profile-menu-btn"
         aria-label="Open user menu"
-        class="flex flex-col items-center rounded-md px-2 py-1"
+        class="flex min-w-0 flex-1 basis-0 flex-col items-center gap-0.5 rounded-md px-0.5 py-1"
         @click="menuOpen = !menuOpen"
     >
         <component
@@ -330,7 +327,7 @@ const sidebarNavigation = computed(() =>
         />
         <span
             :class="[
-                'text-sm font-medium',
+                'max-w-full truncate text-xs font-medium tracking-tight',
                 menuOpen
                     ? 'text-yellow-700 dark:text-yellow-400'
                     : 'text-zinc-600 dark:text-slate-100',
@@ -341,10 +338,7 @@ const sidebarNavigation = computed(() =>
     </button>
 
     <!-- Shared slide-in panel (avatar + bars triggers only) -->
-    <MobileSidebar
-        v-if="trigger !== 'sidebar'"
-        v-model:open="menuOpen"
-    >
+    <LSidePanel v-if="trigger !== 'sidebar'" v-model:open="menuOpen">
         <template #header="{ close }">
             <!-- Close toggle — mirrors the desktop sidebar's collapse button, on the
                  left edge since this panel slides in from the right -->
@@ -354,10 +348,7 @@ const sidebarNavigation = computed(() =>
                 class="absolute left-0 top-1/2 z-20 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100"
                 @click="close()"
             >
-                <ChevronRightIcon
-                    class="h-4 w-4 translate-x-0.5"
-                    aria-hidden="true"
-                />
+                <ChevronRightIcon class="h-4 w-4 translate-x-0.5" aria-hidden="true" />
             </button>
         </template>
 
@@ -417,12 +408,8 @@ const sidebarNavigation = computed(() =>
                     <span class="text-sm font-medium">{{ t("menu.search") }}</span>
                 </span>
 
-                <!-- Bookmarks -->
-                <RouterLink
-                    :to="{ name: 'bookmarks' }"
-                    v-slot="{ isActive, navigate }"
-                    custom
-                >
+                <!-- My Activity -->
+                <RouterLink :to="{ name: 'activity' }" v-slot="{ isActive, navigate }" custom>
                     <span
                         class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
                         :class="
@@ -436,11 +423,11 @@ const sidebarNavigation = computed(() =>
                         "
                     >
                         <component
-                            :is="isActive ? FilledBookmarkIcon : BookmarkIcon"
+                            :is="isActive ? FilledHeartIcon : HeartIcon"
                             class="h-5 w-5 flex-shrink-0"
                             aria-hidden="true"
                         />
-                        <span class="text-sm font-medium">{{ t("profile_menu.bookmarks") }}</span>
+                        <span class="text-sm font-medium">{{ t("profile_menu.activity") }}</span>
                     </span>
                 </RouterLink>
 
@@ -455,11 +442,10 @@ const sidebarNavigation = computed(() =>
                             close();
                         "
                     >
-                        <ArrowDownTrayIcon
-                            class="h-5 w-5 flex-shrink-0"
-                            aria-hidden="true"
-                        />
-                        <span class="text-sm font-medium">{{ t("profile_menu.update_available") }}</span>
+                        <ArrowDownTrayIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                        <span class="text-sm font-medium">{{
+                            t("profile_menu.update_available")
+                        }}</span>
                     </span>
 
                     <!-- Theme -->
@@ -470,10 +456,7 @@ const sidebarNavigation = computed(() =>
                             close();
                         "
                     >
-                        <SunIcon
-                            class="h-5 w-5 flex-shrink-0"
-                            aria-hidden="true"
-                        />
+                        <SunIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
                         <span class="text-sm font-medium">{{ t("profile_menu.theme") }}</span>
                     </span>
 
@@ -485,25 +468,21 @@ const sidebarNavigation = computed(() =>
                             close();
                         "
                     >
-                        <LanguageIcon
-                            class="h-5 w-5 flex-shrink-0"
-                            aria-hidden="true"
-                        />
+                        <LanguageIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
                         <div class="flex flex-col leading-none">
-                            <span class="text-sm font-medium">{{ t("profile_menu.language") }}</span>
+                            <span class="text-sm font-medium">{{
+                                t("profile_menu.language")
+                            }}</span>
                             <span
                                 v-if="appLanguageAsRef?.name"
                                 class="mt-0.5 text-xs text-zinc-500 dark:text-slate-300"
-                            >{{ appLanguageAsRef.name }}</span>
+                                >{{ appLanguageAsRef.name }}</span
+                            >
                         </div>
                     </span>
 
                     <!-- Settings -->
-                    <RouterLink
-                        :to="{ name: 'settings' }"
-                        v-slot="{ isActive, navigate }"
-                        custom
-                    >
+                    <RouterLink :to="{ name: 'settings' }" v-slot="{ isActive, navigate }" custom>
                         <span
                             class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
                             :class="
@@ -521,7 +500,9 @@ const sidebarNavigation = computed(() =>
                                 class="h-5 w-5 flex-shrink-0"
                                 aria-hidden="true"
                             />
-                            <span class="text-sm font-medium">{{ t("profile_menu.settings") }}</span>
+                            <span class="text-sm font-medium">{{
+                                t("profile_menu.settings")
+                            }}</span>
                         </span>
                     </RouterLink>
                 </div>
@@ -539,10 +520,7 @@ const sidebarNavigation = computed(() =>
                         close();
                     "
                 >
-                    <ShieldCheckIcon
-                        class="h-5 w-5 flex-shrink-0"
-                        aria-hidden="true"
-                    />
+                    <ShieldCheckIcon class="h-5 w-5 flex-shrink-0" aria-hidden="true" />
                     <span class="text-sm font-medium">{{ t("profile_menu.privacy_policy") }}</span>
                 </button>
 
@@ -556,7 +534,11 @@ const sidebarNavigation = computed(() =>
                     "
                 >
                     <component
-                        :is="isAuthenticated ? ArrowRightEndOnRectangleIcon : ArrowLeftEndOnRectangleIcon"
+                        :is="
+                            isAuthenticated
+                                ? ArrowRightEndOnRectangleIcon
+                                : ArrowLeftEndOnRectangleIcon
+                        "
                         class="h-5 w-5 flex-shrink-0"
                         aria-hidden="true"
                     />
@@ -566,10 +548,7 @@ const sidebarNavigation = computed(() =>
                 </button>
 
                 <!-- Profile display -->
-                <div
-                    v-if="isAuthenticated"
-                    class="flex items-center gap-3 rounded-md px-3 py-1.5"
-                >
+                <div v-if="isAuthenticated" class="flex items-center gap-3 rounded-md px-3 py-1.5">
                     <img
                         v-if="user?.picture"
                         class="h-8 w-8 flex-shrink-0 rounded-full bg-slate-50"
@@ -582,23 +561,19 @@ const sidebarNavigation = computed(() =>
                     >
                         <UserIcon class="h-5 w-5 text-zinc-600 dark:text-slate-100" />
                     </div>
-                    <span class="flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100">
+                    <span
+                        class="flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100"
+                    >
                         {{ user?.name || user?.email }}
                     </span>
                 </div>
             </div>
         </template>
-    </MobileSidebar>
+    </LSidePanel>
 
     <template v-if="isMounted">
-        <LanguageModal
-            :isVisible="showLanguageModal"
-            @close="showLanguageModal = false"
-        />
-        <ThemeSelectorModal
-            :isVisible="showThemeSelector"
-            @close="showThemeSelector = false"
-        />
+        <LanguageModal :isVisible="showLanguageModal" @close="showLanguageModal = false" />
+        <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
 
         <LDialog
             v-model:open="showLogoutDialog"

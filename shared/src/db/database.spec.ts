@@ -99,6 +99,39 @@ describe("Database", async () => {
         });
     });
 
+    describe("bulkPut transient IndexedDB errors", () => {
+        const newDoc = () => ({ ...mockEnglishContentDto, _id: "content-transient" });
+
+        it("retries once and succeeds when the write fails on a transient error", async () => {
+            const spy = vi
+                .spyOn(db.docs, "bulkPut")
+                .mockRejectedValueOnce(new DOMException("Transaction aborted", "AbortError"));
+
+            await db.bulkPut([newDoc()]);
+
+            expect(spy).toHaveBeenCalledTimes(2);
+            spy.mockRestore();
+        });
+
+        it("rejects after one retry when the transient error persists", async () => {
+            const spy = vi
+                .spyOn(db.docs, "bulkPut")
+                .mockRejectedValue(new DOMException("Transaction aborted", "AbortError"));
+
+            await expect(db.bulkPut([newDoc()])).rejects.toMatchObject({ name: "AbortError" });
+            expect(spy).toHaveBeenCalledTimes(2);
+            spy.mockRestore();
+        });
+
+        it("does not retry a non-transient error", async () => {
+            const spy = vi.spyOn(db.docs, "bulkPut").mockRejectedValue(new Error("boom"));
+
+            await expect(db.bulkPut([newDoc()])).rejects.toThrow("boom");
+            expect(spy).toHaveBeenCalledTimes(1);
+            spy.mockRestore();
+        });
+    });
+
     describe("bulkPut unchanged docs", () => {
         it("writes only the docs that differ from the stored copy", async () => {
             const spy = vi.spyOn(db.docs, "bulkPut");
@@ -862,6 +895,26 @@ describe("Database", async () => {
         expect((await db.retention.toArray()).length).toBe(0);
         expect(localStorage.getItem("hqcache:some-feed")).toBeNull();
         expect(localStorage.getItem("languages")).toBe('["lang-en"]');
+    });
+
+    it("purge leaves the user activity table alone", async () => {
+        await db.userActivity.clear();
+        await db.userActivity.put({
+            _id: "liked:post-1",
+            type: "liked",
+            parentId: "post-1",
+            updatedTimeUtc: 1,
+        });
+        await db.docs.bulkPut([mockPostDto]);
+
+        await db.purge();
+
+        // The cache is gone, the user's own record is not.
+        expect((await db.docs.toArray()).length).toBe(0);
+        expect(await db.userActivity.get("liked:post-1")).toBeDefined();
+
+        // Not covered by purge, so it must not leak into the tests that follow.
+        await db.userActivity.clear();
     });
 
     describe("revoked documents", () => {

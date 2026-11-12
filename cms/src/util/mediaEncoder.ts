@@ -93,6 +93,8 @@ export type CreateEncoderSessionRequest = {
     byteRangeMaxFileSizeMB?: number;
     audioByteRangeMaxFileSizeMB?: number;
     existingMedia?: { hlsUrl: string; hlsKey?: string };
+    /** `edit` opens `existingMedia` to change its chapters and audio tracks; it never encodes. */
+    mode?: "encode" | "edit";
 };
 
 export type CreateEncoderSessionResponse = {
@@ -169,10 +171,25 @@ export async function createEncoderSession(
                 "Accept the prompt in the encoder window, then try again. (HTTP 403)",
         );
     }
+    if (res.status == 409) {
+        // A conflict, such as editing a post that is still encoding, carries a message written for the editor.
+        const message = encoderMessage(text);
+        if (message) throw new Error(message);
+    }
     if (!res.ok) {
         throw new Error(`Encoder refused the session (HTTP ${res.status}): ${text}`);
     }
     return JSON.parse(text) as CreateEncoderSessionResponse;
+}
+
+/** The `message` of an encoder error body, if it has one. */
+function encoderMessage(body: string): string | undefined {
+    try {
+        const message = (JSON.parse(body) as { message?: unknown }).message;
+        return typeof message == "string" && message ? message : undefined;
+    } catch {
+        return undefined;
+    }
 }
 
 /**

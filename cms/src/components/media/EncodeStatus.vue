@@ -43,6 +43,19 @@ const STATUS_LABELS: Record<string, string> = {
 const running = computed(() => props.status == "encoding" || props.status == "uploading_to_s3");
 
 /**
+ * The encoder's error, as an editor should read it. An older encoder sends the
+ * tail of ffmpeg's output, file paths and progress lines that say nothing to
+ * the person who started the encode; anything that long, or on several lines,
+ * becomes one plain sentence, and the detail stays in the encoder's log.
+ */
+const shownError = computed(() => {
+    const error = props.error?.trim();
+    if (!error) return "";
+    if (!error.includes("\n") && error.length <= 240) return error;
+    return "The encode failed. Open Luminary Media Convert to continue the encode or run it again.";
+});
+
+/**
  * How far the upload has got, once it is the only thing left to wait for.
  *
  * Segments upload as they are packed, so the session stays `encoding` until only
@@ -80,7 +93,9 @@ const percentage = computed(() => {
     >
         <div v-if="status" data-test="encoder-status">
             <div v-if="percentage != undefined" class="flex items-center gap-2">
-                <div class="h-1.5 flex-1 overflow-hidden rounded-full dark:bg-slate-700">
+                <div
+                    class="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-slate-700"
+                >
                     <div
                         class="h-full rounded-full bg-zinc-700 transition-[width] duration-500"
                         :style="{ width: `${percentage}%` }"
@@ -99,7 +114,7 @@ const percentage = computed(() => {
         </div>
 
         <MediaNotice v-if="error" state="error" data-test="encoder-error">
-            {{ error }}
+            {{ shownError }}
         </MediaNotice>
 
         <!-- Outdated outranks the availability notices: the encoder answered, so

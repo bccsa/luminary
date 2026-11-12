@@ -41,7 +41,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
             const message =
                 typeof exceptionResponse === "string"
                     ? exceptionResponse
-                    : (exceptionResponse as { message?: string }).message ?? exception.message;
+                    : ((exceptionResponse as { message?: string }).message ?? exception.message);
 
             if (status >= 500) {
                 this.logger.error(`[${request.method} ${request.url}]`, exception.stack ?? message);
@@ -56,12 +56,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
         this.logger.error(
             `[${request.method} ${request.url}]`,
-            exception instanceof Error ? exception.stack ?? exception.message : exception,
+            exception instanceof Error ? (exception.stack ?? exception.message) : exception,
         );
 
         response
             .status(HttpStatus.INTERNAL_SERVER_ERROR)
             .header("Content-Type", "application/json")
-            .send({ statusCode: HttpStatus.INTERNAL_SERVER_ERROR, message: "Internal server error" });
+            .send({
+                statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+                message: "Internal server error",
+            });
     }
 }

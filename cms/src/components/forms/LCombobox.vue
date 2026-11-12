@@ -343,7 +343,7 @@ const onEscape = (e: KeyboardEvent) => {
                             <input
                                 v-model="query"
                                 ref="inputElement"
-                                class="z-0 w-full flex-1 border-0 bg-transparent p-0 text-zinc-900 placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100 dark:placeholder:text-zinc-600"
+                                class="z-0 w-full flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100 dark:placeholder:text-zinc-600"
                                 :class="[
                                     smallInput && isMobileScreen ? 'h-[30px] text-sm' : 'h-[38px]',
                                     { 'w-96': $slots.actions && !isSmallScreen },
@@ -409,7 +409,7 @@ const onEscape = (e: KeyboardEvent) => {
                             {
                                 'bg-white text-black hover:bg-zinc-100 dark:bg-slate-800 dark:text-zinc-300 dark:hover:bg-slate-700 dark:hover:text-white':
                                     !option.selected,
-                                'cursor-not-allowed text-zinc-300 dark:text-zinc-600':
+                                'cursor-not-allowed text-zinc-300 hover:bg-white dark:text-zinc-600':
                                     option.selected,
                                 'bg-zinc-100 dark:bg-slate-700 dark:text-zinc-100':
                                     highlightedIndex === filtered.indexOf(option),

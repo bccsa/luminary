@@ -99,11 +99,14 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
             <LButton
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
                 variant="primary"
+                class="max-lg:gap-x-0"
                 :icon="PlusIcon"
+                icon-class="max-lg:ml-0"
                 @click="isCreateOrEditModalVisible = true"
                 name="createLanguageBtn"
+                aria-label="Create redirect"
             >
-                Create redirect
+                <span class="hidden lg:inline">Create redirect</span>
             </LButton>
         </template>
 
@@ -115,7 +118,7 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
             />
         </template>
 
-        <div class="flex flex-col gap-[3px]">
+        <div class="flex flex-col gap-[4px]">
             <FtsStaleResultsBanner
                 v-if="searchActive"
                 :visible="searchIsStale"

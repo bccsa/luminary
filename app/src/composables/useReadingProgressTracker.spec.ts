@@ -783,6 +783,21 @@ describe("useReadingProgressTracker", () => {
         wrapper.unmount();
     });
 
+    it("reads a finished article again from the start", async () => {
+        setReadingProgress(TEST_CONTENT_ID, 100);
+
+        const { wrapper } = mountTracker(4);
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(25);
+        wrapper.unmount();
+    });
+
     it("seeds confirmed blocks using the same rounding as saved progress", async () => {
         setReadingProgress(TEST_CONTENT_ID, 33);
 
@@ -831,7 +846,7 @@ describe("useReadingProgressTracker", () => {
         wrapper.unmount();
     });
 
-    it("removes local storage entry when progress reaches 100%", async () => {
+    it("keeps the entry at 100% so the article stays recorded as read", async () => {
         const { wrapper } = mountTracker(1);
         await flushPromises();
         await nextTick();
@@ -840,8 +855,7 @@ describe("useReadingProgressTracker", () => {
         observer.trigger(observer.elements[0], true);
         advanceDwellMs(BLOCK_ONE_DWELL_MS);
 
-        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(0);
-        expect(localStorage.getItem("contentProgress")).toBe(null);
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(100);
         wrapper.unmount();
     });
 
@@ -898,7 +912,7 @@ describe("useReadingProgressTracker", () => {
         wrapper.unmount();
     });
 
-    it("reports a completed read from live state after persisted progress is removed", async () => {
+    it("reports a completed read at full depth when the session ends", async () => {
         const onSessionEnd = vi.fn();
         const { wrapper } = mountTracker(
             1,
@@ -914,7 +928,7 @@ describe("useReadingProgressTracker", () => {
         const observer = latestObserver();
         observer.trigger(observer.elements[0], true);
         advanceDwellMs(BLOCK_ONE_DWELL_MS);
-        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(0);
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(100);
 
         (wrapper.vm as { contentId: string }).contentId = "next-content-id";
         await nextTick();
@@ -991,5 +1005,68 @@ describe("useReadingProgressTracker", () => {
         wrapper.unmount();
 
         expect(onSessionEnd).not.toHaveBeenCalled();
+    });
+
+    it("keeps a prior saved progress snapshot true after the opener is dismissed and the reader keeps moving", async () => {
+        setReadingProgress(TEST_CONTENT_ID, 40);
+
+        const { wrapper } = mountTracker(2);
+        await flushPromises();
+        await nextTick();
+
+        const trackerResult = wrapper.vm.trackerApi;
+        expect(trackerResult.hasResumableProgressOnOpen.value).toBe(true);
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBeGreaterThanOrEqual(40);
+        expect(trackerResult.hasResumableProgressOnOpen.value).toBe(true);
+        wrapper.unmount();
+    });
+
+    it("does not retake the open snapshot when the same content re-renders for a layout change", async () => {
+        const { wrapper } = mountTracker(2);
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(50);
+        expect(wrapper.vm.trackerApi.hasResumableProgressOnOpen.value).toBe(false);
+
+        const nextRoot = document.createElement("div");
+        nextRoot.innerHTML = "<p>Block 1</p><p>Block 2</p>";
+        document.body.appendChild(nextRoot);
+
+        const nextContainer = document.createElement("div");
+        nextContainer.style.height = "200px";
+        nextContainer.style.overflowY = "auto";
+        nextContainer.appendChild(nextRoot);
+        document.body.appendChild(nextContainer);
+
+        wrapper.vm.articleRoot = nextRoot;
+        wrapper.vm.scrollContainer = nextContainer;
+        await nextTick();
+
+        expect(wrapper.vm.trackerApi.hasResumableProgressOnOpen.value).toBe(false);
+        wrapper.unmount();
+    });
+
+    it("does not offer a resume prompt for progress created during the current session", async () => {
+        const { wrapper } = mountTracker(2);
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(50);
+        expect(wrapper.vm.trackerApi.hasResumableProgressOnOpen.value).toBe(false);
+        wrapper.unmount();
     });
 });

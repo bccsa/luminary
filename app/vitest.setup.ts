@@ -202,3 +202,8 @@ beforeAll(async () => {
     );
     await db.getSyncList();
 });
+
+// jsdom has no constructable-stylesheet `replaceSync`; Video.js 10's stock skin calls it on import.
+if (typeof CSSStyleSheet !== "undefined" && typeof CSSStyleSheet.prototype.replaceSync !== "function") {
+    CSSStyleSheet.prototype.replaceSync = function replaceSync(): void {};
+}

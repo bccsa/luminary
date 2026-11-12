@@ -6,6 +6,8 @@ import {
     DocType,
     type ContentDto,
     type PostDto,
+    type GroupDto,
+    AclPermission,
     accessMap,
     PostType,
     PublishStatus,
@@ -25,6 +27,7 @@ import RichTextEditor from "../editor/RichTextEditor.vue";
 import EditContentText from "./EditContentText.vue";
 import LoadingBar from "../LoadingBar.vue";
 import EditContentVideo from "./EditContentVideo.vue";
+import EditContentMedia from "./EditContentMedia.vue";
 import IncomingChangesModal from "./IncomingChangesModal.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -327,6 +330,42 @@ describe("EditContent.vue", () => {
                 }),
             );
         });
+    });
+
+    it("doesn't save a post that belongs to no group", async () => {
+        // A draft, so the group rule is the only thing that can stop the save: a published
+        // document with no group is refused for lack of publish access first.
+        await db.docs.bulkPut([
+            { ...mockData.mockPostDto, memberOf: [] },
+            { ...mockData.mockEnglishContentDto, status: PublishStatus.Draft } as ContentDto,
+        ]);
+        const notificationStore = useNotificationStore();
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+        });
+
+        await wrapper.find('input[name="title"]').setValue("A new title");
+        // Only what this click raises counts: the mock is shared with earlier tests.
+        const notify = vi.mocked(notificationStore.addNotification);
+        const before = notify.mock.calls.length;
+        await wrapper.find('[data-test="save-button"]').trigger("click");
+
+        await waitForExpect(() => {
+            expect(notify.mock.calls.slice(before)).toEqual([
+                [expect.objectContaining({ title: "Changes not saved", state: "error" })],
+            ]);
+        });
+        const savedDoc = await db.get<ContentDto>(mockData.mockEnglishContentDto._id);
+        expect(savedDoc.title).toBe(mockData.mockEnglishContentDto.title);
     });
 
     it("routes back to overview if parent is not found in the database", async () => {
@@ -979,6 +1018,87 @@ describe("EditContent.vue", () => {
         );
     });
 
+    describe("media bucket access warning", () => {
+        const seed = async (groupAcl: GroupDto["acl"]) => {
+            await db.docs.bulkPut([
+                {
+                    ...mockData.mockGroupDtoPublicContent,
+                    acl: groupAcl,
+                } as GroupDto,
+                {
+                    ...mockData.mockGroupDtoPublicContent,
+                    _id: "group-public-users",
+                    name: "Public Users",
+                    acl: [],
+                } as GroupDto,
+                {
+                    ...mockData.mockPostDto,
+                    media: { hlsUrl: "/abc/master.m3u8" },
+                    mediaBucketId: mockData.mockStorageDtoWithEncryptedCredentials._id,
+                } as PostDto,
+                mockData.mockStorageDtoWithEncryptedCredentials,
+            ]);
+        };
+
+        const open = () =>
+            mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+        const postViewForUsers = {
+            type: DocType.Post,
+            groupId: "group-public-users",
+            permission: [AclPermission.View],
+        };
+
+        it("warns when a group that can view the post has no Storage access to its bucket", async () => {
+            await seed([postViewForUsers]);
+
+            const wrapper = open();
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="media-access-banner"]').exists()).toBe(true);
+            });
+        });
+
+        it("warns separately when the image bucket is not readable by a viewing group", async () => {
+            await seed([postViewForUsers]);
+            await db.docs.update(mockData.mockPostDto._id, {
+                imageBucketId: mockData.mockStorageDtoWithEncryptedCredentials._id,
+            } as Partial<PostDto>);
+
+            const wrapper = open();
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="image-access-banner"]').exists()).toBe(true);
+            });
+        });
+
+        it("does not warn when every viewing group can view the bucket", async () => {
+            await seed([
+                postViewForUsers,
+                { ...postViewForUsers, type: DocType.Storage },
+                {
+                    type: DocType.Storage,
+                    groupId: "group-public-content",
+                    permission: [AclPermission.View],
+                },
+            ]);
+
+            const wrapper = open();
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="video-url-input"]').exists()).toBe(true);
+            });
+            expect(wrapper.find('[data-test="media-access-banner"]').exists()).toBe(false);
+        });
+    });
+
     describe("replacing a saved video", () => {
         const SAVED_URL = "/c5829f07-4ba8-42ed-a449-80d83e6c0b53/master.m3u8";
         const NEW_URL = "/0b2d7c1e-9a41-4d3f-8c55-2f6e1a9b7d10/master.m3u8";
@@ -1059,6 +1179,77 @@ describe("EditContent.vue", () => {
             expect(await savedPostChanges()).toHaveLength(0);
         });
 
+        const openPost = async () => {
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+            // The whole form, as a person sees it before pressing anything.
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="video-url-input"]').exists()).toBe(true);
+                expect(wrapper.find('[data-test="delete-media-button"]').exists()).toBe(true);
+            }, 10000);
+            return wrapper;
+        };
+
+        it(
+            "deletes the video with its own button: asks once, then saves the post without it",
+            async () => {
+                await seedPost();
+                const wrapper = await openPost();
+
+                await wrapper.find('[data-test="delete-media-button"]').trigger("click");
+                await waitForExpect(() => {
+                    expect(wrapper.find('[data-test="delete-media-url"]').text()).toBe(SAVED_URL);
+                }, 10000);
+                expect(await savedPostChanges()).toHaveLength(0);
+
+                const dialog = wrapper
+                    .findAllComponents({ name: "LDialog" })
+                    .find((d) => d.props("title") === "Delete the video?")!;
+                await dialog.props("primaryAction")();
+
+                await waitForExpect(async () => {
+                    const changes = await savedPostChanges();
+                    expect(changes).toHaveLength(1);
+                    expect((changes[0].doc as PostDto).media?.hlsUrl).toBeUndefined();
+                }, 10000);
+                // Asked once, where the editor pressed Delete: the save does not ask again.
+                expect(wrapper.find('[data-test="replace-media-url"]').exists()).toBe(false);
+                expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({ title: "Video deleted", state: "success" }),
+                );
+            },
+            { timeout: 15000 },
+        );
+
+        it(
+            "does not save other unsaved edits on the editor's behalf",
+            async () => {
+                await seedPost();
+                const wrapper = await openPost();
+                await wrapper.find('input[name="title"]').setValue("A new title");
+
+                await wrapper.find('[data-test="delete-media-button"]').trigger("click");
+                const dialog = wrapper
+                    .findAllComponents({ name: "LDialog" })
+                    .find((d) => d.props("title") === "Delete the video?")!;
+                await dialog.props("primaryAction")();
+
+                await new Promise((resolve) => setTimeout(resolve, 200));
+                expect(await savedPostChanges()).toHaveLength(0);
+                expect(
+                    wrapper.find('[data-test="video-url-input"] input').exists() ||
+                        wrapper.find('[data-test="video-url-input"]').exists(),
+                ).toBe(true);
+            },
+            { timeout: 15000 },
+        );
+
         it("saves external media without asking, as its files are not in our storage", async () => {
             await seedPost("https://www.youtube.com/watch?v=abc");
 
@@ -1068,6 +1259,80 @@ describe("EditContent.vue", () => {
                 expect(await savedPostChanges()).toHaveLength(1);
             });
             expect(wrapper.find('[data-test="replace-media-url"]').exists()).toBe(false);
+        });
+    });
+
+    describe("an encode's URL arriving", () => {
+        const ENCODED_URL = "/0b2d7c1e-9a41-4d3f-8c55-2f6e1a9b7d10/master.m3u8";
+
+        const openPost = async () => {
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+            await waitForExpect(() => {
+                expect(
+                    (wrapper.find('input[name="title"]').element as HTMLInputElement).value,
+                ).toBe(mockData.mockEnglishContentDto.title);
+            });
+            return wrapper;
+        };
+
+        const deliver = (wrapper: Awaited<ReturnType<typeof openPost>>) => {
+            const vm = wrapper.vm as any;
+            return wrapper.findComponent(EditContentMedia).props("saveEncodedMedia")!(() => {
+                vm.editableParent.media = { hlsUrl: ENCODED_URL };
+            });
+        };
+
+        const savedPostChanges = () =>
+            db.localChanges.where({ docId: mockData.mockPostDto._id }).toArray();
+
+        it("saves the post straight away, so the app can show the video as coming soon", async () => {
+            const wrapper = await openPost();
+
+            await deliver(wrapper);
+
+            await waitForExpect(async () => {
+                const changes = await savedPostChanges();
+                expect(changes).toHaveLength(1);
+                expect((changes[0].doc as PostDto).media?.hlsUrl).toBe(ENCODED_URL);
+            });
+        });
+
+        it("saves the bucket the encode chose along with the URL", async () => {
+            const wrapper = await openPost();
+            // Starting an encode records an auto-selected bucket before the URL arrives.
+            (wrapper.vm as any).editableParent.mediaBucketId = "bucket-auto";
+            // The editor's dirty flag catches up a tick later, as it would in real use.
+            await waitForExpect(() => expect((wrapper.vm as any).isDirty).toBe(true));
+
+            await deliver(wrapper);
+
+            await waitForExpect(async () => {
+                const changes = await savedPostChanges();
+                expect(changes).toHaveLength(1);
+                expect((changes[0].doc as PostDto).mediaBucketId).toBe("bucket-auto");
+                expect((changes[0].doc as PostDto).media?.hlsUrl).toBe(ENCODED_URL);
+            });
+        });
+
+        it("leaves other unsaved edits for the editor to save", async () => {
+            const notificationStore = useNotificationStore();
+            const wrapper = await openPost();
+            await wrapper.find('input[name="title"]').setValue("Half-written title");
+
+            await deliver(wrapper);
+
+            expect((wrapper.vm as any).editableParent.media?.hlsUrl).toBe(ENCODED_URL);
+            expect(await savedPostChanges()).toHaveLength(0);
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({ title: "Save to show the video" }),
+            );
         });
     });
 

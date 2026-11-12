@@ -69,9 +69,7 @@ describe("syncBatch", () => {
         expect(body.selector.language).toBeUndefined();
         expect(body.selector.$or[0].language.$in).toEqual(languages);
         expect(
-            body.selector.$or[1].$and.map(
-                (c: any) => c.$not.availableTranslations.$elemMatch.$eq,
-            ),
+            body.selector.$or[1].$and.map((c: any) => c.$not.availableTranslations.$elemMatch.$eq),
         ).toEqual(languages);
         expect(body.identifier).toBe("sync");
         // Content uses the de-partitioned single index regardless of parentType.

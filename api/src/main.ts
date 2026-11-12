@@ -11,6 +11,7 @@ import multipart from "@fastify/multipart";
 import { AllExceptionsFilter } from "./exceptions/allExceptions.filter";
 import { S3Service } from "./s3/s3.service";
 import { warmIndexNameRegistry } from "./db/indexNameRegistry";
+import { addSecurityHeaders } from "./util/securityHeaders";
 import { reconcileLanguageTranslationSeeds } from "./db/languageSeedReconciliation";
 
 export async function bootstrap() {
@@ -24,6 +25,8 @@ export async function bootstrap() {
         },
     );
 
+    addSecurityHeaders(app.getHttpAdapter().getInstance());
+
     // Register multipart plugin for file uploads
     await app.register(multipart, {
         limits: {
@@ -35,6 +38,15 @@ export async function bootstrap() {
     await app.register(compress, {
         encodings: ["br", "gzip", "deflate"],
     });
+
+    if (
+        process.env.BYPASS_TEMPLATE_VALIDATION === "true" &&
+        process.env.NODE_ENV === "production"
+    ) {
+        console.error(
+            "BYPASS_TEMPLATE_VALIDATION=true is ignored in production; query validation stays on.",
+        );
+    }
 
     const dbService = app.get(DbService);
 

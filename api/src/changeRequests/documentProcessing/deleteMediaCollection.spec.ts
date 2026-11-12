@@ -22,9 +22,7 @@ describe("resolveCollectionPrefix", () => {
                 "/c5829f07-4ba8-42ed-a449-80d83e6c0b53/master.m3u8",
                 undefined,
             );
-            expect("prefix" in r && r.prefix).toBe(
-                "c5829f07-4ba8-42ed-a449-80d83e6c0b53",
-            );
+            expect("prefix" in r && r.prefix).toBe("c5829f07-4ba8-42ed-a449-80d83e6c0b53");
         });
 
         it("still refuses a folder the encoder did not write", () => {
@@ -69,17 +67,18 @@ describe("resolveCollectionPrefix", () => {
 
         it("handles a bucket published at a bare host", () => {
             const base = "https://cdn.example.com";
-            expect(
-                prefixOf(resolveCollectionPrefix(`${base}/${SESSION}/master.m3u8`, base)),
-            ).toBe(SESSION);
+            expect(prefixOf(resolveCollectionPrefix(`${base}/${SESSION}/master.m3u8`, base))).toBe(
+                SESSION,
+            );
         });
     });
 
     describe("refuses anything it cannot prove it wrote", () => {
         it("refuses a URL in a different bucket", () => {
             const other = "https://someone-elses-cdn.example.com/media";
-            expect(refusalOf(resolveCollectionPrefix(`${other}/${SESSION}/master.m3u8`, PUBLIC)))
-                .toMatch(/not in this bucket/);
+            expect(
+                refusalOf(resolveCollectionPrefix(`${other}/${SESSION}/master.m3u8`, PUBLIC)),
+            ).toMatch(/not in this bucket/);
         });
 
         it("refuses a bucket whose name merely prefixes another", () => {
@@ -90,12 +89,15 @@ describe("resolveCollectionPrefix", () => {
         });
 
         it("refuses a URL that is not an HLS playlist", () => {
-            expect(refusalOf(resolveCollectionPrefix(`${PUBLIC}/${SESSION}/`, PUBLIC)))
-                .toMatch(/HLS playlist/);
-            expect(refusalOf(resolveCollectionPrefix(`${PUBLIC}/${SESSION}/.m3u8`, PUBLIC)))
-                .toMatch(/HLS playlist/);
-            expect(refusalOf(resolveCollectionPrefix(`${PUBLIC}/${SESSION}/video.mp4`, PUBLIC)))
-                .toMatch(/HLS playlist/);
+            expect(refusalOf(resolveCollectionPrefix(`${PUBLIC}/${SESSION}/`, PUBLIC))).toMatch(
+                /HLS playlist/,
+            );
+            expect(
+                refusalOf(resolveCollectionPrefix(`${PUBLIC}/${SESSION}/.m3u8`, PUBLIC)),
+            ).toMatch(/HLS playlist/);
+            expect(
+                refusalOf(resolveCollectionPrefix(`${PUBLIC}/${SESSION}/video.mp4`, PUBLIC)),
+            ).toMatch(/HLS playlist/);
         });
 
         it("refuses a rendition playlist, whose folder is not the collection", () => {
@@ -107,8 +109,9 @@ describe("resolveCollectionPrefix", () => {
         });
 
         it("refuses the bucket root", () => {
-            expect(refusalOf(resolveCollectionPrefix(`${PUBLIC}/master.m3u8`, PUBLIC)))
-                .toMatch(/bucket root/);
+            expect(refusalOf(resolveCollectionPrefix(`${PUBLIC}/master.m3u8`, PUBLIC))).toMatch(
+                /bucket root/,
+            );
         });
 
         it("refuses a path that tries to climb out", () => {
@@ -142,7 +145,11 @@ describe("deleteMediaCollection", () => {
     const BUCKET = "bucket-media";
     const RELATIVE = `/${SESSION}/master.m3u8`;
     const KEYS = [`${SESSION}/master.m3u8`, `${SESSION}/media/v0_0.m4s`];
-    const s3 = { listObjectsUnder: jest.fn(), removeObjects: jest.fn() };
+    const s3 = {
+        listObjectsUnder: jest.fn(),
+        removeObjects: jest.fn(),
+        getBucketName: jest.fn().mockReturnValue("media"),
+    };
 
     /** A bucket, plus the Posts and Tags a referrer query would find in it. */
     const stubDb = (documents: object[] = []) =>
@@ -174,6 +181,18 @@ describe("deleteMediaCollection", () => {
         expect(s3.removeObjects).toHaveBeenCalledWith(KEYS);
     });
 
+    it("finds the files when a server-root public URL put the bucket name in the path", async () => {
+        const inPath = `/media/${SESSION}/master.m3u8`;
+        s3.listObjectsUnder.mockImplementation(async (prefix: string) =>
+            prefix === `${SESSION}/` ? KEYS : [],
+        );
+
+        const warnings = await run(stubDb(), undefined, inPath);
+
+        expect(warnings).toEqual([]);
+        expect(s3.removeObjects).toHaveBeenCalledWith(KEYS);
+    });
+
     it("removes the collection when the URL is cleared", async () => {
         await run(stubDb(), "");
 
@@ -195,7 +214,10 @@ describe("deleteMediaCollection", () => {
         // A duplicated document carries the same media as its source.
         const db = stubDb([{ _id: "post-2", media: { hlsUrl: RELATIVE } }]);
 
-        const warnings = await run(db, `${PUBLIC}/0b2d7c1e-9a41-4d3f-8c55-2f6e1a9b7d10/master.m3u8`);
+        const warnings = await run(
+            db,
+            `${PUBLIC}/0b2d7c1e-9a41-4d3f-8c55-2f6e1a9b7d10/master.m3u8`,
+        );
 
         expect(warnings.join(" ")).toMatch(/kept because 1 other document/);
         expect(s3.removeObjects).not.toHaveBeenCalled();
@@ -204,7 +226,10 @@ describe("deleteMediaCollection", () => {
     it("does not count the owner, or documents in other folders, as users", async () => {
         const db = stubDb([
             { _id: "post-1", media: { hlsUrl: HLS } },
-            { _id: "post-3", media: { hlsUrl: "/0b2d7c1e-9a41-4d3f-8c55-2f6e1a9b7d10/master.m3u8" } },
+            {
+                _id: "post-3",
+                media: { hlsUrl: "/0b2d7c1e-9a41-4d3f-8c55-2f6e1a9b7d10/master.m3u8" },
+            },
             { _id: "tag-1" },
         ]);
 

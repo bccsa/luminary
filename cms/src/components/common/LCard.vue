@@ -56,7 +56,7 @@ function collapse() {
         :class="[
             bare
                 ? ''
-                : 'border-y border-zinc-300 px-2 shadow-sm dark:border-slate-700 dark:shadow-none sm:mx-0 sm:rounded-md sm:border sm:border-zinc-300',
+                : 'border-y border-zinc-300 px-2 shadow-sm shadow-zinc-300/60 dark:border-slate-700 dark:shadow-none sm:mx-0 sm:rounded-md sm:border sm:border-zinc-200',
             {
                 'shadow-none': !bare && props.shadow === 'none',
                 'shadow-sm': !bare && props.shadow === 'small',
@@ -82,9 +82,9 @@ function collapse() {
                 <component
                     v-if="icon"
                     :is="icon"
-                    class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
+                    class="h-5 w-5 text-zinc-400 dark:text-zinc-200"
                 />
-                <h3 class="text-sm font-medium leading-6 text-zinc-900 dark:text-yellow-400">
+                <h3 class="text-sm font-medium leading-6 text-zinc-900 dark:text-zinc-200">
                     {{ title }}
                 </h3>
             </div>

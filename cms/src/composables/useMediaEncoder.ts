@@ -1,5 +1,5 @@
 import { computed, ref, onUnmounted } from "vue";
-import { getRest, type MediaDto } from "luminary-shared";
+import { fetchHlsKey, getRest, type MediaDto } from "luminary-shared";
 
 /** Called once per encode, as soon as it has a published URL, naming the document it is for. */
 export type MediaReadyHandler = (
@@ -23,11 +23,7 @@ import {
 } from "@/util/mediaEncoder";
 
 export type EncoderAvailability =
-    | "unknown"
-    | "checking"
-    | "available"
-    | "unavailable"
-    | "browser-unsupported";
+    "unknown" | "checking" | "available" | "unavailable" | "browser-unsupported";
 
 /** Statuses after which no further events arrive. */
 const FINISHED_STATUSES = ["completed", "failed"];
@@ -58,6 +54,8 @@ export function useMediaEncoder() {
     const progress = ref<number>();
     const pipelineProgress = ref<EncoderPipelineProgress>();
     const error = ref<string>();
+    /** An encode of this document is running. Edit sessions are not followed, so the status is always an encode's. */
+    const encoding = computed(() => status.value != undefined && !isFinished(status.value));
     const sessionId = ref<string>();
 
     let unsubscribe: (() => void) | undefined;
@@ -205,6 +203,50 @@ export function useMediaEncoder() {
 
             if (disposed) return;
             follow(handle, options.documentId, options.onMediaReady);
+        } catch (err: any) {
+            error.value = err?.message ?? String(err);
+        } finally {
+            busy.value = false;
+        }
+    }
+
+    /**
+     * Opens the document's existing video in the encoder, to change its chapters and
+     * its audio tracks' languages and names. Nothing is encoded and nothing comes back
+     * to the document: the video keeps its URL and key, so there is no session to follow.
+     */
+    async function edit(options: {
+        documentId: string;
+        title: string;
+        mediaBucketId: string;
+        /** The video's master playlist, absolute. */
+        hlsUrl: string;
+    }): Promise<void> {
+        error.value = undefined;
+        busy.value = true;
+        try {
+            if (!(await refreshAvailability())) {
+                throw new Error("Luminary Media Convert is not running. Start it and try again.");
+            }
+            // Naming the document has the API check the editor may edit it, and that
+            // the bucket is the one its video is in.
+            const config = await getRest().getEncoderConfig(
+                options.mediaBucketId,
+                options.documentId,
+            );
+            if (!config) {
+                throw new Error("Could not read the storage configuration for this bucket.");
+            }
+            // The encoder reads the video's playlists with it when they are encrypted;
+            // none back is a video that never was.
+            const hlsKey = await fetchHlsKey(options.documentId, { cms: true });
+            await createEncoderSession({
+                documentId: options.documentId,
+                title: options.title,
+                ...config,
+                mode: "edit",
+                existingMedia: { hlsUrl: options.hlsUrl, ...(hlsKey ? { hlsKey } : {}) },
+            });
         } catch (err: any) {
             error.value = err?.message ?? String(err);
         } finally {
@@ -367,6 +409,7 @@ export function useMediaEncoder() {
         outdated,
         busy,
         status,
+        encoding,
         progress,
         pipelineProgress,
         error,
@@ -375,6 +418,7 @@ export function useMediaEncoder() {
         watchForEncoder,
         stopWatching,
         start,
+        edit,
         resume,
         stop,
     };

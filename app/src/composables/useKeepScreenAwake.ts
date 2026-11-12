@@ -1,5 +1,5 @@
-import { inject, onMounted, onUnmounted } from "vue";
-import { ScreenWakeKey } from "@/build-time/contracts/screen-wake/token";
+import { onMounted, onUnmounted } from "vue";
+import { useScreenWakeHold } from "./screenWakeHolds";
 
 /** How long the display is held on after the last interaction. */
 export const KEEP_AWAKE_IDLE_MS = 2 * 60 * 1000;
@@ -14,7 +14,7 @@ const LISTENER_OPTIONS = { capture: true, passive: true } as const;
  * once the user has been idle for `idleMs` and taking it back on the next interaction.
  */
 export function useKeepScreenAwake(idleMs = KEEP_AWAKE_IDLE_MS): void {
-    const screenWake = inject(ScreenWakeKey, undefined);
+    const wake = useScreenWakeHold("page");
 
     let awake = false;
     let lastActivity = 0;
@@ -23,7 +23,8 @@ export function useKeepScreenAwake(idleMs = KEEP_AWAKE_IDLE_MS): void {
     function setAwake(value: boolean) {
         if (awake === value) return;
         awake = value;
-        screenWake?.setKeepAwake(value);
+        if (value) wake.hold();
+        else wake.release();
     }
 
     function checkIdle() {

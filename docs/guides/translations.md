@@ -17,6 +17,8 @@ Some strings contain `{variable}` placeholders that are replaced at runtime. Whe
 | `search.shortcut` | `{shortcut}` | `"Cmd+K"` on macOS, `"Ctrl+K"` elsewhere | `SearchModal.vue` |
 | `notification.content_not_available.description` | `{language}` | Display name of the active language | `SingleContent.vue` |
 | `notification.translation_available.description` | `{language}` | Display name of the available language | `SingleContent.vue` |
+| `media_player.skip_back` | `{seconds}` | The skip interval, `10` | `MediaPlayer.vue` |
+| `media_player.skip_forward` | `{seconds}` | The skip interval, `10` | `MediaPlayer.vue` |
 
 **Example usage:**
 

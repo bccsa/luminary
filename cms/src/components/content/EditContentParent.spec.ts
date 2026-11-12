@@ -30,6 +30,24 @@ describe("EditContentParent.vue", () => {
 
     afterEach(async () => {});
 
+    it("reports itself invalid until the document belongs to a group", async () => {
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
+                parent: { ...mockData.mockPostDto, memberOf: [] },
+                disabled: false,
+                isParentDirty: false,
+            },
+        });
+        expect(wrapper.emitted("updateIsValid")?.at(-1)).toEqual([false]);
+
+        await wrapper.setProps({
+            parent: { ...mockData.mockPostDto, memberOf: ["group-public-content"] },
+        });
+        expect(wrapper.emitted("updateIsValid")?.at(-1)).toEqual([true]);
+    });
+
     it("test the tag pinned toggle", async () => {
         const parent = ref<TagDto>({ ...mockData.mockCategoryDto, pinned: 1 });
         const wrapper = mount(EditContentParent, {

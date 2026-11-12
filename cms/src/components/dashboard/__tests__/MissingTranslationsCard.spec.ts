@@ -29,7 +29,11 @@ const contentDoc = (overrides: Partial<ContentDto>): ContentDto =>
 
 describe("MissingTranslationsCard", () => {
     beforeEach(() => {
-        cmsLanguages.value = [lang("lang-eng", "en"), lang("lang-fra", "fr"), lang("lang-swa", "sw")];
+        cmsLanguages.value = [
+            lang("lang-eng", "en"),
+            lang("lang-fra", "fr"),
+            lang("lang-swa", "sw"),
+        ];
         cmsLanguageIdAsRef.value = "lang-fra";
     });
 

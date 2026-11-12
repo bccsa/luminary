@@ -481,7 +481,20 @@ describe("S3ImageHandler - Bucket Migration", () => {
             expect(existsInTarget).toBe(true);
         }
 
-        // Verify files were deleted from source bucket
+        // Stat on the copy, as a missing header would silently fall back
+        const copiedStat = await targetService.statObject(uploadedFiles[0].filename);
+        expect(copiedStat.metaData["content-type"]).toBe("image/webp");
+
+        // The originals stay until the document pointing at them has been written
+        for (const file of uploadedFiles) {
+            const existsInSource = await sourceService
+                .getObject(file.filename)
+                .then(() => true)
+                .catch(() => false);
+            expect(existsInSource).toBe(true);
+        }
+
+        expect(await migrationWarnings.removeSource!()).toEqual([]);
         for (const file of uploadedFiles) {
             const existsInSource = await sourceService
                 .getObject(file.filename)
@@ -662,8 +675,10 @@ describe("S3ImageHandler - Bucket Migration", () => {
         );
 
         // Check for failure warnings
-        const failureMessage = warnings.warnings.find((w) => w.includes("Failed to migrate"));
+        const failureMessage = warnings.warnings.find((w) => w.includes("Image migration failed"));
         expect(failureMessage).toBeDefined();
+        expect(warnings.migrationFailed).toBe(true);
+        expect(warnings.removeSource).toBeUndefined();
 
         // Verify files still exist in source bucket
         for (const file of uploadedFiles) {

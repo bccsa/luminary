@@ -10,6 +10,7 @@ const encoder = {
     encoderVersion: ref<string | undefined>("0.0.1"),
     busy: ref(false),
     status: ref<string | undefined>(undefined),
+    encoding: ref(false),
     progress: ref<number | undefined>(undefined),
     error: ref<string | undefined>(undefined),
     sessionId: ref<string | undefined>(undefined),
@@ -17,6 +18,7 @@ const encoder = {
     refreshAvailability: vi.fn().mockResolvedValue(true),
     watchForEncoder: vi.fn(),
     start: vi.fn(),
+    edit: vi.fn(),
     resume: vi.fn().mockResolvedValue(false),
     stop: vi.fn(),
 };
@@ -43,7 +45,13 @@ const parent = () => ({ ...mockData.mockPostDto }) as PostDto;
 
 const mountSection = (props = {}) =>
     mount(EditContentMedia, {
-        props: { disabled: false, title: "Episode 12", parent: parent(), ...props },
+        props: {
+            disabled: false,
+            title: "Episode 12",
+            parent: parent(),
+            showVideo: true,
+            ...props,
+        },
         global: {
             stubs: {
                 EditContentVideo: { template: "<div data-test='video-stub' />" },
@@ -59,6 +67,7 @@ beforeEach(() => {
     encoder.availability.value = "available";
     encoder.busy.value = false;
     encoder.status.value = undefined;
+    encoder.encoding.value = false;
     encoder.error.value = undefined;
 });
 
@@ -89,7 +98,9 @@ describe("EditContentMedia", () => {
     });
 
     it("shows the video fields only once a translation is selected", async () => {
-        expect(mountSection().find('[data-test="video-stub"]').exists()).toBe(false);
+        expect(mountSection({ showVideo: false }).find('[data-test="video-stub"]').exists()).toBe(
+            false,
+        );
         expect(mountSection({ showVideo: true }).find('[data-test="video-stub"]').exists()).toBe(
             true,
         );
@@ -117,7 +128,9 @@ describe("EditContentMedia", () => {
             const wrapper = mountSection({ saveBeforeEncode });
             await settle();
             await wrapper.find('[data-test="encode-media-button"]').trigger("click");
-            return wrapper.findComponent(LDialog);
+            return wrapper
+                .findAllComponents(LDialog)
+                .find((dialog) => dialog.props("title") === "Save before encoding")!;
         };
 
         it("asks the editor to save before encoding", async () => {
@@ -173,6 +186,20 @@ describe("EditContentMedia", () => {
         expect(wrapper.props("parent")!.media?.hlsKey).toBe("abc");
     });
 
+    it("hands the write to the editor to save when it can", async () => {
+        const saveEncodedMedia = vi.fn(async (write: () => void) => write());
+        const wrapper = mountSection({ saveEncodedMedia });
+        await settle();
+        await wrapper.find('[data-test="encode-media-button"]').trigger("click");
+
+        const { onMediaReady } = encoder.start.mock.calls[0][0];
+        onMediaReady({ hlsUrl: "https://cdn/master.m3u8" }, mockData.mockPostDto._id);
+        await settle();
+
+        expect(saveEncodedMedia).toHaveBeenCalledTimes(1);
+        expect(wrapper.props("parent")!.media?.hlsUrl).toBe("https://cdn/master.m3u8");
+    });
+
     it("refuses a result for a document the editor has since left", async () => {
         // The encoder's trust prompt can hold start() open for as long as the user
         // likes; by the time it answers, this section may be showing another post.
@@ -191,6 +218,88 @@ describe("EditContentMedia", () => {
         await settle();
 
         expect(wrapper.props("parent")!.media).toBeUndefined();
+    });
+});
+
+describe("EditContentMedia — deleting the video", () => {
+    const withVideo = () =>
+        ({
+            ...parent(),
+            media: { hlsUrl: "/abc/master.m3u8" },
+            mediaBucketId: "bucket-1",
+        }) as PostDto;
+
+    it("offers Delete video only when the document has one", () => {
+        const noVideo = { ...parent(), media: undefined } as PostDto;
+        expect(
+            mountSection({ parent: noVideo }).find('[data-test="delete-media-button"]').exists(),
+        ).toBe(false);
+        expect(
+            mountSection({ parent: withVideo() })
+                .find('[data-test="delete-media-button"]')
+                .exists(),
+        ).toBe(true);
+    });
+
+    const deleteDialog = (wrapper: ReturnType<typeof mountSection>) =>
+        wrapper
+            .findAllComponents(LDialog)
+            .find((dialog) =>
+                ["Delete the video?", "Remove the video?"].includes(dialog.props("title")),
+            )!;
+
+    it("asks first, showing the video that will go, and changes nothing yet", async () => {
+        const saveDeletedMedia = vi.fn();
+        const wrapper = mountSection({ parent: withVideo(), saveDeletedMedia });
+        await wrapper.find('[data-test="delete-media-button"]').trigger("click");
+
+        expect(deleteDialog(wrapper).props("open")).toBe(true);
+        expect(saveDeletedMedia).not.toHaveBeenCalled();
+        expect((wrapper.props("parent") as PostDto).media?.hlsUrl).toBe("/abc/master.m3u8");
+    });
+
+    it("hands the removal to the editor to save once confirmed", async () => {
+        const saveDeletedMedia = vi.fn(async (write: () => void) => write());
+        const wrapper = mountSection({ parent: withVideo(), saveDeletedMedia });
+        await wrapper.find('[data-test="delete-media-button"]').trigger("click");
+        await deleteDialog(wrapper).props("primaryAction")();
+
+        expect(saveDeletedMedia).toHaveBeenCalledOnce();
+        expect((wrapper.props("parent") as PostDto).media).toBeUndefined();
+    });
+
+    it("says files go only for a video in our storage; a YouTube link is only removed", async () => {
+        const stored = mountSection({ parent: withVideo() });
+        await stored.find('[data-test="delete-media-button"]').trigger("click");
+        expect(deleteDialog(stored).props("description")).toContain("deletes its files");
+
+        const youtube = mountSection({
+            parent: {
+                ...withVideo(),
+                media: { hlsUrl: "https://www.youtube.com/watch?v=aqz-KE-bpKQ" },
+            } as PostDto,
+        });
+        await youtube.find('[data-test="delete-media-button"]').trigger("click");
+        expect(deleteDialog(youtube).props("title")).toBe("Remove the video?");
+        expect(deleteDialog(youtube).props("description")).toContain("stays on YouTube");
+        expect(deleteDialog(youtube).props("primaryButtonText")).toBe("Remove video");
+    });
+
+    it("leaves the video when cancelled", async () => {
+        const saveDeletedMedia = vi.fn();
+        const wrapper = mountSection({ parent: withVideo(), saveDeletedMedia });
+        await wrapper.find('[data-test="delete-media-button"]').trigger("click");
+        await deleteDialog(wrapper).props("secondaryAction")!();
+
+        expect(saveDeletedMedia).not.toHaveBeenCalled();
+        expect((wrapper.props("parent") as PostDto).media?.hlsUrl).toBe("/abc/master.m3u8");
+    });
+
+    it("cannot be pressed without permission to edit", () => {
+        const wrapper = mountSection({ parent: withVideo(), disabled: true });
+        expect(
+            wrapper.find('[data-test="delete-media-button"]').attributes("disabled"),
+        ).toBeDefined();
     });
 });
 
@@ -272,5 +381,59 @@ describe("EditContentMedia status", () => {
 
         expect(wrapper.find('[data-test="encoder-unavailable"]').exists()).toBe(true);
         expect(wrapper.find('[data-test="encode-media-button"]').exists()).toBe(true);
+    });
+});
+
+describe("EditContentMedia editing the existing video", () => {
+    // A resume elsewhere in this file hands the section a URL; here no encode is running.
+    beforeEach(() => encoder.resume.mockReset().mockResolvedValue(false));
+
+    const withVideo = () =>
+        ({ ...parent(), media: { hlsUrl: "/posts/p1/s1/master.m3u8" } }) as PostDto;
+
+    it("offers no edit for a document without a video", async () => {
+        const wrapper = mountSection({ parent: { ...parent(), media: undefined } });
+        await settle();
+        expect(wrapper.find("[data-test='edit-media-button']").exists()).toBe(false);
+        expect(wrapper.find("[data-test='edit-media-hint']").exists()).toBe(false);
+    });
+
+    it("opens the video it has, at its absolute address", async () => {
+        const wrapper = mountSection({ parent: withVideo() });
+        await settle();
+        await wrapper.find("[data-test='edit-media-button']").trigger("click");
+
+        expect(encoder.edit).toHaveBeenCalledWith({
+            documentId: withVideo()._id,
+            title: "Episode 12",
+            mediaBucketId: "bucket-1",
+            hlsUrl: "https://cdn.example.com/media/posts/p1/s1/master.m3u8",
+        });
+    });
+
+    it("waits for a running encode to finish, saying why", async () => {
+        encoder.encoding.value = true;
+        const wrapper = mountSection({ parent: withVideo() });
+        await settle();
+        const button = wrapper.find("[data-test='edit-media-button']");
+
+        expect(button.attributes("disabled")).toBeDefined();
+        expect(button.attributes("title")).toBe("Available once the encode has finished.");
+        expect(wrapper.find("[data-test='edit-media-hint']").text()).toContain(
+            "once the video has finished encoding",
+        );
+    });
+
+    it("cannot be used without permission to edit the document, or without the encoder", async () => {
+        const denied = mountSection({ parent: withVideo(), disabled: true });
+        await settle();
+        expect(denied.find("[data-test='edit-media-button']").attributes("disabled")).toBeDefined();
+
+        encoder.availability.value = "unavailable";
+        const offline = mountSection({ parent: withVideo() });
+        await settle();
+        expect(
+            offline.find("[data-test='edit-media-button']").attributes("disabled"),
+        ).toBeDefined();
     });
 });

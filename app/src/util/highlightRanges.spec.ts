@@ -1,15 +1,14 @@
 import { describe, it, expect } from "vitest";
+import type { HighlightRange } from "luminary-shared";
 import {
     addHighlight,
     anchorHighlights,
-    extendToPunctuation,
     paintHighlights,
     parseSavedRanges,
     rangesFromLegacyHtml,
     removeHighlights,
     snapToWords,
     textOffset,
-    type HighlightRange,
 } from "./highlightRanges";
 
 const TEXT = "The quick brown fox jumps over the lazy dog.";
@@ -49,39 +48,6 @@ describe("snapToWords", () => {
         expect(text.slice(snapped!.start, snapped!.end)).toBe("it’s a well-known");
         const cafe = snapToWords(text, text.length - 2, text.length - 1);
         expect(text.slice(cafe!.start, cafe!.end)).toBe("café");
-    });
-});
-
-describe("extendToPunctuation", () => {
-    const extend = (text: string, selected: string, limit?: number) =>
-        text.slice(
-            text.indexOf(selected),
-            extendToPunctuation(text, text.indexOf(selected) + selected.length, limit),
-        );
-
-    it("runs on to the next punctuation mark and a closing quote after it", () => {
-        const text = "You don’t want to face the day. You ask yourself: “Why do I?” Then";
-        expect(extend(text, "want to face the")).toBe("want to face the day.");
-        expect(extend(text, "You ask")).toBe("You ask yourself:");
-        expect(extend(text, "Why do")).toBe("Why do I?”");
-    });
-
-    it("leaves a selection that already ends on punctuation alone", () => {
-        expect(extend("It rained. Then it stopped.", "It rained.")).toBe("It rained.");
-        expect(extend("She said “stop.” Then", "She said “stop.”")).toBe("She said “stop.”");
-    });
-
-    it("stops before a dash, and at the end of the paragraph when there is no punctuation", () => {
-        expect(extend("to test you – so that you", "to test")).toBe("to test you");
-        const heading = "An active ongoing work  ";
-        expect(extend(heading, "An active ongoing", heading.length)).toBe("An active ongoing work");
-        expect(extend("first line\nsecond line.", "first")).toBe("first line");
-    });
-
-    it("never runs past the limit, and ignores a full stop inside a number", () => {
-        const text = "Version 3.5 is out. Next paragraph.";
-        expect(extend(text, "Version", text.indexOf(" is") + 3)).toBe("Version 3.5 is");
-        expect(extend(text, "Version")).toBe("Version 3.5 is out.");
     });
 });
 
