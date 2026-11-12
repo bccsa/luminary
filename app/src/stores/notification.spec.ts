@@ -68,6 +68,39 @@ describe("notification store", () => {
         });
     });
 
+    describe("before a new notification has gone in", () => {
+        beforeEach(() => {
+            vi.useFakeTimers();
+        });
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        it("removing it means it never appears", async () => {
+            const store = useNotificationStore();
+            store.addNotification({ id: "offer", title: "Offer", type: "banner", state: "info" });
+            store.removeNotification("offer");
+            await vi.advanceTimersByTimeAsync(500);
+            expect(store.notifications).toEqual([]);
+        });
+
+        it("dismissing it means it never appears", async () => {
+            const store = useNotificationStore();
+            store.addNotification({ id: "offer", title: "Offer", type: "banner", state: "info" });
+            store.dismissNotification("offer");
+            await vi.advanceTimersByTimeAsync(500);
+            expect(store.notifications).toEqual([]);
+        });
+
+        it("adding it again keeps one, with the newer content", async () => {
+            const store = useNotificationStore();
+            store.addNotification({ id: "offer", title: "First", type: "banner", state: "info" });
+            store.addNotification({ id: "offer", title: "Second", type: "banner", state: "info" });
+            await vi.advanceTimersByTimeAsync(500);
+            expect(store.notifications.map((n) => [n.id, n.title])).toEqual([["offer", "Second"]]);
+        });
+    });
+
     describe("persistence across page loads", () => {
         beforeEach(() => {
             localStorage.clear();

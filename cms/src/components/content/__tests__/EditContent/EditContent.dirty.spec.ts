@@ -27,7 +27,11 @@ import { DocType, PostType } from "luminary-shared";
 import EditContent from "../../EditContent.vue";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import waitForExpect from "wait-for-expect";
-import { setupTestEnvironment, cleanupTestEnvironment, mockPostDto } from "./EditContent.test-utils";
+import {
+    setupTestEnvironment,
+    cleanupTestEnvironment,
+    mockPostDto,
+} from "./EditContent.test-utils";
 
 // `isDirty` (surfaced via ConfirmBeforeLeavingModal's :isDirty prop) must return to clean when
 // the user manually reverts an edit. Optional ContentDto fields (copyright, seoTitle, …) are

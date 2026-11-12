@@ -219,3 +219,39 @@ describe("globalConfig.ts", () => {
         });
     });
 });
+
+describe("data saver level", () => {
+    afterEach(() => {
+        localStorage.removeItem("dataSaver");
+        localStorage.removeItem("dataSaverLevel");
+        vi.resetModules();
+    });
+
+    const load = async () => {
+        vi.resetModules();
+        return import("./globalConfig");
+    };
+
+    it("reads the old on/off switch as Strict or Off, and nothing as not chosen", async () => {
+        localStorage.setItem("dataSaver", "true");
+        expect((await load()).dataSaverLevel.value).toBe("strict");
+        localStorage.setItem("dataSaver", "false");
+        expect((await load()).dataSaverLevel.value).toBe("off");
+        localStorage.removeItem("dataSaver");
+        const fresh = await load();
+        expect(fresh.dataSaverLevel.value).toBeNull();
+        expect(fresh.effectiveDataSaverLevel.value).toBe("off");
+        expect(fresh.dataSaverOn.value).toBe(false);
+    });
+
+    it("keeps a chosen level and drops the old switch", async () => {
+        localStorage.setItem("dataSaver", "true");
+        const config = await load();
+        config.dataSaverLevel.value = "light";
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(localStorage.getItem("dataSaverLevel")).toBe("light");
+        expect(localStorage.getItem("dataSaver")).toBeNull();
+        expect(config.dataSaverOn.value).toBe(true);
+        expect((await load()).dataSaverLevel.value).toBe("light");
+    });
+});

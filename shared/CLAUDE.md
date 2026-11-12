@@ -20,6 +20,7 @@ npm run test:watch    # vitest watch mode (test:unit is an alias for the same)
 npm run lint          # eslint .vue/.ts/.cjs/.mjs/.tsx
 npm run lint:fix
 npm run format        # prettier --write src/
+npm run format:check  # prettier --check src/ (runs in CI)
 npm run type-check    # vue-tsc --noEmit + vite build
 ```
 

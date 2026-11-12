@@ -181,7 +181,9 @@ describe("AutoGroupMappingConditions.vue", () => {
             props: { modelValue: [emptyMapping], availableGroups: mockGroups, disabled: true },
         });
 
-        const addConditionBtn = wrapper.findAll("button").find((b) => b.text().includes("Add Condition"));
+        const addConditionBtn = wrapper
+            .findAll("button")
+            .find((b) => b.text().includes("Add Condition"));
         expect(addConditionBtn).toBeDefined();
         expect((addConditionBtn!.element as HTMLButtonElement).disabled).toBe(true);
 

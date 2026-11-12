@@ -33,11 +33,7 @@ const sections = computed(() => groupByActivityDate(entries.value, (e) => e.row.
 
 <template>
     <div data-test="activity-viewed">
-        <ActivitySection
-            v-for="section in sections"
-            :key="section.group"
-            :group="section.group"
-        >
+        <ActivitySection v-for="section in sections" :key="section.group" :group="section.group">
             <div class="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-3">
                 <ActivityCard
                     v-for="entry in section.items"
@@ -47,10 +43,7 @@ const sections = computed(() => groupByActivityDate(entries.value, (e) => e.row.
                 />
             </div>
         </ActivitySection>
-        <div
-            v-if="!entries.length"
-            class="text-zinc-500 dark:text-slate-200"
-        >
+        <div v-if="!entries.length" class="text-zinc-500 dark:text-slate-200">
             {{ t("activity.viewed.empty_page") }}
         </div>
     </div>

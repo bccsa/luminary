@@ -21,6 +21,7 @@ low-memory ChromeOS devices.
 ## Open items (Medium severity)
 
 ### 9. Column explosion on broaden + many dimensions
+
 [sync.ts:186-234](../../api/sync/sync.ts#L186-L234)
 
 `N_groups × N_languages × N_publishDate_windows` is the upper bound on
@@ -32,6 +33,7 @@ collapses them. The pre-existing `mergeHorizontal` is `O(N²)` in EOF chunks,
 so the cleanup cost also grows.
 
 ### 10. `subtractRanges` allocates 3 intermediate arrays per call
+
 [utils.ts:63-97](../../api/sync/utils.ts#L63-L97)
 
 Called from `_sync` on each publishDate evaluation. Fine for the current rate
@@ -40,6 +42,7 @@ repeatedly during column expansion. Could be inlined / pooled if it shows up
 in profiles.
 
 ### 11. `mergeHorizontal` allocates inside the nested loop
+
 [merge.ts:96-119](../../api/sync/merge.ts#L96-L119)
 
 Adds two `resolveRange` calls per inner iteration, plus the existing
@@ -48,6 +51,7 @@ columns this is a hot path during the post-sync merge phase. Pre-existing
 structure, mildly amplified.
 
 ### 13. `initSync` rewrites the whole syncList on every cold start with legacy entries
+
 [sync.ts:79-86](../../api/sync/sync.ts#L79-L86)
 
 One-time per upgrade per device. Listed for completeness.
@@ -58,7 +62,7 @@ One-time per upgrade per device. Listed for completeness.
 
 Listed so future audits don't re-investigate:
 
-- **Remote fetch can no longer hang in a permanent loading state** *(was open item #12)* —
+- **Remote fetch can no longer hang in a permanent loading state** _(was open item #12)_ —
   resolved by the `isFetching`/`error` rework in `HybridQuery`. `_postAndMerge` settles the
   remote leg in a `finally` (`_settleRemote`) whether the POST resolves, fails, or bails on a
   stale generation, so a flaky network no longer leaves loading stuck on; a total remote failure

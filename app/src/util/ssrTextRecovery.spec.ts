@@ -56,6 +56,9 @@ describe("recoverSsrArticleText", () => {
 
     it("merges the snapshot into the doc when text is stripped", () => {
         const doc = { ...baseDoc, text: undefined };
-        expect(recoverSsrArticleText(doc, "<p>Hello</p>")).toEqual({ ...baseDoc, text: "<p>Hello</p>" });
+        expect(recoverSsrArticleText(doc, "<p>Hello</p>")).toEqual({
+            ...baseDoc,
+            text: "<p>Hello</p>",
+        });
     });
 });

@@ -378,7 +378,7 @@ defineExpose({
 
         <!-- Full-width Drag and Drop Area -->
         <div
-            class="-mx-4 flex w-screen flex-col justify-center transition duration-150 ease-in-out scrollbar-hide dark:bg-slate-900 sm:mx-0 sm:w-full bg-white"
+            class="-mx-4 flex w-screen flex-col justify-center bg-white transition duration-150 ease-in-out scrollbar-hide dark:bg-slate-900 sm:mx-0 sm:w-full"
             @dragenter="handleDragEnter"
             @dragover="handleDragOver"
             @dragleave="handleDragLeave"

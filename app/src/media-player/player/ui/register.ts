@@ -88,9 +88,10 @@ const CLOSE_ICON =
 registerIcons("default", {
     "airplay-enter": airPlayEnterIcon,
     "airplay-exit": airPlayExitIcon,
-    // "CC", as YouTube draws it: outlined while off, filled while a track is on.
-    "captions-off": captionsOffIcon,
-    "captions-on": captionsOnIcon,
+    // "CC", as YouTube draws it: outlined while off, filled while a track is on. Not under the skins' own names
+    // (`captions-off`/`captions-on`): a skin registers its own glyphs there, and whichever loads last would win.
+    "cc-off": captionsOffIcon,
+    "cc-on": captionsOnIcon,
     check: checkIcon,
     close: CLOSE_ICON,
     "cast-enter": castEnterIcon,

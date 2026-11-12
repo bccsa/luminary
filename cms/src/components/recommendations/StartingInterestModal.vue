@@ -153,7 +153,15 @@ function remove() {
                         @click="save"
                         data-test="starting-interest-save"
                     >
-                        {{ isSaving ? (isEdit ? "Saving..." : "Adding...") : isEdit ? "Save" : "Add" }}
+                        {{
+                            isSaving
+                                ? isEdit
+                                    ? "Saving..."
+                                    : "Adding..."
+                                : isEdit
+                                  ? "Save"
+                                  : "Add"
+                        }}
                     </LButton>
                 </div>
             </div>

@@ -39,9 +39,9 @@ describe("validateS3CredentialsFormat", () => {
     });
 
     it("returns error for invalid endpoint URL", () => {
-        expect(
-            validateS3CredentialsFormat({ ...validCredentials, endpoint: "not-a-url" }),
-        ).toBe("Invalid endpoint URL format");
+        expect(validateS3CredentialsFormat({ ...validCredentials, endpoint: "not-a-url" })).toBe(
+            "Invalid endpoint URL format",
+        );
     });
 
     it("returns error for uppercase bucket name", () => {

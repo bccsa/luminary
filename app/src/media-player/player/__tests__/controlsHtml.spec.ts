@@ -258,8 +258,8 @@ describe("buildControlsHtml", () => {
     it("points every menu trigger at a menu that exists, and no two players share an id", () => {
         const ids = (id: string) => {
             const doc = render({}, id);
-            const targets = [...doc.querySelectorAll("[commandfor]")].map(
-                (e) => e.getAttribute("commandfor")!,
+            const targets = [...doc.querySelectorAll("[commandfor]")].map((e) =>
+                e.getAttribute("commandfor")!,
             );
             for (const target of targets) expect(doc.getElementById(target), target).not.toBeNull();
             return [...doc.querySelectorAll("[id]")].map((e) => e.id);
@@ -280,7 +280,7 @@ describe("browse button", () => {
         expect(button.getAttribute("aria-expanded")).toBe("false");
         expect(button.getAttribute("aria-haspopup")).toBe("dialog");
         expect(button.getAttribute("aria-controls")).toBe("p1-browse");
-        expect(button.textContent).toBe("Chapters and up next");
+        expect(button.textContent).toBe("Chapters and More");
     });
 
     it("takes its name from the labels given, escaped", () => {

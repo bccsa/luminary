@@ -22,7 +22,7 @@ Run everything from `app/`:
 - `npm run type-check` — `vue-tsc --build --force`
 - `npm run test` / `npm run test:unit` — Vitest (jsdom). Pass a path or `-t "name"` to run a subset, e.g. `npm run test -- src/pages/HomePage.spec.ts -t "renders"`.
 - `npm run lint` / `npm run lint:fix`
-- `npm run format` — Prettier on `src/`
+- `npm run format` / `npm run format:check` — Prettier on `src/` (the check runs in CI)
 
 Install with a plain `npm install` (the shared lib is linked via `file:../shared`). Vite consumes `shared/src` directly (alias `luminary-shared` → `../shared/src/index.ts` + `dedupe: ["vue","dexie","@vueuse/core"]` in `vite.config.ts`, mirrored as `tsconfig.app.json` `paths` so a single copy is resolved), so editing shared source hot-reloads with no rebuild. A shared **type** change still needs `npm run build` in `shared/` (types resolve from `dist/index.d.ts`). E2E/Playwright runs are owned by the user — do not invoke them.
 

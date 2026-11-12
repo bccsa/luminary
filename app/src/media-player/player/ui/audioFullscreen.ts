@@ -50,3 +50,98 @@ export interface ScrubPosition {
      */
     held?: boolean;
 }
+
+/** A cell of the tools row is never wider than this, however few tools there are. */
+export const TOOL_CELL_MAX_PX = 64;
+
+/** Under this cell width the tool's glyph shrinks with the cell. */
+export const TOOL_GLYPH_FULL_CELL_PX = 52;
+
+/**
+ * One label size for the whole tools row, in px: 11 while the widest label (`widestAt11`, measured at 11px) fits the
+ * `cell` less `pad`, smaller so it does, never under 9; what is still too long is cut with an ellipsis.
+ */
+export function toolLabelPx(widestAt11: number, cell: number, pad: number): number {
+    if (widestAt11 <= 0) return 11;
+    return Math.min(11, Math.max(9, (11 * (cell - pad)) / widestAt11));
+}
+
+/** The tool glyph's side in a `cell` px wide: 24, scaled down with a cell narrower than a full one. */
+export function toolGlyphPx(cell: number): number {
+    return 24 * Math.min(1, Math.max(0, cell) / TOOL_GLYPH_FULL_CELL_PX);
+}
+
+/** On the quality button:the held quality, else (on Auto) the height playing; none before either is known. */
+export function qualityBadge(
+    held: number | undefined,
+    playing: number | undefined,
+): string | undefined {
+    const height = held ?? playing;
+    return height ? `${height}p` : undefined;
+}
+
+/** On the quality button with sound alone: the bitrate held, in kilobits ("64k"); none when unknown. */
+export function bitrateBadge(bandwidth: number | undefined): string | undefined {
+    return bandwidth && bandwidth > 0 ? `${Math.round(bandwidth / 1000)}k` : undefined;
+}
+
+/**
+ * The Auto row with sound alone says what Auto plays, as the picture's does: "Auto (128 kbps)", in the words of the
+ * menu's own row for that bitrate; plain "Auto" while nothing is known.
+ */
+export function autoBitrateLabel(
+    auto: string,
+    playing: number | undefined,
+    qualities: readonly { label: string; bandwidth?: number }[],
+): string {
+    if (!playing || playing <= 0) return auto;
+    const row = qualities.find((quality) => quality.bandwidth === playing);
+    return `${auto} (${row?.label ?? `${Math.round(playing / 1000)} kbps`})`;
+}
+
+/**
+ * The rows the quality menu offers. Under Data Saver the sound plays only its lowest bitrate, so the sound's other
+ * bitrates are left out, as the picture's heights above the cap are, except the one the viewer holds (`heldId`).
+ * With fewer than two left there is nothing to choose.
+ */
+export function menuQualities<T extends { id: string; height?: number; bandwidth?: number }>(
+    qualities: readonly T[],
+    dataSaver: boolean,
+    heldId: string | undefined,
+): T[] {
+    const sound = qualities.filter((quality) => !quality.height);
+    if (!dataSaver || sound.length < 2) return qualities.length > 1 ? [...qualities] : [];
+    const lowest = sound.reduce((low, quality) =>
+        (quality.bandwidth ?? Infinity) < (low.bandwidth ?? Infinity) ? quality : low,
+    );
+    const kept = qualities.filter(
+        (quality) => !!quality.height || quality === lowest || quality.id === heldId,
+    );
+    return kept.length > 1 ? kept : [];
+}
+
+/** The Auto row says what Auto plays: "Auto (480p)", or plain "Auto" while nothing is drawn. */
+export function autoQualityLabel(auto: string, playing: number | undefined): string {
+    return playing ? `${auto} (${playing}p)` : auto;
+}
+
+/** Tags that name no language: several, undetermined, none, or not coded (the untranslated original). */
+const NO_LANGUAGE = new Set(["mul", "und", "zxx", "mis"]);
+
+/**
+ * A track's language as a badge: its primary subtag in capitals, the two-letter code where the language has one
+ * ("EN" for eng, "PT" for pt-BR); none for a tag that names no language.
+ */
+export function languageBadge(lang: string | undefined | null): string | undefined {
+    const tag = lang?.trim().replace(/_/g, "-");
+    if (!tag) return undefined;
+    let primary = tag.split("-")[0]!.toLowerCase();
+    try {
+        // Canonical tags use the two-letter code where there is one, so streams tagged `eng` or `fre` read as the rest.
+        primary = new Intl.Locale(primary).language;
+    } catch {
+        // Not a well-formed tag: shown as it is.
+    }
+    if (NO_LANGUAGE.has(primary)) return undefined;
+    return primary.toUpperCase();
+}

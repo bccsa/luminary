@@ -452,7 +452,9 @@ describe("useFtsSearch", () => {
         // Stale first search resolves; must be discarded.
         resolveFirst([makeResult("stale")]);
         await vi.advanceTimersByTimeAsync(10);
-        expect(result.results.value).not.toContainEqual(expect.objectContaining({ docId: "stale" }));
+        expect(result.results.value).not.toContainEqual(
+            expect.objectContaining({ docId: "stale" }),
+        );
 
         // New debounced search proceeds normally.
         await vi.advanceTimersByTimeAsync(60);

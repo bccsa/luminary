@@ -113,6 +113,12 @@ export interface PlayerMessages {
     nextUp: string;
     /** Accessible name of the strip's close button, which stops the automatic advance. */
     dismiss: string;
+    /** The play button at the end, which plays it again from the start. */
+    replay: string;
+    /** The end panel's button that plays the next video at once. */
+    playNow: string;
+    /** The end panel's button that stops the countdown. */
+    cancel: string;
 
     // --- Fullscreen audio screen ---------------------------------------------
     /** Name of the playback speed button and its menu. */
@@ -123,12 +129,26 @@ export interface PlayerMessages {
     sleepTimer: string;
     /** The sleep timer menu's entry that turns it off. */
     sleepOff: string;
+    /** The Data Saver switch at the foot of the quality menu. */
+    dataSaver: string;
+    /** Name of the autoplay switch beside the picture tools. */
+    autoplay: string;
+    /** Name of the camera button and its menu. */
+    cameraLabel: string;
     /** A sleep timer entry; `{minutes}` is replaced with the number. */
     sleepMinutes: string;
     /** The sleep timer entry that stops playback when the chapter playing ends. */
     sleepEndOfChapter: string;
     /** What the sleep timer button says while one runs; `{minutes}` is the minutes left. */
     sleepLeft: string;
+    /** The word under the speed tool; its name for a screen reader stays `speedLabel`. */
+    speedShort: string;
+    /** The word under the sleep tool; its name for a screen reader stays `sleepTimer`. */
+    sleepShort: string;
+    /** The word under the browse tool when the item has no chapters. */
+    more: string;
+    /** Name of the arrow that takes the lyrics back to the line being said. */
+    backToLine: string;
 }
 
 /** Built-in English strings. Merged under any partial the host supplies. */
@@ -176,19 +196,29 @@ export const DEFAULT_MESSAGES: PlayerMessages = {
 
     chapters: "Chapters",
     upNext: "Up next",
-    browse: "Chapters and up next",
+    browse: "Chapters and More",
     closeBrowse: "Close",
 
     nextUp: "Up next",
     dismiss: "Dismiss",
+    replay: "Replay",
+    playNow: "Play now",
+    cancel: "Cancel",
 
     speedLabel: "Speed",
     live: "Live",
     sleepTimer: "Sleep timer",
     sleepOff: "Off",
+    dataSaver: "Data saver",
+    autoplay: "Autoplay",
+    cameraLabel: "Camera",
     sleepMinutes: "{minutes} minutes",
     sleepEndOfChapter: "End of chapter",
     sleepLeft: "{minutes} min left",
+    speedShort: "Speed",
+    sleepShort: "Sleep",
+    more: "More",
+    backToLine: "Back to the current line",
 };
 
 /**

@@ -290,7 +290,10 @@ export function readingDepthWeight(
     config: AffinityConfig = DEFAULT_AFFINITY_CONFIG,
 ): number {
     if (depthPercent < config.readFloorPercent) return 0;
-    const t = Math.min(1, (depthPercent - config.readFloorPercent) / (100 - config.readFloorPercent));
+    const t = Math.min(
+        1,
+        (depthPercent - config.readFloorPercent) / (100 - config.readFloorPercent),
+    );
     return config.hitWeight + t * (config.eventWeight.readCompletion - config.hitWeight);
 }
 

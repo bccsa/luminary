@@ -1,5 +1,5 @@
 import { computed, ref, watch } from "vue";
-import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import { dataSaverOn } from "@/globalConfig";
 import { isPrerender } from "@/ssg/isPrerender";
 
 /**
@@ -58,7 +58,7 @@ export async function runProbe(force = false): Promise<void> {
     if (typeof window === "undefined" || typeof fetch === "undefined") return; // SSR / prerender
     if (typeof navigator !== "undefined" && navigator.onLine === false) return;
     // Don't spend data measuring when we're already serving reduced-quality images anyway.
-    if (isDataSaverEnabled() || userDataSaverEnabled.value) return;
+    if (dataSaverOn.value) return;
 
     const now = performance.now();
     if (!force && (inFlight || now - lastProbeAt < MIN_PROBE_INTERVAL_MS)) return;
@@ -95,9 +95,9 @@ if (typeof window !== "undefined" && !isPrerender()) {
     document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") runProbe();
     });
-    // When the user turns their Data Saver toggle off, re-measure so quality can recover promptly.
-    watch(userDataSaverEnabled, (enabled) => {
-        if (!enabled) runProbe(true);
+    // When data saving is turned off, re-measure so quality can recover promptly.
+    watch(dataSaverOn, (on) => {
+        if (!on) runProbe(true);
     });
 }
 

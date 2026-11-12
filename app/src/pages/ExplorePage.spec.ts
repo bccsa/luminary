@@ -17,7 +17,12 @@ import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 
 vi.mock("vue-router");
-vi.mock("@/router", () => ({ default: {}, getRouteHistory: () => ({ value: [] }), markInternalNavigation: vi.fn(), isExternalNavigation: vi.fn() }));
+vi.mock("@/router", () => ({
+    default: {},
+    getRouteHistory: () => ({ value: [] }),
+    markInternalNavigation: vi.fn(),
+    isExternalNavigation: vi.fn(),
+}));
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({

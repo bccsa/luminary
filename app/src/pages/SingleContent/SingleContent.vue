@@ -417,9 +417,38 @@ const translationsArr = useContentQuery(
 // Published-right-now check compiled to a plain predicate rather than reusing `mangoIsPublished`, which also bakes in single-language-priority selection — wrong here, where the dropdown/hreflang need every published sibling translation. `includeScheduled: false` excludes future-dated "coming soon" translations that aren't readable yet.
 const isPublishedNow = mangoCompile({ $and: publishedNowConditions({ includeScheduled: false }) });
 
+// Sync only downloads the user's chosen languages, and `translationsArr` only asks the API for
+// posts older than the sync window, so siblings in languages that aren't downloaded are fetched here.
+const remoteTranslations = ref<ContentDto[]>([]);
+if (!isPrerender()) {
+    watch(
+        [() => content.value?.parentId, isConnected],
+        async ([parentId, connected], previous) => {
+            if (parentId !== previous?.[0]) remoteTranslations.value = [];
+            if (!parentId || !connected) return;
+            try {
+                const docs = await queryRemote<ContentDto>({
+                    selector: { $and: [{ type: DocType.Content }, { parentId }] },
+                    $sort: [{ publishDate: "desc" }],
+                    use_index: "content-parentId-publishDate-index",
+                    identifier: "translationSiblings",
+                });
+                if (content.value?.parentId === parentId) remoteTranslations.value = docs;
+            } catch {
+                // Offline or a failed request: the switcher falls back to the downloaded translations.
+            }
+        },
+        { immediate: true },
+    );
+}
+
 const availableTranslations = computed<ContentDto[]>(() => {
     if (!content.value) return [];
-    const published = translationsArr.value.filter((c) => isPublishedNow(c));
+    const localIds = new Set(translationsArr.value.map((c) => c._id));
+    const published = [
+        ...translationsArr.value,
+        ...remoteTranslations.value.filter((c) => !localIds.has(c._id)),
+    ].filter((c) => isPublishedNow(c));
     return published.length > 1 ? published : [];
 });
 
@@ -723,10 +752,7 @@ watch([isLoading, content, is404], async () => {
     >
         <!-- Reading pill: offers to resume on open, then stands in for the title as a chapter
              dropdown once it scrolls out of view. -->
-        <template
-            #topBarCenter
-            v-if="!is404 && content && readingTrackerEnabled"
-        >
+        <template #topBarCenter v-if="!is404 && content && readingTrackerEnabled">
             <ArticleOutline
                 :articleRoot="articleProseRef"
                 :scrollContainer="scrollContainer"
@@ -741,10 +767,7 @@ watch([isLoading, content, is404], async () => {
                 @dismiss="continuePromptHandled = true"
             />
         </template>
-        <template
-            #quickControls
-            v-if="!is404"
-        >
+        <template #quickControls v-if="!is404">
             <DropdownMenu
                 v-if="!isLoading && !isLoadingTranslations && availableTranslations.length > 1"
                 v-model:open="showDropdown"
@@ -797,26 +820,14 @@ watch([isLoading, content, is404], async () => {
                 :aria-label="isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'"
                 @click="theme = isDarkTheme ? 'light' : 'dark'"
             >
-                <SunIcon
-                    v-if="isDarkTheme"
-                    class="h-5 w-5"
-                    aria-hidden="true"
-                />
-                <MoonIcon
-                    v-else
-                    class="h-5 w-5"
-                    aria-hidden="true"
-                />
+                <SunIcon v-if="isDarkTheme" class="h-5 w-5" aria-hidden="true" />
+                <MoonIcon v-else class="h-5 w-5" aria-hidden="true" />
             </button>
         </template>
 
         <NotFoundPage v-if="is404" />
 
-        <div
-            v-else
-            class="flex min-h-full flex-col gap-6"
-            :class="{ 'mb-6': !tags.length }"
-        >
+        <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
             <div
                 class="flex flex-grow justify-center lg:grid lg:grid-cols-[1fr_minmax(0,48rem)_1fr] lg:gap-x-8"
                 :class="{ 'items-center': showLoadingBar }"
@@ -827,10 +838,7 @@ watch([isLoading, content, is404], async () => {
                     class="lg:col-start-2"
                 />
                 <template v-else-if="content">
-                    <article
-                        ref="articleRef"
-                        class="w-full lg:col-start-2"
-                    >
+                    <article ref="articleRef" class="w-full lg:col-start-2">
                         <!-- Desktop: title row originates at the top of the page, level with the pinned
                          topbar chrome, and scrolls away with the content like normal. Suppressed when
                          a hero image is present, since its overlay carries the title instead. -->
@@ -880,15 +888,9 @@ watch([isLoading, content, is404], async () => {
 
                         <!-- The hero overlay carries the title, so there is no title above to leave room for. -->
                         <div :class="hasHeroImage ? 'lg:mt-2' : 'mt-5 lg:mt-2'">
-                            <IgnorePagePadding
-                                :mobileOnly="true"
-                                :ignoreTop="true"
-                            >
+                            <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
                                 <!-- The Play button hangs over the picture's edge, so it sits outside the clipped picture. -->
-                                <div
-                                    v-if="hasHeroImage"
-                                    class="relative"
-                                >
+                                <div v-if="hasHeroImage" class="relative">
                                     <div
                                         class="relative cursor-pointer overflow-hidden lg:rounded-xl"
                                         @click="
@@ -1139,11 +1141,7 @@ watch([isLoading, content, is404], async () => {
     >
         <div class="max-h-[calc(80%)] overflow-y-auto">
             <div class="">
-                <VerticalTagViewer
-                    v-if="selectedCategory"
-                    :tag="selectedCategory"
-                    class=""
-                />
+                <VerticalTagViewer v-if="selectedCategory" :tag="selectedCategory" class="" />
             </div>
         </div>
     </LModal>

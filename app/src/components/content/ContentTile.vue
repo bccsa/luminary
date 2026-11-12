@@ -160,10 +160,7 @@ const summaryText = computed(() => props.content.summary?.trim() ?? "");
                 </div>
             </div>
 
-            <div
-                data-card-text
-                class="flex min-w-0 flex-1 flex-col justify-start gap-1 py-2 pr-3"
-            >
+            <div data-card-text class="flex min-w-0 flex-1 flex-col justify-start gap-1 py-2 pr-3">
                 <h3
                     class="line-clamp-2 font-semibold leading-snug text-zinc-800 dark:text-slate-50"
                 >
@@ -196,17 +193,11 @@ const summaryText = computed(() => props.content.summary?.trim() ?? "");
                 aria-valuemin="0"
                 aria-valuemax="100"
             >
-                <div
-                    class="h-full bg-yellow-500"
-                    :style="{ width: `${displayProgress}%` }"
-                ></div>
+                <div class="h-full bg-yellow-500" :style="{ width: `${displayProgress}%` }"></div>
             </div>
         </template>
 
-        <div
-            v-else
-            class="avoid-inside ease-out-expo -m-2 p-2 active:shadow-inner"
-        >
+        <div v-else class="avoid-inside ease-out-expo -m-2 p-2 active:shadow-inner">
             <div class="relative">
                 <LImage
                     :image="content.parentImageData"
@@ -216,10 +207,7 @@ const summaryText = computed(() => props.content.summary?.trim() ?? "");
                     :size="imageSize"
                 >
                     <template #default>
-                        <div
-                            class="w-full"
-                            v-if="titlePosition === 'bottom'"
-                        >
+                        <div class="w-full" v-if="titlePosition === 'bottom'">
                             <h3 class="mt-2 truncate text-sm text-zinc-800 dark:text-slate-50">
                                 {{ content.title }}
                             </h3>
