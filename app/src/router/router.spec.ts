@@ -50,11 +50,10 @@ describe("Router", () => {
 
         // Pages scroll inside their own <main>, so the window is left alone (see useScrollMemory).
         it("should not scroll the window when a savedPosition is available", () => {
-            const result = scrollBehavior(
-                { path: "/target" } as any,
-                { path: "/source" } as any,
-                { top: 100, left: 0 },
-            );
+            const result = scrollBehavior({ path: "/target" } as any, { path: "/source" } as any, {
+                top: 100,
+                left: 0,
+            });
 
             expect(result).toBe(false);
         });
