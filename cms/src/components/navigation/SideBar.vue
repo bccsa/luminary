@@ -255,7 +255,7 @@ const navItemClass = computed(() => [
         <!-- Collapse toggle — sits on the right edge, vertically centred. Desktop only. -->
         <button
             type="button"
-            class="absolute right-0 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:bg-slate-700 dark:text-zinc-300 dark:hover:text-zinc-100 lg:flex"
+            class="absolute right-0 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-300 dark:hover:bg-slate-600 dark:hover:text-zinc-100 lg:flex"
             :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
             data-test="sidebar-collapse-toggle"
             @click="onToggleCollapsed"
@@ -376,7 +376,7 @@ const navItemClass = computed(() => [
 
         <div
             v-if="isInstallable || manualInstallInstructions"
-            class="border-t border-zinc-200 py-3"
+            class="border-t border-zinc-200 py-3 dark:border-slate-700"
             :class="isCollapsed ? 'px-2' : 'px-3'"
         >
             <button
