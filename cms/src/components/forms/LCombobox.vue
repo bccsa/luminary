@@ -403,7 +403,7 @@ const onEscape = (e: KeyboardEvent) => {
                         :key="option.id"
                         :disabled="option.selected"
                         role="menuitem"
-                        class="w-full cursor-pointer list-none text-start text-sm hover:bg-zinc-100 dark:focus:bg-slate-800"
+                        class="w-full cursor-pointer list-none text-start text-sm hover:bg-zinc-100 dark:hover:bg-slate-800 dark:focus:bg-slate-800"
                         :class="[
                             'relative cursor-default select-none py-2 pl-3 pr-9',
                             {
