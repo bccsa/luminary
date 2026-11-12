@@ -76,9 +76,7 @@ export function usePinnedToolbarBelowTopbar(
         window.removeEventListener("resize", update);
     });
 
-    const toolbarClass = computed(() =>
-        isPinned.value ? "fixed z-20 max-lg:shadow-sm" : "",
-    );
+    const toolbarClass = computed(() => (isPinned.value ? "fixed z-20 max-lg:shadow-sm" : ""));
 
     return {
         isPinned,

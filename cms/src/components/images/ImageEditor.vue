@@ -368,7 +368,7 @@ defineExpose({
 
         <p
             v-if="hasSmallImage"
-            class="my-2 flex items-start gap-1 text-xs text-amber-700"
+            class="my-2 flex items-start gap-1 text-xs dark:text-amber-700"
             data-test="small-image-warning"
         >
             <ExclamationTriangleIcon class="h-4 w-4 shrink-0" />
@@ -378,7 +378,7 @@ defineExpose({
 
         <!-- Full-width Drag and Drop Area -->
         <div
-            class="-mx-4 flex w-screen flex-col justify-center transition duration-150 ease-in-out scrollbar-hide dark:bg-slate-900 sm:mx-0 sm:w-full"
+            class="-mx-4 flex w-screen flex-col justify-center bg-white transition duration-150 ease-in-out scrollbar-hide dark:bg-slate-900 sm:mx-0 sm:w-full"
             @dragenter="handleDragEnter"
             @dragover="handleDragOver"
             @dragleave="handleDragLeave"

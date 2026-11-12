@@ -337,7 +337,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
             <p v-if="memberOfError" class="mt-1 text-[11px] font-medium text-red-600">
                 {{ memberOfError }}
             </p>
-            <p v-else class="mt-1 text-[11px] dark:text-zinc-200">
+            <p v-else class="mt-1 text-[11px] text-zinc-400 dark:text-zinc-200">
                 Only members of these groups can view or edit this mapping document in the CMS. Has
                 no effect on which users are assigned groups on login.
             </p>
@@ -358,16 +358,19 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
             <p v-if="groupIdsError" class="mt-1 text-[11px] font-medium text-red-600">
                 {{ groupIdsError }}
             </p>
-            <p v-else class="mt-1 text-[11px] dark:text-zinc-200">
+            <p v-else class="mt-1 text-[11px] text-zinc-400 dark:text-zinc-200">
                 When a user matches this mapping, these groups are added to their session on login —
                 giving them the permissions those groups hold.
             </p>
         </div>
 
         <!-- Conditions -->
-        <div v-if="!isGlobal" class="rounded-md border p-2 dark:border-slate-800 dark:bg-slate-800">
+        <div
+            v-if="!isGlobal"
+            class="rounded-md border border-zinc-200 bg-white p-2 text-zinc-800 dark:border-slate-800 dark:bg-slate-800"
+        >
             <label class="text-sm font-medium dark:text-zinc-100">Conditions (AND)</label>
-            <p class="mt-0.5 text-[11px] dark:text-zinc-100">
+            <p class="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-100">
                 Assign the selected groups when all conditions are true. If no conditions are set,
                 groups are assigned to all authenticated users.
             </p>
@@ -377,7 +380,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                     (editable.conditions ?? []).filter((c) => c.type !== 'authenticated').length ===
                     0
                 "
-                class="mt-2 text-[11px] italic dark:text-zinc-200"
+                class="mt-2 text-[11px] italic text-zinc-400 dark:text-zinc-200"
             >
                 Assigned to all authenticated users.
             </p>
@@ -385,12 +388,12 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
             <template v-for="(cond, cIdx) in editable.conditions ?? []" :key="cIdx">
                 <div
                     v-if="cond.type !== 'authenticated'"
-                    class="mt-2 rounded-md border dark:border-slate-800 dark:bg-slate-800"
+                    class="mt-2 rounded-md border border-zinc-200 bg-white dark:border-slate-800 dark:bg-slate-800"
                 >
                     <!-- Compact summary (click to expand) -->
                     <div
                         v-if="!isEditing(cIdx)"
-                        class="group flex cursor-pointer items-center gap-2 px-3 py-2"
+                        class="group flex cursor-pointer items-center gap-2 px-3 py-2 text-zinc-700"
                         @click="!props.disabled && toggleEdit(cIdx)"
                     >
                         <span class="min-w-0 flex-1 truncate text-sm dark:text-zinc-200">
@@ -422,7 +425,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                             />
                             <button
                                 type="button"
-                                class="ml-2 mt-5 shrink-0 transition-colors hover:text-red-500 dark:text-zinc-200"
+                                class="ml-2 mt-5 shrink-0 text-zinc-400 transition-colors hover:text-red-500 dark:text-zinc-200"
                                 :disabled="props.disabled"
                                 @click="removeCondition(cIdx)"
                                 aria-label="Remove condition"
@@ -474,7 +477,9 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                                         .filter(Boolean)
                                 "
                             />
-                            <p class="mt-0.5 text-[11px] dark:text-zinc-200">Comma-separated</p>
+                            <p class="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-200">
+                                Comma-separated
+                            </p>
                         </template>
 
                         <LButton

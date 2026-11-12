@@ -246,11 +246,14 @@ const createNew = () => {
             <LButton
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
                 variant="primary"
+                class="max-lg:gap-x-0"
                 :icon="PlusIcon"
+                icon-class="max-lg:ml-0"
                 data-test="create-button"
                 @click="createNew"
+                :aria-label="`Create ${docType}`"
             >
-                Create {{ docType }}
+                <span class="hidden lg:inline">Create {{ docType }}</span>
             </LButton>
         </template>
 
@@ -265,7 +268,7 @@ const createNew = () => {
             />
         </template>
 
-        <div v-if="cmsLanguageIdAsRef" class="flex flex-col gap-[8px]">
+        <div v-if="cmsLanguageIdAsRef" class="flex flex-col gap-[4px]">
             <div v-if="searchActive" class="px-2 py-1 text-xs text-zinc-500">
                 {{ showRelated ? "Showing related results" : "Showing exact matches" }}
                 for "{{ (queryOptions.search ?? "").trim() }}".

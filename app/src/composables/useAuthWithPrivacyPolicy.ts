@@ -17,8 +17,7 @@ export const hasPendingLogin = ref(false);
 
 // Direct read — used by the shared gate/complete helpers. Composable-scoped
 // consumers get the reactive `computed` wrapper inside the function.
-const isPolicyAccepted = () =>
-    userPreferencesAsRef.value.privacyPolicy?.status === "accepted";
+const isPolicyAccepted = () => userPreferencesAsRef.value.privacyPolicy?.status === "accepted";
 
 // Gate any login-starting action behind the privacy-policy modal. If the
 // policy is already accepted we run `action` immediately; otherwise we stash

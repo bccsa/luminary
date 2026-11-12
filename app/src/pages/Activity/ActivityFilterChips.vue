@@ -12,11 +12,7 @@ const { t } = useI18n();
 </script>
 
 <template>
-    <div
-        class="flex flex-wrap gap-2"
-        role="tablist"
-        :aria-label="t('activity.title')"
-    >
+    <div class="flex flex-wrap gap-2" role="tablist" :aria-label="t('activity.title')">
         <button
             v-for="filter in filters"
             :key="filter"

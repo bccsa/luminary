@@ -13,6 +13,7 @@ import { getMediaDuration, getMediaProgress } from "@/contentProgress";
 import { mediaSourceFor } from "@/util/mediaSource";
 import { openMediaPlayer } from "./mediaPlayer";
 import PlayerIcon from "./PlayerIcon.vue";
+import { PLAYER_ICONS } from "./playerIcons";
 
 const props = defineProps<{
     content: ContentDto;
@@ -25,12 +26,12 @@ const { t } = useI18n();
 
 const open = () => openMediaPlayer(props.content, props.language);
 
+const PLAY_PATH = PLAYER_ICONS.play[0]!.path;
+
 /** Set from pointer events because iOS WebKit gives a touch no `:active` without a touch listener. */
 const pressed = ref(false);
-
-/** The shadows are SVG filters, which need ids unique on the page. */
-const haloId = `lm-play-halo-${useId()}`;
-const shadowId = `lm-play-shadow-${useId()}`;
+/** Filter ids are page-wide: each button names its own, the same in the prerender and the page. */
+const uid = useId();
 
 /** How far the media was played, 0–100; 0 until it has been started. */
 const mediaProgress = computed(() => {
@@ -55,38 +56,25 @@ const mediaProgress = computed(() => {
         @pointerleave="pressed = false"
         @click.stop="open"
     >
-        <!-- One SVG for the ring, the disc, its border and the triangle: drawn on one grid, they stay crisp and
-             meet exactly on a low-density screen, where separate CSS and SVG layers left soft, uneven edges. -->
+        <!-- One vector drawing, so it stays sharp at any pixel ratio: no CSS filter or box shadow to be rasterised,
+             and a transform only while pressed, when the whole button, ring and all, squishes. The ring shows before the video is started too. It lies on a photo of any
+             brightness, so it has a halo: soft on the light page, where a strong one reads as a black band. -->
         <svg
             viewBox="0 0 68 68"
-            class="absolute inset-0 h-full w-full overflow-visible"
+            class="absolute inset-0 h-full w-full overflow-visible motion-safe:transition-transform"
+            :class="
+                pressed
+                    ? 'motion-safe:scale-[0.92] motion-safe:duration-75 motion-safe:ease-out'
+                    : 'motion-safe:duration-[120ms] motion-safe:ease-out'
+            "
             aria-hidden="true"
+            data-test="mediaPlayProgress"
         >
             <defs>
-                <!-- The ring lies on a photo of any brightness, so it is light with a halo: soft on the light
-                     page, where a strong one reads as a black band, and strong in dark. -->
-                <filter
-                    :id="haloId"
-                    x="-10%"
-                    y="-10%"
-                    width="120%"
-                    height="120%"
-                >
-                    <feDropShadow
-                        dx="0"
-                        dy="0"
-                        stdDeviation="0.75"
-                        flood-color="#000"
-                        class="[flood-opacity:0.25] dark:[flood-opacity:0.6]"
-                    />
+                <filter :id="`${uid}-halo`" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="1.5" />
                 </filter>
-                <filter
-                    :id="shadowId"
-                    x="-25%"
-                    y="-25%"
-                    width="150%"
-                    height="150%"
-                >
+                <filter :id="`${uid}-shadow`" x="-30%" y="-30%" width="160%" height="160%">
                     <feDropShadow
                         dx="0"
                         dy="2"
@@ -96,76 +84,68 @@ const mediaProgress = computed(() => {
                     />
                 </filter>
             </defs>
-            <g
-                :filter="`url(#${haloId})`"
+            <circle
+                cx="34"
+                cy="34"
+                r="31"
+                fill="none"
+                stroke-width="6"
+                :filter="`url(#${uid}-halo)`"
+                class="stroke-black/25 dark:stroke-black/60"
+            />
+            <circle
+                cx="34"
+                cy="34"
+                r="31"
+                fill="none"
+                stroke-width="5"
+                class="stroke-zinc-200 dark:stroke-slate-700"
+                data-test="mediaPlayTrack"
+            />
+            <!-- From the top, clockwise. A round-capped dash of length 0 still draws a dot. -->
+            <circle
+                v-if="mediaProgress > 0"
+                cx="34"
+                cy="34"
+                r="31"
+                fill="none"
+                stroke-width="5"
+                stroke-linecap="round"
+                pathLength="100"
+                :stroke-dasharray="`${mediaProgress} 100`"
                 transform="rotate(-90 34 34)"
-                data-test="mediaPlayProgress"
-            >
+                class="stroke-yellow-600 dark:stroke-yellow-700"
+                data-test="mediaPlayArc"
+            />
+            <!-- The disc and its outline fill the ring's inner edge (radius 28.5), so no gap shows between them. -->
+            <g data-test="mediaPlayDisc">
                 <circle
                     cx="34"
                     cy="34"
-                    r="31"
-                    fill="none"
-                    stroke-width="5"
-                    class="stroke-zinc-200 dark:stroke-slate-600"
+                    r="28.5"
+                    :filter="`url(#${uid}-shadow)`"
+                    class="fill-zinc-900"
+                    data-test="mediaPlayOutline"
                 />
-                <!-- A round-capped dash of length 0 still draws a dot. -->
-                <circle
-                    v-if="mediaProgress > 0"
-                    cx="34"
-                    cy="34"
-                    r="31"
-                    fill="none"
-                    stroke-width="5"
-                    stroke-linecap="round"
-                    pathLength="100"
-                    :stroke-dasharray="`${mediaProgress} 100`"
-                    class="stroke-yellow-500 dark:stroke-yellow-300"
-                />
-            </g>
-            <g
-                class="origin-center text-zinc-900 [transform-box:fill-box] motion-safe:transition-transform"
-                :class="
-                    pressed
-                        ? 'motion-safe:scale-[0.92] motion-safe:duration-75 motion-safe:ease-out'
-                        : 'motion-safe:duration-[120ms] motion-safe:ease-out'
-                "
-                data-test="mediaPlayDisc"
-            >
-                <!-- The yellow disc and its border in one solid colour per theme, so the picture can't show through. -->
-                <circle
-                    cx="34"
-                    cy="34"
-                    r="27.5"
-                    stroke-width="3"
-                    :filter="`url(#${shadowId})`"
-                    class="fill-yellow-500 stroke-zinc-600 dark:stroke-slate-950"
-                />
-                <!-- The triangle's weight sits left of its box: moved right so it looks centred. -->
-                <PlayerIcon
-                    name="play"
-                    x="23.92"
-                    y="22"
-                    width="24"
-                    height="24"
+                <circle cx="34" cy="34" r="25.5" class="fill-yellow-500" />
+                <!-- The play glyph (18-unit grid) at 4/3, centred by the circle that encloses it (centre 7.43, 9 on its
+                     grid), so it sits in the middle of the disc as a round shape would, not by its box. -->
+                <path
+                    :d="PLAY_PATH"
+                    transform="translate(24.093 22) scale(1.33333)"
+                    class="fill-zinc-900"
                 />
             </g>
         </svg>
     </button>
-    <div
-        v-else
-        class="mt-4 flex justify-center px-4"
-    >
+    <div v-else class="mt-4 flex justify-center px-4">
         <button
             type="button"
             class="flex h-11 items-center gap-2 rounded-full bg-yellow-500 px-5 text-base font-semibold text-zinc-900 shadow-sm hover:bg-yellow-400"
             data-test="mediaPlay"
             @click="open"
         >
-            <PlayerIcon
-                name="play"
-                class="h-5 w-5 translate-x-[8%]"
-            />
+            <PlayerIcon name="play" class="h-5 w-5 translate-x-[8%]" />
             {{ t("media_player.play") }}
         </button>
     </div>

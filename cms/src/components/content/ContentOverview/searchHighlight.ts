@@ -86,10 +86,7 @@ export function applyTermHighlights(text: string, query: string): string {
     let lastIndex = 0;
     for (const m of text.matchAll(regex)) {
         built +=
-            escapeHtml(text.slice(lastIndex, m.index)) +
-            `<mark>` +
-            escapeHtml(m[0]) +
-            "</mark>";
+            escapeHtml(text.slice(lastIndex, m.index)) + `<mark>` + escapeHtml(m[0]) + "</mark>";
         lastIndex = (m.index ?? 0) + m[0].length;
     }
     built += escapeHtml(text.slice(lastIndex));

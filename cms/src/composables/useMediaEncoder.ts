@@ -23,11 +23,7 @@ import {
 } from "@/util/mediaEncoder";
 
 export type EncoderAvailability =
-    | "unknown"
-    | "checking"
-    | "available"
-    | "unavailable"
-    | "browser-unsupported";
+    "unknown" | "checking" | "available" | "unavailable" | "browser-unsupported";
 
 /** Statuses after which no further events arrive. */
 const FINISHED_STATUSES = ["completed", "failed"];

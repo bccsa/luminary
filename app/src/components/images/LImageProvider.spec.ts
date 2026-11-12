@@ -7,10 +7,18 @@ import waitForExpect from "wait-for-expect";
 
 vi.mock("@/globalConfig", async () => {
     const { ref } = await import("vue");
+    const isDataSaverEnabled = vi.fn(() => false);
+    const userDataSaverEnabled = ref(false);
     return {
         fallbackImageUrls: ["fallback.webp"],
-        isDataSaverEnabled: vi.fn(() => false),
-        userDataSaverEnabled: ref(false),
+        isDataSaverEnabled,
+        userDataSaverEnabled,
+        // Read afresh each time, as the real level reads the device's flag.
+        dataSaverOn: {
+            get value() {
+                return userDataSaverEnabled.value || isDataSaverEnabled();
+            },
+        },
     };
 });
 // Mock the speed probe so we can drive the "slow connection" branch without timing a real download.

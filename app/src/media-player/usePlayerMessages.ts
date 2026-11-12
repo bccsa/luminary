@@ -7,10 +7,14 @@ import { useI18n } from "vue-i18n";
  * the player to fill in with its own numbers.
  */
 export function usePlayerMessages() {
-    const { t } = useI18n();
+    const { t, te } = useI18n();
+    // Strings newer than a language document are left out, so the player's English stands in rather than the key.
+    const known = (key: string): string | undefined => (te(key) ? t(key) : undefined);
     return computed(() => ({
         comingSoon: t("video_player.coming_soon"),
         errorGeneric: t("video_player.error_generic"),
+        // The same words as the app's own offline banner.
+        offline: t("notification.offline.title"),
         errorUnsupportedBrowser: t("video_player.error_unsupported_browser"),
         errorKeyRequired: t("video_player.error_key_required"),
         errorNetwork: t("video_player.error_network"),
@@ -41,6 +45,7 @@ export function usePlayerMessages() {
         closeBrowse: t("video_player.close_browse"),
         nextUp: t("media_player.more"),
         dismiss: t("video_player.dismiss_next_up"),
+        closeScrub: t("media_player.close_frames"),
 
         // Native full-screen draws its own controls and says these.
         pictureInPicture: t("media_player.picture_in_picture"),
@@ -61,5 +66,23 @@ export function usePlayerMessages() {
         sleepMinutes: t("media_player.sleep_minutes", { minutes: "{minutes}" }),
         sleepEndOfChapter: t("media_player.sleep_end_of_chapter"),
         sleepLeft: t("media_player.sleep_left", { minutes: "{minutes}" }),
+        ...defined({
+            dataSaver: known("media_player.data_saver"),
+            autoplay: known("media_player.autoplay"),
+            cameraLabel: known("media_player.camera"),
+            replay: known("media_player.replay"),
+            playNow: known("media_player.play_now"),
+            cancel: known("media_player.cancel"),
+            speedShort: known("media_player.speed_label"),
+            sleepShort: known("media_player.sleep_label"),
+            more: known("media_player.more"),
+            backToLine: known("media_player.back_to_line"),
+        }),
     }));
+}
+
+function defined(texts: Record<string, string | undefined>): Record<string, string> {
+    return Object.fromEntries(
+        Object.entries(texts).filter((entry): entry is [string, string] => entry[1] !== undefined),
+    );
 }

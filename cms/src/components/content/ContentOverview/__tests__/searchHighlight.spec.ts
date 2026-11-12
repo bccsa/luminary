@@ -50,7 +50,10 @@ describe("buildSearchHighlight", () => {
     it("strips HTML tags from the title and escapes special characters", () => {
         // Titles are stripped of HTML; surviving special chars are escaped, so no raw
         // markup is ever emitted (only the injected <mark>).
-        const stripped = buildSearchHighlight(doc({ title: "<script>alert('x')</script> fox" }), "fox");
+        const stripped = buildSearchHighlight(
+            doc({ title: "<script>alert('x')</script> fox" }),
+            "fox",
+        );
         expect(stripped.titleHtml).not.toContain("<script>");
         expect(stripped.titleHtml).toContain("<mark>fox</mark>");
 

@@ -245,10 +245,12 @@ const handleRevert = () => {
 
                 <LabelAndType v-model:provider="provider" :disabled="isDisabled" />
 
-                <div class="rounded-md border p-2 dark:border-slate-700 dark:bg-slate-800">
+                <div
+                    class="rounded-md border border-zinc-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-800"
+                >
                     <label
                         for="provider-sort-index"
-                        class="mb-1 block text-xs font-medium dark:text-zinc-100"
+                        class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-100"
                     >
                         Sort Index
                     </label>
@@ -268,12 +270,14 @@ const handleRevert = () => {
                             }
                         "
                     />
-                    <p class="mt-1 text-[11px] dark:text-zinc-300">
+                    <p class="mt-1 text-[11px] text-zinc-500 dark:text-zinc-300">
                         Lower values appear first in the provider selection list.
                     </p>
                 </div>
 
-                <div class="rounded-md border p-2 dark:border-slate-700 dark:bg-slate-800">
+                <div
+                    class="rounded-md border border-zinc-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-800"
+                >
                     <LCombobox
                         v-model:selected-options="provider.memberOf as string[]"
                         :label="`Group Membership`"

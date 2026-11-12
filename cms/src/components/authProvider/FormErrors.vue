@@ -8,9 +8,7 @@ const props = defineProps<{
     validations?: Validation[];
 }>();
 
-const failedValidations = computed(() =>
-    (props.validations ?? []).filter((v) => !v.isValid),
-);
+const failedValidations = computed(() => (props.validations ?? []).filter((v) => !v.isValid));
 </script>
 
 <template>
@@ -23,11 +21,7 @@ const failedValidations = computed(() =>
             <XCircleIcon class="h-4 w-4 flex-shrink-0 text-red-400" />
             <p class="text-xs text-zinc-700">{{ error }}</p>
         </div>
-        <div
-            v-for="v in failedValidations"
-            :key="v.id"
-            class="mb-1 flex items-center gap-2"
-        >
+        <div v-for="v in failedValidations" :key="v.id" class="mb-1 flex items-center gap-2">
             <XCircleIcon class="h-4 w-4 flex-shrink-0 text-red-400" />
             <p class="text-xs text-zinc-700">{{ v.message }}</p>
         </div>

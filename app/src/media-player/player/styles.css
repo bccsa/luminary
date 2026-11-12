@@ -610,6 +610,30 @@
  * does not depend on it.
  */
 /* Read from any ancestor carrying the class, not the first `.lmpl-root`: a host may wrap the player in a root of its own. */
+/* The quality and language badges, as the now-playing screen's tools carry them (set by the player). */
+.lmpl-opt[data-badge] {
+    position: relative;
+}
+
+.lmpl-opt[data-badge]::after {
+    content: attr(data-badge);
+    position: absolute;
+    right: -2px;
+    bottom: 2px;
+    max-width: 90px;
+    padding: 0 4px;
+    overflow: hidden;
+    border-radius: 5px;
+    font-size: calc(9px * var(--lmpl-s, 1));
+    font-weight: 500;
+    line-height: 13px;
+    white-space: nowrap;
+    /* Secondary to the glyph: quiet text on a faint, dark backing that only keeps it legible over the picture. */
+    color: rgb(255 255 255 / 0.6);
+    background: rgb(0 0 0 / 0.25);
+    pointer-events: none;
+}
+
 .lmpl-opt-quality:not(.lmpl-has-quality-choice *),
 .lmpl-opt-audio:not(.lmpl-has-audio-choice *),
 .lmpl-opt-captions:not(.lmpl-has-subtitles *) {
@@ -802,8 +826,6 @@
     right: 0;
     overflow: hidden;
     background: #0b0b0d;
-    /* A hairline of light along its top edge, where the timeline rests on it. */
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14);
     pointer-events: none;
     animation: lmpl-roster-in 0.2s ease-out both;
 }
@@ -821,8 +843,17 @@
     left: 0;
     overflow: hidden;
     background: #151518;
-    /* A frame apart from its neighbour, without a gutter that would make the strip look like a grid. */
-    box-shadow: inset -1px 0 0 rgb(0 0 0 / 0.55);
+}
+/* A frame apart from its neighbour, without a gutter that would make the strip look like a grid; over the frame,
+   which fills the tile. */
+.lmpl-roster-tile::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgb(0 0 0 / 0.55);
 }
 
 /* The crop at its own size, scaled to the tile, drawn as a chapter's picture is. */
@@ -832,30 +863,19 @@
     left: 0;
 }
 
-/*
- * The frames around the marker are the ones that matter, so those further out fall away into the dark:
- * the strip reads as a lens on the playhead rather than a flat run of thumbnails.
- */
+/* A light shade at the strip's top and foot, so it sits apart from the picture; every frame stays at full brightness. */
 .lmpl-roster-vignette {
     position: absolute;
     inset: 0;
-    background:
-        linear-gradient(
-            to right,
-            rgb(8 8 10 / 0.78),
-            rgb(8 8 10 / 0.35) calc(var(--lmpl-marker) - 22%),
-            transparent calc(var(--lmpl-marker) - 8%),
-            transparent calc(var(--lmpl-marker) + 8%),
-            rgb(8 8 10 / 0.35) calc(var(--lmpl-marker) + 22%),
-            rgb(8 8 10 / 0.78)
-        ),
-        linear-gradient(
-            to bottom,
-            rgb(0 0 0 / 0.28),
-            transparent 35%,
-            transparent 70%,
-            rgb(0 0 0 / 0.4)
-        );
+    /* A hairline of light along the strip's top edge, where the timeline rests on it, over the frames. */
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14);
+    background: linear-gradient(
+        to bottom,
+        rgb(0 0 0 / 0.28),
+        transparent 35%,
+        transparent 70%,
+        rgb(0 0 0 / 0.4)
+    );
 }
 
 .lmpl-roster-marker {
@@ -1071,11 +1091,12 @@
     display: flex;
     flex: 1;
     min-width: 0;
-    gap: calc(4px * var(--lmpl-s));
+    gap: calc(20px * var(--lmpl-s));
 }
 
+/* No inline padding: the label lines up with the rows' left edge and the underline is as wide as the label. */
 .lmpl-root .lmpl-browse-tab {
-    padding: calc(10px * var(--lmpl-s)) calc(12px * var(--lmpl-s));
+    padding: calc(10px * var(--lmpl-s)) 0;
     border: 0;
     border-bottom: 2px solid transparent;
     background: transparent;
@@ -1096,6 +1117,11 @@
     outline-offset: -2px;
 }
 
+/* Outside the label, which now reaches the tab's edges. */
+.lmpl-root .lmpl-browse-tab:focus-visible {
+    outline-offset: 2px;
+}
+
 .lmpl-root .lmpl-browse-close {
     flex: none;
     margin-bottom: calc(4px * var(--lmpl-s));
@@ -1106,6 +1132,23 @@
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
+    /* A classic scrollbar (desktop with a mouse) is otherwise grey on a white track against the dark panel. */
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.3) transparent;
+}
+
+/* Safari ignores scrollbar-color; Chrome ignores these once scrollbar-color is set. */
+.lmpl-browse-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.lmpl-browse-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.lmpl-browse-body::-webkit-scrollbar-thumb {
+    border-radius: 3px;
+    background: rgb(255 255 255 / 0.3);
 }
 
 .lmpl-browse-list {
@@ -1159,19 +1202,20 @@
     color: rgb(255 255 255 / 0.8);
 }
 
-/* The frame at its own size, scaled to the tile's width (120 at the panel's scale). */
+/* The frame at its own size, scaled to the tile's width (80 at the panel's scale). */
 .lmpl-chapter-frame {
     position: absolute;
     top: 0;
     left: 0;
     background-repeat: no-repeat;
-    transform: scale(calc(120 * var(--lmpl-s, 1) / var(--lmpl-cue-w, 120)));
+    transform: scale(calc(80 * var(--lmpl-s, 1) / var(--lmpl-cue-w, 80)));
     transform-origin: top left;
 }
 
+/* Small enough that more of either list shows: chapters and up next wear the same tile. */
 .lmpl-upnext-thumb {
     flex: none;
-    width: calc(120px * var(--lmpl-s));
+    width: calc(80px * var(--lmpl-s));
     aspect-ratio: 16 / 9;
     overflow: hidden;
     border-radius: calc(6px * var(--lmpl-s));
@@ -1480,35 +1524,30 @@
     pointer-events: none;
 }
 
-/* On, as a dot under the glyph: a filled disc reads as a button left pressed. */
+/* On: what the tool controls is on (a sleep timer set, subtitles shown); its glyph is the filled one. */
 .lmpl-afs-on {
     color: #fff;
 }
-.lmpl-afs-on::after {
-    content: "";
-    position: absolute;
-    bottom: 6px;
-    left: 50%;
-    width: 5px;
-    height: 5px;
-    margin-left: -2.5px;
-    border-radius: 50%;
-    background: #fff;
-}
 
+/* What is chosen, on a small pill centred over the glyph; it may run a little past its cell, into its neighbours'. */
 .lmpl-afs-badge {
     position: absolute;
-    right: -2px;
-    bottom: 2px;
-    max-width: 90px;
+    top: 0;
+    left: 50%;
+    max-width: calc(100% + 12px);
+    overflow: hidden;
     padding: 0 5px;
+    box-sizing: border-box;
     border-radius: 6px;
-    background: #fff;
-    color: #111;
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 14px;
+    /* Secondary to the glyph: quiet text on a faint, dark backing that only keeps it legible over the wash. */
+    background: rgb(0 0 0 / 0.25);
+    color: rgb(255 255 255 / 0.6);
+    font-size: calc(10px * var(--lmpl-s, 1));
+    font-weight: 500;
+    line-height: calc(14px * var(--lmpl-s, 1));
+    text-overflow: ellipsis;
     white-space: nowrap;
+    transform: translateX(-50%);
 }
 
 .lmpl-afs-main {
@@ -1537,6 +1576,8 @@
     height: 100%;
     border-radius: 16px;
     object-fit: cover;
+    /* A cover cut from a video frame can carry the frame's dark edge row, which reads as a line along the top. */
+    object-view-box: inset(1%);
     box-shadow:
         0 22px 50px -14px rgb(0 0 0 / 0.65),
         0 0 40px 2px rgb(255 255 255 / 0.14);
@@ -1550,18 +1591,16 @@
     color: rgb(255 255 255 / 0.7);
 }
 
-/* Dark: a glow behind the picture, a blurred copy of it that fades out a little past its edges. */
-/* The cover and, under it, the line being said: one group, so the line stays with the picture. */
+/* The cover's group: the cover, or the lyrics in its place. */
 .lmpl-afs-artwrap {
     display: flex;
     flex: none;
     flex-direction: column;
     align-items: center;
     align-self: center;
-    gap: 16px;
 }
 
-/* A video has no line under its picture: the group steps aside so the picture sizes against the screen as before. */
+/* A video's picture sizes against the screen itself. */
 .lmpl-afs-video .lmpl-afs-artwrap {
     display: contents;
 }
@@ -1571,42 +1610,107 @@
     align-self: stretch;
 }
 
-/* As wide as the cover, whatever the words: the text wraps inside it and never widens the group. */
-.lmpl-afs-cueline {
-    display: grid;
-    grid-template-columns: 32px 1fr 32px;
-    align-items: center;
-    width: 0;
-    min-width: 100%;
+/* Until the picture is in, a plain dark square with the cover's shadow; then the picture fades in over it. */
+.lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-art:not(.lmpl-afs-art-lyrics)::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    background: #0e1013;
+    box-shadow:
+        0 22px 50px -14px rgb(0 0 0 / 0.65),
+        0 0 40px 2px rgb(255 255 255 / 0.14);
+}
+.lmpl-afs-cover {
+    transition: opacity 150ms ease;
+}
+.lmpl-afs-cover.lmpl-afs-cover-loading {
+    opacity: 0;
 }
 
-.lmpl-afs-cuegap {
-    width: 32px;
+/*
+ * With subtitles on, the line being said sits on the cover: the cover darkened a little, and to black at its foot
+ * from a little above the words. Only the words and the button take a press, so the lyrics scroll under it.
+ */
+.lmpl-afs-covercue {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    border-radius: 16px;
+    pointer-events: none;
+    /* The words are sized by the cover: 16px on a phone's (about 300px), larger on a large screen's. */
+    container: lmpl-afs-cover / inline-size;
 }
-
+.lmpl-afs-covercue:not(.lmpl-afs-covercue-open) {
+    background: rgb(0 0 0 / 0.18);
+}
+/* At least two lines high, so the fade stands still while the cues change; a longer cue lifts it. */
+.lmpl-afs-covercue-line {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    box-sizing: border-box;
+    min-height: calc(2 * 1.3em + var(--lmpl-cue-pad));
+    max-height: calc(100% - 62px);
+    padding: 0 var(--lmpl-cue-pad) var(--lmpl-cue-pad);
+    font-size: clamp(16px, 5.33cqi, 28px);
+    --lmpl-cue-pad: clamp(16px, 5.33cqi, 28px);
+}
+.lmpl-afs-covercue-line::before {
+    content: "";
+    position: absolute;
+    top: -3.5em;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: linear-gradient(rgb(0 0 0 / 0), rgb(0 0 0 / 0.8));
+}
 .lmpl-afs-cue {
+    position: relative;
     margin: 0;
-    text-align: center;
-    font-size: calc(15px * var(--lmpl-s));
+    overflow: hidden;
+    color: #fff;
+    font-size: inherit;
     font-weight: 600;
     line-height: 1.3;
+    text-align: left;
+    text-shadow: 0 1px 4px rgb(0 0 0 / 0.6);
+    white-space: pre-line;
     overflow-wrap: anywhere;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.lmpl-afs-cue {
     cursor: pointer;
+    pointer-events: auto;
 }
 
-/* A soft disc, so it reads as something to press rather than as part of the words. */
+/* A dark disc in the cover's top right, over the lyrics too when they are open. */
 .lmpl-afs-cuebtn {
-    width: 32px;
-    height: 32px;
-    justify-self: end;
-    background: rgb(255 255 255 / 0.12);
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgb(0 0 0 / 0.6);
+    color: #fff;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: transform 100ms ease;
+}
+.lmpl-afs-cuebtn:active {
+    transform: scale(0.92);
+}
+.lmpl-afs-cuebtn:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
 }
 
 .lmpl-afs-info {
@@ -1698,11 +1802,11 @@
     text-align: end;
 }
 
-/* The tools' inset alone left them crowding the transport: a gap of their own sets them apart. */
+/* The tools' inset alone left them crowding the transport (staging feedback): a gap of their own sets them apart. */
 .lmpl-afs-bottomrow {
     display: flex;
     flex-direction: column;
-    row-gap: calc(12px * var(--lmpl-s));
+    row-gap: calc(24px * var(--lmpl-s));
 }
 
 .lmpl-afs-transport {
@@ -1734,19 +1838,18 @@
 .lmpl-afs-bar-track {
     position: relative;
     width: 100%;
-    height: calc(8px * var(--lmpl-s));
+    height: calc(12px * var(--lmpl-s));
     border-radius: 999px;
     overflow: hidden;
-    background: rgb(255 255 255 / 0.28);
+    background: rgb(255 255 255 / 0.26);
     -webkit-mask-image: var(--lmpl-chapter-mask, none);
     mask-image: var(--lmpl-chapter-mask, none);
     transition: height 120ms ease;
 }
 
 .lmpl-afs-bar:hover .lmpl-afs-bar-track,
-.lmpl-afs-bar:focus-visible .lmpl-afs-bar-track,
-.lmpl-afs-bar-dragging .lmpl-afs-bar-track {
-    height: calc(12px * var(--lmpl-s));
+.lmpl-afs-bar:focus-visible .lmpl-afs-bar-track {
+    height: calc(16px * var(--lmpl-s));
 }
 
 .lmpl-afs-bar-buffer,
@@ -1757,7 +1860,7 @@
 }
 
 .lmpl-afs-bar-buffer {
-    background: rgb(255 255 255 / 0.25);
+    background: rgb(255 255 255 / 0.4);
 }
 
 .lmpl-afs-bar-fill {
@@ -1771,6 +1874,12 @@
 
 /* Opened for scrubbing by a tap: thicker, with a handle where the fill ends, which the track's own clip would cut. */
 .lmpl-afs-bar-open .lmpl-afs-bar-track {
+    height: calc(20px * var(--lmpl-s));
+}
+
+/* Dragged: the drag's own thickness, open or not. */
+.lmpl-afs-bar-dragging .lmpl-afs-bar-track,
+.lmpl-afs-bar-open.lmpl-afs-bar-dragging .lmpl-afs-bar-track {
     height: calc(16px * var(--lmpl-s));
 }
 
@@ -1779,8 +1888,8 @@
     position: absolute;
     top: 50%;
     left: var(--lmpl-afs-at, 0%);
-    width: calc(26px * var(--lmpl-s));
-    height: calc(26px * var(--lmpl-s));
+    width: calc(28px * var(--lmpl-s));
+    height: calc(28px * var(--lmpl-s));
     border-radius: 50%;
     background: #fff;
     box-shadow: 0 0 6px rgb(0 0 0 / 0.35);
@@ -1866,35 +1975,157 @@
     translate: 8% 0;
 }
 
-/* No gap: the inset around each glyph sets them as far apart as the transport's. */
+/*
+ * The tools: cells of one width, at most 64, sharing the row, each a glyph over its name as in the app's bottom menu.
+ * The row sets the label size (`--lmpl-tool-label`) so the widest name fits, and the glyph's (`--lmpl-tool-glyph`).
+ */
 .lmpl-afs-tools {
+    /* Above the host's strip of frames (z 35), so a menu or pop-up opened from the row is never under it. */
+    position: relative;
+    z-index: 36;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
     gap: 0;
+    height: calc(62px * var(--lmpl-s, 1));
 }
 
-/* A tool with a menu shrinks like the bare buttons beside it, so a crowded row stays evenly spaced. */
 .lmpl-afs-tool {
     position: relative;
     display: flex;
-    flex: 0 1 auto;
+    flex: 0 1 calc(64px * var(--lmpl-s, 1));
     min-width: 0;
 }
 
-/* The row under the transport is thumb-sized: a larger target, and a larger glyph in it. Sized by its width (no
-   basis of its own), so a bare button and one in a tool wrapper grow and shrink alike. */
-.lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn {
-    flex: 0 1 auto;
-    width: calc(52px * var(--lmpl-s));
-    height: calc(52px * var(--lmpl-s));
-    color: rgb(255 255 255 / 0.82);
+.lmpl-afs-tools > .lmpl-afs-toolcell,
+.lmpl-afs-tools > .lmpl-afs-iconbtn {
+    flex: 0 1 calc(64px * var(--lmpl-s, 1));
+    min-width: 0;
 }
 
-.lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn svg,
-.lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn .media-button-icon {
-    width: calc(28px * var(--lmpl-s));
-    height: calc(28px * var(--lmpl-s));
+.lmpl-afs-toolcell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: rgb(255 255 255 / 0.82);
+    font: inherit;
+    cursor: pointer;
+}
+
+/* Pressed, or its menu open: a soft rounded backing over the cell, inset a little. */
+.lmpl-afs-toolcell::before {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    border-radius: 12px;
+    background: rgb(255 255 255 / 0.14);
+    opacity: 0;
+    pointer-events: none;
+}
+.lmpl-afs-toolcell:active::before,
+.lmpl-afs-toolcell[aria-expanded="true"]::before {
+    opacity: 1;
+}
+@media (hover: hover) {
+    .lmpl-afs-toolcell:hover::before {
+        opacity: 1;
+    }
+}
+.lmpl-afs-toolcell:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: -2px;
+}
+.lmpl-afs-toolcell.lmpl-afs-on {
+    color: #fff;
+}
+
+/* The badge's room is kept whether it shows or not, so the glyphs stand level along the row. */
+.lmpl-afs-toolbadge {
+    position: relative;
+    flex: none;
+    align-self: stretch;
+    height: calc(15px * var(--lmpl-s, 1));
+}
+
+.lmpl-root .lmpl-afs-toolcell .lmpl-afs-toolglyph,
+.lmpl-afs-toolcell .lmpl-afs-toolglyph {
+    display: block;
+    flex: none;
+    width: calc(var(--lmpl-tool-glyph, 24px) * var(--lmpl-s, 1));
+    height: calc(var(--lmpl-tool-glyph, 24px) * var(--lmpl-s, 1));
+}
+.lmpl-afs-toolcell .lmpl-afs-toolglyph svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.lmpl-afs-toollabel {
+    display: block;
+    max-width: calc(100% - 4px);
+    margin-top: calc(3px * var(--lmpl-s, 1));
+    overflow: hidden;
+    font-size: calc(var(--lmpl-tool-label, 11px) * var(--lmpl-s, 1));
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Measures a name at the row's full size, out of sight. */
+.lmpl-afs-toolmeasure {
+    position: absolute;
+    visibility: hidden;
+    max-width: none;
+    margin: 0;
+    font-size: 11px;
+    pointer-events: none;
+}
+
+.lmpl-afs-titles {
+    transition:
+        opacity 150ms ease,
+        visibility 150ms;
+}
+
+.lmpl-afs-titles.lmpl-afs-titles-away {
+    visibility: hidden;
+    opacity: 0;
+}
+
+/* The strip's close: on the strip's top right corner, half over it (the host gives the strip's top). */
+.lmpl-afs-stripclose {
+    position: absolute;
+    z-index: 36;
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(var(--lmpl-strip-top-from-bottom, 0px) - 16px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    color: #fff;
+    background: rgb(24 24 27 / 0.9);
+    box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.35);
+    cursor: pointer;
+    animation: lmpl-roster-in 0.2s ease-out both;
+}
+
+.lmpl-afs-stripclose:active {
+    transform: scale(0.94);
 }
 
 .lmpl-afs-menu {
@@ -1954,6 +2185,21 @@
     }
 }
 
+/* A heading over a group of rows, in a menu that holds more than one choice (the gear's). */
+.lmpl-afs-menuhead {
+    padding: 8px 12px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgb(255 255 255 / 0.6);
+}
+
+.lmpl-afs-menuitem + .lmpl-afs-menuhead {
+    margin-top: 4px;
+    border-top: 1px solid rgb(255 255 255 / 0.1);
+}
+
 .lmpl-afs-menuitem[aria-checked="true"]::after {
     content: "✓";
     font-weight: 700;
@@ -2009,17 +2255,10 @@
     }
 }
 
-/* A ThumbHash is a few pixels: stretched over the screen it is already soft, so it needs no blur, which is what an
-   old phone pays for most. */
-.lmpl-afs-wash.lmpl-afs-wash-hash {
-    filter: saturate(1.6);
-    transform: scale(1.1);
-    opacity: 1;
-}
-/* A ThumbHash is already soft and dark enough at its edges: a lighter scrim lets its colour show, still dark enough
-   at the foot, where the controls are, for white text. */
+/* The ThumbHash's wash is dark enough for white text everywhere on its own: no scrim over it, which would shade it from
+   top to foot. */
 .lmpl-afs-bg-hash::after {
-    background: linear-gradient(to bottom, rgb(8 10 14 / 0.28), rgb(8 10 14 / 0.66));
+    content: none;
 }
 
 /* Video: the host's picture in the cover's place, from edge to edge of the screen. */
@@ -2110,23 +2349,48 @@
     background: transparent;
 }
 
-/* The picture's foot, a band that takes a drag as the seek bar does; . */
-.lmpl-afs-scrubzone {
-    position: absolute;
-    z-index: 1;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 56px;
-    touch-action: none;
-}
-
 /* Lyrics in the cover's place: the line being sung bright and large, the rest dim, fading out at both ends. */
 .lmpl-afs-art.lmpl-afs-art-lyrics {
     align-self: stretch;
     width: auto;
     aspect-ratio: auto;
     height: min(78cqw, 42cqh);
+}
+/* The list and, over it, the arrow back to the line being sung. */
+.lmpl-afs-lyricsbox {
+    position: relative;
+    height: 100%;
+}
+.lmpl-afs-lyricsback {
+    position: absolute;
+    left: 50%;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: #eceef0;
+    color: #141619;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+    cursor: pointer;
+    transform: translateX(-50%);
+}
+.lmpl-afs-lyricsback-up {
+    top: 8px;
+}
+.lmpl-afs-lyricsback-down {
+    bottom: 8px;
+}
+.lmpl-afs-lyricsback:active {
+    transform: translateX(-50%) scale(0.92);
+}
+.lmpl-afs-lyricsback:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
 }
 .lmpl-afs-lyrics {
     /* The lines' offsets are read from here, to put the one being sung in the middle. */
@@ -2352,35 +2616,26 @@
         display: none;
     }
 
-    /* The transport stands on the title's left edge, as the column's other lines do; the tools sit opposite it. */
-    .lmpl-afs-transport {
+    /* A video's column: the transport on the left of one line, the tools opposite it. */
+    .lmpl-afs-video .lmpl-afs-transport {
         flex: none;
         justify-content: flex-start;
     }
 
-    .lmpl-afs-tools {
+    .lmpl-afs-video .lmpl-afs-tools {
         flex: 0 1 auto;
         min-width: 0;
-        gap: 6px;
         justify-content: flex-end;
-        margin-inline-end: calc(-8px * var(--lmpl-s));
     }
 
-    /* The tools are smaller and quieter here, under the transport that leads. */
-    .lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn {
-        width: calc(44px * var(--lmpl-s));
-        height: calc(44px * var(--lmpl-s));
-        opacity: 0.85;
+    .lmpl-afs-video .lmpl-afs-tools > .lmpl-afs-tool,
+    .lmpl-afs-video .lmpl-afs-tools > .lmpl-afs-toolcell,
+    .lmpl-afs-video .lmpl-afs-tools > .lmpl-afs-iconbtn {
+        flex: 0 1 calc(64px * var(--lmpl-s, 1));
+        width: calc(64px * var(--lmpl-s, 1));
     }
 
-    .lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn svg,
-    .lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn .media-button-icon {
-        width: calc(26px * var(--lmpl-s));
-        height: calc(26px * var(--lmpl-s));
-    }
-
-    /* The transport and the tools share one line, the tools shrinking before they run off the side. */
-    .lmpl-afs-bottomrow {
+    .lmpl-afs-video .lmpl-afs-bottomrow {
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
@@ -2417,13 +2672,21 @@
         height: calc(40px * var(--lmpl-s));
     }
 
-    .lmpl-root .lmpl-afs-tools .lmpl-afs-iconbtn {
-        width: calc(42px * var(--lmpl-s));
-        height: calc(42px * var(--lmpl-s));
+    .lmpl-afs-chapter {
+        width: calc(36px * var(--lmpl-s));
+        height: calc(36px * var(--lmpl-s));
     }
 
     .lmpl-afs-transport {
         gap: 18px;
+    }
+
+    .lmpl-afs-transport.lmpl-afs-has-chapter-skip {
+        gap: 10px;
+    }
+
+    .lmpl-afs-tools {
+        height: calc(56px * var(--lmpl-s, 1));
     }
 }
 
@@ -2435,15 +2698,20 @@
         align-self: center;
         width: 100%;
         max-width: 1800px;
-        gap: clamp(32px, 3.5cqw, 72px);
-        padding-inline: clamp(32px, 5.5cqw, 120px);
+        gap: clamp(40px, 4.5cqw, 96px);
+        padding-inline: clamp(24px, 3.5cqw, 80px) clamp(32px, 5.5cqw, 120px);
     }
 
+    /* A little smaller and further left than the room allows, so the transport and the tools beside it have air. */
     .lmpl-afs-art,
     .lmpl-afs-art.lmpl-afs-art-lyrics {
         align-self: center;
         flex: none;
-        width: min(36cqw, 62cqh, 720px);
+        width: min(32cqw, 56cqh, 640px);
+    }
+
+    .lmpl-afs-video .lmpl-afs-bottomrow {
+        column-gap: clamp(24px, 3cqw, 64px);
     }
 
     .lmpl-afs-art.lmpl-afs-art-lyrics {
@@ -2671,4 +2939,248 @@
     width: 18px;
     height: 18px;
     flex: none;
+}
+
+/* The end panel over the picture's place: what follows, a ring counting down to it, and the two ways out. */
+.lmpl-afs-endpanel {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px 24px;
+    text-align: center;
+    color: #fff;
+    background: rgb(9 9 11 / 0.78);
+}
+
+.lmpl-afs-endpanel-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.75;
+}
+
+.lmpl-afs-endpanel-title {
+    display: -webkit-box;
+    max-width: 32ch;
+    overflow: hidden;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.lmpl-afs-endpanel-ring {
+    position: relative;
+    display: inline-flex;
+    width: 48px;
+    height: 48px;
+}
+
+.lmpl-afs-endpanel-ring b {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+}
+
+.lmpl-afs-endpanel-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.lmpl-afs-endpanel-btn {
+    min-height: 36px;
+    padding: 0 16px;
+    border: 1px solid rgb(255 255 255 / 0.22);
+    border-radius: 9999px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    background: transparent;
+    cursor: pointer;
+}
+
+.lmpl-afs-endpanel-btn:active {
+    background: rgb(255 255 255 / 0.12);
+}
+
+.lmpl-afs-endpanel-primary {
+    border-color: transparent;
+    color: #111;
+    background: #fff;
+}
+
+.lmpl-afs-endpanel-primary:active {
+    background: rgb(255 255 255 / 0.86);
+}
+
+/* --- Review round: switches, the wide sound layout, no text selection ----------------------------------------- */
+
+/* The player is touched, not read: a long press or a drag never selects its words. */
+.lmpl-root,
+.lmpl-afs,
+.lmpl-browse,
+.lmpl-afs-menu {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.lmpl-root input,
+.lmpl-root textarea {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* The Data Saver row at the quality menu's foot: a switch, not a tick, set apart from the renditions. */
+.lmpl-afs-menuitem.lmpl-afs-menutoggle {
+    gap: 16px;
+}
+
+.lmpl-afs-menuitem + .lmpl-afs-menutoggle {
+    margin-top: 4px;
+    border-top: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: 0 0 8px 8px;
+}
+
+.lmpl-afs-menuitem.lmpl-afs-menutoggle[aria-checked]::after {
+    content: none;
+}
+
+.lmpl-afs-switch {
+    position: relative;
+    flex: none;
+    width: 32px;
+    height: 18px;
+    margin-inline-start: auto;
+    border-radius: 9px;
+    background: rgb(255 255 255 / 0.3);
+    transition: background 150ms ease;
+}
+
+.lmpl-afs-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    transition: translate 150ms ease;
+}
+
+/* On in the app's own toggle colour (Settings' switches, the bar's progress line: Tailwind yellow-500). */
+.lmpl-afs-menutoggle[aria-checked="true"] .lmpl-afs-switch {
+    background: #eab308;
+}
+
+.lmpl-afs-menutoggle[aria-checked="true"] .lmpl-afs-switch::after {
+    translate: 14px 0;
+}
+
+/* Too narrow for the whole transport (with the chapter skips, 296 px): they go, the ±10 and play stay. */
+@container lmpl-afs-column (max-width: 295px) {
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-transport .lmpl-afs-chapter {
+        display: none;
+    }
+}
+
+/* A level above the player's cap (Data Saver) leaves the bar's quality card, as it leaves the player's own list. */
+.lmpl-root media-menu-radio-item[data-lmpl-capped] {
+    display: none !important;
+}
+
+/* A short screen pays for that air from the room under the tools, never from the safe area. */
+@container lmpl-afs (max-aspect-ratio: 6/5) and (max-height: 720px) {
+    .lmpl-afs-main {
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+    }
+}
+
+/* --- The now-playing screen as the native one draws it ----------------------------------------------------------- */
+
+/* Upright: the tools stand a little under the transport. */
+@container lmpl-afs (max-aspect-ratio: 6/5) {
+    .lmpl-afs-bottomrow > .lmpl-afs-tools {
+        margin-top: 8px;
+    }
+}
+
+/*
+ * The sound's screen on its side: the cover (or the lyrics) on the left, and beside it, in the upright screen's order,
+ * the title with autoplay and full screen at its right end, the timeline and its times, then the transport and the
+ * tools, both centred on the timeline. The date and the way to the article are left to the page and the upright screen.
+ */
+@container lmpl-afs (min-aspect-ratio: 6/5) {
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-info {
+        gap: 12px;
+        container: lmpl-afs-column / inline-size;
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-titles {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        column-gap: 8px;
+        min-height: 44px;
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-title {
+        grid-column: 1;
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow-wrap: anywhere;
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-subtitle,
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-chip,
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-undertitle > :not(.lmpl-afs-picturetools) {
+        display: none;
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-undertitle {
+        display: contents;
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-picturetools {
+        grid-column: 2;
+        grid-row: 1;
+        margin-inline: 0 calc(-8px * var(--lmpl-s));
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-controls {
+        gap: 12px;
+        margin-top: 0;
+    }
+
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-bottomrow {
+        flex-direction: column;
+        align-items: stretch;
+        row-gap: 8px;
+    }
+
+    /* As wide as the column and a little past it, as the timeline's ends are, so the cells share the same room. */
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-tools {
+        margin-inline: -8px;
+    }
+}
+
+@container lmpl-afs (min-aspect-ratio: 6/5) and (max-height: 440px) {
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-info,
+    .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-controls {
+        gap: 6px;
+    }
 }

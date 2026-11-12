@@ -1,11 +1,4 @@
-import {
-    computed,
-    effectScope,
-    getCurrentScope,
-    onScopeDispose,
-    watch,
-    type Ref,
-} from "vue";
+import { computed, effectScope, getCurrentScope, onScopeDispose, watch, type Ref } from "vue";
 import { getSocket, isConnected, isSocketConfigured } from "../socket/socketio";
 import { db } from "../db/database";
 import {

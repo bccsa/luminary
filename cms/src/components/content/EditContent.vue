@@ -501,13 +501,13 @@ const contentActions = computed(() => {
             name: "Preview",
             action: () => window.open(liveUrl.value, "_blank"),
             icon: ArrowTopRightOnSquareIcon,
-            iconClass: "h-5 w-5 flex-shrink-0 dark:text-zinc-100",
+            iconClass: "h-5 w-5 flex-shrink-0 dark:text-zinc-100 text-zinc-500",
         },
         {
             name: "Duplicate",
             action: () => (showDuplicateModal.value = true),
             icon: DocumentDuplicateIcon,
-            iconClass: "h-5 w-5 flex-shrink-0 dark:text-zinc-100",
+            iconClass: "h-5 w-5 flex-shrink-0 dark:text-zinc-100 text-zinc-500",
         },
     ];
     if (canDelete.value) {
@@ -675,6 +675,7 @@ watch(isLgScreen, (isLg) => {
                             :disabled="!canEditParent"
                             :newDocument="newDocument"
                             :content="editableContent"
+                            class="border-zinc-200"
                             v-model:parent="editableParent"
                             @updateIsValid="(val) => (parentIsValid = val)"
                         >
@@ -689,6 +690,7 @@ watch(isLgScreen, (isLg) => {
                                             :tagOrPostType="props.tagOrPostType"
                                             :disabled="!canEditParent"
                                             :newDocument="newDocument"
+                                            class="border-zinc-200"
                                             v-model:parent="editableParent"
                                         />
 
@@ -732,6 +734,7 @@ watch(isLgScreen, (isLg) => {
                                 :languages="cmsLanguages"
                                 :untranslatedLanguages="untranslatedLanguages"
                                 :isContentItemDirty="isContentItemDirty"
+                                class="border-zinc-200"
                                 :existingContent="existingContent"
                                 @updateIsValid="(val) => (translationsAreValid = val)"
                                 @create-translation="(language) => createTranslation(language)"
@@ -760,7 +763,7 @@ watch(isLgScreen, (isLg) => {
                 class="flex w-full min-w-0 flex-1 flex-col lg:h-full lg:min-h-0 lg:overflow-hidden"
             >
                 <div
-                    class="flex w-full flex-1 flex-col bg-white dark:border-slate-700 dark:bg-slate-800/30 lg:min-h-0 lg:overflow-hidden lg:border-l lg:border-zinc-200 lg:pr-8"
+                    class="flex w-full flex-1 flex-col bg-white dark:border-slate-700 dark:bg-slate-800/30 lg:min-h-0 lg:overflow-hidden lg:border-l lg:border-zinc-200"
                 >
                     <EmptyState
                         v-if="!selectedContent"

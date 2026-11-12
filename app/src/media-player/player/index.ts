@@ -26,6 +26,8 @@ export {
     previewTimes,
     rosterFineStep,
     rosterStep,
+    rosterTileBox,
+    rosterTileWidth,
     rosterTiles,
     type RosterTile,
 } from "./ui/scrubPreview";
