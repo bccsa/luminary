@@ -209,6 +209,9 @@ defineExpose({
     canPictureInPicture: false,
     airPlayAvailable: false,
     airPlayActive: false,
+    // The embed has no platform screens: an unset flag would read as "not yet known" and hide the page's own.
+    nativeNowPlaying: false,
+    nativeMiniPlayer: false,
     setMuted: youtube.setMuted,
     play: async () => youtube.play(),
     pause: () => youtube.pause(),
