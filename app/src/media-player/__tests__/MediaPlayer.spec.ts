@@ -1792,6 +1792,15 @@ describe("MediaPlayer", () => {
                 classes.filter((c) => c.includes("group-hover") || c.includes("group-focus")),
             ).toEqual([]);
         });
+
+        it("draws the way up's box on the bar's own fill, shading it only while pressed or hovered", async () => {
+            const wrapper = await playing();
+            minimiseMediaPlayer();
+            await flushPromises();
+            await flushPromises();
+            const classes = find(wrapper, "mediaPlayerBarExpandBadge").classes();
+            expect(classes.filter((c) => /^bg-/.test(c))).toEqual([]);
+        });
     });
 
     describe("video drawn behind the page", () => {

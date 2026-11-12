@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { thumbHashToRGBA } from "thumbhash";
+import { rgbaToThumbHash, thumbHashToRGBA } from "thumbhash";
 import cases from "../cases.json";
-import { WASH_CHROMA, WASH_FLATTEN, lpqToRgb, washAt, washAverage, washOf, type WashTone } from "../thumbHashWash";
+import { WASH_CHROMA, WASH_FLATTEN, luma, lpqToRgb, washAt, washAverage, washOf, type WashTone } from "../thumbHashWash";
 
 const bytesOf = (hash: string) => Uint8Array.from(atob(hash), (char) => char.charCodeAt(0));
 
@@ -18,6 +18,25 @@ describe("thumbHashWash", () => {
                 );
             }
         }
+    });
+
+    it("keeps a bright top over a dark foot a gentle shift, not ThumbHash's own hard step", () => {
+        const w = 32;
+        const h = 32;
+        const rgba = new Uint8Array(w * h * 4);
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const v = y < h / 2 ? 240 : 10;
+                rgba.set([v, v, v, 255], (y * w + x) * 4);
+            }
+        }
+        const wash = washOf(rgbaToThumbHash(w, h, rgba))!;
+        const top = luma(...washAt(wash, 0.5, 0.05, wash.aspect));
+        const foot = luma(...washAt(wash, 0.5, 0.95, wash.aspect));
+        // Behind a video only the edges of the wash show: a top many times brighter than the foot reads as a hard
+        // edge there instead of a fade.
+        expect(top).toBeGreaterThan(foot);
+        expect(top / foot).toBeLessThan(2);
     });
 
     it("reads a hash as ThumbHash itself does: its sum, unflattened and unlifted, is ThumbHash's picture", () => {
