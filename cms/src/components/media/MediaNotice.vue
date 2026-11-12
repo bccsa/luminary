@@ -32,8 +32,9 @@ const tone = computed(
     () =>
         ({
             info: "dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-200 bg-zinc-50 border-zinc-200 text-zinc-600",
-            warning: "border-yellow-200 bg-yellow-50 text-yellow-800",
-            error: "border-red-200 bg-red-50 text-red-700",
+            warning:
+                "border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-900 dark:bg-yellow-950/20 dark:text-yellow-400",
+            error: "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/20 dark:text-red-400",
         })[props.state],
 );
 </script>
