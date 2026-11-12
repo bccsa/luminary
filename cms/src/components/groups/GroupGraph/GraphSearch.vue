@@ -4,6 +4,7 @@ import type { GroupDto } from "luminary-shared";
 import LButton from "@/components/button/LButton.vue";
 import LDropdown from "@/components/common/LDropdown.vue";
 import LInput from "@/components/forms/LInput.vue";
+import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 
 const props = defineProps<{ allGroups: GroupDto[] }>();
 const show = defineModel<boolean>("show", { required: true });
@@ -111,7 +112,8 @@ function handleSearchKeydown(event: KeyboardEvent) {
                         ref="searchInput"
                         v-model="searchQuery"
                         name="group-search"
-                        placeholder="Search groups"
+                        :icon="MagnifyingGlassIcon"
+                        placeholder="Search groups..."
                         autocomplete="off"
                         @click.prevent.stop="openSearchDropdown"
                         @focus="openSearchDropdown"
