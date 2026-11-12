@@ -208,7 +208,7 @@ function handleDelete() {
                         type="text"
                         placeholder="My Images or user-uploads"
                         :class="{
-                            'border-red-300':
+                            'border-red-300 dark:border-red-900':
                                 hasFieldError('bucketName') || hasFieldError('bucketNameFormat'),
                         }"
                         @blur="
@@ -244,7 +244,7 @@ function handleDelete() {
                         type="text"
                         placeholder="http://localhost:9000/bucket-name"
                         :class="{
-                            'border-red-300':
+                            'border-red-300 dark:border-red-900':
                                 hasFieldError('publicUrl') || hasFieldError('publicUrlFormat'),
                         }"
                         @blur="
@@ -283,12 +283,14 @@ function handleDelete() {
 
                 <!-- Media encoding (media buckets only) -->
                 <div v-if="isMediaBucket" class="space-y-3" data-test="media-encode-settings">
-                    <label class="block text-xs font-medium text-zinc-700">Media encoding</label>
+                    <label class="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                        Media encoding
+                    </label>
 
                     <div class="flex items-center justify-between pr-2">
                         <div>
-                            <p class="text-sm text-zinc-800">Encrypt media</p>
-                            <p class="text-[11px] text-zinc-500">
+                            <p class="text-sm text-zinc-800 dark:text-zinc-100">Encrypt media</p>
+                            <p class="text-[11px] text-zinc-500 dark:text-zinc-400">
                                 AES-128 encryption for every encode written to this bucket.
                             </p>
                         </div>
@@ -301,8 +303,10 @@ function handleDelete() {
 
                     <div class="flex items-center justify-between pr-2">
                         <div>
-                            <p class="text-sm text-zinc-800">Byte-range segments</p>
-                            <p class="text-[11px] text-zinc-500">
+                            <p class="text-sm text-zinc-800 dark:text-zinc-100">
+                                Byte-range segments
+                            </p>
+                            <p class="text-[11px] text-zinc-500 dark:text-zinc-400">
                                 One chunk file per rendition instead of many small segment files.
                             </p>
                         </div>
@@ -324,7 +328,7 @@ function handleDelete() {
                             :disabled="isLoading"
                             data-test="media-chunk-size"
                         />
-                        <p class="mt-0.5 text-[11px] text-zinc-500">
+                        <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-300">
                             Largest size of one chunk file. Leave empty for the encoder's default.
                         </p>
                     </div>
