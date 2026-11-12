@@ -4,7 +4,10 @@ import { useMobileChromeAutoHide } from "./useMobileChromeAutoHide";
 describe("useMobileChromeAutoHide", () => {
     const chrome = useMobileChromeAutoHide();
 
-    beforeEach(() => chrome.reset());
+    beforeEach(() => {
+        chrome.hold(false);
+        chrome.reset();
+    });
 
     it("stays visible near the top of the page", () => {
         chrome.onScroll(40);
@@ -58,5 +61,26 @@ describe("useMobileChromeAutoHide", () => {
         expect(useMobileChromeAutoHide().hidden.value).toBe(true);
         chrome.reset();
         expect(useMobileChromeAutoHide().hidden.value).toBe(false);
+    });
+
+    it("stays hidden while held, whatever the page scrolls or resets", () => {
+        chrome.hold(true);
+        expect(chrome.hidden.value).toBe(true);
+
+        chrome.onScroll(40);
+        chrome.onScroll(300);
+        chrome.onScroll(100);
+        chrome.reset();
+        expect(chrome.hidden.value).toBe(true);
+    });
+
+    it("shows again when let go, and follows the scroll from then on", () => {
+        chrome.hold(true);
+        chrome.hold(false);
+        expect(chrome.hidden.value).toBe(false);
+
+        chrome.onScroll(100);
+        chrome.onScroll(140);
+        expect(chrome.hidden.value).toBe(true);
     });
 });

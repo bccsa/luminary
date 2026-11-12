@@ -17,6 +17,8 @@ const MIN_RANGE_PX = 480;
 // while the top bar (BasePage) and the bottom menu (App.vue) read the result.
 const hidden = ref(false);
 let lastScrollTop = 0;
+/** Set while something covering the page keeps the chrome away, so the page's own scrolling cannot bring it back. */
+let held = false;
 
 /**
  * Mobile chrome that steps out of the way while reading: hides once the reader scrolls
@@ -28,6 +30,7 @@ export function useMobileChromeAutoHide() {
      * @param remaining distance left to the end of the scroll range, when known
      */
     function onScroll(scrollTop: number, remaining = Infinity) {
+        if (held) return;
         const delta = scrollTop - lastScrollTop;
 
         if (
@@ -46,9 +49,17 @@ export function useMobileChromeAutoHide() {
     }
 
     function reset() {
+        if (held) return;
         hidden.value = false;
         lastScrollTop = 0;
     }
 
-    return { hidden, onScroll, reset };
+    /** Keeps the chrome hidden until let go, which shows it again. */
+    function hold(on: boolean) {
+        if (on === held) return;
+        held = on;
+        hidden.value = on;
+    }
+
+    return { hidden, onScroll, reset, hold };
 }

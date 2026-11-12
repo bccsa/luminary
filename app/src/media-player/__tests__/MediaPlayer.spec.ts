@@ -556,6 +556,17 @@ describe("MediaPlayer", () => {
             });
         });
 
+        it("keeps the status bar away while open on a phone, though the page behind scrolls or changes", async () => {
+            await narrow(async () => {
+                const chrome = useMobileChromeAutoHide();
+                await playing();
+                chrome.onScroll(0);
+                chrome.reset();
+                await flushPromises();
+                expect(chrome.hidden.value).toBe(true);
+            });
+        });
+
         it("leaves the chrome be on a wide screen, where the player is a card in the corner", async () => {
             await wide(async () => {
                 const { hidden } = useMobileChromeAutoHide();
@@ -579,13 +590,28 @@ describe("MediaPlayer", () => {
         });
 
         it("hands the page back with its bars showing when it is minimised", async () => {
-            const { hidden } = useMobileChromeAutoHide();
-            await playing();
-            // The page behind scrolled while the player covered it.
-            hidden.value = true;
-            minimiseMediaPlayer();
-            await flushPromises();
-            expect(hidden.value).toBe(false);
+            await narrow(async () => {
+                const chrome = useMobileChromeAutoHide();
+                await playing();
+                // The page behind scrolled while the player covered it.
+                chrome.onScroll(300);
+                minimiseMediaPlayer();
+                await flushPromises();
+                expect(chrome.hidden.value).toBe(false);
+            });
+        });
+
+        it("hands the bars back when it closes while open on a phone", async () => {
+            await narrow(async () => {
+                const chrome = useMobileChromeAutoHide();
+                await playing();
+                mediaPlayerItem.value = null;
+                await flushPromises();
+                expect(chrome.hidden.value).toBe(false);
+                chrome.onScroll(100);
+                chrome.onScroll(140);
+                expect(chrome.hidden.value).toBe(true);
+            });
         });
 
         it("leaves the chrome to hide and show as the page is read when no player is open", async () => {
