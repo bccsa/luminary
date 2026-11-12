@@ -842,7 +842,7 @@ describe("AudioFullscreen: badges, gear menu, end panel, tool slots", () => {
     it("offers the sound's renditions and the Data Saver switch with sound alone", async () => {
         const wrapper = mountScreen({
             stage: "cover",
-            dataSaver: "light",
+            dataSaver: "off",
             qualities: [
                 { id: "a128", label: "128 kbps" },
                 { id: "a64", label: "64 kbps" },
@@ -853,6 +853,35 @@ describe("AudioFullscreen: badges, gear menu, end panel, tool slots", () => {
         const rows = wrapper.findAll("[role=menu] .lmpl-afs-menuitem").map((row) => row.text());
         expect(rows).toEqual(["Auto", "128 kbps", "64 kbps", "Data saver"]);
         wrapper.unmount();
+    });
+
+    it("hides the sound's bitrates above the lowest under Data Saver, keeping one the viewer holds", async () => {
+        const sound = [
+            { id: "b256000", label: "256 kbps", bandwidth: 256000 },
+            { id: "b128000", label: "128 kbps", bandwidth: 128000 },
+            { id: "b64000", label: "64 kbps", bandwidth: 64000 },
+        ];
+        const rows = async (props: Record<string, unknown>) => {
+            const wrapper = mountScreen({ stage: "cover", qualities: sound, ...props });
+            await find(wrapper, "afsQuality").trigger("click");
+            const text = wrapper.findAll("[role=menu] .lmpl-afs-menuitem").map((row) => row.text());
+            wrapper.unmount();
+            return text;
+        };
+        expect(await rows({ dataSaver: "light" })).toEqual(["Data saver"]);
+        expect(await rows({ dataSaver: "strict", activeQualityId: "b256000" })).toEqual([
+            "Auto",
+            "256 kbps",
+            "64 kbps",
+            "Data saver",
+        ]);
+        expect(await rows({ dataSaver: "off" })).toEqual([
+            "Auto",
+            "256 kbps",
+            "128 kbps",
+            "64 kbps",
+            "Data saver",
+        ]);
     });
 
     it("shows the quality tool with sound alone for the Data Saver switch, though there is one rendition", () => {

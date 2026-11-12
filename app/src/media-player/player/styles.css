@@ -826,8 +826,6 @@
     right: 0;
     overflow: hidden;
     background: #0b0b0d;
-    /* A hairline of light along its top edge, where the timeline rests on it. */
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14);
     pointer-events: none;
     animation: lmpl-roster-in 0.2s ease-out both;
 }
@@ -845,8 +843,17 @@
     left: 0;
     overflow: hidden;
     background: #151518;
-    /* A frame apart from its neighbour, without a gutter that would make the strip look like a grid. */
-    box-shadow: inset -1px 0 0 rgb(0 0 0 / 0.55);
+}
+/* A frame apart from its neighbour, without a gutter that would make the strip look like a grid; over the frame,
+   which fills the tile. */
+.lmpl-roster-tile::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgb(0 0 0 / 0.55);
 }
 
 /* The crop at its own size, scaled to the tile, drawn as a chapter's picture is. */
@@ -860,6 +867,8 @@
 .lmpl-roster-vignette {
     position: absolute;
     inset: 0;
+    /* A hairline of light along the strip's top edge, where the timeline rests on it, over the frames. */
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14);
     background: linear-gradient(
         to bottom,
         rgb(0 0 0 / 0.28),

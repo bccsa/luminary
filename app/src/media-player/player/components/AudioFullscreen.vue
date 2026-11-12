@@ -39,6 +39,7 @@ import {
     bitrateBadge,
     formatMinutes,
     languageBadge,
+    menuQualities,
     qualityBadge,
     sleepMinutesLeft,
     toolGlyphPx,
@@ -655,6 +656,13 @@ const autoPicked = computed(() => !props.activeQualityId || props.activeQualityI
 /** The renditions of what shows: the picture's with video, the sound's (no height) with sound alone. */
 const shownQualities = computed(() =>
     (props.qualities ?? []).filter((quality) => (isVideo.value ? true : !quality.height)),
+);
+const menuRows = computed(() =>
+    menuQualities(
+        shownQualities.value,
+        props.dataSaver !== undefined && props.dataSaver !== "off",
+        autoPicked.value ? undefined : props.activeQualityId,
+    ),
 );
 /** The quality menu: a choice of renditions, or the Data Saver switch at its foot; always with sound alone. */
 const qualityTool = computed(
@@ -1478,7 +1486,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                     :aria-label="messages.qualityLabel"
                                 >
                                     <button
-                                        v-if="shownQualities.length > 1"
+                                        v-if="menuRows.length > 0"
                                         type="button"
                                         role="menuitemradio"
                                         :aria-checked="autoPicked"
@@ -1500,9 +1508,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                         }}
                                     </button>
                                     <button
-                                        v-for="quality in shownQualities.length > 1
-                                            ? shownQualities
-                                            : []"
+                                        v-for="quality in menuRows"
                                         :key="quality.id"
                                         type="button"
                                         role="menuitemradio"

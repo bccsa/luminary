@@ -134,6 +134,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
         }),
         rosterStep: () => 4,
         rosterFineStep: () => 1,
+        rosterTileWidth: (height: number) => height,
         rosterTiles: (time: number) => [{ index: 0, left: 0, time }],
     };
 });

@@ -8,6 +8,8 @@ import {
     previewTimes,
     rosterStep,
     rosterFineStep,
+    rosterTileBox,
+    rosterTileWidth,
     rosterTiles,
 } from "../ui/scrubPreview";
 
@@ -157,5 +159,34 @@ describe("rosterFineStep", () => {
 
     it("never goes finer than the sprite can resolve", () => {
         expect(rosterFineStep(30)).toBe(0.5);
+    });
+});
+
+describe("roster frames line up", () => {
+    // A phone's web view: 2.75 device pixels to a CSS pixel, a 160×90 sprite crop on a 47.5 px strip.
+    const ratio = 2.75;
+    const height = 47.5;
+    const crop = { w: 160, h: 90 };
+
+    it("a frame is the sprite's shape at the strip's height, on whole device pixels, never under 24 px", () => {
+        const width = rosterTileWidth(height, crop.w, crop.h, ratio);
+        expect(width * ratio).toBe(Math.round(width * ratio));
+        expect(Math.abs(width - (height * 16) / 9)).toBeLessThanOrEqual(0.5 / ratio);
+        expect(rosterTileWidth(10, 160, 90, ratio)).toBe(24);
+        expect(rosterTileWidth(90, 0, 0)).toBe(24);
+    });
+
+    it("neighbouring frames meet edge to edge on device pixels, each filling its tile", () => {
+        const tileWidth = rosterTileWidth(height, crop.w, crop.h, ratio);
+        const tiles = rosterTiles(123.4, 187.3, 390, tileWidth, 2, 600);
+        const boxes = tiles.map((tile) => rosterTileBox(tile.left, tileWidth, height, crop, ratio));
+        for (const box of boxes) {
+            expect(box.x * ratio).toBeCloseTo(Math.round(box.x * ratio), 9);
+            expect(crop.w * box.scaleX).toBeCloseTo(tileWidth, 9);
+            expect(crop.h * box.scaleY).toBeCloseTo(height, 9);
+        }
+        for (let i = 1; i < boxes.length; i++) {
+            expect(boxes[i]!.x - boxes[i - 1]!.x).toBeCloseTo(tileWidth, 9);
+        }
     });
 });

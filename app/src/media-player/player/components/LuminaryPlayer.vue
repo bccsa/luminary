@@ -64,6 +64,7 @@ import {
     previewTimes,
     rosterFineStep,
     rosterStep,
+    rosterTileWidth,
     rosterTiles,
 } from "../ui/scrubPreview";
 import { TimelineScrub } from "../ui/timelineScrub";
@@ -1290,7 +1291,7 @@ function buildRoster(
     if (!sample || !sample.w || !sample.h) return null;
     // The roster rises from the bottom edge over the controls, and its frames fill all of that.
     const height = rosterHeight.value + gap;
-    const tileWidth = Math.max(24, Math.round((height * sample.w) / sample.h));
+    const tileWidth = rosterTileWidth(height, sample.w, sample.h, window.devicePixelRatio);
     const markerX = Math.min(width, Math.max(0, pointerX));
     const tiles = rosterTiles(time, markerX, width, tileWidth, step, duration).map((tile) => ({
         // A different step makes the same index a different slot, so the step is part of the identity.

@@ -46,6 +46,7 @@ import {
     previousChapterTime,
     rosterFineStep,
     rosterStep,
+    rosterTileWidth,
     rosterTiles,
     type ScrubPosition,
 } from "@/media-player/player";
@@ -644,7 +645,7 @@ function buildRoster(time: number, markerX: number, step: number, width = pictur
     const sample = instance.thumbnailAt(0);
     if (!sample || !sample.w || !sample.h) return null;
     const height = rosterHeightFor(width);
-    const tileWidth = Math.max(24, Math.round((height * sample.w) / sample.h));
+    const tileWidth = rosterTileWidth(height, sample.w, sample.h, window.devicePixelRatio);
     const tiles = rosterTiles(time, markerX, width, tileWidth, step, duration.value).map(
         (tile) => ({
             // A different step makes the same index a different slot, so the step is part of the identity.

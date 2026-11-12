@@ -99,6 +99,27 @@ export function autoBitrateLabel(
     return `${auto} (${row?.label ?? `${Math.round(playing / 1000)} kbps`})`;
 }
 
+/**
+ * The rows the quality menu offers. Under Data Saver the sound plays only its lowest bitrate, so the sound's other
+ * bitrates are left out, as the picture's heights above the cap are, except the one the viewer holds (`heldId`).
+ * With fewer than two left there is nothing to choose.
+ */
+export function menuQualities<T extends { id: string; height?: number; bandwidth?: number }>(
+    qualities: readonly T[],
+    dataSaver: boolean,
+    heldId: string | undefined,
+): T[] {
+    const sound = qualities.filter((quality) => !quality.height);
+    if (!dataSaver || sound.length < 2) return qualities.length > 1 ? [...qualities] : [];
+    const lowest = sound.reduce((low, quality) =>
+        (quality.bandwidth ?? Infinity) < (low.bandwidth ?? Infinity) ? quality : low,
+    );
+    const kept = qualities.filter(
+        (quality) => !!quality.height || quality === lowest || quality.id === heldId,
+    );
+    return kept.length > 1 ? kept : [];
+}
+
 /** The Auto row says what Auto plays: "Auto (480p)", or plain "Auto" while nothing is drawn. */
 export function autoQualityLabel(auto: string, playing: number | undefined): string {
     return playing ? `${auto} (${playing}p)` : auto;
