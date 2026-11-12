@@ -280,7 +280,7 @@ describe("browse button", () => {
         expect(button.getAttribute("aria-expanded")).toBe("false");
         expect(button.getAttribute("aria-haspopup")).toBe("dialog");
         expect(button.getAttribute("aria-controls")).toBe("p1-browse");
-        expect(button.textContent).toBe("Chapters and up next");
+        expect(button.textContent).toBe("Chapters and More");
     });
 
     it("takes its name from the labels given, escaped", () => {

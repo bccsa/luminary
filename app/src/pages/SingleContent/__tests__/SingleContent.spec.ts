@@ -64,6 +64,17 @@ type ReadingTrackerOptions = Parameters<
 const readingTrackerOptions = vi.hoisted(() => ({
     current: undefined as ReadingTrackerOptions | undefined,
 }));
+const queryRemoteMock = vi.hoisted(() => vi.fn());
+vi.mock("luminary-shared", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("luminary-shared")>();
+    // A proxy, not a spread, so live bindings such as `db` (assigned at init) stay live.
+    return new Proxy(actual, {
+        get: (target, key) =>
+            key === "queryRemote"
+                ? (...args: unknown[]) => queryRemoteMock(...args)
+                : target[key as keyof typeof target],
+    });
+});
 
 vi.mock("@/recommendation/affinityStore", () => ({
     affinityProfile: affinityProfileMock,
@@ -779,6 +790,26 @@ describe("SingleContent", () => {
         await waitForExpect(() => {
             expect(wrapper!.text()).toContain(mockFrenchContentDto.title);
         });
+    });
+
+    it("offers translations in languages that are not downloaded", async () => {
+        await db.docs.delete(mockFrenchContentDto._id);
+        cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
+        queryRemoteMock.mockResolvedValue([mockEnglishContentDto, mockFrenchContentDto]);
+        isConnected.value = true;
+
+        wrapper = mount(SingleContent, { props: { slug: mockEnglishContentDto.slug } });
+
+        await waitForExpect(() => {
+            expect(wrapper!.find("[data-test='translationSelector']").exists()).toBe(true);
+        });
+        expect(queryRemoteMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                selector: {
+                    $and: [{ type: "content" }, { parentId: mockEnglishContentDto.parentId }],
+                },
+            }),
+        );
     });
 
     it("shows the notification when the content is available in the preferred language", async () => {

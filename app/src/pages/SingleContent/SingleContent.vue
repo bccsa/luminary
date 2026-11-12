@@ -417,9 +417,38 @@ const translationsArr = useContentQuery(
 // Published-right-now check compiled to a plain predicate rather than reusing `mangoIsPublished`, which also bakes in single-language-priority selection — wrong here, where the dropdown/hreflang need every published sibling translation. `includeScheduled: false` excludes future-dated "coming soon" translations that aren't readable yet.
 const isPublishedNow = mangoCompile({ $and: publishedNowConditions({ includeScheduled: false }) });
 
+// Sync only downloads the user's chosen languages, and `translationsArr` only asks the API for
+// posts older than the sync window, so siblings in languages that aren't downloaded are fetched here.
+const remoteTranslations = ref<ContentDto[]>([]);
+if (!isPrerender()) {
+    watch(
+        [() => content.value?.parentId, isConnected],
+        async ([parentId, connected], previous) => {
+            if (parentId !== previous?.[0]) remoteTranslations.value = [];
+            if (!parentId || !connected) return;
+            try {
+                const docs = await queryRemote<ContentDto>({
+                    selector: { $and: [{ type: DocType.Content }, { parentId }] },
+                    $sort: [{ publishDate: "desc" }],
+                    use_index: "content-parentId-publishDate-index",
+                    identifier: "translationSiblings",
+                });
+                if (content.value?.parentId === parentId) remoteTranslations.value = docs;
+            } catch {
+                // Offline or a failed request: the switcher falls back to the downloaded translations.
+            }
+        },
+        { immediate: true },
+    );
+}
+
 const availableTranslations = computed<ContentDto[]>(() => {
     if (!content.value) return [];
-    const published = translationsArr.value.filter((c) => isPublishedNow(c));
+    const localIds = new Set(translationsArr.value.map((c) => c._id));
+    const published = [
+        ...translationsArr.value,
+        ...remoteTranslations.value.filter((c) => !localIds.has(c._id)),
+    ].filter((c) => isPublishedNow(c));
     return published.length > 1 ? published : [];
 });
 

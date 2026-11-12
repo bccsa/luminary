@@ -71,6 +71,7 @@ export const availablePermissionsPerDocType = {
         AclPermission.Assign,
         AclPermission.CmsView,
     ],
+    [DocType.DefaultAffinity]: [AclPermission.View, AclPermission.Edit, AclPermission.CmsView],
 };
 
 /**

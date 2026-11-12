@@ -25,6 +25,8 @@ type Exposed = {
     pause(): void;
     seek(seconds: number): void;
     setMuted(muted: boolean): void;
+    nativeNowPlaying?: boolean | null;
+    nativeMiniPlayer?: boolean | null;
 };
 
 const lockLandscape = vi.fn();
@@ -138,6 +140,12 @@ describe("YouTubeWrapper", () => {
             expect(wrapper.find("iframe").exists()).toBe(false);
             expect(wrapper.find("[data-test='youtubeOffline']").exists()).toBe(true);
         });
+    });
+
+    it("says the platform draws no screen of its own for it, so the page shows its own", () => {
+        const exposed = mountEmbed().vm as unknown as Exposed;
+        expect(exposed.nativeNowPlaying).toBe(false);
+        expect(exposed.nativeMiniPlayer).toBe(false);
     });
 
     it("loads straight away for a viewer who always allows it", () => {

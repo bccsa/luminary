@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useSlots, watch } from "vue";
+import {
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    onUpdated,
+    ref,
+    useSlots,
+    watch,
+} from "vue";
 import type {
     Chapter,
     SleepTimerOption,
@@ -24,10 +33,32 @@ import { TimelineScrub } from "../ui/timelineScrub";
 import {
     SLEEP_MINUTES,
     SPEED_OPTIONS,
+    TOOL_CELL_MAX_PX,
+    autoBitrateLabel,
+    autoQualityLabel,
+    bitrateBadge,
     formatMinutes,
+    languageBadge,
+    menuQualities,
+    qualityBadge,
     sleepMinutesLeft,
+    toolGlyphPx,
+    toolLabelPx,
 } from "../ui/audioFullscreen";
 import { nextInstanceId } from "../ui/instanceId";
+import ThumbHashWash from "../../wash/ThumbHashWash.vue";
+import NowPlayingGlyph from "./NowPlayingGlyph.vue";
+import {
+    autoplayOff,
+    autoplayOn,
+    browse as browseGlyph,
+    captionsOff,
+    captionsOn,
+    lyricsCollapse,
+    lyricsExpand,
+    moon,
+    moonFilled,
+} from "../ui/nowPlayingGlyphs";
 
 /**
  * The screen fullscreen becomes when only sound is playing: a now-playing screen, not a picture with controls.
@@ -48,81 +79,112 @@ import { nextInstanceId } from "../ui/instanceId";
  * listener's. `stageHole` leaves that place transparent, for a picture the platform draws behind the page. The
  * `top-end` slot fills the right of the top line (a switch between sound and picture, say).
  */
-const props = defineProps<{
-    title: string;
-    /** The series or collection it belongs to, small, above the title. */
-    eyebrow?: string;
-    /** Who it is by. */
-    subtitle?: string;
-    /** `fallback` is shown in its place if the picture does not load. */
-    artwork: { src?: string; srcset?: string; sizes?: string; fallback?: string } | null;
-    appearance: "light" | "dark";
-    chapters: readonly Chapter[];
-    currentTime: number;
-    duration: number;
-    bufferedEnd?: number;
-    playing: boolean;
-    /** Loading or stuck: the play button turns while the player gets ready, as a video's spinner does. */
-    busy?: boolean;
-    /** A live stream: nothing to skip and no time left to show. */
-    live?: boolean;
-    /** The chapter the playhead is in; -1 for none. */
-    chapterIndex: number;
-    playbackRate: number;
-    /** The video's renditions, for the quality menu; none or one and the menu is not offered. */
-    qualities?: readonly { id: string; label: string }[];
-    /** The rendition held, or `auto` while the player chooses. */
-    activeQualityId?: string;
-    audioTracks: readonly { id: string; label: string }[];
-    activeAudioTrackId: string | null;
-    sleepTimer: SleepTimerState | null;
-    hasBrowse: boolean;
-    skipBackSeconds: number;
-    skipForwardSeconds: number;
-    /** Mask that cuts the timeline at the chapters; empty for one plain bar. */
-    chapterMask: string;
-    messages: PlayerMessages;
-    /** Videos that may follow, for the panel's Up next tab. */
-    upNext?: readonly PlayerUpNextItem[];
-    /** Open the panel for chapters and up next on this screen, instead of asking the host (`open-browse`) to show them. */
-    chaptersSheet?: boolean;
-    /** What takes the picture's place: the cover, or the host's picture (`stage` slot) at full width. */
-    stage?: "cover" | "video";
-    /**
-     * The picture takes the whole screen and nothing else shows: a browser turned sideways, which cannot go full
-     * screen without a tap, has the host's player and its own controls fill the window instead.
-     */
-    fill?: boolean;
-    /** The picture's width over its height, so its place takes the picture's shape; 16:9 when not known. */
-    stageAspect?: number;
-    /** Room under the picture for the host's subtitles. */
-    captionBand?: boolean;
-    /** The words being said now, under the picture, where the host shows subtitles itself. */
-    caption?: string;
-    /** The host draws the picture behind the page, where the stage is: nothing of the screen may cover it there. */
-    stageHole?: boolean;
-    /** The screen's colour in place of the cover blurred: a small picture (a ThumbHash) that is soft once stretched. */
-    wash?: string;
-    /** The chevron's name, where it minimises the player rather than leaving full screen. */
-    exitLabel?: string;
-    subtitleTracks?: readonly { id: string; label: string }[];
-    activeSubtitleTrackId?: string | null;
-    canPictureInPicture?: boolean;
-    /** Offers full screen with sound alone too, among the tools, for a host that has a full screen to take it to. */
-    fullscreenTool?: boolean;
-    /** The host's full screen is open: it is left by an X where a video's full screen has its own, top right. */
-    fullscreenActive?: boolean;
-    /** The words of what plays, timed: offered, with sound alone, as lyrics in the picture's place. */
-    lyrics?: readonly LyricCue[];
-    /** The preview frame at a time, once the thumbnails are in: the chapters' pictures. */
-    thumbnailAt?: (seconds: number) => ThumbnailSpriteCue | null;
-}>();
+const props = withDefaults(
+    defineProps<{
+        title: string;
+        /** The series or collection it belongs to, small, above the title. */
+        eyebrow?: string;
+        /** Who it is by. */
+        subtitle?: string;
+        /** `fallback` is shown in its place if the picture does not load. */
+        artwork: { src?: string; srcset?: string; sizes?: string; fallback?: string } | null;
+        appearance: "light" | "dark";
+        chapters: readonly Chapter[];
+        currentTime: number;
+        duration: number;
+        bufferedEnd?: number;
+        playing: boolean;
+        /** Loading or stuck: the play button turns while the player gets ready, as a video's spinner does. */
+        busy?: boolean;
+        /** A live stream: nothing to skip and no time left to show. */
+        live?: boolean;
+        /** The chapter the playhead is in; -1 for none. */
+        chapterIndex: number;
+        playbackRate: number;
+        /** The video's renditions, for the quality menu; none or one and the menu is not offered. */
+        qualities?: readonly { id: string; label: string; height?: number; bandwidth?: number }[];
+        /** The height of the picture playing now, which is what Auto has picked. */
+        playingHeight?: number;
+        /** The bitrate of the sound playing, with sound alone: what Auto has picked, as `playingHeight` for a picture. */
+        playingBandwidth?: number;
+        /** The rendition held, or `auto` while the player chooses. */
+        activeQualityId?: string;
+        audioTracks: readonly { id: string; label: string; lang?: string }[];
+        activeAudioTrackId: string | null;
+        sleepTimer: SleepTimerState | null;
+        /** The Data Saver level in force: an on / off switch at the foot of the quality menu (on is any level). */
+        dataSaver?: "off" | "light" | "strict";
+        /**
+         * Whether the next video plays by itself at the end: the end panel counts down to it, else only replay shows.
+         * Given, a switch for it stands with the picture tools.
+         */
+        autoplay?: boolean;
+        /** The video's cameras, for the camera menu; one or none and it is not offered. */
+        angles?: readonly { id: string; label: string }[];
+        activeAngleId?: string | null;
+        /** Playback reached the end: the play button replays, and with autoplay the end panel offers `nextUp`. */
+        ended?: boolean;
+        /** The video the end panel counts down to. */
+        nextUp?: PlayerUpNextItem | null;
+        /** The minutes picked for a running minutes timer, so its row is ticked; the timer itself only knows its end. */
+        sleepMinutes?: number | null;
+        hasBrowse: boolean;
+        skipBackSeconds: number;
+        skipForwardSeconds: number;
+        /** Mask that cuts the timeline at the chapters; empty for one plain bar. */
+        chapterMask: string;
+        messages: PlayerMessages;
+        /** Videos that may follow, for the panel's Up next tab. */
+        upNext?: readonly PlayerUpNextItem[];
+        /** Open the panel for chapters and up next on this screen, instead of asking the host (`open-browse`) to show them. */
+        chaptersSheet?: boolean;
+        /** What takes the picture's place: the cover, or the host's picture (`stage` slot) at full width. */
+        stage?: "cover" | "video";
+        /**
+         * The picture takes the whole screen and nothing else shows: a browser turned sideways, which cannot go full
+         * screen without a tap, has the host's player and its own controls fill the window instead.
+         */
+        fill?: boolean;
+        /** The picture's width over its height, so its place takes the picture's shape; 16:9 when not known. */
+        stageAspect?: number;
+        /** Room under the picture for the host's subtitles. */
+        captionBand?: boolean;
+        /** The words being said now, under the picture, where the host shows subtitles itself. */
+        caption?: string;
+        /** The host draws the picture behind the page, where the stage is: nothing of the screen may cover it there. */
+        stageHole?: boolean;
+        /** The item's ThumbHash (base64): the screen's colour, drawn as the wash, in place of the cover blurred. */
+        thumbHash?: string;
+        /** The chevron's name, where it minimises the player rather than leaving full screen. */
+        exitLabel?: string;
+        subtitleTracks?: readonly { id: string; label: string; lang?: string }[];
+        activeSubtitleTrackId?: string | null;
+        canPictureInPicture?: boolean;
+        /** Offers full screen with sound alone too, among the tools, for a host that has a full screen to take it to. */
+        fullscreenTool?: boolean;
+        /** The host's full screen is open: it is left by an X where a video's full screen has its own, top right. */
+        fullscreenActive?: boolean;
+        /** The words of what plays, timed: offered, with sound alone, as lyrics in the picture's place. */
+        lyrics?: readonly LyricCue[];
+        /** The preview frame at a time, once the thumbnails are in: the chapters' pictures. */
+        thumbnailAt?: (seconds: number) => ThumbnailSpriteCue | null;
+    }>(),
+    // Left out, there is no autoplay switch: not read as off, as an absent boolean would be.
+    { autoplay: undefined },
+);
 
 const emit = defineEmits<{
     exit: [];
+    /** The lyrics are opened out over the cover, or put away: someone may be reading them. */
+    lyrics: [shown: boolean];
     /** A menu or the chapters panel is over the screen, or is not any more. */
     covered: [open: boolean];
     "toggle-play": [];
+    /** The play button at the end: from the start again. */
+    replay: [];
+    /** A scrub holding the video still, and handing it back: explicit, so they cannot land the wrong way. */
+    play: [];
+    pause: [];
     /** `exact: false` for skips: the player may land on the nearest keyframe, which shows at once. */
     seek: [time: number, options?: { exact?: boolean }];
     "open-browse": [];
@@ -132,6 +194,9 @@ const emit = defineEmits<{
     "audio-track": [id: string];
     quality: [id: string];
     sleep: [option: SleepTimerOption | null];
+    "data-saver": [level: "off" | "light" | "strict"];
+    autoplay: [on: boolean];
+    angle: [id: string];
     "subtitle-track": [id: string | null];
     "picture-in-picture": [];
     fullscreen: [];
@@ -146,6 +211,7 @@ const isVideo = computed(() => props.stage === "video");
 /** Picture in picture and full screen, whichever apply, beside the line above the seek bar. */
 const pictureTools = computed(
     () =>
+        props.autoplay !== undefined ||
         (isVideo.value && !!props.canPictureInPicture) ||
         ((isVideo.value || !!props.fullscreenTool) && !props.fullscreenActive),
 );
@@ -159,13 +225,15 @@ const lyricsOn = computed(
 // The cover stays in view: the line being said sits under it, and the scrolling lyrics take its place only when asked for.
 const lyricsExpanded = ref(false);
 const showLyrics = computed(() => lyricsOn.value && lyricsExpanded.value);
+watch(showLyrics, (shown) => emit("lyrics", shown), { immediate: true });
+onBeforeUnmount(() => emit("lyrics", false));
 const cueLine = computed(
     () => lyricLines.value[activeLyric(lyricLines.value, props.currentTime)]?.text ?? "",
 );
 // In the cover's place, in a window of any shape, as on a phone.
 const lyricsInStage = showLyrics;
 
-type MenuId = "speed" | "language" | "sleep" | "subtitles" | "quality";
+type MenuId = "speed" | "language" | "sleep" | "subtitles" | "quality" | "camera";
 const menu = ref<MenuId | null>(null);
 const rootEl = ref<HTMLElement | null>(null);
 
@@ -302,11 +370,12 @@ const timelineScrub = new TimelineScrub((effect) => {
             if (stripOpen.value) emit("scrub", null);
             stripOpen.value = false;
             break;
+        // Not toggle-play: `playing` trails the element by an event, and a toggle read off it can land the wrong way.
         case "pause":
-            if (props.playing) emit("toggle-play");
+            emit("pause");
             break;
         case "play":
-            if (!props.playing) emit("toggle-play");
+            emit("play");
             break;
         case "seek":
             holdSeek(effect.time);
@@ -335,9 +404,12 @@ function framesReady(): boolean {
  * which the host drags itself, keeps it open until five seconds after it lifts.
  */
 function onRootDown(event: PointerEvent): void {
+    pressClosesOverlay = timelineScrub.isOpen || menu.value !== null || browseOpen.value;
     if (!timelineScrub.isOpen || !(event.target instanceof Element)) return;
+    // The host's close button for its strip sits in the roster slot but is a press that closes it.
+    if (event.target.closest(".lmpl-afs-stripclose")) return timelineScrub.tappedElsewhere();
     if (event.target.closest(".lmpl-afs-roster-slot")) return timelineScrub.touchBegan();
-    if (event.target.closest(".lmpl-afs-bar, .lmpl-afs-scrubzone")) return;
+    if (event.target.closest(".lmpl-afs-bar")) return;
     if (event.target.closest(".lmpl-afs-playbtn")) return;
     timelineScrub.tappedElsewhere();
 }
@@ -352,9 +424,78 @@ function onRootUp(event: PointerEvent): void {
     }
 }
 
+/** The press under way began with the strip, a menu or the sheet up: it only puts them away. */
+let pressClosesOverlay = false;
+
+/** How far, and how long, a press on the picture may go and still be a tap. */
+const TAP_SLOP_PX = 10;
+const TAP_MS = 500;
+let stageTap: { id: number; x: number; y: number; at: number } | null = null;
+/** A tap on the picture plays or pauses it, as a video's own does; not while it is getting ready or at the end. */
+function onStageDown(event: PointerEvent): void {
+    stageTap =
+        isVideo.value && !props.fill && !pressClosesOverlay
+            ? { id: event.pointerId, x: event.clientX, y: event.clientY, at: event.timeStamp }
+            : null;
+}
+function onStageUp(event: PointerEvent): void {
+    const tap = stageTap;
+    stageTap = null;
+    if (!tap || event.pointerId !== tap.id || event.type !== "pointerup") return;
+    const moved = Math.hypot(event.clientX - tap.x, event.clientY - tap.y);
+    if (moved > TAP_SLOP_PX || event.timeStamp - tap.at > TAP_MS) return;
+    if (props.busy || props.ended) return;
+    emit("toggle-play");
+}
+
 function onPlayButton(): void {
-    if (timelineScrub.isOpen) timelineScrub.playPressed();
+    if (props.ended) {
+        // Played again, the end's offer has been turned down for this video.
+        if (props.nextUp) declinedId.value = props.nextUp.id;
+        emit("replay");
+    } else if (timelineScrub.isOpen) timelineScrub.playPressed();
     else emit("toggle-play");
+}
+
+/** The end panel's countdown, as long as the native screen's. */
+const COUNTDOWN_MS = 5000;
+/** The next video the viewer turned down (Cancel, or replay), or that has been taken already: no countdown for it. */
+const declinedId = ref<string | null>(null);
+const offer = computed(() =>
+    props.ended && props.autoplay && props.nextUp && props.nextUp.id !== declinedId.value
+        ? props.nextUp
+        : null,
+);
+const countdownLeft = ref(COUNTDOWN_MS);
+let countdownTimer: ReturnType<typeof setInterval> | undefined;
+watch(
+    () => offer.value?.id,
+    (id) => {
+        clearInterval(countdownTimer);
+        countdownTimer = undefined;
+        countdownLeft.value = COUNTDOWN_MS;
+        if (!id) return;
+        const startedAt = Date.now();
+        countdownTimer = setInterval(() => {
+            countdownLeft.value = Math.max(0, COUNTDOWN_MS - (Date.now() - startedAt));
+            if (countdownLeft.value === 0) takeOffer();
+        }, 100);
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => clearInterval(countdownTimer));
+const countdownSeconds = computed(() => Math.ceil(countdownLeft.value / 1000));
+/** The ring's stroke still to draw: full at the start, empty at zero. */
+const RING_LENGTH = 2 * Math.PI * 20;
+const ringOffset = computed(() => RING_LENGTH * (1 - countdownLeft.value / COUNTDOWN_MS));
+function takeOffer(): void {
+    const next = offer.value;
+    if (!next) return;
+    declinedId.value = next.id;
+    emit("upnextselect", next.id);
+}
+function cancelOffer(): void {
+    if (offer.value) declinedId.value = offer.value.id;
 }
 
 function onBarDown(event: PointerEvent): void {
@@ -365,20 +506,25 @@ function onBarDown(event: PointerEvent): void {
         timelineScrub.touchBegan();
         return;
     }
+    mouseDownX = event.clientX;
     dragTime.value = timeAt(event.clientX);
     announceScrub(dragTime.value);
 }
+/** Where a mouse's press on the bar came down: one that stays put is a click. */
+let mouseDownX: number | null = null;
 function onBarMove(event: PointerEvent): void {
     if (touchPress && event.pointerId === touchPress.id) {
         if (!touchPress.dragging && Math.abs(event.clientX - touchPress.x) > TOUCH_DRAG_SLOP_PX) {
             touchPress.dragging = true;
-            timelineScrub.dragBegan(framesReady(), props.playing);
+            // A drag is the thick bar with the dragged frame over the picture, never the strip: an open strip goes.
+            if (timelineScrub.mode === "strip") timelineScrub.reset();
+            timelineScrub.dragBegan(false, props.playing);
         }
         if (!touchPress.dragging) return;
     }
     if (dragTime.value === null && !touchPress?.dragging) return;
     dragTime.value = timeAt(event.clientX);
-    announceScrub(dragTime.value, !!touchPress);
+    announceScrub(dragTime.value);
 }
 function onBarUp(event?: PointerEvent): void {
     const press = touchPress;
@@ -390,18 +536,27 @@ function onBarUp(event?: PointerEvent): void {
         }
         const time = dragTime.value;
         dragTime.value = null;
-        // The strip stays up where the finger let go; the thick bar has none to keep.
-        if (stripOpen.value && time !== null) announceScrub(time, true);
-        else emit("scrub", null);
+        emit("scrub", null);
         if (event.type === "pointerup" && time !== null) timelineScrub.dragEnded(time);
         else timelineScrub.dragCancelled();
+        timelineScrub.reset();
         return;
     }
     if (dragTime.value === null) return;
+    const clicked =
+        event?.type === "pointerup" &&
+        mouseDownX !== null &&
+        Math.abs(event.clientX - mouseDownX) <= TOUCH_DRAG_SLOP_PX;
+    mouseDownX = null;
     holdSeek(dragTime.value);
     emit("seek", dragTime.value);
     dragTime.value = null;
     emit("scrub", null);
+    // A click seeks and, with frames, opens the strip there, as a finger's tap opens it; a drag leaves none.
+    if (clicked && framesReady()) {
+        if (timelineScrub.mode === "strip") timelineScrub.reset();
+        timelineScrub.tapped(true);
+    }
 }
 function onBarKey(event: KeyboardEvent): void {
     const step =
@@ -501,8 +656,54 @@ const sleepCaption = computed(() => {
     return props.sleepTimer?.kind === "chapter" ? props.messages.sleepEndOfChapter : "";
 });
 
+const autoPicked = computed(() => !props.activeQualityId || props.activeQualityId === "auto");
+/** The renditions of what shows: the picture's with video, the sound's (no height) with sound alone. */
+const shownQualities = computed(() =>
+    (props.qualities ?? []).filter((quality) => (isVideo.value ? true : !quality.height)),
+);
+const menuRows = computed(() =>
+    menuQualities(
+        shownQualities.value,
+        props.dataSaver !== undefined && props.dataSaver !== "off",
+        autoPicked.value ? undefined : props.activeQualityId,
+    ),
+);
+/** The quality menu: a choice of renditions, or the Data Saver switch at its foot; always with sound alone. */
+const qualityTool = computed(
+    () => shownQualities.value.length > 1 || props.dataSaver !== undefined,
+);
+const qualityBadgeText = computed(() => {
+    const held = autoPicked.value
+        ? undefined
+        : shownQualities.value.find((quality) => quality.id === props.activeQualityId);
+    if (held) {
+        if (held.height) return qualityBadge(held.height, undefined);
+        return bitrateBadge(held.bandwidth) ?? held.label;
+    }
+    if (isVideo.value) return qualityBadge(undefined, props.playingHeight);
+    // With a choice of bitrates, Auto's badge says the one playing, as a picture's says its height.
+    return shownQualities.value.length > 1 ? (bitrateBadge(props.playingBandwidth) ?? "") : "";
+});
+const cameras = computed(() => (isVideo.value ? (props.angles ?? []) : []));
+const subtitlesBadgeText = computed(() =>
+    languageBadge(
+        subtitleTracks.value.find((track) => track.id === props.activeSubtitleTrackId)?.lang,
+    ),
+);
+const languageBadgeText = computed(() =>
+    languageBadge(props.audioTracks.find((track) => track.id === props.activeAudioTrackId)?.lang),
+);
+
 function chooseSleep(option: SleepTimerOption | null): void {
     emit("sleep", option);
+    closeMenu();
+}
+/** On is Light; any level on (Strict included) reads as on, and off turns it off. The menu stays to show the change. */
+function toggleDataSaver(): void {
+    emit("data-saver", props.dataSaver === "off" ? "light" : "off");
+}
+function chooseAngle(id: string): void {
+    emit("angle", id);
     closeMenu();
 }
 function chooseRate(rate: number): void {
@@ -584,7 +785,75 @@ const cover = computed(() => {
     if (!coverFailed.value) return art;
     return art.fallback ? { src: art.fallback } : null;
 });
-const washSrc = computed(() => props.wash || cover.value?.src);
+const washSrc = computed(() => (props.thumbHash ? undefined : cover.value?.src));
+
+/** The cover stays a plain dark square until its picture is in, then fades in, so no stand-in flashes first. */
+const coverLoaded = ref(false);
+watch(
+    () => cover.value?.src,
+    () => (coverLoaded.value = false),
+);
+/** A picture already in the browser's cache can be complete before the listener is there. */
+function coverRef(el: unknown): void {
+    if (el instanceof HTMLImageElement && el.complete && el.naturalWidth > 0)
+        coverLoaded.value = true;
+}
+
+// --- the tools row: equal cells, one label size for the row --------------------------------------------------------
+
+const toolsEl = ref<HTMLElement | null>(null);
+const toolMeasureEl = ref<HTMLElement | null>(null);
+let toolsFit = "";
+/** The row's width as last observed: read from layout only when it is resized, not on every render. */
+let toolsWidth = -1;
+/**
+ * Every cell shares the row's width, no wider than a full cell; the labels take one size, the largest at which the
+ * widest fits its cell, and the glyphs shrink with a narrow cell.
+ */
+function fitTools(): void {
+    const row = toolsEl.value;
+    const probe = toolMeasureEl.value;
+    if (!row || !probe) return;
+    const labels = Array.from(
+        row.querySelectorAll<HTMLElement>(".lmpl-afs-toollabel:not(.lmpl-afs-toolmeasure)"),
+    ).map((label) => label.textContent?.trim() ?? "");
+    // A host's tool without a name (a cast button) still takes a cell; one hidden by its own element takes none.
+    const cells = Array.from(row.children).filter(
+        (child) =>
+            child.matches(".lmpl-afs-tool, .lmpl-afs-toolcell, .lmpl-afs-iconbtn") &&
+            (child as HTMLElement & { checkVisibility?: () => boolean }).checkVisibility?.() !==
+                false,
+    ).length;
+    if (toolsWidth < 0) toolsWidth = row.clientWidth;
+    const width = toolsWidth;
+    const key = `${width}\u0000${cells}\u0000${labels.join("\u0001")}`;
+    if (key === toolsFit || cells === 0) return;
+    toolsFit = key;
+    // The row is drawn at the player's scale; the sizes below are worked out before it.
+    const scale = Number.parseFloat(getComputedStyle(row).getPropertyValue("--lmpl-s")) || 1;
+    const cell = Math.min(TOOL_CELL_MAX_PX, width / scale / cells);
+    let widest = 0;
+    for (const label of labels) {
+        probe.textContent = label;
+        widest = Math.max(widest, probe.getBoundingClientRect().width);
+    }
+    probe.textContent = "";
+    row.style.setProperty("--lmpl-tool-label", `${toolLabelPx(widest, cell, 4)}px`);
+    row.style.setProperty("--lmpl-tool-glyph", `${toolGlyphPx(cell)}px`);
+}
+let toolsObserver: ResizeObserver | null = null;
+onMounted(() => {
+    fitTools();
+    if (typeof ResizeObserver === "undefined" || !toolsEl.value) return;
+    toolsObserver = new ResizeObserver(([entry]) => {
+        toolsWidth = entry?.contentRect.width ?? -1;
+        fitTools();
+    });
+    toolsObserver.observe(toolsEl.value);
+});
+// A tool coming or going, or a label changing language, refits the row; an unchanged row is left alone.
+onUpdated(fitTools);
+onBeforeUnmount(() => toolsObserver?.disconnect());
 </script>
 
 <template>
@@ -617,11 +886,15 @@ const washSrc = computed(() => props.wash || cover.value?.src);
         @click="onClick"
     >
         <!-- The picture, blurred, as the screen's colour: lighter in `light`, darker in `dark`. -->
-        <div class="lmpl-afs-bg" :class="{ 'lmpl-afs-bg-hash': wash }" aria-hidden="true">
+        <div class="lmpl-afs-bg" :class="{ 'lmpl-afs-bg-hash': thumbHash }" aria-hidden="true">
+            <ThumbHashWash
+                v-if="thumbHash"
+                :hash="thumbHash"
+                :tone="appearance === 'light' ? 'light' : 'dark'"
+            />
             <img
-                v-if="washSrc"
+                v-else-if="washSrc"
                 class="lmpl-afs-wash"
-                :class="{ 'lmpl-afs-wash-hash': wash }"
                 :src="washSrc"
                 alt=""
                 draggable="false"
@@ -631,18 +904,17 @@ const washSrc = computed(() => props.wash || cover.value?.src);
 
         <!-- A picture drawn behind the page: the wash is cut out where the picture is, and is the sound's everywhere else. -->
         <div
-            v-if="isVideo && stageHole && washSrc"
+            v-if="isVideo && stageHole && (thumbHash || washSrc)"
             class="lmpl-afs-bg lmpl-afs-bg-low"
-            :class="{ 'lmpl-afs-bg-hash': wash }"
+            :class="{ 'lmpl-afs-bg-hash': thumbHash }"
             aria-hidden="true"
         >
-            <img
-                class="lmpl-afs-wash"
-                :class="{ 'lmpl-afs-wash-hash': wash }"
-                :src="washSrc"
-                alt=""
-                draggable="false"
+            <ThumbHashWash
+                v-if="thumbHash"
+                :hash="thumbHash"
+                :tone="appearance === 'light' ? 'light' : 'dark'"
             />
+            <img v-else class="lmpl-afs-wash" :src="washSrc" alt="" draggable="false" />
         </div>
 
         <div class="lmpl-afs-roster-slot"><slot name="roster"></slot></div>
@@ -705,23 +977,15 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                         v-show="isVideo"
                         class="lmpl-afs-stage"
                         data-test="afsStageSlot"
+                        @pointerdown="onStageDown"
+                        @pointerup="onStageUp"
+                        @pointercancel="onStageUp"
                     >
                         <slot name="stage"></slot>
                     </div>
                     <p v-if="isVideo && caption" class="lmpl-afs-caption" data-test="afsCaption">
                         {{ caption }}
                     </p>
-                    <!-- A drag along the picture's foot scrubs like the bar, for a thumb that lands short of it. Not
-                         when the picture fills the window: the player's own control row sits there. -->
-                    <div
-                        v-if="isVideo && knownDuration && !isLive && !fill"
-                        class="lmpl-afs-scrubzone"
-                        data-test="afsScrubZone"
-                        @pointerdown="onBarDown"
-                        @pointermove="onBarMove"
-                        @pointerup="onBarUp"
-                        @pointercancel="onBarUp"
-                    ></div>
                     <NowPlayingLyrics
                         v-if="lyricsInStage"
                         :lines="lyricLines"
@@ -729,17 +993,21 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                         :playing="playing"
                         :rate="playbackRate"
                         :label="messages.lyrics"
+                        :back-label="messages.backToLine"
                         @seek="emit('seek', $event)"
                     />
                     <img
                         v-else-if="!isVideo && cover?.src"
+                        :ref="coverRef"
                         class="lmpl-afs-cover"
+                        :class="{ 'lmpl-afs-cover-loading': !coverLoaded }"
                         :src="cover.src"
                         :srcset="'srcset' in cover ? cover.srcset : undefined"
                         :sizes="'srcset' in cover && cover.srcset ? artworkSizes : undefined"
                         alt=""
                         draggable="false"
                         data-test="afsCover"
+                        @load="coverLoaded = true"
                         @error="coverFailed = true"
                     />
                     <div
@@ -753,49 +1021,98 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                             />
                         </svg>
                     </div>
-                </div>
-                <div v-if="lyricsOn" class="lmpl-afs-cueline" data-test="afsCueLine">
-                    <span class="lmpl-afs-cuegap" aria-hidden="true"></span>
-                    <p
-                        class="lmpl-afs-cue"
-                        data-test="afsCue"
-                        @click="lyricsExpanded = !lyricsExpanded"
+                    <!-- With subtitles on, the line being said is on the cover, darkened under it, with the button that
+                         opens the lyrics in the cover's place; open, the same button puts them away. -->
+                    <div
+                        v-if="lyricsOn"
+                        class="lmpl-afs-covercue"
+                        :class="{ 'lmpl-afs-covercue-open': lyricsExpanded }"
+                        data-test="afsCoverCue"
                     >
-                        {{ lyricsExpanded ? "" : cueLine }}
-                    </p>
-                    <button
-                        type="button"
-                        class="lmpl-afs-iconbtn lmpl-afs-cuebtn"
-                        :aria-label="messages.lyrics"
-                        :aria-pressed="lyricsExpanded"
-                        data-test="afsLyricsExpand"
-                        @click="lyricsExpanded = !lyricsExpanded"
-                    >
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="18"
-                            height="18"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            aria-hidden="true"
+                        <div v-if="!lyricsExpanded" class="lmpl-afs-covercue-line">
+                            <p
+                                class="lmpl-afs-cue"
+                                data-test="afsCue"
+                                @click="lyricsExpanded = true"
+                            >
+                                {{ cueLine }}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="lmpl-afs-cuebtn"
+                            :aria-label="messages.lyrics"
+                            :aria-pressed="lyricsExpanded"
+                            data-test="afsLyricsExpand"
+                            @click="lyricsExpanded = !lyricsExpanded"
                         >
-                            <path
-                                :d="
-                                    lyricsExpanded
-                                        ? 'M20 9h-5V4M4 15h5v5M15 9l5-5M9 15l-5 5'
-                                        : 'M15 4h5v5M9 20H4v-5M20 4l-6 6M4 20l6-6'
-                                "
+                            <NowPlayingGlyph
+                                :glyph="lyricsExpanded ? lyricsCollapse : lyricsExpand"
+                                :size="20"
                             />
-                        </svg>
-                    </button>
+                        </button>
+                    </div>
+                    <!-- The end, with something to follow: it counts down to it, the ring emptying as it goes. -->
+                    <div
+                        v-if="offer"
+                        class="lmpl-afs-endpanel"
+                        role="group"
+                        :aria-label="messages.nextUp"
+                        data-test="afsEndPanel"
+                    >
+                        <span class="lmpl-afs-endpanel-label">{{ messages.nextUp }}</span>
+                        <span class="lmpl-afs-endpanel-title">{{ offer.title }}</span>
+                        <span class="lmpl-afs-endpanel-ring" aria-hidden="true">
+                            <svg viewBox="0 0 48 48" width="48" height="48">
+                                <circle
+                                    cx="24"
+                                    cy="24"
+                                    r="20"
+                                    fill="none"
+                                    stroke="rgb(255 255 255 / 0.2)"
+                                    stroke-width="3"
+                                />
+                                <circle
+                                    cx="24"
+                                    cy="24"
+                                    r="20"
+                                    fill="none"
+                                    stroke="#fff"
+                                    stroke-width="3"
+                                    stroke-linecap="round"
+                                    :stroke-dasharray="RING_LENGTH"
+                                    :stroke-dashoffset="ringOffset"
+                                    transform="rotate(-90 24 24)"
+                                />
+                            </svg>
+                            <b data-test="afsCountdown">{{ countdownSeconds }}</b>
+                        </span>
+                        <span class="lmpl-afs-endpanel-actions">
+                            <button
+                                type="button"
+                                class="lmpl-afs-endpanel-btn"
+                                data-test="afsEndCancel"
+                                @click="cancelOffer"
+                            >
+                                {{ messages.cancel }}
+                            </button>
+                            <button
+                                type="button"
+                                class="lmpl-afs-endpanel-btn lmpl-afs-endpanel-primary"
+                                data-test="afsEndPlayNow"
+                                @click="takeOffer"
+                            >
+                                {{ messages.playNow }}
+                            </button>
+                        </span>
+                    </div>
                 </div>
             </div>
 
             <div class="lmpl-afs-info">
-                <div class="lmpl-afs-titles">
+                <!-- Behind the host's strip of frames it would show half hidden: it steps away while the strip is up,
+                     and a press where it was only closes the strip. -->
+                <div class="lmpl-afs-titles" :class="{ 'lmpl-afs-titles-away': !!$slots.roster }">
                     <h2 class="lmpl-afs-title" data-test="afsTitle">
                         {{ title }}
                     </h2>
@@ -822,6 +1139,21 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                             class="lmpl-afs-picturetools"
                             data-test="afsPictureTools"
                         >
+                            <button
+                                v-if="autoplay !== undefined"
+                                type="button"
+                                role="switch"
+                                class="lmpl-afs-iconbtn lmpl-afs-autoplay"
+                                :aria-checked="autoplay"
+                                :aria-label="messages.autoplay"
+                                data-test="afsAutoplay"
+                                @click="emit('autoplay', !autoplay)"
+                            >
+                                <NowPlayingGlyph
+                                    :glyph="autoplay ? autoplayOn : autoplayOff"
+                                    :size="24"
+                                />
+                            </button>
                             <button
                                 v-if="isVideo && canPictureInPicture"
                                 type="button"
@@ -936,9 +1268,11 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                 :aria-label="
                                     busy
                                         ? messages.loading
-                                        : playing
-                                          ? messages.pause
-                                          : messages.play
+                                        : ended
+                                          ? messages.replay
+                                          : playing
+                                            ? messages.pause
+                                            : messages.play
                                 "
                                 :aria-busy="busy ? 'true' : undefined"
                                 data-test="afsPlay"
@@ -959,6 +1293,19 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                     data-test="afsSpinner"
                                 >
                                     <path d="M12 3a9 9 0 1 1-9 9" />
+                                </svg>
+                                <svg
+                                    v-else-if="ended"
+                                    viewBox="0 0 24 24"
+                                    width="30"
+                                    height="30"
+                                    fill="currentColor"
+                                    aria-hidden="true"
+                                    data-test="afsReplayIcon"
+                                >
+                                    <path
+                                        d="M12 5V2.2a.5.5 0 0 0-.85-.35L7.4 5.6a.5.5 0 0 0 0 .7l3.75 3.75A.5.5 0 0 0 12 9.7V7a6 6 0 1 1-6 6 1 1 0 1 0-2 0 8 8 0 1 0 8-8Z"
+                                    />
                                 </svg>
                                 <media-icon
                                     v-else-if="playing"
@@ -998,20 +1345,30 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                             ></button>
                         </div>
 
-                        <div class="lmpl-afs-tools" data-afs-tools>
+                        <!-- Labelled cells of one width (at most a full cell), sharing the row as the app's bottom menu
+                             does. Every cell keeps the badge's room over its glyph, so the glyphs stand level. -->
+                        <div ref="toolsEl" class="lmpl-afs-tools" data-afs-tools>
                             <div class="lmpl-afs-tool">
                                 <button
                                     type="button"
-                                    class="lmpl-afs-iconbtn"
+                                    class="lmpl-afs-toolcell"
                                     :aria-label="messages.speedLabel"
                                     :aria-expanded="menu === 'speed'"
                                     aria-haspopup="menu"
                                     data-test="afsSpeed"
                                     @click="toggleMenu('speed')"
                                 >
-                                    <media-icon name="speed" class="media-button-icon"></media-icon>
-                                    <span v-if="playbackRate !== 1" class="lmpl-afs-badge">{{
-                                        speedText(playbackRate)
+                                    <span class="lmpl-afs-toolbadge">
+                                        <span v-if="playbackRate !== 1" class="lmpl-afs-badge">{{
+                                            speedText(playbackRate)
+                                        }}</span>
+                                    </span>
+                                    <media-icon
+                                        name="speed"
+                                        class="media-button-icon lmpl-afs-toolglyph"
+                                    ></media-icon>
+                                    <span class="lmpl-afs-toollabel">{{
+                                        messages.speedShort
                                     }}</span>
                                 </button>
                                 <div
@@ -1034,30 +1391,31 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                 </div>
                             </div>
 
-                            <div
-                                v-if="isVideo && (qualities?.length ?? 0) > 1"
-                                class="lmpl-afs-tool"
-                            >
+                            <div v-if="qualityTool" class="lmpl-afs-tool">
                                 <button
                                     type="button"
-                                    class="lmpl-afs-iconbtn"
+                                    class="lmpl-afs-toolcell"
                                     :aria-label="messages.qualityLabel"
                                     :aria-expanded="menu === 'quality'"
                                     aria-haspopup="menu"
                                     data-test="afsQuality"
                                     @click="toggleMenu('quality')"
                                 >
+                                    <span class="lmpl-afs-toolbadge">
+                                        <span
+                                            v-if="qualityBadgeText"
+                                            class="lmpl-afs-badge"
+                                            data-test="afsQualityBadge"
+                                            >{{ qualityBadgeText }}</span
+                                        >
+                                    </span>
                                     <media-icon
                                         name="switches"
-                                        class="media-button-icon"
+                                        class="media-button-icon lmpl-afs-toolglyph"
                                     ></media-icon>
-                                    <span
-                                        v-if="activeQualityId && activeQualityId !== 'auto'"
-                                        class="lmpl-afs-badge"
-                                        >{{
-                                            qualities?.find((q) => q.id === activeQualityId)?.label
-                                        }}</span
-                                    >
+                                    <span class="lmpl-afs-toollabel">{{
+                                        messages.qualityLabel
+                                    }}</span>
                                 </button>
                                 <div
                                     v-if="menu === 'quality'"
@@ -1066,19 +1424,29 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                     :aria-label="messages.qualityLabel"
                                 >
                                     <button
+                                        v-if="menuRows.length > 0"
                                         type="button"
                                         role="menuitemradio"
-                                        :aria-checked="
-                                            !activeQualityId || activeQualityId === 'auto'
-                                        "
+                                        :aria-checked="autoPicked"
                                         class="lmpl-afs-menuitem"
                                         data-test="afsQualityAuto"
                                         @click="chooseQuality('auto')"
                                     >
-                                        {{ messages.qualityAuto }}
+                                        {{
+                                            isVideo
+                                                ? autoQualityLabel(
+                                                      messages.qualityAuto,
+                                                      playingHeight,
+                                                  )
+                                                : autoBitrateLabel(
+                                                      messages.qualityAuto,
+                                                      playingBandwidth,
+                                                      shownQualities,
+                                                  )
+                                        }}
                                     </button>
                                     <button
-                                        v-for="quality in qualities"
+                                        v-for="quality in menuRows"
                                         :key="quality.id"
                                         type="button"
                                         role="menuitemradio"
@@ -1088,40 +1456,17 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                     >
                                         {{ quality.label }}
                                     </button>
-                                </div>
-                            </div>
-
-                            <div v-if="audioTracks.length > 1" class="lmpl-afs-tool">
-                                <button
-                                    type="button"
-                                    class="lmpl-afs-iconbtn"
-                                    :aria-label="messages.audioMenuLabel"
-                                    :aria-expanded="menu === 'language'"
-                                    aria-haspopup="menu"
-                                    data-test="afsLanguage"
-                                    @click="toggleMenu('language')"
-                                >
-                                    <media-icon
-                                        name="language"
-                                        class="media-button-icon"
-                                    ></media-icon>
-                                </button>
-                                <div
-                                    v-if="menu === 'language'"
-                                    class="lmpl-afs-menu"
-                                    role="menu"
-                                    :aria-label="messages.audioMenuLabel"
-                                >
                                     <button
-                                        v-for="track in audioTracks"
-                                        :key="track.id"
+                                        v-if="dataSaver !== undefined"
                                         type="button"
-                                        role="menuitemradio"
-                                        :aria-checked="track.id === activeAudioTrackId"
-                                        class="lmpl-afs-menuitem"
-                                        @click="chooseTrack(track.id)"
+                                        role="menuitemcheckbox"
+                                        :aria-checked="dataSaver !== 'off'"
+                                        class="lmpl-afs-menuitem lmpl-afs-menutoggle"
+                                        data-test="afsDataSaver"
+                                        @click="toggleDataSaver"
                                     >
-                                        {{ track.label }}
+                                        {{ messages.dataSaver }}
+                                        <span class="lmpl-afs-switch" aria-hidden="true"></span>
                                     </button>
                                 </div>
                             </div>
@@ -1129,7 +1474,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                             <div v-if="!isVideo" class="lmpl-afs-tool">
                                 <button
                                     type="button"
-                                    class="lmpl-afs-iconbtn"
+                                    class="lmpl-afs-toolcell"
                                     :aria-label="messages.sleepTimer"
                                     :aria-expanded="menu === 'sleep'"
                                     aria-haspopup="menu"
@@ -1137,27 +1482,22 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                     data-test="afsSleep"
                                     @click="toggleMenu('sleep')"
                                 >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        width="22"
-                                        height="22"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="1.8"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        aria-hidden="true"
-                                    >
-                                        <path
-                                            d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"
-                                        />
-                                    </svg>
-                                    <span
-                                        v-if="sleepCaption"
-                                        class="lmpl-afs-badge"
-                                        data-test="afsSleepCaption"
-                                        >{{ sleepCaption }}</span
-                                    >
+                                    <span class="lmpl-afs-toolbadge">
+                                        <span
+                                            v-if="sleepCaption"
+                                            class="lmpl-afs-badge"
+                                            data-test="afsSleepCaption"
+                                            >{{ sleepCaption }}</span
+                                        >
+                                    </span>
+                                    <NowPlayingGlyph
+                                        class="lmpl-afs-toolglyph"
+                                        :glyph="sleepTimer ? moonFilled : moon"
+                                        :data-glyph="sleepTimer ? 'moonFilled' : 'moon'"
+                                    />
+                                    <span class="lmpl-afs-toollabel">{{
+                                        messages.sleepShort
+                                    }}</span>
                                 </button>
                                 <div
                                     v-if="menu === 'sleep'"
@@ -1180,6 +1520,10 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                         :key="minutes"
                                         type="button"
                                         role="menuitemradio"
+                                        :aria-checked="
+                                            sleepTimer?.kind === 'minutes' &&
+                                            sleepMinutes === minutes
+                                        "
                                         class="lmpl-afs-menuitem"
                                         :data-test="`afsSleep${minutes}`"
                                         @click="chooseSleep({ kind: 'minutes', minutes })"
@@ -1200,44 +1544,99 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                 </div>
                             </div>
 
-                            <div v-if="!isVideo && subtitleTracks.length > 0" class="lmpl-afs-tool">
+                            <div v-if="audioTracks.length > 1" class="lmpl-afs-tool">
                                 <button
                                     type="button"
-                                    class="lmpl-afs-iconbtn"
-                                    :class="{ 'lmpl-afs-on': showLyrics }"
-                                    :aria-label="messages.lyrics"
+                                    class="lmpl-afs-toolcell"
+                                    :aria-label="messages.audioMenuLabel"
+                                    :aria-expanded="menu === 'language'"
+                                    aria-haspopup="menu"
+                                    data-test="afsLanguage"
+                                    @click="toggleMenu('language')"
+                                >
+                                    <span class="lmpl-afs-toolbadge">
+                                        <span
+                                            v-if="languageBadgeText"
+                                            class="lmpl-afs-badge"
+                                            data-test="afsLanguageBadge"
+                                            >{{ languageBadgeText }}</span
+                                        >
+                                    </span>
+                                    <media-icon
+                                        name="language"
+                                        class="media-button-icon lmpl-afs-toolglyph"
+                                    ></media-icon>
+                                    <span class="lmpl-afs-toollabel">{{
+                                        messages.audioMenuLabel
+                                    }}</span>
+                                </button>
+                                <div
+                                    v-if="menu === 'language'"
+                                    class="lmpl-afs-menu"
+                                    role="menu"
+                                    :aria-label="messages.audioMenuLabel"
+                                >
+                                    <button
+                                        v-for="track in audioTracks"
+                                        :key="track.id"
+                                        type="button"
+                                        role="menuitemradio"
+                                        :aria-checked="track.id === activeAudioTrackId"
+                                        class="lmpl-afs-menuitem"
+                                        @click="chooseTrack(track.id)"
+                                    >
+                                        {{ track.label }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Subtitles, and with sound alone the lyrics: one tool, named for what it shows. -->
+                            <div v-if="subtitleTracks.length > 0" class="lmpl-afs-tool">
+                                <button
+                                    type="button"
+                                    class="lmpl-afs-toolcell"
+                                    :class="{ 'lmpl-afs-on': activeSubtitleTrackId }"
+                                    :aria-label="
+                                        isVideo ? messages.subtitlesMenuLabel : messages.lyrics
+                                    "
                                     :aria-expanded="menu === 'subtitles'"
                                     aria-haspopup="menu"
-                                    data-test="afsLyricsLanguage"
+                                    :data-test="isVideo ? 'afsSubtitles' : 'afsLyricsLanguage'"
                                     @click="toggleMenu('subtitles')"
                                 >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        width="22"
-                                        height="22"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="1.8"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        aria-hidden="true"
-                                    >
-                                        <path d="M4 6h16M4 10h10M4 14h16M4 18h7" />
-                                        <circle cx="18" cy="18" r="2" />
-                                    </svg>
+                                    <span class="lmpl-afs-toolbadge">
+                                        <span
+                                            v-if="subtitlesBadgeText"
+                                            class="lmpl-afs-badge"
+                                            data-test="afsSubtitlesBadge"
+                                            >{{ subtitlesBadgeText }}</span
+                                        >
+                                    </span>
+                                    <NowPlayingGlyph
+                                        class="lmpl-afs-toolglyph"
+                                        :glyph="activeSubtitleTrackId ? captionsOn : captionsOff"
+                                        :data-glyph="
+                                            activeSubtitleTrackId ? 'captionsOn' : 'captionsOff'
+                                        "
+                                    />
+                                    <span class="lmpl-afs-toollabel">{{
+                                        isVideo ? messages.subtitlesMenuLabel : messages.lyrics
+                                    }}</span>
                                 </button>
                                 <div
                                     v-if="menu === 'subtitles'"
                                     class="lmpl-afs-menu"
                                     role="menu"
-                                    :aria-label="messages.lyrics"
+                                    :aria-label="
+                                        isVideo ? messages.subtitlesMenuLabel : messages.lyrics
+                                    "
                                 >
                                     <button
                                         type="button"
                                         role="menuitemradio"
                                         :aria-checked="!activeSubtitleTrackId"
                                         class="lmpl-afs-menuitem"
-                                        data-test="afsLyricsOff"
+                                        :data-test="isVideo ? 'afsSubtitlesOff' : 'afsLyricsOff'"
                                         @click="chooseSubtitles(null)"
                                     >
                                         {{ messages.subtitlesOff }}
@@ -1256,50 +1655,50 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                                 </div>
                             </div>
 
-                            <div v-if="isVideo && subtitleTracks.length > 0" class="lmpl-afs-tool">
+                            <div v-if="cameras.length > 1" class="lmpl-afs-tool">
                                 <button
                                     type="button"
-                                    class="lmpl-afs-iconbtn"
-                                    :class="{ 'lmpl-afs-on': activeSubtitleTrackId }"
-                                    :aria-label="messages.subtitlesMenuLabel"
-                                    :aria-expanded="menu === 'subtitles'"
+                                    class="lmpl-afs-toolcell"
+                                    :aria-label="messages.cameraLabel"
+                                    :aria-expanded="menu === 'camera'"
                                     aria-haspopup="menu"
-                                    data-test="afsSubtitles"
-                                    @click="toggleMenu('subtitles')"
+                                    data-test="afsCamera"
+                                    @click="toggleMenu('camera')"
                                 >
-                                    <media-icon
-                                        :name="
-                                            activeSubtitleTrackId ? 'captions-on' : 'captions-off'
-                                        "
-                                        class="media-button-icon"
-                                    ></media-icon>
+                                    <span class="lmpl-afs-toolbadge"></span>
+                                    <svg
+                                        class="lmpl-afs-toolglyph"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.8"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <rect x="2.5" y="6" width="13" height="12" rx="2" />
+                                        <path d="M15.5 10.5l6-3.5v10l-6-3.5" />
+                                    </svg>
+                                    <span class="lmpl-afs-toollabel">{{
+                                        messages.cameraLabel
+                                    }}</span>
                                 </button>
                                 <div
-                                    v-if="menu === 'subtitles'"
+                                    v-if="menu === 'camera'"
                                     class="lmpl-afs-menu"
                                     role="menu"
-                                    :aria-label="messages.subtitlesMenuLabel"
+                                    :aria-label="messages.cameraLabel"
                                 >
                                     <button
+                                        v-for="camera in cameras"
+                                        :key="camera.id"
                                         type="button"
                                         role="menuitemradio"
-                                        :aria-checked="!activeSubtitleTrackId"
+                                        :aria-checked="camera.id === activeAngleId"
                                         class="lmpl-afs-menuitem"
-                                        data-test="afsSubtitlesOff"
-                                        @click="chooseSubtitles(null)"
+                                        @click="chooseAngle(camera.id)"
                                     >
-                                        {{ messages.subtitlesOff }}
-                                    </button>
-                                    <button
-                                        v-for="track in subtitleTracks"
-                                        :key="track.id"
-                                        type="button"
-                                        role="menuitemradio"
-                                        :aria-checked="track.id === activeSubtitleTrackId"
-                                        class="lmpl-afs-menuitem"
-                                        @click="chooseSubtitles(track.id)"
-                                    >
-                                        {{ track.label }}
+                                        {{ camera.label }}
                                     </button>
                                 </div>
                             </div>
@@ -1311,24 +1710,22 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                             <button
                                 v-if="hasBrowse"
                                 type="button"
-                                class="lmpl-afs-iconbtn"
+                                class="lmpl-afs-toolcell"
                                 :aria-label="messages.browse"
                                 data-test="afsBrowse"
                                 @click="openChapters()"
                             >
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    width="22"
-                                    height="22"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.8"
-                                    stroke-linecap="round"
-                                    aria-hidden="true"
-                                >
-                                    <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />
-                                </svg>
+                                <span class="lmpl-afs-toolbadge"></span>
+                                <NowPlayingGlyph class="lmpl-afs-toolglyph" :glyph="browseGlyph" />
+                                <span class="lmpl-afs-toollabel">{{
+                                    chapters.length > 0 ? messages.chapters : messages.more
+                                }}</span>
                             </button>
+                            <span
+                                ref="toolMeasureEl"
+                                class="lmpl-afs-toollabel lmpl-afs-toolmeasure"
+                                aria-hidden="true"
+                            ></span>
                         </div>
                     </div>
                 </div>

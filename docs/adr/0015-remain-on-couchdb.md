@@ -85,7 +85,7 @@ We address the server-side indexing/query-performance concerns **within CouchDB*
 - **Index-design audit** — ensure no hot `/query` path falls back to an unindexed scan;
   continue using partial indexes (`partial_filter_selector`) where selective.
 - **Extend server-side response caching** for hard-to-index query classes, building on the
-  mechanism introduced in ADR 0011 (server-side response caching for content queries).
+  mechanism introduced in ADR 0017 (server-side response caching for content queries).
 
 We explicitly **do not** adopt CouchDB Nouveau: our offline-compatible trigram FTS already
 covers full-text search, and Nouveau is a server-side engine that would not work offline.
@@ -114,5 +114,5 @@ backed into via a migration.
 - ADR 0002 — Monorepo (server tier is `api/`, the only affected package here).
 - ADR 0005 — Backwards compatibility (client protocol unaffected either way).
 - ADR 0009 — Server-side FTS indexing (our offline trigram FTS; why Nouveau is not needed).
-- ADR 0011 — Server-side response caching for hard-to-index content queries (the in-place perf lever).
 - ADR 0012 — CMS reactive reads via HybridQuery (a live-query consumer of the change feed).
+- ADR 0017 — Server-side response caching for hard-to-index content queries (the in-place perf lever).

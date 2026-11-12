@@ -15,7 +15,7 @@ import {
     shareImageUrl,
 } from "@/composables/useSocialShare";
 import { useBucketInfo } from "@/composables/useBucketInfo";
-import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import { dataSaverOn } from "@/globalConfig";
 import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
 import { publicUrl } from "@/seo/publicSite";
 import TelegramIcon from "@/components/icons/TelegramIcon.vue";
@@ -77,8 +77,7 @@ async function prepareShareImage(url: string) {
 
 // A reader who has asked for less data (or is on a slow link) gets the text-only share the
 // curated targets already send; the link preview still carries the image.
-const mayPrefetchImage = () =>
-    !isSlowConnection.value && !userDataSaverEnabled.value && !isDataSaverEnabled();
+const mayPrefetchImage = () => !isSlowConnection.value && !dataSaverOn.value;
 
 watch(
     () =>

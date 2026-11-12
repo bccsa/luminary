@@ -20,6 +20,7 @@ import {
 } from "vue";
 import {
     AUDIO_ONLY_ANGLE_ID,
+    findPreferredTrack,
     isYouTubeUrl,
     type PlayerSource,
 } from "@luminary-media-converter/player-web";
@@ -28,14 +29,9 @@ import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "@/components/images/LImage.vue";
 import { usePlayerMessages } from "@/media-player/usePlayerMessages";
 import YouTubeWrapper from "./YouTubeWrapper.vue";
+import { warmFetch, warmPlaylists } from "./playlistWarm";
 import { isYouTubeLink } from "@/util/youtube";
-import {
-    appLanguagesPreferredAsRef,
-    isDarkTheme,
-    isDataSaverEnabled,
-    queryParams,
-    userDataSaverEnabled,
-} from "@/globalConfig";
+import { appLanguagesPreferredAsRef, isDarkTheme, queryParams, dataSaverOn } from "@/globalConfig";
 import {
     connectionSpeed,
     hasMeasuredConnectionSpeed,
@@ -45,6 +41,8 @@ import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { ensureUserActivity } from "@/userActivity/store";
 import { fallbackArtworkDataUrl } from "@/util/fallbackArtwork";
+import { deviceOnline, offlineArtworkDataUrl } from "./cachedArtwork";
+import { audioLanguageFor, audioLanguagePreference } from "./audioLanguage";
 import { resolveMediaSource, mediaSourceFor } from "@/util/mediaSource";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { createMediaWatchTracker } from "@/recommendation/mediaWatchTracker";
@@ -52,6 +50,8 @@ import { shareImageUrl } from "@/composables/useSocialShare";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import type {
     VideoNowPlaying,
+    VideoNowPlayingAction,
+    VideoMiniPlayerAction,
     VideoPlayerHandle,
 } from "@/build-time/contracts/video-player/contract";
 
@@ -82,7 +82,14 @@ type Props = {
 };
 
 const props = defineProps<Props>();
-const emit = defineEmits<{ upnextselect: [id: string]; nextupselect: [id: string] }>();
+const emit = defineEmits<{
+    upnextselect: [id: string];
+    nextupselect: [id: string];
+    /** What the platform's own now-playing screen asks of the page. */
+    nowplayingaction: [action: VideoNowPlayingAction, value?: string];
+    /** What the viewer did on the platform's own minimised player. */
+    miniplayeraction: [action: VideoMiniPlayerAction];
+}>();
 
 /**
  * The player's own strings, in the language of the app: the web and the native player take the
@@ -90,6 +97,11 @@ const emit = defineEmits<{ upnextselect: [id: string]; nextupselect: [id: string
  * to fill in with its own interval.
  */
 const playerMessages = usePlayerMessages();
+
+function passNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
+    if (value === undefined) emit("nowplayingaction", action);
+    else emit("nowplayingaction", action, value);
+}
 
 // The browser's player when no service is provided: a component mounted on its own.
 const videoPlayer = inject(VideoPlayerKey, {
@@ -120,12 +132,31 @@ const fallbackArtworkUrl = ref<string | undefined>(undefined);
  * What the lock screen shows, for a player that shows one: the title, and the
  * post's image, the one a share of it would carry.
  */
-const nowPlaying = computed<VideoNowPlaying>(() => ({
-    title: props.content.title,
-    ...(props.content.author ? { subtitle: props.content.author } : {}),
-    artworkUrl: shareImageUrl(props.content, imageBucketBaseUrl.value),
-    ...(fallbackArtworkUrl.value ? { fallbackArtworkUrl: fallbackArtworkUrl.value } : {}),
-}));
+const nowPlaying = computed<VideoNowPlaying>(() => {
+    // Offline, native cannot fetch from the bucket: the picture goes as data, from what the browser holds.
+    const artworkUrl = deviceOnline.value
+        ? shareImageUrl(props.content, imageBucketBaseUrl.value)
+        : offlineArtwork.value;
+    return {
+        title: props.content.title,
+        ...(props.content.author ? { subtitle: props.content.author } : {}),
+        ...(artworkUrl ? { artworkUrl } : {}),
+        ...(fallbackArtworkUrl.value ? { fallbackArtworkUrl: fallbackArtworkUrl.value } : {}),
+    };
+});
+/** The post's picture as data while the device is offline; see {@link offlineArtworkDataUrl}. */
+const offlineArtwork = ref<string | undefined>(undefined);
+watch(
+    [deviceOnline, () => props.content?._id, imageBucketBaseUrl],
+    async ([online]) => {
+        offlineArtwork.value = undefined;
+        const content = props.content;
+        if (online || !content) return;
+        const made = await offlineArtworkDataUrl(content, imageBucketBaseUrl.value);
+        if (props.content?._id === content._id && !deviceOnline.value) offlineArtwork.value = made;
+    },
+    { immediate: true },
+);
 /**
  * What the browser player's full-screen audio screen names: the title, who it is by, and the cover.
  * The native player draws its own, from `nowPlaying` above.
@@ -143,13 +174,15 @@ const webNowPlaying = computed(() => ({
  * Taken when this component is created: a player swapped to the next video keeps it.
  */
 const controllerOptions = {
-    prefetch: { enabled: !(userDataSaverEnabled.value || isDataSaverEnabled()) },
+    prefetch: { enabled: !dataSaverOn.value },
+    // The playlists warmed beside the key (see `warmPlaylists`) are answered from memory.
+    fetchImpl: warmFetch,
 };
 const playerExtras = computed(() => ({
     controllerOptions,
     // Saving data, the scrub frames are fetched as they are reached rather than ahead; the player itself
     // holds back while only sound plays.
-    lazyThumbnails: userDataSaverEnabled.value || isDataSaverEnabled(),
+    lazyThumbnails: dataSaverOn.value,
     ...(videoPlayer.acceptsNowPlaying
         ? { nowPlaying: nowPlaying.value }
         : { nowPlaying: webNowPlaying.value, appearance: isDarkTheme.value ? "dark" : "light" }),
@@ -192,13 +225,31 @@ const keyHex = ref<string | undefined>(undefined);
 /**
  * The language to select among the stream's audio tracks.
  *
- * The prop wins when the caller sets one; otherwise the viewer's first preferred
- * app language. The player matches leniently — two- and three-letter codes, both
- * ISO-639-2 sets — because browsers disagree about how they spell a track's
- * language.
+ * The language the viewer last switched the audio to wins where this stream has it; else the prop when the caller
+ * sets one, else the viewer's first preferred app language. The player matches leniently — two- and three-letter
+ * codes, both ISO-639-2 sets — because browsers disagree about how they spell a track's language.
  */
-const preferredLanguage = computed(
-    () => props.language || appLanguagesPreferredAsRef.value[0]?.languageCode || undefined,
+const preferredLanguage = computed(() =>
+    audioLanguageFor(
+        player.value?.state?.audioTracks ?? [],
+        props.language || appLanguagesPreferredAsRef.value[0]?.languageCode || undefined,
+    ),
+);
+/**
+ * A track picked among those on offer that is not the preferred one is the viewer's switch (in the page's menus or
+ * the platform's): its language is remembered for the items after. A new list's active track is the stream's default.
+ */
+watch(
+    [
+        () => player.value?.state?.activeAudioTrackId ?? null,
+        () => player.value?.state?.audioTracks,
+    ] as const,
+    ([id, tracks], [, before]) => {
+        if (!id || !tracks?.length || tracks !== before) return;
+        if (id === findPreferredTrack(tracks, preferredLanguage.value ?? "")) return;
+        const lang = tracks.find((track) => track.id === id)?.lang;
+        if (lang) audioLanguagePreference.value = lang;
+    },
 );
 
 /**
@@ -237,8 +288,28 @@ const startAngleId = ref<string | undefined>(undefined);
  * be neither chosen by ABR nor picked by hand. Low enough to be cheap, high enough to be watchable.
  */
 const DATA_SAVER_MAX_HEIGHT = 360;
-/** The cap this content loads with: fixed per content, because a cap only takes effect on a load. */
+/** Below this, a position is not worth resuming and is not recorded. */
+const MIN_RESUME_SECONDS = 60;
+/** Resuming lands slightly before where the viewer left, to re-establish context. */
+const RESUME_REWIND_SECONDS = 30;
+/** Where a part-watched video picks up, read when it opens; undefined from the start or once finished. */
+function resumePoint(): number | undefined {
+    const id = mediaId.value;
+    if (!id || !props.content) return undefined;
+    const progress = getMediaProgress(id, props.content._id);
+    return progress > MIN_RESUME_SECONDS && !isMediaFinished(id, props.content._id)
+        ? progress - RESUME_REWIND_SECONDS
+        : undefined;
+}
+/**
+ * The saved position the first load starts from. Loaded there, not sought to after the start: a seek during the
+ * start drew the first frame at 0 and could leave the player paused there.
+ */
+const resumeAt = ref<number | undefined>(undefined);
+/** The cap this content loads with: a cap only takes effect on a load, so a change of it reloads the content. */
 const maxHeight = ref<number | undefined>(undefined);
+/** The cap changed mid-play: the reload carries on where it was, playing if it was, on the angle it was on. */
+const preservePosition = ref(false);
 /**
  * The measured connection in bits per second, for the player's ABR to start from; absent until a
  * real reading exists. Fixed per content as well: a probe finishing mid-play must not reload it.
@@ -283,6 +354,57 @@ function thumbnailSidecar(masterUrl: string): { url: string } | undefined {
  * loaded, fails, and is loaded again.
  */
 const keyResolved = ref(false);
+/**
+ * Keys already handed over this session, by media: a video opened again (from More, or back from another) loads
+ * without waiting on the server for a key it already has. Only a key that arrived is kept, so a failure asks again.
+ */
+const keys = new Map<string, string>();
+async function keyFor(parentId: string): Promise<string | undefined> {
+    const known = keys.get(parentId);
+    if (known) return known;
+    const key = await fetchHlsKey(parentId);
+    if (key) keys.set(parentId, key);
+    return key;
+}
+/** What the player's ABR starts from when nothing better is known: one megabit, a phone's slow-but-working start. */
+const FALLBACK_BANDWIDTH_BPS = 1_000_000;
+/**
+ * The connection speed the player starts from, always given: the app's own measure, else the browser's (`downlink`,
+ * in Mbit/s), else {@link FALLBACK_BANDWIDTH_BPS}. A native engine with no hint would use a table of its own, and
+ * where it starts has to match what the page expects it to.
+ */
+function startingBandwidth(): number {
+    if (hasMeasuredConnectionSpeed.value) return Math.round(connectionSpeed.value * 1_000_000);
+    const downlink = (navigator as Navigator & { connection?: { downlink?: number } }).connection
+        ?.downlink;
+    return downlink && downlink > 0 ? Math.round(downlink * 1_000_000) : FALLBACK_BANDWIDTH_BPS;
+}
+/** How long a load waits for the stand-in artwork before going without it. */
+const ARTWORK_WAIT_MS = 150;
+const delay = (ms: number) =>
+    new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), ms));
+
+/**
+ * Data Saver is a 360p cap. Where the engine holds it in place (hls.js on the web, ExoPlayer), it moves at once with
+ * the setting: on, ABR stays beneath it and the qualities above it leave the list; off, it goes, Auto is set and ABR
+ * climbs. A quality picked by hand stands while it is on.
+ */
+watch([dataSaverOn, () => player.value?.controller ?? null] as const, ([on, controller]) => {
+    controller?.setMaxHeight?.(on ? DATA_SAVER_MAX_HEIGHT : null);
+});
+
+/**
+ * Where the engine cannot hold the cap in place: Data Saver turned off mid-play lifts it by loading the same content
+ * again in place, on the angle it is on. False when there was nothing to lift that way.
+ */
+function liftDataSaverCap(): boolean {
+    if (player.value?.controller?.canCapInPlace) return false;
+    if (maxHeight.value === undefined || dataSaverOn.value || !props.content) return false;
+    startAngleId.value = player.value?.state?.activeAngleId ?? startAngleId.value;
+    preservePosition.value = true;
+    maxHeight.value = undefined;
+    return true;
+}
 
 const source = computed<PlayerSource | null>(() => {
     const url = mediaSource.value;
@@ -292,6 +414,10 @@ const source = computed<PlayerSource | null>(() => {
         keyHex: keyHex.value,
         startAngleId: startAngleId.value,
         maxHeight: maxHeight.value,
+        // Held in place where the engine can, so the setting moves it with no reload.
+        maxHeightInPlace: true,
+        ...(preservePosition.value ? { preservePosition: true } : {}),
+        ...(resumeAt.value !== undefined ? { startPosition: resumeAt.value } : {}),
         bandwidthEstimate: bandwidthEstimate.value,
         sidecars: { chapters: chapterSidecars(url), thumbnails: thumbnailSidecar(url) },
     };
@@ -305,16 +431,18 @@ watch(
         fallbackArtworkUrl.value = undefined;
         const contentId = props.content?._id;
         const artwork = fallbackArtworkDataUrl(props.content?.parentId);
+        // The playlists are fetched while the key is, rather than after it.
+        const masterUrl = mediaSource.value;
+        if (masterUrl && !isYouTubeUrl(masterUrl)) warmPlaylists(masterUrl);
         startAngleId.value = props.startAudio ? AUDIO_ONLY_ANGLE_ID : undefined;
-        maxHeight.value =
-            userDataSaverEnabled.value || isDataSaverEnabled() ? DATA_SAVER_MAX_HEIGHT : undefined;
-        bandwidthEstimate.value = hasMeasuredConnectionSpeed.value
-            ? Math.round(connectionSpeed.value * 1_000_000)
-            : undefined;
+        maxHeight.value = dataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : undefined;
+        preservePosition.value = false;
+        resumeAt.value = resumePoint();
+        bandwidthEstimate.value = startingBandwidth();
         try {
             const parentId = props.content?.parentId;
             if (parentId && props.content?.parentMedia?.hlsKey_id) {
-                keyHex.value = await fetchHlsKey(parentId);
+                keyHex.value = await keyFor(parentId);
             }
         } catch (error) {
             // A key that cannot be had is the same as no key, as above: the player is
@@ -327,13 +455,56 @@ watch(
         } finally {
             // A question that cannot be answered is still answered: leaving this false
             // holds `source` at null, and the viewer gets a poster and no player at all.
-            const made = await artwork;
+            // The stand-in artwork goes with the load when it is quick; a slow one (up to its own give-up time) must
+            // not hold the video back, so it follows as an update of what plays.
+            const made = await Promise.race([artwork, delay(ARTWORK_WAIT_MS)]);
             // Another post may have taken the player while this one was being made.
-            if (props.content?._id === contentId) fallbackArtworkUrl.value = made;
+            if (props.content?._id === contentId) {
+                if (made) fallbackArtworkUrl.value = made;
+                else
+                    void artwork.then((late) => {
+                        if (late && props.content?._id === contentId)
+                            fallbackArtworkUrl.value = late;
+                    });
+            }
             keyResolved.value = true;
         }
     },
     { immediate: true },
+);
+
+/**
+ * The key could not be had when the video opened (offline, or the server was away), so every load would fail for
+ * want of it. It is asked for again when the network comes back, and when the player fails without it (its "Try
+ * again"); a key that arrives makes a new source, which the player loads.
+ */
+const keyMissing = () =>
+    keyResolved.value &&
+    !keyHex.value &&
+    !!props.content?.parentId &&
+    !!props.content?.parentMedia?.hlsKey_id;
+let keyRefetch: Promise<void> | null = null;
+function refetchKey(): void {
+    if (!keyMissing() || keyRefetch) return;
+    const contentId = props.content?._id;
+    const parentId = props.content!.parentId;
+    keyRefetch = keyFor(parentId)
+        .then((key) => {
+            if (key && props.content?._id === contentId) keyHex.value = key;
+        })
+        .catch(() => {
+            // Still out of reach: the next way back (online, or another try) asks again.
+        })
+        .finally(() => (keyRefetch = null));
+}
+const onOnline = () => refetchKey();
+onMounted(() => window.addEventListener("online", onOnline));
+onBeforeUnmount(() => window.removeEventListener("online", onOnline));
+watch(
+    () => player.value?.state?.lifecycle,
+    (lifecycle) => {
+        if (lifecycle === "error") refetchKey();
+    },
 );
 
 /**
@@ -397,9 +568,6 @@ function applyCompletion() {
     void ensureUserActivity({ type: "viewed", parentId: props.content.parentId });
 }
 
-/** Below this, a position is not worth resuming and is not recorded. */
-const MIN_RESUME_SECONDS = 60;
-
 /** Each save rewrites localStorage and re-renders every progress tile, so `timeupdate`'s rate is too often. */
 const PROGRESS_SAVE_INTERVAL_SECONDS = 10;
 type ProgressPoint = { mediaId: string; contentId: string; time: number; duration: number };
@@ -454,9 +622,6 @@ watch(
     { immediate: true },
 );
 
-/** Resuming lands slightly before where the viewer left, to re-establish context. */
-const RESUME_REWIND_SECONDS = 30;
-
 /**
  * Where the video starts (the saved position, playing on its own) is for the first load only. The
  * player loads again for another angle, audio or video, or after a recovery, and those keep the
@@ -482,9 +647,10 @@ function onLoadedMetadata() {
     if (startHandled) return;
     startHandled = true;
 
-    const progress = getMediaProgress(id, props.content._id);
-    if (progress > MIN_RESUME_SECONDS && !isMediaFinished(id, props.content._id)) {
-        player.value?.seek(progress - RESUME_REWIND_SECONDS);
+    // The player loads from the saved position (`startPosition`); YouTube's frame is told where to go.
+    if (youtubeUrl.value) {
+        const resume = resumePoint();
+        if (resume !== undefined) player.value?.seek(resume);
     }
 
     // A video hosted by YouTube plays in its own frame, started by the viewer, in the page: it neither
@@ -500,7 +666,7 @@ function onLoadedMetadata() {
     }
 }
 
-defineExpose({ player, inlineActive });
+defineExpose({ player, inlineActive, liftDataSaverCap });
 
 function onTimeUpdate(currentTime: number, duration: number) {
     // The video being swapped out is still playing while the next one's key is fetched.
@@ -635,6 +801,8 @@ function onEnded() {
                 @upnextselect="emit('upnextselect', $event)"
                 @nextupselect="onNextUpSelect"
                 @nextupdismiss="nextUpDismissed = true"
+                @nowplayingaction="passNowPlayingAction"
+                @miniplayeraction="emit('miniplayeraction', $event)"
             />
         </div>
     </div>
