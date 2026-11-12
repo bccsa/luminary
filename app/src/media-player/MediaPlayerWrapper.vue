@@ -18,6 +18,7 @@ import {
     shallowRef,
     watch,
 } from "vue";
+import { useI18n } from "vue-i18n";
 import {
     AUDIO_ONLY_ANGLE_ID,
     findPreferredTrack,
@@ -530,6 +531,30 @@ watch(
 );
 const playingThisContent = () => heldContentId.value === props.content?._id;
 
+// Kept below the source watchers: reading `mediaSource` before them changes the order they run in, and the held
+// source would take a new content's URL before its key is in.
+const { t } = useI18n();
+
+// Generous enough that a bucket still syncing on a cold load isn't mistaken for one the viewer can't read.
+const BUCKET_WAIT_MS = 8000;
+
+/** Whether the content has a source that the viewer's synced storage buckets can't resolve. */
+const unresolvable = computed(() => !!mediaSourceFor(props.content) && !mediaSource.value);
+const showUnavailable = ref(false);
+let unavailableTimer: ReturnType<typeof setTimeout> | undefined;
+
+watch(
+    unresolvable,
+    (stuck) => {
+        clearTimeout(unavailableTimer);
+        showUnavailable.value = false;
+        if (stuck)
+            unavailableTimer = setTimeout(() => (showUnavailable.value = true), BUCKET_WAIT_MS);
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => clearTimeout(unavailableTimer));
+
 /**
  * The video is drawn behind the page here: the poster would only cover it. Not while the previous
  * video is still the one loaded, or its last picture would show through under the next one's cover.
@@ -804,6 +829,14 @@ function onEnded() {
                 @nowplayingaction="passNowPlayingAction"
                 @miniplayeraction="emit('miniplayeraction', $event)"
             />
+            <div
+                v-else-if="showUnavailable"
+                class="absolute inset-0 flex items-center justify-center bg-black/70 p-6 text-center text-sm text-white md:text-base"
+                role="alert"
+                data-test="video-unavailable"
+            >
+                {{ t("content.video_unavailable") }}
+            </div>
         </div>
     </div>
 </template>
