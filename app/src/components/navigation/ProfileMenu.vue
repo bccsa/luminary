@@ -23,7 +23,7 @@ import {
     ChevronRightIcon,
 } from "@heroicons/vue/24/outline";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
-import { appLanguageAsRef } from "@/globalConfig";
+import { appLanguageAsRef, isMobileScreen } from "@/globalConfig";
 import {
     showPrivacyPolicyModal,
     useAuthWithPrivacyPolicy,
@@ -69,6 +69,12 @@ const navigationItems = computed(() => getNavigationItems(t));
 const { isSearchOpen, openSearch } = useSearchOverlay();
 const { isUpdateAvailable, applyUpdate } = useAppUpdate();
 const isItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.value;
+
+// The search modal is desktop-only; mobile gets the /search page, as from the bottom menu.
+const onSearchClick = () => {
+    if (isMobileScreen.value) router.push({ name: "search" });
+    else openSearch();
+};
 
 const showOfflineNotification = () => {
     useNotificationStore().addNotification({
@@ -392,7 +398,7 @@ const sidebarNavigation = computed(() =>
                             : 'text-zinc-600 dark:text-slate-100'
                     "
                     @click="
-                        openSearch();
+                        onSearchClick();
                         close();
                     "
                 >
