@@ -1734,6 +1734,8 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
  */
 const known = (key: string, params?: Record<string, string>): string | undefined =>
     te(key) ? (params ? t(key, params) : t(key)) : undefined;
+/** A page string the language may not have yet: its English shows rather than the bare key. */
+const textOr = (key: string, english: string): string => (te(key) ? t(key) : english);
 /** The screen's own words; the player adds those it shares with its other controls. */
 const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
     Object.fromEntries(
@@ -3444,11 +3446,16 @@ function onKeydown(event: KeyboardEvent) {
     </template>
     <LDialog
         v-model:open="strictVideoAsk"
-        :title="t('media_player.strict_video_title')"
-        :description="t('media_player.strict_video_description')"
+        :title="textOr('media_player.strict_video_title', 'Watch the video?')"
+        :description="
+            textOr(
+                'media_player.strict_video_description',
+                'Data saver is on Strict, which plays the sound only. Watching the video sets data saver to Light: the video plays at a low quality.',
+            )
+        "
         :primaryAction="confirmStrictVideo"
-        :primaryButtonText="t('media_player.strict_video_confirm')"
+        :primaryButtonText="textOr('media_player.strict_video_confirm', 'Watch video')"
         :secondaryAction="() => (strictVideoAsk = false)"
-        :secondaryButtonText="t('media_player.cancel')"
+        :secondaryButtonText="textOr('media_player.cancel', 'Cancel')"
     />
 </template>

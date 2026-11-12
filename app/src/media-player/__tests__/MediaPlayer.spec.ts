@@ -8,6 +8,7 @@ import { dataSaverLevel, subtitlePreference, userDataSaverEnabled } from "@/glob
 import { isPlayerSwap, clearSwaps } from "@/util/playerSwap";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import MediaPlayer from "../MediaPlayer.vue";
+import LDialog from "@/components/common/LDialog.vue";
 import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 import { ScreenWakeKey } from "@/build-time/contracts/screen-wake/token";
 import {
@@ -439,6 +440,22 @@ describe("MediaPlayer", () => {
         userDataSaverEnabled.value = true;
         await playing();
         expect(engine.props.startAudio).toBe(true);
+    });
+
+    it("asks before the picture under strict Data Saver, in English where the language lacks the words", async () => {
+        userDataSaverEnabled.value = true;
+        const wrapper = await playing();
+        engine.state.activeAngleId = AUDIO;
+        await flushPromises();
+        await find(wrapper, "mediaPlayerVideo").trigger("click");
+        await flushPromises();
+
+        const ask = wrapper.findComponent(LDialog);
+        expect(ask.props("open")).toBe(true);
+        expect(ask.props("title")).toBe("Watch the video?");
+        expect(ask.props("primaryButtonText")).toBe("Watch video");
+        expect(ask.props("secondaryButtonText")).toBe("Cancel");
+        expect(engine.controller.setAngle).not.toHaveBeenCalledWith("angle_0");
     });
 
     describe("Data Saver mid-play", () => {
@@ -1639,6 +1656,12 @@ describe("MediaPlayer", () => {
             screen(wrapper).vm.$emit("lyrics", true);
             await flushPromises();
             expect(screenWake.setKeepAwake).toHaveBeenLastCalledWith(true);
+            engine.state.playing = false;
+            await flushPromises();
+            expect(screenWake.setKeepAwake).toHaveBeenLastCalledWith(false);
+            engine.state.playing = true;
+            await flushPromises();
+            expect(screenWake.setKeepAwake).toHaveBeenLastCalledWith(true);
             screen(wrapper).vm.$emit("lyrics", false);
             await flushPromises();
             expect(screenWake.setKeepAwake).toHaveBeenLastCalledWith(false);
@@ -1656,12 +1679,6 @@ describe("MediaPlayer", () => {
             await flushPromises();
             expect(subtitlePreference.value).toEqual({ on: true, lang: "fr" });
             engine.state.activeSubtitleTrackId = null;
-            engine.state.playing = false;
-            await flushPromises();
-            expect(screenWake.setKeepAwake).toHaveBeenLastCalledWith(false);
-            engine.state.playing = true;
-            await flushPromises();
-            expect(screenWake.setKeepAwake).toHaveBeenLastCalledWith(true);
             await flushPromises();
             expect(subtitlePreference.value).toEqual({ on: false, lang: "fr" });
         });

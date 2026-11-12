@@ -79,10 +79,18 @@ vi.mock("@/router", () => ({
     isExternalNavigation: vi.fn(),
 }));
 
+// Keys a test takes out, as a language document older than the app lacks them.
+const missingKeys = vi.hoisted(() => new Set<string>());
 vi.mock("vue-i18n", () => ({
-    useI18n: () => ({
-        t: (key: string) => (mockLanguageDtoEng.translations as Record<string, string>)[key] || key,
-    }),
+    useI18n: () => {
+        const te = (key: string) =>
+            !missingKeys.has(key) && key in (mockLanguageDtoEng.translations as object);
+        return {
+            t: (key: string) =>
+                te(key) ? (mockLanguageDtoEng.translations as Record<string, string>)[key] : key,
+            te,
+        };
+    },
 }));
 
 const mountSettingsPage = () =>
@@ -210,6 +218,30 @@ describe("SettingsPage data saver", () => {
         expect(wrapper.find("[data-test='dataSaverLevelDescription']").text()).toContain(
             "sound only",
         );
+    });
+
+    it("shows its English where the language does not have the words yet, not the bare keys", async () => {
+        // The title and the slow-connection note are older than the levels, so every language has them.
+        const keys = Object.keys(mockLanguageDtoEng.translations).filter(
+            (key) =>
+                key.startsWith("settings.data_saver.") &&
+                !["settings.data_saver.title", "settings.data_saver.slow_connection_note"].includes(
+                    key,
+                ),
+        );
+        keys.forEach((key) => missingKeys.add(key));
+        try {
+            const wrapper = mountSettingsPage();
+            await wrapper.find("[data-test='dataSaverLevel-strict']").trigger("click");
+            expect(wrapper.text()).not.toMatch(/settings\.(data_saver|autoplay)\./);
+            expect(wrapper.find("[data-test='dataSaverLevel-strict']").text()).toBe("Strict");
+            expect(wrapper.find("[data-test='dataSaverLevelDescription']").text()).toContain(
+                "sound only",
+            );
+            expect(wrapper.text()).toContain("When a video ends");
+        } finally {
+            keys.forEach((key) => missingKeys.delete(key));
+        }
     });
 
     it("lets the viewer choose where subtitles go: under the video by default, or over it", async () => {

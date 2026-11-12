@@ -26,7 +26,9 @@ import { triggerSync } from "@/sync";
 import { markPageReady } from "@/util/renderState";
 import { clearUserActivity } from "@/userActivity/store";
 
-const { t } = useI18n();
+const { t, te } = useI18n();
+/** A string the language may not have yet: its English shows rather than the bare key. */
+const textOr = (key: string, english: string): string => (te(key) ? t(key) : english);
 
 onMounted(async () => {
     await nextTick();
@@ -41,10 +43,29 @@ const deviceInfo = getDeviceInfo();
 const { connectionSpeed, isSlowConnection } = useNetworkSpeedEstimator();
 const browserDataSaverEnabled = isDataSaverEnabled();
 const dataSaverLevels: DataSaverLevel[] = ["off", "light", "strict"];
+const dataSaverEnglish: Record<DataSaverLevel, { name: string; description: string }> = {
+    off: { name: "Off", description: "Videos and images in full quality." },
+    light: {
+        name: "Light",
+        description: "Videos play in their lowest quality, and images are lighter.",
+    },
+    strict: {
+        name: "Strict",
+        description:
+            "As Light, and videos start with the sound only. You can switch to the picture at any time.",
+    },
+};
+const dataSaverName = (level: DataSaverLevel) =>
+    textOr(`settings.data_saver.${level}`, dataSaverEnglish[level].name);
+const dataSaverDescription = (level: DataSaverLevel) =>
+    textOr(`settings.data_saver.${level}_description`, dataSaverEnglish[level].description);
 const dataSaverNote = computed(() => {
     // The device's own Data Saver stands in until a level is chosen here.
     if (browserDataSaverEnabled && dataSaverLevel.value === null) {
-        return t("settings.data_saver.browser_note");
+        return textOr(
+            "settings.data_saver.browser_note",
+            "Your device's Data Saver is on, so Light is used until you choose a level here.",
+        );
     }
     if (isSlowConnection.value && effectiveDataSaverLevel.value === "off") {
         return t("settings.data_saver.slow_connection_note");
@@ -150,7 +171,12 @@ const deleteLocalData = async () => {
             </LCard>
             <LCard :title="t('settings.data_saver.title')">
                 <div class="text-sm text-zinc-600 dark:text-slate-100">
-                    {{ t("settings.data_saver.description") }}
+                    {{
+                        textOr(
+                            "settings.data_saver.description",
+                            "Choose how much data to save. Images also get lighter by themselves on slow connections.",
+                        )
+                    }}
                 </div>
                 <div
                     class="mt-3 inline-flex rounded-full bg-zinc-100 p-1 dark:bg-slate-700"
@@ -173,14 +199,14 @@ const deleteLocalData = async () => {
                         :data-test="`dataSaverLevel-${level}`"
                         @click="dataSaverLevel = level"
                     >
-                        {{ t(`settings.data_saver.${level}`) }}
+                        {{ dataSaverName(level) }}
                     </button>
                 </div>
                 <div
                     class="mt-2 text-sm text-zinc-600 dark:text-slate-100"
                     data-test="dataSaverLevelDescription"
                 >
-                    {{ t(`settings.data_saver.${effectiveDataSaverLevel}_description`) }}
+                    {{ dataSaverDescription(effectiveDataSaverLevel) }}
                 </div>
                 <div
                     v-if="dataSaverNote"
@@ -190,10 +216,15 @@ const deleteLocalData = async () => {
                     {{ dataSaverNote }}
                 </div>
             </LCard>
-            <LCard :title="t('settings.autoplay.title')">
+            <LCard :title="textOr('settings.autoplay.title', 'Autoplay')">
                 <div class="flex items-center justify-between gap-4">
                     <div class="text-sm text-zinc-600 dark:text-slate-100">
-                        {{ t("settings.autoplay.description") }}
+                        {{
+                            textOr(
+                                "settings.autoplay.description",
+                                "When a video ends, play the next one by itself after a short countdown.",
+                            )
+                        }}
                     </div>
                     <LToggle v-model="autoplayNext" data-test="autoplayToggle" />
                 </div>
