@@ -99,6 +99,12 @@ export function openMediaPlayer(
     mediaPlayerView.value = "expanded";
 }
 
+/**
+ * How long the player stays minimised before it drops the picture nobody sees: long enough that a glance at the
+ * page and back does not cost the picture a rebuffer.
+ */
+export const MINI_AUDIO_DELAY_MS = 5000;
+
 export function minimiseMediaPlayer(): void {
     if (mediaPlayerItem.value) mediaPlayerView.value = "mini";
 }
