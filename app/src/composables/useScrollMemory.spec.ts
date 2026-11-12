@@ -184,7 +184,7 @@ describe("useScrollMemory", () => {
             expect(second.el.style.visibility).toBe("");
         });
 
-        it("shows the page after 200ms even if the position is still out of reach", async () => {
+        it("gives up after 200ms and shows the page, even if the position is still out of reach", async () => {
             const second = setUp();
             mountPage(second.el, "/a");
 
@@ -193,10 +193,21 @@ describe("useScrollMemory", () => {
             await vi.advanceTimersByTimeAsync(1);
             expect(second.el.style.visibility).toBe("");
 
-            // The restore carries on behind the visible page.
             second.setHeight(1000);
-            await vi.advanceTimersByTimeAsync(100);
-            expect(second.el.scrollTop).toBe(600);
+            await vi.advanceTimersByTimeAsync(500);
+            expect(second.el.scrollTop).toBe(0);
+        });
+
+        it("does not pull the page back once the reader has scrolled after it was shown", async () => {
+            const second = setUp();
+            mountPage(second.el, "/a");
+            await vi.advanceTimersByTimeAsync(200);
+
+            second.setHeight(1000);
+            second.scrollTo(50); // keyboard or scrollbar: no wheel or touch event
+            await vi.advanceTimersByTimeAsync(500);
+
+            expect(second.el.scrollTop).toBe(50);
         });
 
         it("shows the page as soon as the reader scrolls", () => {

@@ -3,9 +3,8 @@ import { useRoute } from "vue-router";
 import { localCacheVersion } from "@/globalConfig";
 
 const RESTORE_RETRY_MS = 50;
-const RESTORE_MAX_ATTEMPTS = 40;
-// Longest the page stays hidden while waiting for the position to become reachable.
-const HIDE_MAX_MS = 200;
+// Longest a restore waits for the position to become reachable; the page stays hidden meanwhile.
+const RESTORE_MAX_MS = 200;
 
 // In-memory on purpose: positions only matter within one session of navigating around.
 const positions = new Map<string, number>();
@@ -53,7 +52,7 @@ export function useScrollMemory(scroller: Ref<HTMLElement | undefined>) {
     let restoring = false;
     let wasDeactivated = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    let revealTimer: ReturnType<typeof setTimeout> | undefined;
+    let giveUpTimer: ReturnType<typeof setTimeout> | undefined;
 
     const remember = () => positions.set(key, lastTop);
 
@@ -64,16 +63,11 @@ export function useScrollMemory(scroller: Ref<HTMLElement | undefined>) {
         remember();
     };
 
-    // Hidden while restoring (layout is kept, so scrollTop still applies) to avoid flashing the page at the top first.
-    const reveal = () => {
-        clearTimeout(revealTimer);
-        scroller.value?.style.removeProperty("visibility");
-    };
-
     const stopRestoring = () => {
         restoring = false;
         clearTimeout(retryTimer);
-        reveal();
+        clearTimeout(giveUpTimer);
+        scroller.value?.style.removeProperty("visibility");
         scroller.value?.removeEventListener("wheel", onWheel);
         scroller.value?.removeEventListener("touchstart", stopRestoring);
     };
@@ -93,14 +87,16 @@ export function useScrollMemory(scroller: Ref<HTMLElement | undefined>) {
         if (attempt === 0) {
             stopRestoring();
             restoring = true;
+            // Hidden while restoring (layout is kept, so scrollTop still applies) to avoid flashing the page at the top first.
             el.style.visibility = "hidden";
-            revealTimer = setTimeout(reveal, HIDE_MAX_MS);
+            // Past this the reader may already be scrolling by keyboard or scrollbar, which a late retry would fight.
+            giveUpTimer = setTimeout(stopRestoring, RESTORE_MAX_MS);
             el.addEventListener("wheel", onWheel, { passive: true });
             el.addEventListener("touchstart", stopRestoring, { passive: true, once: true });
         }
 
         el.scrollTop = target;
-        if (Math.abs(el.scrollTop - target) <= 1 || attempt >= RESTORE_MAX_ATTEMPTS) {
+        if (Math.abs(el.scrollTop - target) <= 1) {
             lastTop = el.scrollTop;
             stopRestoring();
             return;
