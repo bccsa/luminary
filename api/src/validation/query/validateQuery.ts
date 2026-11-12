@@ -89,7 +89,19 @@ const ALLOWED_TOP_LEVEL_KEYS = new Set([
     "use_index",
     "cms",
     "includeExpired",
+    "omitFields",
 ]);
+
+/**
+ * Fields `omitFields` may never drop, because the server itself reads them after the find:
+ * `updatedTimeUtc` produces the `blockStart`/`blockEnd` sync cursor (db.service `calcBlockStartEnd`)
+ * and `_id`/`type`/`status`/`expiryDate` drive the expired-Content strip (util/stripExpiredContent).
+ * Rejected rather than silently kept, so a client bug surfaces at the boundary.
+ */
+const OMIT_FIELDS_PROTECTED = new Set(["_id", "type", "updatedTimeUtc", "status", "expiryDate"]);
+
+/** Bound on `omitFields` length — a projection list far longer than a document is a client bug. */
+const MAX_OMIT_FIELDS = 32;
 
 /**
  * The `identifier` label is client-supplied and lands in structured logs, so it is
@@ -113,6 +125,7 @@ export const ALLOWED_IDENTIFIERS = new Set(["sync", "hybridQuery", "ssgDrain", "
  *  - an operator policy (no `$regex` / `$where`; `$elemMatch` only on array fields;
  *    no `null` member in an `$in` / `$nin` / `$all` array — it crashes CouchDB's
  *    `_find` with an unhandled `function_clause`),
+ *  - an `omitFields` check (bounded, never dropping a field the server reads post-find),
  *  - selector depth / clause-count caps,
  *  - a per-request language cap for NON-CMS queries (guards query cost; CMS is exempt as it
  *    syncs all languages). Enforced here, before query.service injects the permission-language
@@ -167,6 +180,24 @@ export function validateQuery(query: any, options: ValidateQueryOptions = {}): V
     }
     if (query.includeExpired !== undefined && typeof query.includeExpired !== "boolean") {
         return fail("'includeExpired' must be a boolean");
+    }
+
+    // omitFields — optional projection. It can only ever narrow a permission-scoped response, so
+    // the entries need no allowlist; the checks below only stop it breaking the server's own
+    // post-find reads.
+    if (query.omitFields !== undefined) {
+        if (!Array.isArray(query.omitFields)) return fail("'omitFields' must be an array");
+        if (query.omitFields.length > MAX_OMIT_FIELDS) {
+            return fail(`'omitFields' exceeds maximum length (${MAX_OMIT_FIELDS})`);
+        }
+        for (const field of query.omitFields) {
+            if (typeof field !== "string" || field.length === 0) {
+                return fail("'omitFields' must contain non-empty strings");
+            }
+            if (OMIT_FIELDS_PROTECTED.has(field)) {
+                return fail(`'omitFields' may not omit '${field}'`);
+            }
+        }
     }
 
     // use_index — optional; must be a known Mango index name.
