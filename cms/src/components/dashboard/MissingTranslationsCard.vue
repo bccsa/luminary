@@ -69,7 +69,7 @@ watch(missingTranslations, () => nextTick(update));
 <template>
     <LCard v-if="missingTranslations.length > 0" fillHeight>
         <div class="flex flex-col gap-2 lg:h-full">
-            <div class="flex items-center justify-center gap-2 text-zinc-600">
+            <div class="flex items-center justify-center gap-2 text-zinc-600 dark:text-zinc-300">
                 <PencilSquareIcon class="h-4 w-4 dark:text-zinc-100" />
                 <h3 class="text-sm font-semibold leading-6 text-zinc-900 dark:text-zinc-100">
                     Needs translation
@@ -112,7 +112,7 @@ watch(missingTranslations, () => nextTick(update));
                     >
                         <RouterLink
                             :to="parentRoute(item)!"
-                            class="block w-full text-sm text-zinc-900 hover:text-yellow-600 dark:text-zinc-100"
+                            class="block w-full text-sm text-zinc-900 hover:text-yellow-600 dark:text-zinc-100 dark:hover:text-yellow-400"
                         >
                             <div class="ml-0 flex items-center justify-between gap-2 pl-0">
                                 <span v-if="parentRoute(item)" class="ml-3 min-w-0 truncate">
@@ -125,7 +125,7 @@ watch(missingTranslations, () => nextTick(update));
                                     {{ item.title }}
                                 </span>
                                 <span
-                                    class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
+                                    class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
                                 >
                                     {{ item.translated }}/{{ item.total }}
                                 </span>

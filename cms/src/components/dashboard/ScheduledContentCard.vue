@@ -23,7 +23,7 @@ function formatDate(timestamp: number): string {
         collapsible
         defaultCollapsed
     >
-        <ul class="divide-y divide-zinc-100">
+        <ul class="divide-y divide-zinc-100 dark:divide-slate-500">
             <li
                 v-for="doc in scheduledContent.slice(0, 5)"
                 :key="doc._id"
@@ -33,15 +33,18 @@ function formatDate(timestamp: number): string {
                     <RouterLink
                         v-if="parentRoute(doc)"
                         :to="parentRoute(doc)!"
-                        class="truncate text-sm font-medium text-zinc-900 hover:text-yellow-600"
+                        class="truncate text-sm font-medium text-zinc-900 hover:text-yellow-600 dark:text-zinc-100 dark:hover:text-yellow-400"
                     >
                         {{ doc.title || "Untitled" }}
                     </RouterLink>
-                    <span v-else class="truncate text-sm font-medium text-zinc-900">
+                    <span
+                        v-else
+                        class="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100"
+                    >
                         {{ doc.title || "Untitled" }}
                     </span>
                 </div>
-                <span class="shrink-0 text-xs text-zinc-500">
+                <span class="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
                     {{ formatDate(doc.publishDate!) }}
                 </span>
             </li>
