@@ -56,7 +56,12 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
             dropdown-anchor
             :main-dynamic-css="
                 !isDirty || isSaving
-                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none dark:bg-zinc-400 dark:text-zinc-900 dark:ring-zinc-600'
+                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none dark:!bg-zinc-400 dark:!text-zinc-900 dark:!ring-zinc-600'
+                    : ''
+            "
+            :right-dynamic-css="
+                !isDirty || isSaving
+                    ? 'dark:bg-slate-600 dark:text-zinc-200 dark:ring-slate-500 dark:hover:bg-slate-500 dark:active:bg-slate-400 dark:active:text-zinc-100'
                     : ''
             "
         >
@@ -132,7 +137,12 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
             dropdown-anchor
             :main-dynamic-css="
                 !isDirty || isSaving
-                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none dark:bg-zinc-400 dark:text-zinc-900 dark:ring-zinc-600'
+                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none dark:!bg-zinc-400 dark:!text-zinc-900 dark:!ring-zinc-600'
+                    : ''
+            "
+            :right-dynamic-css="
+                !isDirty || isSaving
+                    ? 'dark:bg-slate-600 dark:text-zinc-200 dark:ring-slate-500 dark:hover:bg-slate-500 dark:active:bg-slate-400 dark:active:text-zinc-100'
                     : ''
             "
         >

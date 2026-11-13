@@ -63,6 +63,7 @@ type Props = {
     dropdownAnchor?: boolean;
     iconClass?: string;
     mainDynamicCss?: string; // NEW: custom background for main (middle) segment
+    rightDynamicCss?: string; // Custom classes for the right segment of a segmented button
     leftAction?: (event: MouseEvent) => void | Promise<void>;
     mainAction?: (event: MouseEvent) => void | Promise<void>;
     rightAction?: (event: MouseEvent) => void | Promise<void>;
@@ -79,6 +80,7 @@ const props = withDefaults(defineProps<Props>(), {
     dropdownAnchor: false,
     iconClass: undefined,
     mainDynamicCss: undefined,
+    rightDynamicCss: undefined,
     leftAction: undefined,
     mainAction: undefined,
     rightAction: undefined,
@@ -250,6 +252,7 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
                     segmentClass(buttonClasses({ variant, size, context }), 'right'),
                     'relative',
                     dropdownAnchor ? 'p-0' : '',
+                    rightDynamicCss,
                 )
             "
             :role="dropdownAnchor ? 'button' : undefined"
