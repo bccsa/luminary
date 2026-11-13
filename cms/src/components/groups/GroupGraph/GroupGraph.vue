@@ -459,6 +459,11 @@ watch(isFullscreen, () => {
     opacity: 0.8;
 }
 
+:root.dark :deep(.chart-handle) {
+    border-color: #64748b; /* slate-500 */
+    background: #1e293b; /* slate-800 */
+}
+
 /* Marquee (multi-)selected nodes — VueFlow adds .selected to the node wrapper. */
 :deep(.vue-flow__pane:focus),
 :deep(.vue-flow:focus),
@@ -469,5 +474,10 @@ watch(isFullscreen, () => {
 :deep(.vue-flow__node.selected > button) {
     border-color: #18181b; /* zinc-900 */
     box-shadow: 0 0 0 2px #18181b;
+}
+
+:root.dark :deep(.vue-flow__node.selected > button) {
+    border-color: #f4f4f5; /* zinc-100 */
+    box-shadow: 0 0 0 2px #f4f4f5;
 }
 </style>
