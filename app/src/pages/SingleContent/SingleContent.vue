@@ -748,7 +748,7 @@ watch([isLoading, content, is404], async () => {
     <BasePage
         :showBackButton="true"
         desktopTopBar
-        :reserveTopBarCenter="resumeOffered && readingProgressPercent < 99"
+        :reserveTopBarCenter="!hasHeroImage && resumeOffered && readingProgressPercent < 99"
     >
         <!-- Reading pill: offers to resume on open, then stands in for the title as a chapter
              dropdown once it scrolls out of view. -->

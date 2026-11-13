@@ -41,6 +41,8 @@ import { computeEstimatedReadingMinutes } from "@/util/readingTime";
 import { ref, computed } from "vue";
 import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
+import BasePage from "@/components/BasePage.vue";
+import ArticleOutline from "../ArticleOutline.vue";
 import RelatedContent from "@/components/content/RelatedContent.vue";
 import ReadMore from "@/components/content/ReadMore.vue";
 import * as auth from "@/auth";
@@ -1127,6 +1129,19 @@ describe("SingleContent", () => {
         await nextTick();
 
         expect(getReadingProgress(mockEnglishContentDto._id)).toBe(60);
+    });
+
+    it("lets the resume pill overlay a hero image instead of pushing it down", async () => {
+        setReadingProgress(mockEnglishContentDto._id, 60);
+
+        wrapper = mount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.findComponent(ArticleOutline).props("offerResume")).toBe(true);
+        });
+        expect(wrapper!.findComponent(BasePage).props("reserveTopBarCenter")).toBe(false);
     });
 
     it("records affinity exactly once when a reading session ends", async () => {
