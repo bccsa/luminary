@@ -568,6 +568,19 @@ describe("MediaPlayer", () => {
                     expect(nowPlayingHidden(wrapper)).toBe(true);
             }));
 
+        it.each([
+            [150, false],
+            [400, true],
+        ])(
+            "has the platform offer Read the article only for an article longer than a minute (%i words)",
+            async (wordCount, canRead) =>
+                narrow(async () => {
+                    openMediaPlayer({ ...mockEnglishContentDto, wordCount }, "en");
+                    await mountPlayer();
+                    expect(engine.handle.showNowPlaying.mock.calls.at(-1)[0].canRead).toBe(canRead);
+                }),
+        );
+
         it("has the platform draw the minimised bar, keeping the page's own in place unseen", async () =>
             narrow(async () => {
                 const wrapper = await playing();
@@ -992,13 +1005,24 @@ describe("MediaPlayer", () => {
     });
 
     describe("the page of what plays", () => {
-        const withText = () => {
+        const withText = (wordCount = 400) => {
             openMediaPlayer(
-                { ...mockEnglishContentDto, text: "<p>The article.</p>", slug: "the-slug" },
+                {
+                    ...mockEnglishContentDto,
+                    text: "<p>The article.</p>",
+                    slug: "the-slug",
+                    wordCount,
+                },
                 "en",
             );
             return mountPlayer();
         };
+
+        it("offers no Read the article for an article read in under a minute", async () => {
+            screenWide = false;
+            const wrapper = await withText(150);
+            expect(find(wrapper, "mediaPlayerReadArticle").exists()).toBe(false);
+        });
 
         it("has no About: the summary, article and categories are on the page", async () => {
             const wrapper = await withText();
