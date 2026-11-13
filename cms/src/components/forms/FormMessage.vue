@@ -12,9 +12,9 @@ withDefaults(defineProps<Props>(), {
     <p
         class="mt-2 text-sm"
         :class="{
-            'dark:text-zinc-400 text-zinc-600': state == 'default',
-            'dark:text-red-400 text-red-600': state == 'error',
-            'dark:text-yellow-400 text-yellow-600': state == 'warning',
+            'text-zinc-600 dark:text-zinc-400': state == 'default',
+            'text-red-600 dark:text-red-400': state == 'error',
+            'text-yellow-600 dark:text-yellow-400': state == 'warning',
         }"
     >
         <slot />
