@@ -1790,7 +1790,7 @@ const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
             playNow: known("media_player.play_now"),
             cancel: known("media_player.cancel"),
             closeScrub: known("media_player.close_frames"),
-            camera: known("media_player.camera"),
+            camera: known("media_player.view"),
             backToLine: known("media_player.back_to_line"),
             speedLabel: known("media_player.speed_label"),
             sleepLabel: known("media_player.sleep_label"),
