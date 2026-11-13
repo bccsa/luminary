@@ -106,7 +106,9 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
                                 :class="action.iconClass"
                                 aria-hidden="true"
                             />
-                            <div class="flex flex-col text-nowrap leading-none text-zinc-600 dark:text-zinc-400">
+                            <div
+                                class="flex flex-col text-nowrap leading-none text-zinc-600 dark:text-zinc-400"
+                            >
                                 {{ action.name }}
                             </div>
                         </li>
