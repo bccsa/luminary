@@ -610,7 +610,7 @@
  * does not depend on it.
  */
 /* Read from any ancestor carrying the class, not the first `.lmpl-root`: a host may wrap the player in a root of its own. */
-/* The quality and language badges, as the now-playing screen's tools carry them (set by the player). */
+/* The subtitles language badge, as the now-playing screen's tools carry it (set by the player). */
 .lmpl-opt[data-badge] {
     position: relative;
 }
