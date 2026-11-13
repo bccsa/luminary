@@ -54,7 +54,7 @@ const handleClick = () => {
         :class="[
             {
                 'cursor-pointer dark:hover:bg-slate-800/50 dark:hover:shadow-none':
-                    !disable && canNavigate && navigateTo,
+                    !disable && canNavigate,
                 'select-none divide-zinc-200 border-gray-300 bg-slate-300 dark:border-slate-800 dark:bg-slate-900/40 dark:text-zinc-600':
                     disable,
             },
