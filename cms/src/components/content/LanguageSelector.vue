@@ -39,7 +39,7 @@ const languagePopup = ref();
                     </span>
 
                     <ArrowRightIcon
-                        class="hidden h-4 w-4 text-zinc-600 sm:group-hover:inline-block sm:group-active:inline-block"
+                        class="hidden h-4 w-4 text-zinc-600 dark:text-zinc-400 sm:group-hover:inline-block sm:group-active:inline-block"
                     />
                 </button>
             </li>
