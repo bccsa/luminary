@@ -838,6 +838,20 @@ describe("AudioFullscreen: badges, gear menu, end panel, tool slots", () => {
         wrapper.unmount();
     });
 
+    it("names the sound's subtitles tool Subtitles, not Lyrics (#2554)", async () => {
+        const wrapper = mountScreen({
+            stage: "cover",
+            subtitleTracks: [{ id: "s", label: "English", lang: "en" }],
+            activeSubtitleTrackId: "s",
+        });
+        const tool = find(wrapper, "afsLyricsLanguage");
+        expect(tool.attributes("aria-label")).toBe("Subtitles");
+        expect(tool.find(".lmpl-afs-toollabel").text()).toBe("Subtitles");
+        await tool.trigger("click");
+        expect(wrapper.find("[role=menu]").attributes("aria-label")).toBe("Subtitles");
+        wrapper.unmount();
+    });
+
     it("ticks the minutes row of a running timer", async () => {
         const wrapper = mountScreen({
             stage: "cover",
