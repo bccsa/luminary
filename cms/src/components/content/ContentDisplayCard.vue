@@ -192,9 +192,9 @@ const navigateTo = computed(() => {
                     (highlight.authorHtml || (highlight.snippetHtml && !hideBodySnippet))
                 "
                 data-test="search-match"
-                class="flex flex-col gap-0.5 py-1 [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0"
+                class="flex flex-col gap-0.5 py-1 [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0 dark:[&_mark]:bg-amber-400/30 dark:[&_mark]:text-amber-100"
             >
-                <p v-if="highlight.authorHtml" class="text-xs text-zinc-500">
+                <p v-if="highlight.authorHtml" class="text-xs text-zinc-500 dark:text-zinc-400">
                     <span class="text-zinc-400">Author:</span>
                     <!-- eslint-disable-next-line vue/no-v-html (caller-escaped highlight HTML) -->
                     <span v-html="highlight.authorHtml"></span>
@@ -202,7 +202,7 @@ const navigateTo = computed(() => {
                 <!-- eslint-disable-next-line vue/no-v-html (caller-escaped highlight HTML) -->
                 <p
                     v-if="highlight.snippetHtml && !hideBodySnippet"
-                    class="line-clamp-2 text-xs text-zinc-500"
+                    class="line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400"
                     v-html="highlight.snippetHtml"
                 ></p>
             </div>
