@@ -25,6 +25,8 @@ type Props = {
     isLanguageSelectorSticky?: boolean;
     canDelete: boolean;
     dirty: boolean;
+    /** A sibling translation's publish date covers this one, because the post links its dates. */
+    hasLinkedPublishDate?: boolean;
 };
 const props = defineProps<Props>();
 const editableContent = defineModel<ContentDto>("editableContent");
@@ -83,8 +85,8 @@ const validations = ref([] as Validation[]);
 
 const isValid = ref(true);
 watch(
-    editableContent,
-    (content) => {
+    [editableContent, () => props.hasLinkedPublishDate],
+    ([content]) => {
         if (!content) return;
 
         validate(
@@ -115,7 +117,7 @@ watch(
         );
 
         validate("A publish date is required", "publishDate", validations.value, content, () => {
-            if (content.status == PublishStatus.Draft) return true;
+            if (content.status == PublishStatus.Draft || props.hasLinkedPublishDate) return true;
             return content.publishDate != undefined && content.publishDate != null;
         });
 

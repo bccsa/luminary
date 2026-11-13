@@ -28,7 +28,7 @@ vi.mock("vue-router", async (importOriginal) => {
 window.scrollTo = vi.fn();
 
 import { mount } from "@vue/test-utils";
-import { db, DocType, type ContentDto, PostType } from "luminary-shared";
+import { db, DocType, type ContentDto, type PostDto, PostType } from "luminary-shared";
 import EditContent from "../../EditContent.vue";
 import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
@@ -37,6 +37,7 @@ import {
     cleanupTestEnvironment,
     mockPostDto,
     mockEnglishContentDto,
+    mockFrenchContentDto,
 } from "./EditContent.test-utils";
 
 describe("EditContent - Validation & Error Handling", () => {
@@ -75,6 +76,35 @@ describe("EditContent - Validation & Error Handling", () => {
                     state: "error",
                 }),
             );
+        });
+    });
+
+    it("saves when dates are linked and only one translation has a publish date", async () => {
+        await db.docs.bulkPut([{ ...mockPostDto, linkDates: true } as PostDto]);
+        await db.docs.bulkPut([{ ...mockFrenchContentDto, publishDate: undefined } as ContentDto]);
+
+        const notificationStore = useNotificationStore();
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+        });
+        await wrapper.find('input[name="title"]').setValue("New Title");
+        await wrapper.find('[data-test="save-button"]').trigger("click");
+
+        await waitForExpect(async () => {
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({ state: "success" }),
+            );
+            const french = await db.get<ContentDto>(mockFrenchContentDto._id);
+            expect(french.publishDate).toBe(mockEnglishContentDto.publishDate);
         });
     });
 
