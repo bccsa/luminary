@@ -33,13 +33,13 @@ withDefaults(defineProps<Props>(), {
 
 const states = {
     default:
-        "text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 hover:ring-zinc-400 focus:ring-zinc-950",
-    error: "text-red-900 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500",
+        "text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 hover:ring-zinc-400 focus:ring-zinc-950 dark:text-zinc-100 dark:ring-slate-600 dark:placeholder:text-zinc-500 dark:hover:ring-slate-500 dark:focus:ring-slate-400",
+    error: "text-red-900 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500 dark:text-red-400 dark:ring-red-600 dark:placeholder:text-red-500 dark:hover:ring-red-500 dark:focus:ring-red-400",
 };
 
 const addOnStates = {
-    default: "border-zinc-300 px-3 text-zinc-500",
-    error: "border-red-300 px-3 text-red-600",
+    default: "border-zinc-300 px-3 text-zinc-500 dark:border-slate-600 dark:text-zinc-400",
+    error: "border-red-300 px-3 text-red-600 dark:border-red-900 dark:text-red-400",
 };
 
 const sizes = {
@@ -68,9 +68,9 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     :is="icon"
                     class="h-5 w-5"
                     :class="{
-                        'text-zinc-400': state == 'default' && !disabled,
-                        'text-zinc-300': state == 'default' && disabled,
-                        'text-red-400': state == 'error',
+                        'text-zinc-400 dark:text-zinc-500': state == 'default' && !disabled,
+                        'text-zinc-300 dark:text-zinc-600': state == 'default' && disabled,
+                        'text-red-400 dark:text-red-500': state == 'error',
                     }"
                 />
             </div>
@@ -82,7 +82,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 {{ leftAddOn }}
             </span>
             <textarea
-                class="block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6"
+                class="block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6 dark:disabled:bg-slate-800 dark:disabled:text-zinc-400 dark:disabled:ring-slate-700"
                 :class="[
                     sizes[size],
                     states[state],
@@ -113,13 +113,13 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 v-if="state == 'error' && !rightAddOn"
                 class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
             >
-                <ExclamationCircleIcon class="h-5 w-5 text-red-500" aria-hidden="true" />
+                <ExclamationCircleIcon class="h-5 w-5 text-red-500 dark:text-red-400" aria-hidden="true" />
             </div>
         </div>
         <p
             v-if="$slots.default"
             class="mt-2 text-sm"
-            :class="{ 'text-zinc-600': state == 'default', 'text-red-600': state == 'error' }"
+            :class="{ 'text-zinc-600 dark:text-zinc-400': state == 'default', 'text-red-600 dark:text-red-400': state == 'error' }"
             :id="`${id}-message`"
         >
             <slot />
