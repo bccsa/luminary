@@ -271,6 +271,19 @@ describe("buildControlsHtml", () => {
         expect(a.filter((id) => b.includes(id))).toEqual([]);
         expect(new Set(a).size).toBe(a.length);
     });
+
+    it("orders the settings as the now-playing screen's tools: speed, quality, language, captions, browse", () => {
+        const order = [...render().querySelectorAll(".lmpl-options > button")].map((b) =>
+            [...b.classList].find((c) => c.startsWith("lmpl-opt-")),
+        );
+        expect(order).toEqual([
+            "lmpl-opt-speed",
+            "lmpl-opt-quality",
+            "lmpl-opt-audio",
+            "lmpl-opt-captions",
+            "lmpl-opt-browse",
+        ]);
+    });
 });
 
 describe("browse button", () => {
