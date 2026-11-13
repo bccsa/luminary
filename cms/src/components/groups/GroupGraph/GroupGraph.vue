@@ -298,6 +298,9 @@ watch(isFullscreen, () => {
                                 variant="secondary"
                                 :icon="CursorArrowRaysIcon"
                                 :main-dynamic-css="segClass(interactionMode === 'select')"
+                                :icon-class="
+                                    interactionMode === 'select' ? 'dark:text-zinc-100' : ''
+                                "
                                 @click="interactionMode = 'select'"
                             >
                                 Select
@@ -307,6 +310,7 @@ watch(isFullscreen, () => {
                                 variant="secondary"
                                 :icon="HandRaisedIcon"
                                 :main-dynamic-css="segClass(interactionMode === 'drag')"
+                                :icon-class="interactionMode === 'drag' ? 'dark:text-zinc-100' : ''"
                                 @click="interactionMode = 'drag'"
                             >
                                 Drag
