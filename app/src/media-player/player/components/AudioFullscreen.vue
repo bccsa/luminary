@@ -1590,15 +1590,13 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                 </div>
                             </div>
 
-                            <!-- Subtitles, and with sound alone the lyrics: one tool, named for what it shows. -->
+                            <!-- Subtitles, with sound alone too (where they show as the lyrics): one tool, one name. -->
                             <div v-if="subtitleTracks.length > 0" class="lmpl-afs-tool">
                                 <button
                                     type="button"
                                     class="lmpl-afs-toolcell"
                                     :class="{ 'lmpl-afs-on': activeSubtitleTrackId }"
-                                    :aria-label="
-                                        isVideo ? messages.subtitlesMenuLabel : messages.lyrics
-                                    "
+                                    :aria-label="messages.subtitlesMenuLabel"
                                     :aria-expanded="menu === 'subtitles'"
                                     aria-haspopup="menu"
                                     :data-test="isVideo ? 'afsSubtitles' : 'afsLyricsLanguage'"
@@ -1620,16 +1618,14 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                         "
                                     />
                                     <span class="lmpl-afs-toollabel">{{
-                                        isVideo ? messages.subtitlesMenuLabel : messages.lyrics
+                                        messages.subtitlesMenuLabel
                                     }}</span>
                                 </button>
                                 <div
                                     v-if="menu === 'subtitles'"
                                     class="lmpl-afs-menu"
                                     role="menu"
-                                    :aria-label="
-                                        isVideo ? messages.subtitlesMenuLabel : messages.lyrics
-                                    "
+                                    :aria-label="messages.subtitlesMenuLabel"
                                 >
                                     <button
                                         type="button"
