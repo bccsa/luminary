@@ -91,7 +91,7 @@ const states = {
         dark:bg-red-950/20 dark:text-red-400 dark:ring-red-900 dark:placeholder:text-red-800
     `,
     warning: `
-        text-yellow-900 bg-yellow-50 ring-yellow-300 placeholder:text-yellow-500 dark:hover:ring-yellow-500 dark:focus:ring-yellow-400
+        text-yellow-900 bg-yellow-50 ring-yellow-300 placeholder:text-yellow-500 hover:ring-yellow-400 focus:ring-yellow-500 dark:hover:ring-yellow-500 dark:focus:ring-yellow-400
         dark:bg-yellow-950/20 dark:text-yellow-400 dark:ring-yellow-900 dark:placeholder:text-yellow-800
     `,
 };
@@ -198,7 +198,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 v-if="computedState == 'error' && !rightAddOn"
                 class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
             >
-                <ExclamationCircleIcon class="h-5 w-5 dark:text-red-400" aria-hidden="true" />
+                <ExclamationCircleIcon class="h-5 w-5 text-red-500 dark:text-red-400" aria-hidden="true" />
             </div>
 
             <div
