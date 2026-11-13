@@ -111,6 +111,7 @@ import {
     mediaPlayerItem,
     mediaPlayerView,
     minimiseMediaPlayer,
+    MINI_AUDIO_DELAY_MS,
     chosenAudio,
     opensAsAudio,
     sleepTimerDefault,
@@ -1078,9 +1079,52 @@ watch(
     },
 );
 
+/**
+ * Minimised where the platform draws the bar, the bar shows the cover and the picture shows nowhere: after a moment
+ * the picture is turned off and the sound plays on, so no video is fetched or decoded for nobody, and it comes back
+ * when the player opens again. Only where the platform turns the picture off in place, so the sound has no gap and
+ * expanding needs no reload. Not while it plays on another screen, or in a picture-in-picture window.
+ */
+let videoOffWhileMini = false;
+let miniTimer: ReturnType<typeof setTimeout> | undefined;
+function dropPictureWhileMini() {
+    if (
+        !nativeOwnsBar.value ||
+        audioMode.value ||
+        !canSwitch.value ||
+        !handle.value?.canTurnVideoOff ||
+        handle.value.airPlayActive
+    )
+        return;
+    if (typeof document !== "undefined" && document.pictureInPictureElement) return;
+    videoOffWhileMini = true;
+    void toSound();
+}
+watch(expanded, (open) => {
+    clearTimeout(miniTimer);
+    if (!open) {
+        miniTimer = setTimeout(dropPictureWhileMini, MINI_AUDIO_DELAY_MS);
+        return;
+    }
+    if (!videoOffWhileMini) return;
+    videoOffWhileMini = false;
+    if (!videoOffByChoice.value) return;
+    videoOffByChoice.value = false;
+    handle.value?.setVideoOff?.(false);
+});
+watch(
+    () => item.value?.content._id,
+    () => {
+        clearTimeout(miniTimer);
+        videoOffWhileMini = false;
+    },
+);
+onBeforeUnmount(() => clearTimeout(miniTimer));
+
 // Watch or Listen asked for again on what is already playing: switch to it, as the player's own buttons do.
 watch(item, (now, before) => {
     if (now?.audio === undefined || now.content._id !== before?.content._id) return;
+    videoOffWhileMini = false;
     void (now.audio ? showAudio() : requestVideo());
 });
 
