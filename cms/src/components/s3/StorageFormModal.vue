@@ -344,14 +344,14 @@ function handleDelete() {
                             <span
                                 v-for="fileType in bucket.mimeTypes"
                                 :key="fileType"
-                                class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs text-blue-800"
+                                class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs text-blue-800 dark:bg-blue-700/30 dark:text-blue-300"
                             >
                                 {{ fileType }}
                                 <button
                                     type="button"
                                     @click="removeFileType(fileType)"
                                     :disabled="isLoading"
-                                    class="ml-1.5 text-blue-600 hover:text-blue-800 focus:outline-none"
+                                    class="ml-1.5 text-blue-600 hover:text-blue-800 focus:outline-none dark:text-blue-400 dark:hover:text-blue-200"
                                 >
                                     <XMarkIcon class="h-3.5 w-3.5" />
                                 </button>
@@ -411,7 +411,9 @@ function handleDelete() {
 
                 <!-- Credentials status for existing buckets -->
                 <div v-if="isEditing && !shouldShowCredentialsSection" class="border-t pt-2">
-                    <div class="rounded-md border border-blue-200 bg-blue-50 p-2">
+                    <div
+                        class="rounded-md border border-blue-200 bg-blue-50 p-2 dark:border-blue-900 dark:bg-blue-950/20"
+                    >
                         <div class="flex gap-2">
                             <div class="flex-shrink-0">
                                 <svg
@@ -427,10 +429,10 @@ function handleDelete() {
                                 </svg>
                             </div>
                             <div>
-                                <h3 class="font-fold text-xs text-blue-800">
+                                <h3 class="font-fold text-xs text-blue-800 dark:text-blue-300">
                                     Credentials Configured
                                 </h3>
-                                <p class="mt-0.5 text-xs text-blue-700">
+                                <p class="mt-0.5 text-xs text-blue-700 dark:text-blue-400">
                                     This bucket has
                                     {{ bucket.credential_id ? "encrypted" : "embedded" }}
                                     credentials. Cannot be edited directly for security.
@@ -445,7 +447,7 @@ function handleDelete() {
                     <div class="mb-2 flex items-center justify-between">
                         <h3 class="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                             S3 Credentials
-                            <span v-if="!isEditing" class="text-red-500">*</span>
+                            <span v-if="!isEditing" class="text-red-500 dark:text-red-400">*</span>
                         </h3>
                         <LButton
                             @click="showCredentials = !showCredentials"
@@ -464,17 +466,17 @@ function handleDelete() {
                             hasAttemptedSubmit &&
                             !hasValidCredentials
                         "
-                        class="mb-2 rounded-md border border-red-200 bg-red-50 p-2"
+                        class="mb-2 rounded-md border border-red-200 bg-red-50 p-2 dark:border-red-900 dark:bg-red-950/20"
                     >
                         <div class="flex gap-2">
                             <div class="flex-shrink-0">
                                 <ExclamationTriangleIcon class="h-4 w-4 text-red-400" />
                             </div>
                             <div>
-                                <h3 class="text-xs font-medium text-red-800">
+                                <h3 class="text-xs font-medium text-red-800 dark:text-red-300">
                                     Credentials Required
                                 </h3>
-                                <p class="mt-0.5 text-xs text-red-700">
+                                <p class="mt-0.5 text-xs text-red-700 dark:text-red-400">
                                     Click "Set" above to provide S3 credentials.
                                 </p>
                             </div>
@@ -483,12 +485,14 @@ function handleDelete() {
 
                     <div v-if="showCredentials" class="space-y-2">
                         <!-- Security Notice  -->
-                        <div class="rounded-md border border-yellow-200 bg-yellow-50 p-2">
+                        <div
+                            class="rounded-md border border-yellow-200 bg-yellow-50 p-2 dark:border-yellow-900 dark:bg-yellow-950/20"
+                        >
                             <div class="flex gap-2">
                                 <ExclamationTriangleIcon
-                                    class="h-4 w-4 flex-shrink-0 text-yellow-600"
+                                    class="h-4 w-4 flex-shrink-0 text-yellow-600 dark:text-yellow-400"
                                 />
-                                <p class="text-[11px] text-yellow-800">
+                                <p class="text-[11px] text-yellow-800 dark:text-yellow-300">
                                     Credentials are encrypted and not retrievable before storage.
                                     {{ isEditing ? "Leave empty to keep existing." : "" }}
                                 </p>
@@ -502,7 +506,9 @@ function handleDelete() {
                                 class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-100"
                             >
                                 S3 Endpoint
-                                <span v-if="!isEditing" class="text-red-500">*</span>
+                                <span v-if="!isEditing" class="text-red-500 dark:text-red-400"
+                                    >*</span
+                                >
                             </label>
                             <LInput
                                 id="endpoint"
@@ -520,7 +526,7 @@ function handleDelete() {
                                 :disabled="isLoading"
                                 :required="!isEditing"
                                 :class="{
-                                    'border-red-300':
+                                    'border-red-300 dark:border-red-900':
                                         hasFieldError('endpoint') ||
                                         hasFieldError('endpointFormat'),
                                 }"
@@ -537,7 +543,7 @@ function handleDelete() {
                                     }
                                 "
                             />
-                            <p class="mt-0.5 text-[11px] text-zinc-500">
+                            <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
                                 Examples of endpoint: <br />
                                 • MinIO: http://localhost:9000 <br />
                                 • AWS S3: https://s3.amazonaws.com <br />
@@ -552,7 +558,9 @@ function handleDelete() {
                                 class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-100"
                             >
                                 Bucket Name
-                                <span v-if="!isEditing" class="text-red-500">*</span>
+                                <span v-if="!isEditing" class="text-red-500 dark:text-red-400"
+                                    >*</span
+                                >
                             </label>
                             <LInput
                                 id="bucketName"
@@ -569,11 +577,14 @@ function handleDelete() {
                                 placeholder="my-bucket-name"
                                 :disabled="isLoading"
                                 :required="!isEditing"
-                                :class="{ 'border-red-300': hasFieldError('bucketName') }"
+                                :class="{
+                                    'border-red-300 dark:border-red-900':
+                                        hasFieldError('bucketName'),
+                                }"
                                 @blur="() => touchField('bucketName')"
                                 @input="() => touchField('bucketName')"
                             />
-                            <p class="mt-0.5 text-[11px] text-zinc-500">
+                            <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
                                 The actual bucket name (do not include in endpoint)
                             </p>
                         </div>
@@ -585,7 +596,9 @@ function handleDelete() {
                                 class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-100"
                             >
                                 Access Key
-                                <span v-if="!isEditing" class="text-red-500">*</span>
+                                <span v-if="!isEditing" class="text-red-500 dark:text-red-400"
+                                    >*</span
+                                >
                             </label>
                             <LInput
                                 id="accessKey"
@@ -602,7 +615,10 @@ function handleDelete() {
                                 placeholder="Your access Key"
                                 :disabled="isLoading"
                                 :required="!isEditing"
-                                :class="{ 'border-red-300': hasFieldError('accessKey') }"
+                                :class="{
+                                    'border-red-300 dark:border-red-900':
+                                        hasFieldError('accessKey'),
+                                }"
                                 @blur="() => touchField('accessKey')"
                                 @input="() => touchField('accessKey')"
                             />
@@ -615,7 +631,9 @@ function handleDelete() {
                                 class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-100"
                             >
                                 Secret Key
-                                <span v-if="!isEditing" class="text-red-500">*</span>
+                                <span v-if="!isEditing" class="text-red-500 dark:text-red-400"
+                                    >*</span
+                                >
                             </label>
                             <LInput
                                 id="secretKey"
@@ -632,7 +650,10 @@ function handleDelete() {
                                 placeholder="Enter secret key"
                                 :disabled="isLoading"
                                 :required="!isEditing"
-                                :class="{ 'border-red-300': hasFieldError('secretKey') }"
+                                :class="{
+                                    'border-red-300 dark:border-red-900':
+                                        hasFieldError('secretKey'),
+                                }"
                                 @blur="() => touchField('secretKey')"
                                 @input="() => touchField('secretKey')"
                             />

@@ -111,12 +111,12 @@ function segmentClass(base: string, position: "left" | "middle" | "right") {
 
 const iconVariants = {
     primary:
-        "text-zinc-100 group-hover:text-white group-active:text-white dark:text-zinc-800 dark:group-hover:text-zinc-800 dark:group-active:text-zinc-800",
+        "text-zinc-100 group-hover:text-white group-active:text-white dark:text-zinc-800 dark:group-hover:text-zinc-800 dark:group-active:text-zinc-800 dark:group-disabled:text-zinc-600",
     secondary:
-        "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80 dark:text-zinc-400 dark:group-hover:text-zinc-100 dark:group-active:text-zinc-100",
+        "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80 dark:text-zinc-400 dark:group-hover:text-zinc-100 dark:group-active:text-zinc-100 dark:group-disabled:text-zinc-700",
     tertiary:
-        "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80 dark:text-zinc-400 dark:group-hover:text-zinc-100 dark:group-active:text-zinc-100",
-    muted: "dark:text-zinc-500",
+        "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80 dark:text-zinc-400 dark:group-hover:text-zinc-100 dark:group-active:text-zinc-100 dark:group-disabled:text-zinc-600",
+    muted: "dark:text-zinc-500 dark:group-disabled:text-zinc-600",
 };
 
 const tooltipVariants = {
