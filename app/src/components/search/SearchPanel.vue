@@ -624,13 +624,14 @@ defineExpose({
 <template>
     <div :class="isPage ? '' : 'flex h-full min-h-0 w-full flex-col'" @keydown="handleKeydown">
         <!-- Page mode on mobile: pinned under the top bar. The sticky offset is measured inside
-             <main>'s 0.5rem top padding, hence the subtraction. -->
+             <main>'s 0.5rem top padding, hence the subtraction. The backing above it reaches under
+             the bar, whose translucent bottom border would otherwise show results scrolling past. -->
         <div
             data-keeps-keyboard
             class="flex min-w-0 items-center gap-3 border-b border-zinc-200 px-3 py-4 dark:border-slate-700 md:p-4"
             :class="
                 isPage &&
-                'bg-white dark:bg-slate-900 max-lg:sticky max-lg:top-[calc(var(--top-bar-h,74px)-0.5rem)] max-lg:z-20'
+                'bg-white dark:bg-slate-900 max-lg:sticky max-lg:top-[calc(var(--top-bar-h,74px)-0.5rem)] max-lg:z-20 max-lg:before:absolute max-lg:before:inset-x-0 max-lg:before:bottom-full max-lg:before:h-2 max-lg:before:bg-inherit'
             "
         >
             <MagnifyingGlassIcon class="h-5 w-5 flex-shrink-0 text-zinc-400 md:h-6 md:w-6" />
