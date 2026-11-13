@@ -1709,6 +1709,59 @@ describe("MediaPlayer", () => {
         });
     });
 
+    describe("screen sleep", () => {
+        let screenWake: { setKeepAwake: ReturnType<typeof vi.fn> };
+        const awake = () => screenWake.setKeepAwake.mock.calls.at(-1)?.[0] === true;
+        async function open() {
+            screenWake = { setKeepAwake: vi.fn() };
+            openMediaPlayer(mockEnglishContentDto, "en");
+            return mountPlayer({ [ScreenWakeKey]: screenWake });
+        }
+
+        it("keeps the screen on while a video plays, and lets it sleep while paused", async () => {
+            await open();
+            expect(awake()).toBe(true);
+            engine.state.playing = false;
+            await flushPromises();
+            expect(awake()).toBe(false);
+        });
+
+        it("lets the screen sleep for sound on a wide screen's card, even in a landscape window", async () => {
+            screenLandscape = true;
+            const wrapper = await open();
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(awake()).toBe(false);
+        });
+
+        it("keeps the screen on for sound in full screen while it plays, and lets it sleep while paused", async () => {
+            const wrapper = await open();
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(awake()).toBe(false);
+            document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "f", bubbles: true }));
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerAudioFullscreen").exists()).toBe(true);
+            expect(awake()).toBe(true);
+            engine.state.playing = false;
+            await flushPromises();
+            expect(awake()).toBe(false);
+        });
+
+        it("on a phone, keeps the screen on for sound sideways but not upright", () =>
+            narrow(async () => {
+                const wrapper = await open();
+                await find(wrapper, "mediaPlayerAudio").trigger("click");
+                await flushPromises();
+                expect(awake()).toBe(false);
+                screenLandscape = true;
+                wrapper.unmount();
+                await open().then((w) => find(w, "mediaPlayerAudio").trigger("click"));
+                await flushPromises();
+                expect(awake()).toBe(true);
+            }));
+    });
+
     describe("keyboard shortcuts", () => {
         const press = (
             key: string,
