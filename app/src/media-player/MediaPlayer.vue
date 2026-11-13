@@ -1647,13 +1647,15 @@ watch(
 );
 onBeforeUnmount(() => stopTurns?.());
 
-/** The screen stays on for video and for landscape viewing; a mini bar or upright audio lets the OS time it out. */
+/** The screen stays on for video and for sound in full screen; a mini bar or upright sound lets the OS time it out (#2557). */
 const playerWake = useScreenWakeHold("player");
 const keepScreenOn = computed(
     () =>
         playing.value &&
-        expanded.value &&
-        (!audioMode.value || landscape.value || audioLandscapeLocked.value),
+        (audioMode.value
+            ? audioFullscreen.value ||
+              (soundScreen.value && (landscape.value || audioLandscapeLocked.value))
+            : expanded.value),
 );
 watch(keepScreenOn, (on) => (on ? playerWake.hold() : playerWake.release()), { immediate: true });
 const nowPlayingSubtitle = computed(() =>
