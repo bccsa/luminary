@@ -291,3 +291,16 @@ describe("browse button", () => {
         );
     });
 });
+
+describe("menu card size", () => {
+    it("keeps a phone's menus at their upright size when the controls scale up on its side", async () => {
+        const { readFileSync } = await import("node:fs");
+        const css = readFileSync(`${process.cwd()}/src/media-player/player/styles.css`, "utf8");
+        const phone = css.match(
+            /@media \(max-width: 599px\), \(max-height: 599px\) {\s*\.lmpl-root \.lmpl-card,\s*\.lmpl-root \.lmpl-volume-card {([^}]*)}/,
+        );
+        expect(phone).not.toBeNull();
+        expect(phone![1]).toMatch(/--lmpl-s:\s*1;/);
+        expect(phone![1]).toMatch(/--media-spacing:\s*4px;/);
+    });
+});

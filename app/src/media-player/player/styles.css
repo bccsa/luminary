@@ -708,6 +708,15 @@
     font-size: calc(14px * var(--lmpl-s));
 }
 
+/* A phone on its side is wide enough to scale the controls up, but its menus stay the size they are upright. */
+@media (max-width: 599px), (max-height: 599px) {
+    .lmpl-root .lmpl-card,
+    .lmpl-root .lmpl-volume-card {
+        --lmpl-s: 1;
+        --media-spacing: 4px;
+    }
+}
+
 /* A setting's card: tight to its button, with a title instead of the cogwheel's back arrow. */
 .lmpl-root .lmpl-card .media-menu-content:not([data-submenu]) {
     top: 4px;
