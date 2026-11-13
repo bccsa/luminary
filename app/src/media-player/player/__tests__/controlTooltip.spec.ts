@@ -4,6 +4,7 @@ import {
     attachControlTooltips,
     clampTooltipLeft,
     controlLabel,
+    tooltipFits,
     tooltipFor,
     type Tooltip,
 } from "../ui/controlTooltip";
@@ -36,11 +37,30 @@ describe("controlLabel", () => {
 describe("tooltipFor and clampTooltipLeft", () => {
     it("centres on the control, and sits above it by the gap", () => {
         const tip = tooltipFor(
-            { left: 300, width: 40, top: 500 },
-            { left: 100, bottom: 600 },
+            { left: 300, width: 40, top: 500, bottom: 540 },
+            { left: 100, top: 0, bottom: 600 },
             "Speed",
         );
-        expect(tip).toEqual({ text: "Speed", centre: 220, bottom: 110 });
+        expect(tip).toEqual({ text: "Speed", centre: 220, bottom: 110, top: 550 });
+    });
+
+    it("fits above a control in the control bar", () => {
+        const tip = tooltipFor(
+            { left: 300, width: 40, top: 500, bottom: 540 },
+            { left: 100, top: 0, bottom: 600 },
+            "Speed",
+        );
+        expect(tooltipFits(tip, 30, 600)).toBe("above");
+    });
+
+    it("goes below a control at the top of the frame, such as the fullscreen X", () => {
+        const tip = tooltipFor(
+            { left: 1800, width: 48, top: 24, bottom: 72 },
+            { left: 0, top: 0, bottom: 1080 },
+            "Exit fullscreen",
+        );
+        expect(tooltipFits(tip, 30, 1080)).toBe("below");
+        expect(tip.top).toBe(82);
     });
 
     it("is centred when there is room", () => {
