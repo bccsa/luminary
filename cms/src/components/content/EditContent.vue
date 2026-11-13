@@ -515,7 +515,7 @@ const contentActions = computed(() => {
             name: "Delete",
             action: () => (showDeleteModal.value = true),
             icon: TrashIcon,
-            iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
+            iconClass: "h-5 w-5 text-red-500 dark:text-red-400 flex-shrink-0",
         });
     }
     return actions;
@@ -596,7 +596,7 @@ watch(isLgScreen, (isLg) => {
                             class="flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-slate-700"
                         >
                             {{ selectedLanguage.languageCode.toUpperCase() }}
-                            <ChevronDownIcon class="h-4 w-4 text-zinc-500" />
+                            <ChevronDownIcon class="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                         </button>
                     </template>
                     <div class="py-1">
@@ -612,7 +612,7 @@ watch(isLgScreen, (isLg) => {
                             {{ lang.name }}
                             <CheckCircleIcon
                                 v-if="lang._id === selectedLanguage._id"
-                                class="h-5 w-5 flex-shrink-0 text-yellow-500"
+                                class="h-5 w-5 flex-shrink-0 text-yellow-500 dark:text-yellow-400"
                             />
                         </button>
                     </div>
@@ -631,13 +631,15 @@ watch(isLgScreen, (isLg) => {
         <div
             v-if="hasIncomingChanges"
             data-test="incoming-changes-banner"
-            class="mx-2 mb-2 mt-2 flex items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800 lg:mx-8"
+            class="mx-2 mb-2 mt-2 flex items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800 dark:border-yellow-900 dark:bg-yellow-950/20 dark:text-yellow-400 lg:mx-8"
         >
-            <ExclamationTriangleIcon class="h-5 w-5 flex-shrink-0 text-yellow-500" />
+            <ExclamationTriangleIcon
+                class="h-5 w-5 flex-shrink-0 text-yellow-500 dark:text-yellow-400"
+            />
             <span>This document was changed remotely by someone else.</span>
             <button
                 type="button"
-                class="ml-auto flex items-center gap-1 whitespace-nowrap font-medium text-yellow-900 underline hover:text-yellow-950"
+                class="ml-auto flex items-center gap-1 whitespace-nowrap font-medium text-yellow-900 underline hover:text-yellow-950 dark:text-yellow-300 dark:hover:text-yellow-200"
                 data-test="incoming-changes-review"
                 @click="showIncomingModal = true"
             >
@@ -675,7 +677,7 @@ watch(isLgScreen, (isLg) => {
                             :disabled="!canEditParent"
                             :newDocument="newDocument"
                             :content="editableContent"
-                            class="border-zinc-200"
+                            class="border-zinc-200 dark:border-slate-700"
                             v-model:parent="editableParent"
                             @updateIsValid="(val) => (parentIsValid = val)"
                         >
@@ -690,7 +692,7 @@ watch(isLgScreen, (isLg) => {
                                             :tagOrPostType="props.tagOrPostType"
                                             :disabled="!canEditParent"
                                             :newDocument="newDocument"
-                                            class="border-zinc-200"
+                                            class="border-zinc-200 dark:border-slate-700"
                                             v-model:parent="editableParent"
                                         />
 
@@ -734,7 +736,7 @@ watch(isLgScreen, (isLg) => {
                                 :languages="cmsLanguages"
                                 :untranslatedLanguages="untranslatedLanguages"
                                 :isContentItemDirty="isContentItemDirty"
-                                class="border-zinc-200"
+                                class="border-zinc-200 dark:border-slate-700"
                                 :existingContent="existingContent"
                                 @updateIsValid="(val) => (translationsAreValid = val)"
                                 @create-translation="(language) => createTranslation(language)"
@@ -850,13 +852,15 @@ watch(isLgScreen, (isLg) => {
              document. -->
         <label
             v-if="editableParent?.media?.hlsUrl"
-            class="mt-3 flex cursor-pointer select-none items-start gap-2 text-sm text-zinc-700"
+            class="mt-3 flex cursor-pointer select-none items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300"
             data-test="delete-media-files"
         >
             <input v-model="deleteMediaFiles" type="checkbox" class="mt-0.5 h-4 w-4" />
             <span>
                 Also delete the media files from storage
-                <span class="mt-0.5 block break-all font-mono text-xs text-zinc-500">
+                <span
+                    class="mt-0.5 block break-all font-mono text-xs text-zinc-500 dark:text-zinc-400"
+                >
                     {{ editableParent.media.hlsUrl }}
                 </span>
             </span>
@@ -882,7 +886,10 @@ watch(isLgScreen, (isLg) => {
         context="danger"
         :showClosingButton="false"
     >
-        <p class="mt-3 break-all font-mono text-xs text-zinc-500" data-test="replace-media-url">
+        <p
+            class="mt-3 break-all font-mono text-xs text-zinc-500 dark:text-zinc-400"
+            data-test="replace-media-url"
+        >
             {{ existingParent?.media?.hlsUrl }}
         </p>
     </LDialog>
