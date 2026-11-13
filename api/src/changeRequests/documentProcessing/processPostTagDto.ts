@@ -8,6 +8,7 @@ import { processMedia } from "./processMediaDto";
 import { deleteMediaCollection } from "./deleteMediaCollection";
 import { migrateMediaCollection } from "./migrateMediaCollection";
 import { isInOurStorage } from "./mediaUrl";
+import { patchFreshDoc } from "./patchFreshDoc";
 import { StorageDto } from "../../dto/StorageDto";
 import { assertHexKey } from "../../util/maskKey";
 import {
@@ -215,35 +216,36 @@ export default async function processPostTagDto(
     // Get content documents that are children of the Post / Tag document
     // and copy essential properties from the Post / Tag document to the child content document
     const contentDocs = await db.getContentByParentId(doc._id);
-    for (const contentDoc of contentDocs.docs) {
-        contentDoc.memberOf = doc.memberOf;
-        contentDoc.parentTags = doc.tags;
-        contentDoc.parentImageData = doc.imageData;
-        contentDoc.parentImageBucketId = doc.imageBucketId;
-        contentDoc.parentMedia = doc.media;
-        contentDoc.parentMediaBucketId = doc.mediaBucketId;
+    for (const child of contentDocs.docs) {
+        await patchFreshDoc<ContentDto>(db, child._id, (contentDoc) => {
+            contentDoc.memberOf = doc.memberOf;
+            contentDoc.parentTags = doc.tags;
+            contentDoc.parentImageData = doc.imageData;
+            contentDoc.parentImageBucketId = doc.imageBucketId;
+            contentDoc.parentMedia = doc.media;
+            contentDoc.parentMediaBucketId = doc.mediaBucketId;
 
-        if (doc.type == DocType.Post) {
-            contentDoc.parentPostType = (doc as PostDto).postType;
-        }
+            if (doc.type == DocType.Post) {
+                contentDoc.parentPostType = (doc as PostDto).postType;
+            }
 
-        if (doc.type == DocType.Tag) {
-            contentDoc.parentTagType = (doc as TagDto).tagType;
-            contentDoc.parentPinned = (doc as TagDto).pinned;
-            contentDoc.parentTaggedDocs = (doc as TagDto).taggedDocs;
-        }
+            if (doc.type == DocType.Tag) {
+                contentDoc.parentTagType = (doc as TagDto).tagType;
+                contentDoc.parentPinned = (doc as TagDto).pinned;
+                contentDoc.parentTaggedDocs = (doc as TagDto).taggedDocs;
+            }
 
-        contentDoc.parentPublishDateVisible = doc.publishDateVisible;
-        contentDoc.parentShowComingSoon = doc.showComingSoon ?? false;
+            contentDoc.parentPublishDateVisible = doc.publishDateVisible;
+            contentDoc.parentShowComingSoon = doc.showComingSoon ?? false;
 
-        if (doc.alwaysOffline) contentDoc.parentAlwaysOffline = true;
-        else delete contentDoc.parentAlwaysOffline;
-        contentDoc.parentUseVerticalTileLayout = doc.useVerticalTileLayout ?? false;
-        contentDoc.parentAuthorType = doc.authorType;
+            if (doc.alwaysOffline) contentDoc.parentAlwaysOffline = true;
+            else delete contentDoc.parentAlwaysOffline;
+            contentDoc.parentUseVerticalTileLayout = doc.useVerticalTileLayout ?? false;
+            contentDoc.parentAuthorType = doc.authorType;
 
-        if (doc.linkDates) contentDoc.parentLinkDates = true;
-        else delete contentDoc.parentLinkDates;
-        await db.upsertDoc(contentDoc);
+            if (doc.linkDates) contentDoc.parentLinkDates = true;
+            else delete contentDoc.parentLinkDates;
+        });
     }
 
     // Re-stamp the parent's memberOf onto its sidecars (same groups as the parent);
@@ -275,8 +277,9 @@ export default async function processPostTagDto(
 
     const tagDocsContent = (await db.getContentByParentId(changedTags)).docs as ContentDto[];
     for (const content of tagDocsContent) {
-        content.parentTaggedDocs = taggedByTag.get(content.parentId);
-        await db.upsertDoc(content);
+        await patchFreshDoc<ContentDto>(db, content._id, (c) => {
+            c.parentTaggedDocs = taggedByTag.get(c.parentId);
+        });
     }
 
     return warnings;
