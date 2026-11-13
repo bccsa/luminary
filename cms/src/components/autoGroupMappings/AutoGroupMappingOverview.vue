@@ -214,11 +214,17 @@ const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
 
         <!-- Permission warnings -->
         <div v-if="!autoGroupMappings.canView || !autoGroupMappings.canEdit" class="mb-1">
-            <span v-if="!autoGroupMappings.canView" class="mb-1 flex gap-1 text-xs text-zinc-600">
+            <span
+                v-if="!autoGroupMappings.canView"
+                class="mb-1 flex gap-1 text-xs text-zinc-600 dark:text-zinc-400"
+            >
                 <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />
                 No view permission
             </span>
-            <span v-if="!autoGroupMappings.canEdit" class="flex gap-1 text-xs text-zinc-600">
+            <span
+                v-if="!autoGroupMappings.canEdit"
+                class="flex gap-1 text-xs text-zinc-600 dark:text-zinc-400"
+            >
                 <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />
                 No edit permission
             </span>
