@@ -302,7 +302,11 @@ const clearExpiryDate = () => {
                 </div>
 
                 <!-- light-polish: separators break the otherwise-tight field stack into groups -->
-                <div v-if="bare" class="col-span-2 border-t border-zinc-200" role="separator" />
+                <div
+                    v-if="bare"
+                    class="col-span-2 border-t border-zinc-200 dark:border-slate-700"
+                    role="separator"
+                />
 
                 <!-- Author -->
                 <FormLabel>Author</FormLabel>
@@ -379,7 +383,8 @@ const clearExpiryDate = () => {
                                 variant="secondary"
                                 class="min-w-[2.5rem] flex-1 basis-0"
                                 :class="{
-                                    '!bg-black !text-white': selectedExpiryNumber === 1,
+                                    '!bg-black !text-white dark:!bg-zinc-100 dark:!text-zinc-900':
+                                        selectedExpiryNumber === 1,
                                 }"
                                 @click="setExpiryNumber(1)"
                                 :disabled="disabled"
@@ -391,7 +396,10 @@ const clearExpiryDate = () => {
                                 name="2"
                                 variant="secondary"
                                 class="min-w-[2.5rem] flex-1 basis-0"
-                                :class="{ '!bg-black !text-white': selectedExpiryNumber === 2 }"
+                                :class="{
+                                    '!bg-black !text-white dark:!bg-zinc-100 dark:!text-zinc-900':
+                                        selectedExpiryNumber === 2,
+                                }"
                                 @click="setExpiryNumber(2)"
                                 :disabled="disabled"
                             >
@@ -402,7 +410,10 @@ const clearExpiryDate = () => {
                                 name="3"
                                 variant="secondary"
                                 class="min-w-[2.5rem] flex-1 basis-0"
-                                :class="{ '!bg-black !text-white': selectedExpiryNumber === 3 }"
+                                :class="{
+                                    '!bg-black !text-white dark:!bg-zinc-100 dark:!text-zinc-900':
+                                        selectedExpiryNumber === 3,
+                                }"
                                 @click="setExpiryNumber(3)"
                                 :disabled="disabled"
                             >
@@ -413,7 +424,10 @@ const clearExpiryDate = () => {
                                 name="6"
                                 variant="secondary"
                                 class="min-w-[2.5rem] flex-1 basis-0"
-                                :class="{ '!bg-black !text-white': selectedExpiryNumber === 6 }"
+                                :class="{
+                                    '!bg-black !text-white dark:!bg-zinc-100 dark:!text-zinc-900':
+                                        selectedExpiryNumber === 6,
+                                }"
                                 @click="setExpiryNumber(6)"
                                 :disabled="disabled"
                             >
@@ -424,7 +438,10 @@ const clearExpiryDate = () => {
                                 name="W"
                                 variant="secondary"
                                 class="min-w-[2.5rem] flex-1 basis-0"
-                                :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Week' }"
+                                :class="{
+                                    '!bg-black !text-white dark:!bg-zinc-100 dark:!text-zinc-900':
+                                        selectedExpiryUnit === 'Week',
+                                }"
                                 @click="setExpiryUnit('Week')"
                                 data-test="W"
                                 :disabled="disabled"
@@ -436,7 +453,10 @@ const clearExpiryDate = () => {
                                 name="M"
                                 variant="secondary"
                                 class="min-w-[2.5rem] flex-1 basis-0"
-                                :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Month' }"
+                                :class="{
+                                    '!bg-black !text-white dark:!bg-zinc-100 dark:!text-zinc-900':
+                                        selectedExpiryUnit === 'Month',
+                                }"
                                 @click="setExpiryUnit('Month')"
                                 :disabled="disabled"
                             >
@@ -447,7 +467,10 @@ const clearExpiryDate = () => {
                                 name="Y"
                                 variant="secondary"
                                 class="min-w-[2.5rem] flex-1 basis-0"
-                                :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Year' }"
+                                :class="{
+                                    '!bg-black !text-white dark:!bg-zinc-100 dark:!text-zinc-900':
+                                        selectedExpiryUnit === 'Year',
+                                }"
                                 @click="setExpiryUnit('Year')"
                                 :disabled="disabled"
                             >
