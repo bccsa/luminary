@@ -297,7 +297,7 @@ watch(
             <div class="flex flex-col">
                 <div
                     v-if="!(canTranslate || canPublish) || !canEdit"
-                    class="mb-1 rounded-md bg-zinc-50 dark:bg-slate-900 p-2 shadow"
+                    class="mb-1 rounded-md bg-zinc-50 p-2 shadow dark:bg-slate-900"
                 >
                     <span
                         v-if="!canTranslate"
@@ -306,11 +306,17 @@ watch(
                         <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No
                         translate permission</span
                     >
-                    <span v-if="!canPublish" class="mb-1 flex gap-1 text-xs text-zinc-600 dark:text-zinc-400">
+                    <span
+                        v-if="!canPublish"
+                        class="mb-1 flex gap-1 text-xs text-zinc-600 dark:text-zinc-400"
+                    >
                         <ExclamationCircleIcon class="h-4 w-4 text-red-400" />No publish
                         permission</span
                     >
-                    <span v-if="!canEdit" class="flex gap-1 text-xs text-zinc-600 dark:text-zinc-400">
+                    <span
+                        v-if="!canEdit"
+                        class="flex gap-1 text-xs text-zinc-600 dark:text-zinc-400"
+                    >
                         <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No
                         edit permission</span
                     >

@@ -82,7 +82,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 {{ leftAddOn }}
             </span>
             <textarea
-                class="block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6 dark:disabled:bg-slate-800 dark:disabled:text-zinc-400 dark:disabled:ring-slate-700"
+                class="block w-full border-0 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 dark:disabled:bg-slate-800 dark:disabled:text-zinc-400 dark:disabled:ring-slate-700 sm:text-sm sm:leading-6"
                 :class="[
                     sizes[size],
                     states[state],
@@ -113,13 +113,19 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 v-if="state == 'error' && !rightAddOn"
                 class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
             >
-                <ExclamationCircleIcon class="h-5 w-5 text-red-500 dark:text-red-400" aria-hidden="true" />
+                <ExclamationCircleIcon
+                    class="h-5 w-5 text-red-500 dark:text-red-400"
+                    aria-hidden="true"
+                />
             </div>
         </div>
         <p
             v-if="$slots.default"
             class="mt-2 text-sm"
-            :class="{ 'text-zinc-600 dark:text-zinc-400': state == 'default', 'text-red-600 dark:text-red-400': state == 'error' }"
+            :class="{
+                'text-zinc-600 dark:text-zinc-400': state == 'default',
+                'text-red-600 dark:text-red-400': state == 'error',
+            }"
             :id="`${id}-message`"
         >
             <slot />

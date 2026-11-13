@@ -356,7 +356,10 @@ watch(
         context="danger"
         :showClosingButton="false"
     >
-        <p class="mt-3 break-all font-mono text-xs text-zinc-500 dark:text-zinc-400" data-test="delete-media-url">
+        <p
+            class="mt-3 break-all font-mono text-xs text-zinc-500 dark:text-zinc-400"
+            data-test="delete-media-url"
+        >
             {{ parent?.media?.hlsUrl }}
         </p>
     </LDialog>
