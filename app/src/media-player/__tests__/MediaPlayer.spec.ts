@@ -1227,6 +1227,54 @@ describe("MediaPlayer", () => {
             expect(engine.handle.play).not.toHaveBeenCalled();
         });
 
+        it("spins the frames on after a flick, and goes where they stop", async () => {
+            engine.thumbnailsReady = true;
+            const wrapper = await playing();
+            screen(wrapper).vm.$emit("scrub", {
+                time: 50,
+                markerX: 120,
+                width: 390,
+                bottom: 200,
+                held: true,
+            });
+            await flushPromises();
+            const roster = () => screen(wrapper).find("[data-test='mediaPlayerNowPlayingRoster']");
+            vi.useFakeTimers({
+                toFake: [
+                    "requestAnimationFrame",
+                    "cancelAnimationFrame",
+                    "performance",
+                    "setTimeout",
+                ],
+            });
+            try {
+                // The same 100 px leftwards, slowly and then flicked.
+                const drag = async (msPerMove: number) => {
+                    await roster().trigger("pointerdown", { clientX: 300 });
+                    for (let x = 280; x >= 200; x -= 20) {
+                        vi.advanceTimersByTime(msPerMove);
+                        await roster().trigger("pointermove", { clientX: x });
+                    }
+                    await roster().trigger("pointerup", { clientX: 200 });
+                };
+                await drag(200);
+                const slow = engine.handle.seek.mock.calls.at(-1)![0] as number;
+                expect(slow).toBeGreaterThan(50);
+
+                engine.handle.seek.mockClear();
+                await drag(16);
+                // Still spinning: the video has not moved yet.
+                expect(engine.handle.seek).not.toHaveBeenCalled();
+                vi.advanceTimersByTime(3000);
+                await flushPromises();
+                expect(engine.handle.seek).toHaveBeenCalledTimes(1);
+                const flicked = engine.handle.seek.mock.calls[0][0] as number;
+                expect(flicked - slow).toBeGreaterThan(2 * (slow - 50));
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
         it("takes one press on Play to pause after a drag: the press does not first resume the video", async () => {
             engine.thumbnailsReady = true;
             const wrapper = await playing();
