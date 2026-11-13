@@ -1,5 +1,6 @@
 import {
     computed,
+    nextTick,
     ref,
     toRaw,
     watch,
@@ -91,6 +92,21 @@ function normaliseParent(item: ContentParentDto): ContentParentDto {
     if (copy.alwaysOffline === false) delete copy.alwaysOffline;
     if (copy.authorType === "person") delete copy.authorType; // "person" = default — DB often omits the field
     return copy;
+}
+
+/**
+ * Give translations without a date the dated sibling's, as the API's linkDates cascade would.
+ * Each translation is a separate change request, so one sent without a publish date is
+ * otherwise rejected before the cascade from its sibling can reach it.
+ */
+function fillLinkedDates(children: ContentDto[]) {
+    const live = children.filter((c) => !c.deleteReq);
+    const source = live.find((c) => c.publishDate != null);
+    if (!source) return;
+    for (const c of live) {
+        if (c.publishDate == null) c.publishDate = source.publishDate;
+        if (c.expiryDate == null && source.expiryDate != null) c.expiryDate = source.expiryDate;
+    }
 }
 
 /**
@@ -365,6 +381,10 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         parentEditable.updateShadow(parent._id);
 
         const children = [...editableContent.value];
+        if (parent.linkDates) {
+            fillLinkedDates(children);
+            await nextTick(); // let toEditable's dirty tracking see the filled dates
+        }
         await Promise.all(
             children.map((c) => (c.deleteReq ? removeContent(c._id) : saveContent(c._id))),
         );

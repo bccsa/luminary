@@ -67,6 +67,21 @@ describe("EditContentValidation.vue", () => {
         expect(wrapper.text()).toContain("The expiry date must be after the publish date");
     });
 
+    it("requires a publish date on a published translation unless a linked sibling has one", async () => {
+        const wrapper = mount(EditContentValidation, {
+            props: {
+                languages: [mockData.mockLanguageDtoEng],
+                editableContent: { ...mockData.mockEnglishContentDto, publishDate: undefined },
+                canDelete: true,
+                dirty: false,
+            },
+        });
+        expect(wrapper.text()).toContain("A publish date is required");
+
+        await wrapper.setProps({ hasLinkedPublishDate: true });
+        expect(wrapper.text()).not.toContain("A publish date is required");
+    });
+
     it("show the correct language name", async () => {
         const wrapper = mount(EditContentValidation, {
             props: {
