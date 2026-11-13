@@ -26,8 +26,8 @@ const emit = defineEmits(["remove"]);
             <component
                 :is="icon"
                 :class="{
-                    'text-zinc-400': !disabled,
-                    'text-zinc-300': disabled,
+                    'text-zinc-400 dark:text-zinc-500': !disabled,
+                    'text-zinc-300 dark:text-zinc-600': disabled,
                 }"
                 class="h-5 w-5"
             />
@@ -36,13 +36,13 @@ const emit = defineEmits(["remove"]);
             <slot />
             <button
                 @click.stop="emit('remove')"
-                class="text-zinc-400"
+                class="text-zinc-400 dark:text-zinc-500"
                 data-test="removeTag"
                 v-if="!disabled"
                 type="button"
             >
                 <XMarkIcon
-                    class="h-4 w-4 hover:text-zinc-800 dark:text-zinc-100"
+                    class="h-4 w-4 hover:text-zinc-800 dark:text-zinc-100 dark:hover:text-zinc-100"
                     title="Remove tag"
                 />
             </button>
