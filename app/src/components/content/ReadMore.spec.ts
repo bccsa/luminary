@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { db, DocType, PublishStatus, TagType, type ContentDto } from "luminary-shared";
@@ -7,6 +7,9 @@ import ReadMore, { summaryClampFor } from "./ReadMore.vue";
 import waitForExpect from "wait-for-expect";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
 import { appLanguageIdsAsRef } from "@/globalConfig";
+
+const revealedCount = vi.hoisted(() => ({ saved: 0, save: vi.fn() }));
+vi.mock("@/composables/useScrollMemory", () => ({ useRevealedCount: () => revealedCount }));
 
 // Capture the observer callback so tests can simulate the infinite-scroll sentinel
 // entering the viewport (jsdom has no layout, so it never fires on its own).
@@ -181,5 +184,59 @@ describe("ReadMore", () => {
         intersect([{ isIntersecting: true }]);
         await nextTick();
         expect(wrapper.findAll("li")).toHaveLength(20);
+    });
+
+    describe("revealed count across navigation", () => {
+        beforeEach(() => {
+            revealedCount.saved = 0;
+            revealedCount.save.mockClear();
+        });
+
+        it("shows the batches the reader had revealed when coming back", () => {
+            revealedCount.saved = 24;
+
+            const wrapper = mountList(makeItems(30));
+
+            expect(wrapper.findAll("li")).toHaveLength(24);
+        });
+
+        it("starts from one batch when nothing was saved", () => {
+            const wrapper = mountList(makeItems(30));
+
+            expect(wrapper.findAll("li")).toHaveLength(8);
+        });
+
+        it("saves the initial count, so an older longer one is replaced", () => {
+            mountList(makeItems(30));
+
+            expect(revealedCount.save).toHaveBeenCalledWith(8);
+        });
+
+        it("saves the count each time another batch is revealed", async () => {
+            mountList(makeItems(30));
+
+            intersect([{ isIntersecting: true }]);
+            await nextTick();
+
+            expect(revealedCount.save.mock.lastCall?.[0]).toBe(16);
+        });
+
+        it("keeps the restored count when the items only arrive after mount", async () => {
+            revealedCount.saved = 24;
+
+            const wrapper = mountList([]);
+            await wrapper.setProps({ items: makeItems(30) });
+
+            expect(wrapper.findAll("li")).toHaveLength(24);
+        });
+
+        it("goes back to one batch when a different set of items replaces the loaded one", async () => {
+            revealedCount.saved = 24;
+
+            const wrapper = mountList(makeItems(30));
+            await wrapper.setProps({ items: makeItems(25) });
+
+            expect(wrapper.findAll("li")).toHaveLength(8);
+        });
     });
 });

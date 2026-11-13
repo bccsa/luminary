@@ -10,6 +10,7 @@ import type { ContentDto } from "luminary-shared";
 import { ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { useBackNavigation } from "@/composables/useBackNavigation";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
+import { useScrollMemory } from "@/composables/useScrollMemory";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
@@ -31,6 +32,7 @@ const props = defineProps<{
 const { onBackClick } = useBackNavigation();
 
 const main = ref<HTMLElement | undefined>(undefined);
+useScrollMemory(main);
 
 // The mobile chrome overlays the scroller and steps aside via transform —
 // a layout animation would resize the page mid-scroll and read as the text

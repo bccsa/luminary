@@ -54,6 +54,7 @@ vi.mock("vue-i18n", () => ({
 
 vi.mock("@/globalConfig", () => ({
     appName: "TestApp",
+    localCacheVersion: ref(0),
     appLanguagePreferredIdAsRef: ref("lang-eng"),
     isDarkTheme: ref(false),
     theme: ref("light"),
