@@ -131,7 +131,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     :class="{
                         'text-zinc-400 dark:text-zinc-500': state == 'default' && !disabled,
                         'text-zinc-300 dark:text-zinc-700': state == 'default' && disabled,
-                        'text-red-400': state == 'error',
+                        'text-red-400 dark:text-red-500': state == 'error',
                     }"
                 />
             </div>
