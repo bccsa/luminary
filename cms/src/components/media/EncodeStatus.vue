@@ -97,18 +97,26 @@ const percentage = computed(() => {
                     class="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-slate-700"
                 >
                     <div
-                        class="h-full rounded-full bg-zinc-700 transition-[width] duration-500"
+                        class="h-full rounded-full bg-zinc-700 transition-[width] duration-500 dark:bg-zinc-300"
                         :style="{ width: `${percentage}%` }"
                         data-test="encoder-progress-bar"
                     />
                 </div>
-                <span class="whitespace-nowrap text-xs font-medium tabular-nums text-zinc-700">
+                <span
+                    class="whitespace-nowrap text-xs font-medium tabular-nums text-zinc-700 dark:text-zinc-300"
+                >
                     {{ label }} {{ percentage }}%
                 </span>
             </div>
-            <span v-else class="text-xs font-medium text-zinc-700">{{ label }}</span>
+            <span v-else class="text-xs font-medium text-zinc-700 dark:text-zinc-300">{{
+                label
+            }}</span>
 
-            <p v-if="running" class="mt-1 text-xs text-zinc-500" data-test="encoder-leave-hint">
+            <p
+                v-if="running"
+                class="mt-1 text-xs text-zinc-500 dark:text-zinc-400"
+                data-test="encoder-leave-hint"
+            >
                 You can save and come back — this keeps running.
             </p>
         </div>
@@ -125,7 +133,7 @@ const percentage = computed(() => {
                 :href="ENCODER_DOWNLOAD_URL"
                 target="_blank"
                 rel="noopener"
-                class="font-medium underline underline-offset-2 hover:text-yellow-900"
+                class="font-medium underline underline-offset-2 hover:text-yellow-900 dark:hover:text-yellow-200"
                 data-test="encoder-download"
                 >Download the current version</a
             >, then install it over the old one.
@@ -144,7 +152,7 @@ const percentage = computed(() => {
             Luminary Media Convert did not answer.
             <a
                 :href="ENCODER_PROTOCOL_URL"
-                class="font-medium underline underline-offset-2 hover:text-yellow-900"
+                class="font-medium underline underline-offset-2 hover:text-yellow-900 dark:hover:text-yellow-200"
                 data-test="encoder-launch"
                 >Open it</a
             >
@@ -154,7 +162,7 @@ const percentage = computed(() => {
                 :href="ENCODER_DOWNLOAD_URL"
                 target="_blank"
                 rel="noopener"
-                class="font-medium underline underline-offset-2 hover:text-yellow-900"
+                class="font-medium underline underline-offset-2 hover:text-yellow-900 dark:hover:text-yellow-200"
                 data-test="encoder-download"
                 >Download it</a
             >.
@@ -168,7 +176,7 @@ const percentage = computed(() => {
             Luminary Media Convert is not running.
             <a
                 :href="ENCODER_PROTOCOL_URL"
-                class="font-medium underline underline-offset-2 hover:text-zinc-900"
+                class="font-medium underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-50"
                 data-test="encoder-launch"
                 >Open it</a
             >
@@ -177,7 +185,7 @@ const percentage = computed(() => {
                 :href="ENCODER_DOWNLOAD_URL"
                 target="_blank"
                 rel="noopener"
-                class="font-medium underline underline-offset-2 hover:text-zinc-900"
+                class="font-medium underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-50"
                 data-test="encoder-download"
                 >download it</a
             >
