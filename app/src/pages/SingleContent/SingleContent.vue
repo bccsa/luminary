@@ -683,7 +683,11 @@ const resumeOffered = computed(
     () => hasResumableProgressOnOpen.value && !continuePromptHandled.value,
 );
 
-watch(contentId, () => {
+// The article drops out and back while its query rebuilds; only a different article is a new visit.
+let promptContentId = contentId.value;
+watch(contentId, (id) => {
+    if (!id || id === promptContentId) return;
+    promptContentId = id;
     continuePromptHandled.value = false;
 });
 
