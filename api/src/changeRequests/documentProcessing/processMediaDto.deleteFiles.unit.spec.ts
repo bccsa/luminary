@@ -18,7 +18,7 @@ const child = () => ({ _id: "content-1", type: "content" }) as unknown as Conten
 
 const stubDb = (children: ContentDto[] = []) =>
     ({
-        getDoc: jest.fn().mockResolvedValue({ docs: [] }),
+        getDoc: jest.fn(async (id: string) => ({ docs: children.filter((c) => c._id === id) })),
         getDocsByType: jest.fn().mockResolvedValue({ docs: [] }),
         getContentByParentId: jest.fn().mockResolvedValue({ docs: children }),
         upsertDoc: jest.fn().mockResolvedValue({ id: "x" }),
