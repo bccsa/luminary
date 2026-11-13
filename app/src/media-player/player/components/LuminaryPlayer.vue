@@ -73,7 +73,7 @@ import ScrubRoster from "./ScrubRoster.vue";
 import ScrubPicture from "./ScrubPicture.vue";
 import NextUpThumb from "./NextUpThumb.vue";
 import AudioFullscreen from "./AudioFullscreen.vue";
-import { languageBadge, qualityBadge } from "../ui/audioFullscreen";
+import { languageBadge } from "../ui/audioFullscreen";
 import BrowsePanel from "./BrowsePanel.vue";
 import { imageAttempts, toPlayerImage, type PlayerImageInput } from "../image";
 import { isYouTubeUrl } from "@luminary-media-converter/player-web";
@@ -396,30 +396,15 @@ function readPlayingBandwidth(): void {
 }
 
 /**
- * The quality and language buttons of the control bar carry badges, as the now-playing screen's do. The bar is markup
- * the skin owns, so the badge text goes on the button as an attribute its CSS draws.
+ * The subtitles button carries the language on show as a badge. The bar is markup the skin owns, so the badge text
+ * goes on the button as an attribute its CSS draws. Quality and sound language are left to their menus (#2565).
  */
-const barBadges = computed(() => {
-    const held = state.value.qualities.find(
-        (quality) => quality.id === state.value.activeQualityId,
-    );
-    return {
-        quality: held
-            ? held.height
-                ? qualityBadge(held.height, undefined)
-                : held.label
-            : qualityBadge(undefined, playingHeight.value || undefined),
-        audio: languageBadge(
-            state.value.audioTracks.find((track) => track.id === state.value.activeAudioTrackId)
-                ?.lang,
-        ),
-        captions: languageBadge(
-            state.value.subtitleTracks.find(
-                (track) => track.id === state.value.activeSubtitleTrackId,
-            )?.lang,
-        ),
-    };
-});
+const barBadges = computed(() => ({
+    captions: languageBadge(
+        state.value.subtitleTracks.find((track) => track.id === state.value.activeSubtitleTrackId)
+            ?.lang,
+    ),
+}));
 function applyBarBadges(): void {
     const root = containerEl.value;
     if (!root) return;
@@ -548,7 +533,7 @@ onMounted(() => {
         readPlayingHeight();
         emit("loadedmetadata");
     });
-    // A rendition switch changes the picture's size: Auto's badge follows it.
+    // A rendition switch changes the picture's size.
     on("resize", readPlayingHeight);
     on("emptied", () => {
         readPlayingHeight();
