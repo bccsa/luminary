@@ -311,7 +311,9 @@ const navItemClass = computed(() => [
                                 {{ item.name }}
                                 <ChevronRightIcon
                                     :class="[
-                                        item.open ? 'rotate-90 text-zinc-500' : 'text-zinc-400',
+                                        item.open
+                                            ? 'rotate-90 text-zinc-500 dark:text-zinc-300'
+                                            : 'text-zinc-400 dark:text-zinc-500',
                                         'ml-auto h-5 w-5 shrink-0',
                                     ]"
                                     aria-hidden="true"
@@ -382,7 +384,7 @@ const navItemClass = computed(() => [
             <button
                 type="button"
                 :class="[
-                    'flex w-full rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200',
+                    'flex w-full rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-slate-600',
                     isCollapsed
                         ? 'justify-center p-2.5'
                         : 'items-center gap-3 px-3 py-2.5 text-left',
