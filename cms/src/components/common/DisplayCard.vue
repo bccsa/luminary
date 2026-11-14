@@ -71,7 +71,7 @@ const handleClick = () => {
                 <div class="flex items-center gap-0">
                     <div
                         v-if="titleHtml"
-                        class="mr-1 max-w-full truncate text-wrap text-sm font-medium dark:text-zinc-100 [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0"
+                        class="mr-1 max-w-full truncate text-wrap text-sm font-medium dark:text-zinc-100 [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0 dark:[&_mark]:bg-amber-900/50"
                         v-html="titleHtml"
                     ></div>
                     <div
