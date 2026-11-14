@@ -1152,6 +1152,54 @@ describe("Database", async () => {
         });
     });
 
+    describe("search stats after an access change", () => {
+        const map = { "g-public": { [DocType.Post]: { view: true, cmsView: true } } };
+        const stale = async () =>
+            (await db.luminaryInternals.get("corpusStatsStale")) !== undefined;
+
+        beforeEach(async () => {
+            await db.docs.clear();
+            accessMap.value = map;
+            await waitForExpect(async () => {
+                expect(await db.getLuminaryInternals("reconciledAccessMap")).toBe(
+                    JSON.stringify(map),
+                );
+            });
+            await db.luminaryInternals.delete("corpusStatsStale");
+        });
+
+        afterEach(async () => {
+            accessMap.value = {};
+            await db.docs.clear();
+            await db.purge();
+        });
+
+        it("stay current when the change removed nothing", async () => {
+            await db.docs.bulkPut([
+                { _id: "p1", type: DocType.Post, memberOf: ["g-public"], updatedTimeUtc: 0 },
+            ] as PostDto[]);
+            await db.luminaryInternals.delete("corpusStatsStale");
+
+            await db.deleteRevoked();
+            await new Promise((resolve) => setTimeout(resolve, 20));
+
+            expect(await stale()).toBe(false);
+        });
+
+        it("go out of date when the change removed docs", async () => {
+            await db.docs.bulkPut([
+                { _id: "p2", type: DocType.Post, memberOf: ["g-private"], updatedTimeUtc: 0 },
+            ] as PostDto[]);
+            await db.luminaryInternals.delete("corpusStatsStale");
+
+            await db.deleteRevoked();
+            await new Promise((resolve) => setTimeout(resolve, 20));
+
+            expect(await db.docs.get("p2")).toBeUndefined();
+            expect(await stale()).toBe(true);
+        });
+    });
+
     // Regression (#160 partial-sync): deleteRevoked() must keep syncList consistent with the docs
     // it evicts. Otherwise a revoked group's docs leave `docs` while its column stays at `eof`, so
     // a later re-grant (same memberOf — no growth path triggers) trusts the stale eof and never

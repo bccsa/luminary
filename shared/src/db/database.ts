@@ -15,7 +15,7 @@ import {
     UserActivityEntry,
     Uuid,
 } from "../types";
-import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
+import { corpusStatsNeedRecompute, scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
 import { ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
@@ -777,18 +777,24 @@ class Database extends Dexie {
 
                 const revokedDocs = this.whereNotMemberOfAsCollection(groups, docType as DocType);
 
+                let deleted = 0;
+
                 // Delete associated Language content documents
                 if (docType === DocType.Language) {
                     const revokedLanguages = await revokedDocs.toArray();
                     const revokedlanguageIds = revokedLanguages.map((l) => l._id);
-                    await this.docs.where("language").anyOf(revokedlanguageIds).delete();
+                    deleted += await this.docs.where("language").anyOf(revokedlanguageIds).delete();
                 }
 
                 const revokedIds = (await revokedDocs.primaryKeys()) as string[];
 
                 if (revokedIds.length > 0) {
-                    await this.whereNotMemberOfAsCollection(groups, docType as DocType).delete();
+                    deleted += await this.whereNotMemberOfAsCollection(
+                        groups,
+                        docType as DocType,
+                    ).delete();
                 }
+                return deleted;
             });
 
         // Keep `syncList` consistent with the docs just evicted. A column must never claim coverage
@@ -799,9 +805,10 @@ class Database extends Dexie {
         // eviction above and generalises the one-time Group-only `resetGroupSyncListForRecovery`.
         const reconciled = this.reconcileSyncListToAccess(groupsPerDocType);
 
-        scheduleCorpusStatsRecompute();
-
-        return Promise.all([...evictions, reconciled]).then(() => undefined);
+        return Promise.all([Promise.all(evictions), reconciled]).then(([deleted]) => {
+            // The stats only go out of date when the access change actually removed docs.
+            if (deleted.some((n) => n > 0)) scheduleCorpusStatsRecompute();
+        });
     }
 
     /**
@@ -986,10 +993,13 @@ export async function initDatabase() {
     }
     dbUpgradeBlocked.value = false;
 
-    // Compute FTS corpus stats on startup.
+    // Rescan the FTS corpus stats on startup only when there are none or the docs changed since:
+    // the scan reads every doc's index, and the stats from the last run are kept in the database.
     // Uses setTimeout(0) to avoid Dexie PSD zone deadlocks during initialization.
     setTimeout(() => {
-        scheduleCorpusStatsRecompute();
+        void corpusStatsNeedRecompute()
+            .catch(() => true)
+            .then((needed) => needed && scheduleCorpusStatsRecompute());
     }, 0);
 
     // Wait a little to give the app time to load before deleting expired content to help speed up the initial app loading time
