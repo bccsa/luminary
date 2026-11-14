@@ -56,7 +56,10 @@ function formatRelativeTime(timestamp: number): string {
                     >
                         {{ doc.title || "Untitled" }}
                     </span>
-                    <span v-else class="min-w-0 truncate text-sm font-medium text-zinc-900">
+                    <span
+                        v-else
+                        class="min-w-0 truncate text-sm font-medium text-zinc-900 dark:text-zinc-100"
+                    >
                         {{ doc.title || "Untitled" }}
                     </span>
                     <span
