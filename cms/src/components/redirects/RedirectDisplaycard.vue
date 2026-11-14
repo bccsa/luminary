@@ -47,7 +47,7 @@ const redirectGroups = computed(() =>
     >
         <template #title-extension>
             <div class="flex items-center gap-1">
-                <ArrowRightIcon class="size-4 text-zinc-400" />
+                <ArrowRightIcon class="size-4 text-zinc-400 dark:text-zinc-500" />
                 <span class="text-xs text-zinc-500 dark:text-zinc-200 sm:text-sm">
                     {{ redirectDoc.toSlug ?? "HOMEPAGE" }}
                 </span>
@@ -66,7 +66,7 @@ const redirectGroups = computed(() =>
         <template #mobileFooter>
             <div class="flex flex-1 items-center gap-1">
                 <div>
-                    <UserGroupIcon class="size-4 text-zinc-400" />
+                    <UserGroupIcon class="size-4 text-zinc-400 dark:text-zinc-500" />
                 </div>
                 <div class="flex flex-wrap gap-1">
                     <LBadge
@@ -77,7 +77,7 @@ const redirectGroups = computed(() =>
                     >
                         {{ group.name }}
                     </LBadge>
-                    <span v-if="redirectGroups.length === 0" class="text-xs text-zinc-400">
+                    <span v-if="redirectGroups.length === 0" class="text-xs text-zinc-400 dark:text-zinc-500">
                         No groups
                     </span>
                 </div>
@@ -95,7 +95,7 @@ const redirectGroups = computed(() =>
                 >
                     {{ group.name }}
                 </LBadge>
-                <span v-if="redirectGroups.length === 0" class="text-xs text-zinc-400">
+                <span v-if="redirectGroups.length === 0" class="text-xs text-zinc-400 dark:text-zinc-500">
                     No groups
                 </span>
             </div>
