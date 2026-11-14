@@ -27,7 +27,7 @@ const id = useId().toString();
             <select
                 :id="id"
                 name="tabs"
-                class="block w-full rounded-md border-zinc-300 py-2 pl-3 pr-10 text-base focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 sm:text-sm"
+                class="block w-full rounded-md border-zinc-300 py-2 pl-3 pr-10 text-base focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 sm:text-sm dark:border-slate-600 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
             >
                 <option
                     v-for="tab in tabs"
@@ -40,7 +40,7 @@ const id = useId().toString();
             </select>
         </div>
         <div>
-            <div class="flex items-center justify-between sm:border-b sm:border-zinc-200">
+            <div class="flex items-center justify-between sm:border-b sm:border-zinc-200 dark:sm:border-slate-700">
                 <nav class="-mb-px hidden space-x-8 sm:flex" aria-label="Tabs">
                     <span
                         v-for="tab in tabs"
@@ -48,8 +48,8 @@ const id = useId().toString();
                         :key="tab.key"
                         :class="[
                             tab.key == currentTab
-                                ? 'border-zinc-500 text-zinc-950'
-                                : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700',
+                                ? 'border-zinc-500 text-zinc-950 dark:border-zinc-600 dark:text-zinc-100'
+                                : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:border-slate-600 dark:hover:text-zinc-300',
                             'flex cursor-pointer items-center gap-2 whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium',
                         ]"
                         :aria-current="tab.key == currentTab ? 'page' : undefined"
@@ -58,7 +58,7 @@ const id = useId().toString();
                             :is="tab.icon"
                             v-if="tab.icon"
                             class="h-4 w-4"
-                            :class="[tab.key == currentTab ? 'text-zinc-800' : 'text-zinc-400']"
+                            :class="[tab.key == currentTab ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-400 dark:text-zinc-500']"
                         />
                         {{ tab.title }}
                     </span>
