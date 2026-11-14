@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => {
     };
     return {
         mangoToDexieMock: vi.fn<(...args: any[]) => Promise<any[]>>(),
-        docsTable: { _docsTableSentinel: true },
+        docsTable: { _docsTableSentinel: true, name: "docs" },
         bulkPut: vi.fn<(...args: any[]) => Promise<any[]>>(() => Promise.resolve([])),
         touchRetention: vi.fn<(ids: readonly string[]) => void>(),
         isSyncableDoc: vi.fn<(doc: any) => boolean>(() => true),
@@ -71,6 +71,7 @@ vi.mock("../MangoQuery/mangoToDexie", () => ({
 vi.mock("../../db/database", () => ({
     db: {
         docs: mocks.docsTable,
+        tableFor: () => mocks.docsTable,
         validateDeleteCommand: mocks.validateDeleteCommandMock,
         bulkPut: mocks.bulkPut,
     },
