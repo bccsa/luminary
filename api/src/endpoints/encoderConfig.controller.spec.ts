@@ -125,6 +125,67 @@ describe("EncoderConfigController", () => {
         expect(res.body.publicBaseUrl).toBe("https://cdn.example.com/media");
     });
 
+    describe("the record of who was given the bucket's keys", () => {
+        const handedOut = () =>
+            logger.info.mock.calls.filter(
+                ([message]) => message === "Encoder credentials handed out",
+            );
+
+        beforeEach(() => logger.info.mockClear());
+
+        it("names the user, the bucket and the document", async () => {
+            mockGetDoc.mockImplementation(async (id: string) =>
+                id === "bucket-1"
+                    ? bucket()
+                    : {
+                          docs: [
+                              {
+                                  _id: "post-1",
+                                  type: "post",
+                                  memberOf: ["g"],
+                                  mediaBucketId: "bucket-1",
+                              },
+                          ],
+                      },
+            );
+
+            await request(app.getHttpServer())
+                .get("/storage/encoderconfig?bucketId=bucket-1&apiVersion=0.0.0&parentId=post-1")
+                .expect(200);
+
+            expect(handedOut()).toEqual([
+                [
+                    "Encoder credentials handed out",
+                    {
+                        userId: "user-123",
+                        bucketId: "bucket-1",
+                        bucket: "Media",
+                        parentId: "post-1",
+                    },
+                ],
+            ]);
+        });
+
+        it("never holds the keys themselves", async () => {
+            mockGetDoc.mockResolvedValue(bucket());
+
+            const res = await get().expect(200);
+
+            const logged = JSON.stringify(logger.info.mock.calls);
+            expect(logged).not.toContain(res.body.s3.accessKey);
+            expect(logged).not.toContain(res.body.s3.secretKey);
+        });
+
+        it("is not written when the keys are refused", async () => {
+            mockGetDoc.mockResolvedValue(bucket());
+            jest.spyOn(permissionsService.PermissionSystem, "verifyAccess").mockReturnValue(false);
+
+            await get().expect(403);
+
+            expect(handedOut()).toEqual([]);
+        });
+    });
+
     describe("for an edit of a post's existing video", () => {
         const post = (overrides: object = {}) => ({
             _id: "post-1",
