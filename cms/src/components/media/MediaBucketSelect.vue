@@ -79,6 +79,7 @@ const problem = computed(() => {
             :options="bucketOptions"
             :disabled="disabled"
             label="Storage bucket"
+            placeholder="Select storage bucket"
             data-test="bucket-select"
         />
 
