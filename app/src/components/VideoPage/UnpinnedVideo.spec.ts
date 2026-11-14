@@ -249,6 +249,42 @@ describe("UnpinnedVideo", () => {
         });
     });
 
+    it("moves the category of a newly published video to the top", async () => {
+        await db.docs.bulkPut([
+            mockUnpinnedCategoryContent,
+            mockUnpinnedCategoryContent2,
+            mockVideoContent1,
+            mockVideoContent2,
+        ]);
+        const wrapper = mountWithSuspense();
+        const order = () => {
+            const text = wrapper.text();
+            return text.indexOf("Category 1") < text.indexOf("Category 2") ? [1, 2] : [2, 1];
+        };
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Category 2");
+            expect(order()).toEqual([1, 2]);
+        });
+
+        // Published the way the CMS publishes video today: only the parent's encoded media.
+        const newlyPublished: ContentDto = {
+            ...mockVideoContent2,
+            _id: "content-video3-eng",
+            parentId: "post-video3",
+            slug: "video-3",
+            title: "Video Three",
+            publishDate: mockVideoContent1.publishDate! + 60_000,
+            parentMedia: { hlsUrl: "video-3/master.m3u8" } as ContentDto["parentMedia"],
+        };
+        delete newlyPublished.video;
+        await db.docs.put(newlyPublished);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Video Three");
+            expect(order()).toEqual([2, 1]);
+        });
+    });
+
     it("does not display content whose parent media has no URL and no video", async () => {
         const emptyMediaContent: ContentDto = {
             ...mockVideoContent1,
