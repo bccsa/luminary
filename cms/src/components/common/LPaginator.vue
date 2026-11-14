@@ -147,7 +147,7 @@ watch(openPageSizeSelect, (newValue) => {
                         }
                     "
                 />
-                <span v-if="variant === 'simple'" class="text-sm text-zinc-600">
+                <span v-if="variant === 'simple'" class="text-sm text-zinc-600 dark:text-zinc-400">
                     Page <strong>{{ index + 1 }}</strong> of
                     <strong>{{ pageCount }}</strong>
                 </span>
@@ -155,9 +155,9 @@ watch(openPageSizeSelect, (newValue) => {
                     v-else-if="variant === 'extended'"
                     v-for="i in paginatorPages"
                     :key="`index-${i}`"
-                    class="h-10 w-10 text-zinc-900"
+                    class="h-10 w-10 text-zinc-900 dark:text-zinc-100"
                     :class="{
-                        'bg-zinc-900 font-bold !text-zinc-50 !ring-zinc-900 hover:bg-zinc-900/80':
+                        'dark:bg-zinc-100! dark:text-zinc-900! bg-zinc-900 font-bold !text-zinc-50 !ring-zinc-900 hover:bg-zinc-900/80 dark:ring-zinc-100 dark:hover:bg-zinc-200':
                             i === index,
                     }"
                     @click="
@@ -204,7 +204,7 @@ watch(openPageSizeSelect, (newValue) => {
             </div>
             <div
                 v-if="openPageSizeSelect"
-                class="absolute -left-6 bottom-12 z-10 flex h-10 w-screen items-center justify-center border-t border-t-zinc-300 bg-white py-6"
+                class="absolute -left-6 bottom-12 z-10 flex h-10 w-screen items-center justify-center border-t border-t-zinc-300 bg-white py-6 dark:border-t-slate-600 dark:bg-slate-800"
             >
                 <LSelect
                     @click="openPageSizeSelect = true"
