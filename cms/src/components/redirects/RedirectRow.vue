@@ -21,34 +21,34 @@ const isModalVisible = ref(false);
 <template>
     <tr>
         <!-- From Slug -->
-        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
+        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 dark:text-zinc-100 sm:pl-6">
             {{ redirectDoc.slug }}
         </td>
 
         <!-- To Slug -->
-        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
+        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 dark:text-zinc-100 sm:pl-6">
             {{ redirectDoc.toSlug ?? "HOMEPAGE" }}
         </td>
 
         <!-- Type -->
-        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-6">
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 dark:text-zinc-300 sm:pl-6">
             <LBadge>{{ redirectDoc.redirectType.toLocaleUpperCase() }}</LBadge>
         </td>
 
         <!-- status -->
-        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
+        <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 dark:text-zinc-100 sm:pl-6">
             <!-- Optional status handling -->
             <LBadge v-if="isLocalChanges" variant="warning">Offline changes</LBadge>
         </td>
 
         <!-- updated -->
-        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-6">
+        <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 dark:text-zinc-300 sm:pl-6">
             {{ db.toDateTime(redirectDoc.updatedTimeUtc).toLocaleString(DateTime.DATETIME_SHORT) }}
         </td>
 
         <!-- actions -->
         <td
-            class="flex justify-end whitespace-nowrap py-2 text-sm font-medium text-zinc-700 sm:pl-6"
+            class="flex justify-end whitespace-nowrap py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 sm:pl-6"
         >
             <LButton
                 variant="tertiary"
