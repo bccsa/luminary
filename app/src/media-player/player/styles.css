@@ -152,15 +152,17 @@
 /*
  * Everything under here is drawn in multiples of `--lmpl-s`, which steps up with the width of the player
  * rather than with whether it is fullscreen or what device it is on: the same controls that suit a phone
- * look like a stamp on a 2000px desktop screen. It is set on the controls and the scrub preview — the
- * elements the size container's query can reach — and read by everything inside them, menus included, since
- * a menu in the top layer still inherits from where it sits in the tree.
+ * look like a stamp on a 2000px desktop screen. It is set on the controls, the scrub preview and the loading
+ * ring — the elements the size container's query can reach — and read by everything inside them, menus
+ * included, since a menu in the top layer still inherits from where it sits in the tree. An element sized by
+ * it but outside all of these gets no size at all.
  */
 .lmpl-root .lmpl-controls-content,
 .lmpl-root .lmpl-scrub-preview,
 .lmpl-root .lmpl-tooltip,
 .lmpl-root .lmpl-nextup,
-.lmpl-root .lmpl-browse {
+.lmpl-root .lmpl-browse,
+.lmpl-root .lmpl-busy {
     --lmpl-s: 1;
     --media-spacing: calc(4px * var(--lmpl-s));
 }
@@ -174,7 +176,8 @@
     .lmpl-root .lmpl-controls-content,
     .lmpl-root .lmpl-scrub-preview,
     .lmpl-root .lmpl-tooltip,
-    .lmpl-root .lmpl-browse {
+    .lmpl-root .lmpl-browse,
+    .lmpl-root .lmpl-busy {
         --lmpl-s: 1.25;
     }
 }
@@ -183,7 +186,8 @@
     .lmpl-root .lmpl-controls-content,
     .lmpl-root .lmpl-scrub-preview,
     .lmpl-root .lmpl-tooltip,
-    .lmpl-root .lmpl-browse {
+    .lmpl-root .lmpl-browse,
+    .lmpl-root .lmpl-busy {
         --lmpl-s: 1.6;
     }
 }
