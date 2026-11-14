@@ -50,11 +50,11 @@ const handleClick = () => {
 <template>
     <div
         data-test="display-card"
-        class="w-full divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 transition-all duration-200 dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:shadow-lg dark:hover:divide-slate-800/80 sm:rounded-md sm:border"
+        class="w-full divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 transition-all duration-200 dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:shadow-lg dark:hover:divide-slate-700/80 sm:rounded-md sm:border"
         :class="[
             {
                 'cursor-pointer dark:hover:bg-slate-800/50 dark:hover:shadow-none':
-                    !disable && canNavigate && navigateTo,
+                    !disable && canNavigate,
                 'select-none divide-zinc-200 border-gray-300 bg-slate-300 dark:border-slate-800 dark:bg-slate-900/40 dark:text-zinc-600':
                     disable,
             },
@@ -71,7 +71,7 @@ const handleClick = () => {
                 <div class="flex items-center gap-0">
                     <div
                         v-if="titleHtml"
-                        class="mr-1 max-w-full truncate text-wrap text-sm font-medium dark:text-zinc-100 [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0"
+                        class="mr-1 max-w-full truncate text-wrap text-sm font-medium dark:text-zinc-100 [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0 dark:[&_mark]:bg-amber-900/50"
                         v-html="titleHtml"
                     ></div>
                     <div

@@ -9,12 +9,12 @@ const buttonClasses = cva({
     variants: {
         variant: {
             primary:
-                "active:text-zinc-50 disabled:ring-zinc-300 bg-zinc-700 ring-1 shadow-sm text-white ring-zinc-900/60 hover:bg-zinc-600 active:bg-zinc-800/80 dark:bg-yellow-300 dark:text-zinc-600 dark:ring-white/10 dark:hover:bg-yellow-200 dark:active:bg-zinc-300 disabled:bg-zinc-300 disabled:text-zinc-100 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600",
+                "active:text-zinc-50 dark:active:text-zinc-800 disabled:ring-zinc-300 dark:disabled:ring-zinc-700 bg-zinc-700 ring-1 shadow-sm text-white ring-zinc-900/60 hover:bg-zinc-600 active:bg-zinc-800/80 dark:bg-yellow-300 dark:text-zinc-600 dark:ring-white/10 dark:hover:bg-yellow-200 dark:active:bg-zinc-300 disabled:bg-zinc-300 disabled:text-zinc-100 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600",
             secondary:
                 "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100/70 dark:bg-slate-700 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-600 dark:active:bg-slate-500 disabled:bg-zinc-100 disabled:text-zinc-500 dark:disabled:bg-slate-900 dark:disabled:text-zinc-700",
             tertiary:
-                "disabled:hover:bg-transparent bg-transparent text-zinc-700 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100 disabled:text-zinc-500",
-            muted: "bg-transparent text-zinc-600 hover:text-zinc-700 active:text-zinc-800 hover:bg-zinc-100 active:bg-zinc-200 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-slate-800/50 disabled:text-zinc-400 disabled:hover:bg-transparent",
+                "disabled:hover:bg-transparent bg-transparent text-zinc-700 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100 disabled:text-zinc-500 dark:disabled:text-zinc-600",
+            muted: "bg-transparent text-zinc-600 hover:text-zinc-700 active:text-zinc-800 dark:active:text-zinc-200 hover:bg-zinc-100 active:bg-zinc-200 dark:active:bg-slate-700 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-slate-800/50 disabled:text-zinc-400 dark:disabled:text-zinc-600 disabled:hover:bg-transparent",
         },
         size: {
             sm: "px-2 py-1.5",
@@ -30,17 +30,17 @@ const buttonClasses = cva({
         {
             variant: "primary",
             context: "danger",
-            class: "bg-red-600 ring-red-700/60 hover:bg-red-600/80 dark:bg-red-500 dark:hover:bg-red-400 active:text-white active:bg-red-600/70 disabled:bg-red-300 disabled:text-red-50 disabled:ring-red-300/90",
+            class: "bg-red-600 ring-red-700/60 dark:ring-white/10 hover:bg-red-600/80 dark:bg-red-500 dark:hover:bg-red-400 active:text-white active:bg-red-600/70 dark:active:bg-red-600 disabled:bg-red-300 dark:disabled:bg-red-900/50 disabled:text-red-50 dark:disabled:text-red-300 disabled:ring-red-300/90 dark:disabled:ring-red-900",
         },
         {
             variant: "secondary",
             context: "danger",
-            class: "text-red-600 active:text-red-700 disabled:text-red-300 dark:text-red-400 dark:hover:text-red-300",
+            class: "text-red-600 active:text-red-700 dark:active:text-red-300 disabled:text-red-300 dark:disabled:text-red-900 dark:text-red-400 dark:hover:text-red-300",
         },
         {
             variant: "tertiary",
             context: "danger",
-            class: "hover:text-red-600 active:text-red-700",
+            class: "hover:text-red-600 dark:hover:text-red-400 active:text-red-700 dark:active:text-red-300",
         },
         { variant: "muted", size: "lg", class: "-mx-2 -my-1.5" },
         { variant: "muted", size: "base", class: "-mx-3 -my-2" },
@@ -63,6 +63,7 @@ type Props = {
     dropdownAnchor?: boolean;
     iconClass?: string;
     mainDynamicCss?: string; // NEW: custom background for main (middle) segment
+    rightDynamicCss?: string; // Custom classes for the right segment of a segmented button
     leftAction?: (event: MouseEvent) => void | Promise<void>;
     mainAction?: (event: MouseEvent) => void | Promise<void>;
     rightAction?: (event: MouseEvent) => void | Promise<void>;
@@ -79,6 +80,7 @@ const props = withDefaults(defineProps<Props>(), {
     dropdownAnchor: false,
     iconClass: undefined,
     mainDynamicCss: undefined,
+    rightDynamicCss: undefined,
     leftAction: undefined,
     mainAction: undefined,
     rightAction: undefined,
@@ -111,12 +113,12 @@ function segmentClass(base: string, position: "left" | "middle" | "right") {
 
 const iconVariants = {
     primary:
-        "text-zinc-100 group-hover:text-white group-active:text-white dark:text-zinc-800 dark:group-hover:text-zinc-800 dark:group-active:text-zinc-800",
+        "text-zinc-100 group-hover:text-white group-active:text-white dark:text-zinc-800 dark:group-hover:text-zinc-800 dark:group-active:text-zinc-800 dark:group-disabled:text-zinc-600",
     secondary:
-        "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80 dark:text-zinc-400 dark:group-hover:text-zinc-100",
+        "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80 dark:text-zinc-400 dark:group-hover:text-zinc-100 dark:group-active:text-zinc-100 dark:group-disabled:text-zinc-700",
     tertiary:
-        "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80 dark:text-zinc-400 dark:group-hover:text-zinc-100",
-    muted: "dark:text-zinc-500",
+        "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80 dark:text-zinc-400 dark:group-hover:text-zinc-100 dark:group-active:text-zinc-100 dark:group-disabled:text-zinc-600",
+    muted: "dark:text-zinc-500 dark:group-disabled:text-zinc-600",
 };
 
 const tooltipVariants = {
@@ -250,6 +252,7 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
                     segmentClass(buttonClasses({ variant, size, context }), 'right'),
                     'relative',
                     dropdownAnchor ? 'p-0' : '',
+                    rightDynamicCss,
                 )
             "
             :role="dropdownAnchor ? 'button' : undefined"

@@ -356,11 +356,12 @@ const duplicateGroup = async () => {
                 :class="[
                     'mr-1.5 flex min-w-0 items-center gap-2 rounded',
                     {
-                        'bg-yellow-200 hover:bg-yellow-300 active:bg-yellow-400':
+                        'bg-yellow-200 hover:bg-yellow-300 active:bg-yellow-400 dark:bg-yellow-900/40 dark:hover:bg-yellow-900/60 dark:active:bg-yellow-900/80':
                             hasChangedGroupName,
                     },
                     {
-                        'hover:bg-zinc-100 active:bg-zinc-200': !hasChangedGroupName && !disabled,
+                        'hover:bg-zinc-100 active:bg-zinc-200 dark:hover:bg-slate-700 dark:active:bg-slate-600':
+                            !hasChangedGroupName && !disabled,
                     },
                 ]"
                 @click="startEditingGroupName"
@@ -373,8 +374,8 @@ const duplicateGroup = async () => {
                     <h2
                         :class="[
                             'text-sm font-semibold sm:text-base',
-                            { 'text-zinc-400': disabled },
-                            { 'text-zinc-800': !disabled },
+                            { 'text-zinc-400 dark:text-zinc-500': disabled },
+                            { 'text-zinc-800 dark:text-zinc-100': !disabled },
                         ]"
                     >
                         {{ group.name }}
@@ -472,7 +473,7 @@ const duplicateGroup = async () => {
             </LBadge>
         </div>
 
-        <div :class="['w-full ', { 'bg-zinc-100': disabled }]">
+        <div :class="['w-full ', { 'bg-zinc-100 dark:bg-slate-700': disabled }]">
             <div class="mt-1 space-y-1">
                 <div v-if="isComboboxOpen" @focusout="handleFocusOut">
                     <LCombobox
@@ -549,8 +550,8 @@ const duplicateGroup = async () => {
                     :icon="DocumentDuplicateIcon"
                     @click="duplicateGroup"
                     data-test="duplicateGroup"
-                    mainDynamicCss="text-zinc-600"
-                    iconClass="text-zinc-400"
+                    mainDynamicCss="text-zinc-600 dark:text-zinc-300"
+                    iconClass="text-zinc-400 dark:text-zinc-400"
                 >
                     Duplicate
                 </LButton>

@@ -87,11 +87,11 @@ const states = {
         dark:bg-slate-900 dark:text-zinc-100 dark:ring-slate-700 dark:placeholder:text-zinc-500 dark:hover:ring-slate-600 dark:focus:ring-indigo-500
     `,
     error: `
-        text-red-900 bg-red-50 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500
+        text-red-900 bg-red-50 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500 dark:hover:ring-red-500 dark:focus:ring-red-400
         dark:bg-red-950/20 dark:text-red-400 dark:ring-red-900 dark:placeholder:text-red-800
     `,
     warning: `
-        text-yellow-900 bg-yellow-50 ring-yellow-300 placeholder:text-yellow-500 hover:ring-yellow-400 focus:ring-yellow-500
+        text-yellow-900 bg-yellow-50 ring-yellow-300 placeholder:text-yellow-500 hover:ring-yellow-400 focus:ring-yellow-500 dark:hover:ring-yellow-500 dark:focus:ring-yellow-400
         dark:bg-yellow-950/20 dark:text-yellow-400 dark:ring-yellow-900 dark:placeholder:text-yellow-800
     `,
 };
@@ -131,7 +131,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     :class="{
                         'text-zinc-400 dark:text-zinc-500': state == 'default' && !disabled,
                         'text-zinc-300 dark:text-zinc-700': state == 'default' && disabled,
-                        'text-red-400': state == 'error',
+                        'text-red-400 dark:text-red-500': state == 'error',
                     }"
                 />
             </div>
@@ -198,7 +198,10 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 v-if="computedState == 'error' && !rightAddOn"
                 class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
             >
-                <ExclamationCircleIcon class="h-5 w-5 text-red-500" aria-hidden="true" />
+                <ExclamationCircleIcon
+                    class="h-5 w-5 text-red-500 dark:text-red-400"
+                    aria-hidden="true"
+                />
             </div>
 
             <div

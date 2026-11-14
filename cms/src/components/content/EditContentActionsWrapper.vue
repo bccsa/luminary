@@ -56,7 +56,12 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
             dropdown-anchor
             :main-dynamic-css="
                 !isDirty || isSaving
-                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none'
+                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none dark:!bg-zinc-400 dark:!text-zinc-900 dark:!ring-zinc-600'
+                    : ''
+            "
+            :right-dynamic-css="
+                !isDirty || isSaving
+                    ? 'dark:bg-slate-600 dark:text-zinc-200 dark:ring-slate-500 dark:hover:bg-slate-500 dark:active:bg-slate-400 dark:active:text-zinc-100'
                     : ''
             "
         >
@@ -99,14 +104,16 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
                                     ? 'duplicate-button'
                                     : action.name.toLowerCase() + '-button'
                             "
-                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-600 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
+                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-600 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none dark:text-zinc-400 dark:hover:bg-slate-900 dark:focus:bg-slate-900"
                         >
                             <component
                                 :is="action.icon"
                                 :class="action.iconClass"
                                 aria-hidden="true"
                             />
-                            <div class="flex flex-col text-nowrap leading-none text-zinc-600">
+                            <div
+                                class="flex flex-col text-nowrap leading-none text-zinc-600 dark:text-zinc-400"
+                            >
                                 {{ action.name }}
                             </div>
                         </li>
@@ -130,7 +137,12 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
             dropdown-anchor
             :main-dynamic-css="
                 !isDirty || isSaving
-                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none'
+                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none dark:!bg-zinc-400 dark:!text-zinc-900 dark:!ring-zinc-600'
+                    : ''
+            "
+            :right-dynamic-css="
+                !isDirty || isSaving
+                    ? 'dark:bg-slate-600 dark:text-zinc-200 dark:ring-slate-500 dark:hover:bg-slate-500 dark:active:bg-slate-400 dark:active:text-zinc-100'
                     : ''
             "
         >
@@ -175,7 +187,7 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
                                     ? 'duplicate-button'
                                     : action.name.toLowerCase() + '-button'
                             "
-                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-400 hover:bg-zinc-50 focus:bg-zinc-100 focus:outline-none"
+                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-400 hover:bg-zinc-50 focus:bg-zinc-100 focus:outline-none dark:text-zinc-500 dark:hover:bg-slate-900 dark:focus:bg-slate-800"
                         >
                             <component
                                 :is="action.icon"

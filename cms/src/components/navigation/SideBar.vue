@@ -228,7 +228,7 @@ const confirmLogout = () => {
 const navIconClass = "h-5 w-5 shrink-0";
 // When collapsed (desktop only) nav rows center their icon and drop the label gap/padding.
 const navItemClass = computed(() => [
-    "mb-1 flex rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:hover:bg-slate-700 dark:text-slate-100",
+    "mb-1 flex rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:hover:bg-slate-700 dark:text-zinc-300",
     isCollapsed.value ? "justify-center p-2.5" : "items-center gap-3 px-3 py-2.5",
 ]);
 </script>
@@ -246,7 +246,7 @@ const navItemClass = computed(() => [
     <aside
         data-test="sidebar"
         @scroll.stop
-        class="fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-col border-r border-zinc-200 bg-zinc-100 transition-[transform,width] duration-200 ease-out dark:border-slate-700 dark:bg-slate-900/95 lg:relative lg:z-30 lg:translate-x-0"
+        class="fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-col border-r border-zinc-200 bg-zinc-100 transition-[transform,width] duration-200 ease-out dark:border-slate-700 dark:bg-slate-800 lg:relative lg:z-30 lg:translate-x-0"
         :class="[
             open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
             collapsed ? 'lg:w-[4.5rem]' : 'lg:w-72',
@@ -255,7 +255,7 @@ const navItemClass = computed(() => [
         <!-- Collapse toggle — sits on the right edge, vertically centred. Desktop only. -->
         <button
             type="button"
-            class="absolute right-0 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:bg-slate-700 dark:text-zinc-300 dark:hover:text-zinc-100 lg:flex"
+            class="absolute right-0 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-300 dark:hover:bg-slate-600 dark:hover:text-zinc-100 lg:flex"
             :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
             data-test="sidebar-collapse-toggle"
             @click="onToggleCollapsed"
@@ -290,7 +290,7 @@ const navItemClass = computed(() => [
                     <RouterLink
                         v-if="item.visible && !item.children && item.to"
                         :to="item.to"
-                        active-class="bg-zinc-200 text-zinc-900 dark:text-yellow-400 dark:bg-slate-800"
+                        active-class="bg-zinc-200 text-zinc-900 dark:text-yellow-400 dark:bg-slate-700"
                         :class="navItemClass"
                         :title="item.name"
                         @click="closeDrawer"
@@ -311,7 +311,9 @@ const navItemClass = computed(() => [
                                 {{ item.name }}
                                 <ChevronRightIcon
                                     :class="[
-                                        item.open ? 'rotate-90 text-zinc-500' : 'text-zinc-400',
+                                        item.open
+                                            ? 'rotate-90 text-zinc-500 dark:text-zinc-300'
+                                            : 'text-zinc-400 dark:text-zinc-500',
                                         'ml-auto h-5 w-5 shrink-0',
                                     ]"
                                     aria-hidden="true"
@@ -323,8 +325,8 @@ const navItemClass = computed(() => [
                             <li v-for="subItem in item.children" :key="subItem.name">
                                 <RouterLink
                                     :to="subItem.to"
-                                    active-class="bg-zinc-200 dark:bg-slate-800 dark:!text-yellow-400 text-zinc-900"
-                                    class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-slate-800"
+                                    active-class="bg-zinc-200 dark:bg-slate-700 dark:!text-yellow-400 text-zinc-900"
+                                    class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-slate-700"
                                     @click="closeDrawer"
                                 >
                                     {{ subItem.name }}
@@ -363,7 +365,7 @@ const navItemClass = computed(() => [
 
                 <RouterLink
                     :to="{ name: 'settings' }"
-                    active-class="bg-zinc-200 text-zinc-900 dark:text-yellow-400 dark:bg-slate-800"
+                    active-class="bg-zinc-200 text-zinc-900 dark:text-yellow-400 dark:bg-slate-700"
                     :class="navItemClass"
                     title="Settings"
                     @click="closeDrawer"
@@ -376,13 +378,13 @@ const navItemClass = computed(() => [
 
         <div
             v-if="isInstallable || manualInstallInstructions"
-            class="border-t border-zinc-200 py-3"
+            class="border-t border-zinc-200 py-3 dark:border-slate-700"
             :class="isCollapsed ? 'px-2' : 'px-3'"
         >
             <button
                 type="button"
                 :class="[
-                    'flex w-full rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200',
+                    'flex w-full rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-slate-700',
                     isCollapsed
                         ? 'justify-center p-2.5'
                         : 'items-center gap-3 px-3 py-2.5 text-left',
@@ -404,7 +406,7 @@ const navItemClass = computed(() => [
             <button
                 type="button"
                 :class="[
-                    'mb-2 flex w-full rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-slate-600',
+                    'mb-2 flex w-full rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-slate-700',
                     isCollapsed
                         ? 'justify-center p-2.5'
                         : 'items-center gap-3 px-3 py-2.5 text-left',
@@ -438,7 +440,7 @@ const navItemClass = computed(() => [
                 </div>
                 <span
                     v-if="!isCollapsed"
-                    class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-700 dark:text-zinc-200"
+                    class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-700 dark:text-zinc-300"
                 >
                     {{ user?.name || user?.email }}
                 </span>

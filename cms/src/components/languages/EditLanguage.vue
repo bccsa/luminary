@@ -405,7 +405,7 @@ const contentActions = computed(() => {
             name: "Delete",
             action: () => (showDeleteModal.value = true),
             icon: TrashIconOutline,
-            iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
+            iconClass: "h-5 w-5 text-red-500 dark:text-red-400 flex-shrink-0",
         });
     }
     return actions;
@@ -415,7 +415,7 @@ const contentActions = computed(() => {
 <template>
     <BasePage>
         <template #pageNav>
-            <h1 class="text-md font-semibold leading-7 dark:text-zinc-700 lg:hidden">
+            <h1 class="text-md font-semibold leading-7 dark:text-zinc-100 lg:hidden">
                 {{ isNew ? "Create new language" : `Edit ${editable.name}` }}
             </h1>
             <h1 class="text-md hidden font-semibold leading-7 lg:block">
@@ -460,7 +460,7 @@ const contentActions = computed(() => {
                 <LBadge
                     v-if="isDirty"
                     variant="warning"
-                    class="hidden rounded bg-yellow-100 px-4 py-2.5 text-yellow-800 lg:inline-flex"
+                    class="hidden rounded bg-yellow-100 px-4 py-2.5 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-400 lg:inline-flex"
                     >Unsaved changes</LBadge
                 >
                 <EditContentActionsWrapper
@@ -539,7 +539,7 @@ const contentActions = computed(() => {
             <div class="min-h-screen">
                 <!--Strings translation -->
                 <LCard>
-                    <table class="mt-5 min-w-full divide-y divide-zinc-200">
+                    <table class="mt-5 min-w-full divide-y divide-zinc-200 dark:divide-slate-700">
                         <thead class="bg-zinc-50 dark:bg-slate-800">
                             <tr>
                                 <!-- key -->
@@ -572,7 +572,9 @@ const contentActions = computed(() => {
                                 </th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-zinc-200 bg-white dark:bg-slate-900">
+                        <tbody
+                            class="divide-y divide-zinc-200 bg-white dark:divide-slate-700 dark:bg-slate-900"
+                        >
                             <tr>
                                 <td
                                     class="w-1/3 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 dark:text-zinc-100 sm:pl-6"
@@ -610,7 +612,7 @@ const contentActions = computed(() => {
                                             class="mx-auto"
                                         >
                                             <PlusCircleIcon
-                                                class="w-7 cursor-pointer text-zinc-500 hover:text-zinc-700"
+                                                class="w-7 cursor-pointer text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                                             />
                                         </button>
                                     </div>
@@ -676,7 +678,7 @@ const contentActions = computed(() => {
                                     v-if="canEditOrCreate"
                                 >
                                     <TrashIcon
-                                        class="h-6 w-6 cursor-pointer text-zinc-500 hover:text-red-600"
+                                        class="h-6 w-6 cursor-pointer text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
                                         title="Delete this line"
                                         @click="
                                             keyToDelete = row.translationKey;

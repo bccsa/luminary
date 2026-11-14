@@ -47,14 +47,14 @@ function updateTreeColumnCount(event: Event) {
         >
             {{ isTopToBottom ? "Left to right" : "Top to bottom" }}
         </LButton>
-        <div class="my-1 border-t border-zinc-100"></div>
+        <div class="my-1 border-t border-zinc-100 dark:border-slate-700"></div>
         <div class="px-3 py-2">
             <label
                 for="group-graph-columns-mobile"
-                class="mb-2 flex items-center justify-between gap-4 text-xs font-semibold uppercase tracking-wide text-zinc-500"
+                class="mb-2 flex items-center justify-between gap-4 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400"
             >
                 <span>Tree columns</span>
-                <span class="text-zinc-700">{{ treeColumnCount }}</span>
+                <span class="text-zinc-700 dark:text-zinc-300">{{ treeColumnCount }}</span>
             </label>
             <input
                 id="group-graph-columns-mobile"
@@ -63,11 +63,11 @@ function updateTreeColumnCount(event: Event) {
                 :max="TREE_MAX_COLUMNS"
                 step="1"
                 :value="treeColumnCount"
-                class="h-2 w-40 cursor-pointer appearance-none rounded-lg bg-zinc-200 accent-zinc-700"
+                class="h-2 w-40 cursor-pointer appearance-none rounded-lg bg-zinc-200 accent-zinc-700 dark:bg-slate-600 dark:accent-zinc-300"
                 @input="updateTreeColumnCount"
             />
         </div>
-        <div class="my-1 border-t border-zinc-100"></div>
+        <div class="my-1 border-t border-zinc-100 dark:border-slate-700"></div>
         <LButton
             v-if="savedLayoutExists"
             variant="tertiary"

@@ -95,10 +95,12 @@ function handleSearchKeydown(event: KeyboardEvent) {
 <template>
     <div
         v-if="show"
-        class="absolute inset-0 z-[60] flex items-start justify-center bg-white/40 px-4 pt-20 backdrop-blur-[1px]"
+        class="absolute inset-0 z-[60] flex items-start justify-center bg-white/40 px-4 pt-20 backdrop-blur-[1px] dark:bg-slate-900/40"
         @click.self="show = false"
     >
-        <div class="w-full max-w-md rounded-lg border border-zinc-200 bg-white p-3 shadow-xl">
+        <div
+            class="w-full max-w-md rounded-lg border border-zinc-200 bg-white p-3 shadow-xl dark:border-slate-700 dark:bg-slate-800"
+        >
             <LDropdown
                 ref="searchDropdownRef"
                 v-model:show="showSearchDropdown"
@@ -127,14 +129,18 @@ function handleSearchKeydown(event: KeyboardEvent) {
                     size="sm"
                     role="menuitem"
                     class="w-full justify-start"
-                    :main-dynamic-css="index === activeSearchIndex ? 'bg-zinc-100' : ''"
+                    :main-dynamic-css="
+                        index === activeSearchIndex
+                            ? 'bg-zinc-100 dark:bg-slate-700 dark:text-zinc-100 dark:active:bg-slate-600'
+                            : 'dark:hover:bg-slate-700 dark:active:bg-slate-600'
+                    "
                     @click="selectResult(group._id)"
                 >
                     {{ group.name || "(unnamed group)" }}
                 </LButton>
                 <div
                     v-if="searchResults.length === 0"
-                    class="px-3 py-6 text-center text-sm text-zinc-500"
+                    class="px-3 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400"
                 >
                     No groups found
                 </div>

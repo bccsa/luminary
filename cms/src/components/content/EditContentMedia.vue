@@ -320,7 +320,7 @@ watch(
                     :href="ENCODER_DOWNLOAD_URL"
                     target="_blank"
                     rel="noopener"
-                    class="font-medium underline underline-offset-2 hover:text-zinc-700"
+                    class="font-medium underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-300"
                     data-test="media-help-download"
                     >download it here</a
                 >.
@@ -356,7 +356,10 @@ watch(
         context="danger"
         :showClosingButton="false"
     >
-        <p class="mt-3 break-all font-mono text-xs text-zinc-500" data-test="delete-media-url">
+        <p
+            class="mt-3 break-all font-mono text-xs text-zinc-500 dark:text-zinc-400"
+            data-test="delete-media-url"
+        >
             {{ parent?.media?.hlsUrl }}
         </p>
     </LDialog>
