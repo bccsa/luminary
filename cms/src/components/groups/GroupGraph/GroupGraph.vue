@@ -30,6 +30,8 @@ import "@vue-flow/core/dist/theme-default.css";
 
 const props = defineProps<{
     allGroups: GroupDto[];
+    /** When set (an ACL filter is active), edges come from these groups and unconnected groups are hidden. */
+    edgeGroups?: GroupDto[];
 }>();
 
 const emit = defineEmits<{
@@ -67,9 +69,17 @@ const sourceHandlePosition = computed(() =>
     isTopToBottom.value ? Position.Bottom : Position.Right,
 );
 
-const accessGraph = useGroupAccessGraph(() => props.allGroups, selectedGroupId);
+const accessGraph = useGroupAccessGraph(() => props.edgeGroups ?? props.allGroups, selectedGroupId);
 
-const { chartNodes, chartEdges } = useGroupGraphLayout(() => props.allGroups, accessGraph, {
+// With an ACL filter active, groups without a matching edge would each become a lone cluster
+// and stretch the layout far to the right, so only connected groups are laid out.
+const layoutGroups = computed(() => {
+    if (!props.edgeGroups) return props.allGroups;
+    const connected = new Set(accessGraph.edges.value.flatMap((e) => [e.source, e.target]));
+    return props.allGroups.filter((group) => connected.has(group._id));
+});
+
+const { chartNodes, chartEdges } = useGroupGraphLayout(() => layoutGroups.value, accessGraph, {
     selectedGroupId,
     layoutDirection,
     treeColumnCount,

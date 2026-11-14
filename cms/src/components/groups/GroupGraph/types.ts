@@ -38,6 +38,8 @@ export const CHART_TOP_OFFSET = 120;
 export const CHART_CARD_WIDTH = 240;
 export const TREE_COLUMN_WIDTH = 280;
 export const TREE_ROW_HEIGHT = 120;
+/** Columns after which tree clusters wrap onto a new row band. */
+export const TREE_WRAP_COLUMNS = 12;
 export const TREE_MIN_COLUMNS = 1;
 export const TREE_MAX_COLUMNS = 8;
 export const GRID_SIZE = 22;
