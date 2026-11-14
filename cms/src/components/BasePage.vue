@@ -159,7 +159,7 @@ const handleMobileSidebarToggle = () => {
                     v-if="backLinkLocation"
                     :to="backLinkLocation"
                     :params="backLinkParams"
-                    class="-mx-2 mb-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-slate-800 dark:hover:text-zinc-200 sm:pl-6"
+                    class="-mx-2 mb-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:active:bg-slate-700 dark:text-zinc-400 dark:hover:bg-slate-800 dark:hover:text-zinc-200 sm:pl-6"
                 >
                     <ArrowLeftIcon class="h-4 w-4" /> {{ backLinkText }}
                 </RouterLink>
@@ -178,7 +178,7 @@ const handleMobileSidebarToggle = () => {
                         class="flex items-center gap-2 text-lg font-semibold leading-7"
                         v-if="shouldShowPageTitle"
                     >
-                        <component :is="icon" v-if="icon" class="h-5 w-5 text-zinc-500" />
+                        <component :is="icon" v-if="icon" class="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
                         {{ title }}
                     </h1>
 
