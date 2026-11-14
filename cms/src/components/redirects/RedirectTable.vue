@@ -12,12 +12,12 @@ const { output: redirects, hasLocalChanges } = useHybridQueryWithState<RedirectD
     <LCard padding="none">
         <div class="overflow-x-auto rounded-md">
             <div class="inline-block min-w-full align-middle">
-                <table class="min-w-full divide-y divide-zinc-200">
-                    <thead class="bg-zinc-50">
+                <table class="min-w-full divide-y divide-zinc-200 dark:divide-slate-700">
+                    <thead class="bg-zinc-50 dark:bg-slate-900">
                         <tr>
                             <!-- From Slug -->
                             <th
-                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-100 sm:pl-6"
                                 @click="false"
                             >
                                 From slug
@@ -25,14 +25,14 @@ const { output: redirects, hasLocalChanges } = useHybridQueryWithState<RedirectD
 
                             <!-- To Slug -->
                             <th
-                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-100 sm:pl-6"
                             >
                                 To slug
                             </th>
 
                             <!-- Redirect Type -->
                             <th
-                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-100 sm:pl-6"
                                 @click="false"
                             >
                                 Type
@@ -40,13 +40,13 @@ const { output: redirects, hasLocalChanges } = useHybridQueryWithState<RedirectD
 
                             <!-- status -->
                             <th
-                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-100 sm:pl-6"
                                 @click="false"
                             ></th>
 
                             <!-- updated -->
                             <th
-                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-100 sm:pl-6"
                                 @click="false"
                             >
                                 <div class="flex items-center gap-2">Last updated</div>
@@ -54,11 +54,11 @@ const { output: redirects, hasLocalChanges } = useHybridQueryWithState<RedirectD
 
                             <!-- actions -->
                             <th
-                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 sm:pl-6"
+                                class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-100 sm:pl-6"
                             ></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-200 bg-white">
+                    <tbody class="divide-y divide-zinc-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
                         <RedirectRow
                             v-for="redirect in redirects"
                             :key="redirect._id"
