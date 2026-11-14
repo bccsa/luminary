@@ -22,8 +22,10 @@ const open = ref(false);
                     :class="[
                         iconOnly ? 'p-1.5' : 'px-3 py-1.5',
                         {
-                            'bg-green-100 text-green-800': isConnected,
-                            'bg-yellow-100 text-yellow-800': !isConnected,
+                            'bg-green-100 text-green-800 dark:bg-green-950/20 dark:text-green-400':
+                                isConnected,
+                            'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/20 dark:text-yellow-400':
+                                !isConnected,
                         },
                     ]"
                     :title="iconOnly ? (isConnected ? 'Connected' : 'Disconnected') : undefined"
