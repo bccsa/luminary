@@ -1,8 +1,11 @@
+import Dexie from "dexie";
 import { db } from "../db/database";
 import type { FtsCorpusStats } from "./types";
 import { scanCorpus, type CorpusScanResult } from "./corpusScan";
 
 const DOC_FREQUENCY_KEY = "ftsDocFrequency";
+/** A new token each time the docs change after the stats were taken; absent while they are current. */
+const STALE_KEY = "corpusStatsStale";
 
 type StoredDocFrequency = { version: number; df: Record<string, number> };
 
@@ -63,6 +66,7 @@ export function setCorpusScanner(scanner?: () => Promise<CorpusScanResult>): voi
  * the write stays here, because the worker attaches to the database read-only.
  */
 export async function recomputeCorpusStats(): Promise<void> {
+    const staleBeforeScan = (await db.luminaryInternals.get(STALE_KEY))?.value;
     const { totalTokenCount, docCount, df } = await runScan();
 
     const docFrequencyVersion = Date.now();
@@ -73,7 +77,34 @@ export async function recomputeCorpusStats(): Promise<void> {
             value: { version: docFrequencyVersion, df } satisfies StoredDocFrequency,
         });
         await setCorpusStats({ totalTokenCount, docCount, docFrequencyVersion });
+        // A change that landed while the scan ran left a new mark, and may be missing from the scan.
+        const stale = await db.luminaryInternals.get(STALE_KEY);
+        if (stale?.value === staleBeforeScan) await db.luminaryInternals.delete(STALE_KEY);
     });
+}
+
+/**
+ * Record that the docs changed after the stats were taken. Kept in the database, so a change the
+ * app closed on before its debounced scan ran is still scanned on the next start.
+ */
+export async function markCorpusStatsStale(): Promise<void> {
+    // Callers may be inside a transaction that does not cover this table.
+    await Dexie.ignoreTransaction(() =>
+        // Unique per mark; not crypto.randomUUID, which iOS 15.0 to 15.3 do not have.
+        db.luminaryInternals.put({ id: STALE_KEY, value: `${Date.now()}-${Math.random()}` }),
+    );
+}
+
+/**
+ * Whether the stored stats have to be rescanned on start: there are none yet, or the docs
+ * changed since they were taken. Scanning reads every doc's index, the largest field there is.
+ */
+export async function corpusStatsNeedRecompute(): Promise<boolean> {
+    const [stats, stale] = await Promise.all([
+        getCorpusStats(),
+        db.luminaryInternals.get(STALE_KEY),
+    ]);
+    return stats.docFrequencyVersion === undefined || stale !== undefined;
 }
 
 /**
@@ -81,6 +112,9 @@ export async function recomputeCorpusStats(): Promise<void> {
  * Ensures only one recomputation fires 10 seconds after the last call.
  */
 export function scheduleCorpusStatsRecompute(): void {
+    void markCorpusStatsStale().catch((error) =>
+        console.warn("Could not mark the search stats out of date", error),
+    );
     if (recomputeTimer !== undefined) {
         clearTimeout(recomputeTimer);
     }
