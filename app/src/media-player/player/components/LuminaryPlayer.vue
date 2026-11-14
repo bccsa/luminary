@@ -52,6 +52,7 @@ import { hasChapterSkip, nextChapterTime, previousChapterTime } from "../ui/chap
 import {
     attachControlTooltips,
     clampTooltipLeft,
+    tooltipFits,
     showOnTop,
     type Tooltip,
 } from "../ui/controlTooltip";
@@ -497,7 +498,12 @@ watch(
         showOnTop(el);
         const frame = container.getBoundingClientRect();
         el.style.left = `${frame.left + clampTooltipLeft(tip.centre, el.offsetWidth, container.clientWidth)}px`;
-        el.style.bottom = `${document.documentElement.clientHeight - frame.bottom + tip.bottom}px`;
+        const below = tooltipFits(tip, el.offsetHeight, container.clientHeight) === "below";
+        el.classList.toggle("lmpl-tooltip-below", below);
+        el.style.top = below ? `${frame.top + tip.top}px` : "auto";
+        el.style.bottom = below
+            ? "auto"
+            : `${document.documentElement.clientHeight - frame.bottom + tip.bottom}px`;
     },
     { flush: "post" },
 );

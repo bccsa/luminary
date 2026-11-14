@@ -1,5 +1,6 @@
 /**
- * The name of a control, shown above it when the pointer rests on it or the keyboard reaches it.
+ * The name of a control, shown above it when the pointer rests on it or the keyboard reaches it; below it when
+ * there is no room above, as for the fullscreen X at the top of the frame.
  *
  * Where it sits is the player's to decide (it is drawn in the top layer, over any card a control has open); this
  * file only says what the name is and where its control is. When the control has a card open over it, as the mute
@@ -29,8 +30,10 @@ export interface Tooltip {
     text: string;
     /** Where the control's centre is, in px from the container's left. */
     centre: number;
-    /** Gap, in px, between the container's bottom edge and the name's. */
+    /** Gap, in px, between the container's bottom edge and the name's, when it sits above its control. */
     bottom: number;
+    /** Gap, in px, between the container's top edge and the name's, when it sits below its control. */
+    top: number;
 }
 
 /** What a control is called: its label, else the name its button keeps for a screen reader. Empty when it has neither. */
@@ -62,17 +65,27 @@ function openCardTop(control: Element): number | null {
     }
 }
 
-/** Where a name goes: centred above its control, as far as the container's edges let it. */
+/** Where a name goes: centred on its control, above or below it, as far as the container's edges let it. */
 export function tooltipFor(
-    control: Pick<DOMRect, "left" | "width" | "top">,
-    container: Pick<DOMRect, "left" | "bottom">,
+    control: Pick<DOMRect, "left" | "width" | "top" | "bottom">,
+    container: Pick<DOMRect, "left" | "top" | "bottom">,
     text: string,
 ): Tooltip {
     return {
         text,
         centre: control.left + control.width / 2 - container.left,
         bottom: container.bottom - control.top + TOOLTIP_GAP_PX,
+        top: control.bottom - container.top + TOOLTIP_GAP_PX,
     };
+}
+
+/** Which side of its control a name `height` px tall goes: above, unless that would cross the container's top. */
+export function tooltipFits(
+    tip: Tooltip,
+    height: number,
+    containerHeight: number,
+): "above" | "below" {
+    return containerHeight - tip.bottom - height >= TOOLTIP_EDGE_PX ? "above" : "below";
 }
 
 /** The left edge of a name `width` px wide centred on `centre`, kept inside a container `containerWidth` px wide. */
@@ -120,6 +133,7 @@ export function attachControlTooltips(
                     left: rect.left,
                     width: rect.width,
                     top: cardTop === null ? rect.top : Math.min(rect.top, cardTop),
+                    bottom: rect.bottom,
                 },
                 container.getBoundingClientRect(),
                 text,
