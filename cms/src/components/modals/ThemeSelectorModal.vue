@@ -26,7 +26,7 @@ const isVisible = defineModel<boolean>("isVisible", { required: true });
                 <span class="text-sm">Light</span>
                 <CheckCircleIcon
                     v-if="theme === 'light'"
-                    class="ml-auto h-6 w-6 text-yellow-500"
+                    class="ml-auto h-6 w-6 text-yellow-500 dark:text-yellow-400"
                     aria-hidden="true"
                 />
             </button>
@@ -44,7 +44,7 @@ const isVisible = defineModel<boolean>("isVisible", { required: true });
                 <span class="text-sm">Dark</span>
                 <CheckCircleIcon
                     v-if="theme === 'dark'"
-                    class="ml-auto h-6 w-6 text-yellow-500"
+                    class="ml-auto h-6 w-6 text-yellow-500 dark:text-yellow-400"
                     aria-hidden="true"
                 />
             </button>
@@ -62,7 +62,7 @@ const isVisible = defineModel<boolean>("isVisible", { required: true });
                 <span class="text-sm">System</span>
                 <CheckCircleIcon
                     v-if="theme === 'system'"
-                    class="ml-auto h-6 w-6 text-yellow-500"
+                    class="ml-auto h-6 w-6 text-yellow-500 dark:text-yellow-400"
                     aria-hidden="true"
                 />
             </button>
