@@ -308,7 +308,7 @@ const revertChanges = () => {
                     Permanent
                 </LButton>
             </div>
-            <p class="text-xs text-zinc-500">{{ redirectExplanation }}</p>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ redirectExplanation }}</p>
         </div>
 
         <div v-if="editable" class="relative">
@@ -320,7 +320,7 @@ const revertChanges = () => {
                 placeholder="The slug that will be redirected from.."
                 @change="editable.slug = validateSlug(editable.slug) || ''"
             />
-            <span class="absolute left-12 top-1 flex text-xs text-red-400" v-if="!isSlugUnique"
+            <span class="absolute left-12 top-1 flex text-xs text-red-400 dark:text-red-500" v-if="!isSlugUnique"
                 ><ExclamationCircleIcon class="h-4 w-4" /> This slug already has a redirect</span
             >
         </div>
