@@ -287,7 +287,10 @@ const handleRevert = () => {
                         :disabled="isDisabled"
                         data-test="groupSelector"
                     />
-                    <p v-if="memberOfError" class="mt-1 text-[11px] font-medium text-red-600">
+                    <p
+                        v-if="memberOfError"
+                        class="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400"
+                    >
                         {{ memberOfError }}
                     </p>
                 </div>
