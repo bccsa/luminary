@@ -85,7 +85,7 @@ const problem = computed(() => {
 
         <p
             v-else-if="effectiveMediaBucketId"
-            class="text-xs text-zinc-500"
+            class="text-xs text-zinc-500 dark:text-zinc-400"
             data-test="bucket-single"
         >
             Encoding into
