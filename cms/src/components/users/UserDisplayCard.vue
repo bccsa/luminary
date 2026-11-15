@@ -66,7 +66,7 @@ const userProviderLabel = computed(() => {
         >
             <template #topRightContent>
                 <div class="flex items-center gap-2">
-                    <span class="font-medium text-zinc-900">
+                    <span class="font-medium text-zinc-900 dark:text-zinc-100">
                         <LBadge v-if="isLocalChanges" variant="warning" class="mr-3">
                             Offline changes
                         </LBadge></span
