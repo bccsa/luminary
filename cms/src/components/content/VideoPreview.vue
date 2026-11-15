@@ -178,7 +178,7 @@ watch(masterUrl, () => (showing.value = false));
                 </LBadge>
             </template>
 
-            <div class="overflow-hidden rounded-md bg-black dark:bg-white">
+            <div class="overflow-hidden rounded-md bg-black">
                 <LuminaryPlayer
                     v-if="showing"
                     :source="source"
@@ -200,12 +200,12 @@ watch(masterUrl, () => (showing.value = false));
                             <p class="text-sm font-medium text-white">
                                 {{ diagnose(error?.code).what }}
                             </p>
-                            <p class="mt-1 max-w-sm text-xs text-zinc-300 dark:text-zinc-600">
+                            <p class="mt-1 max-w-sm text-xs text-zinc-300">
                                 {{ diagnose(error?.code).fix }}
                             </p>
                             <button
                                 type="button"
-                                class="mt-3 rounded-md bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 dark:bg-slate-800/10 dark:hover:bg-slate-800/20"
+                                class="mt-3 rounded-md bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20"
                                 data-test="preview-retry"
                                 @click="retry"
                             >
