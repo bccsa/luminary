@@ -137,7 +137,9 @@ const sizeClasses = computed(() => {
                 </div>
                 <div
                     :class="[
-                        noDivider ? 'dark:text-zinc-100' : 'divide-y divide-zinc-200',
+                        noDivider
+                            ? 'dark:text-zinc-100'
+                            : 'divide-y divide-zinc-200 dark:divide-slate-700',
                         'flex min-h-0 flex-1 flex-col overflow-y-auto',
                         noPadding ? (transparentHeader ? '-m-5' : '-m-5 mt-0') : '',
                     ]"
