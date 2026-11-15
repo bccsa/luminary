@@ -6,7 +6,9 @@
             ><span class="inline-block animate-bob-2 text-lg" aria-hidden="true">.</span
             ><span class="inline-block animate-bob-3 text-lg" aria-hidden="true">.</span>
         </div>
-        <div class="relative h-2 w-3/5 max-w-md overflow-hidden rounded-full bg-zinc-200 dark:bg-slate-700 sm:w-1/5">
+        <div
+            class="relative h-2 w-3/5 max-w-md overflow-hidden rounded-full bg-zinc-200 dark:bg-slate-700 sm:w-1/5"
+        >
             <div
                 class="absolute bottom-0 top-0 w-1/3 animate-running-slug rounded-full bg-zinc-500 dark:bg-zinc-500"
             ></div>

@@ -77,7 +77,10 @@ const redirectGroups = computed(() =>
                     >
                         {{ group.name }}
                     </LBadge>
-                    <span v-if="redirectGroups.length === 0" class="text-xs text-zinc-400 dark:text-zinc-500">
+                    <span
+                        v-if="redirectGroups.length === 0"
+                        class="text-xs text-zinc-400 dark:text-zinc-500"
+                    >
                         No groups
                     </span>
                 </div>
@@ -95,7 +98,10 @@ const redirectGroups = computed(() =>
                 >
                     {{ group.name }}
                 </LBadge>
-                <span v-if="redirectGroups.length === 0" class="text-xs text-zinc-400 dark:text-zinc-500">
+                <span
+                    v-if="redirectGroups.length === 0"
+                    class="text-xs text-zinc-400 dark:text-zinc-500"
+                >
                     No groups
                 </span>
             </div>
