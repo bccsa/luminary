@@ -19,7 +19,7 @@ const languagePopup = ref();
 
 <template>
     <div ref="languagePopup" data-test="languagePopup" v-show="showSelector" class="relative">
-        <ul class="py-1">
+        <ul>
             <li v-for="language in languages" :key="language.languageCode">
                 <button
                     @click="
@@ -28,7 +28,7 @@ const languagePopup = ref();
                             showSelector = false;
                         }
                     "
-                    class="group flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-100 dark:hover:bg-slate-600 dark:hover:text-slate-700"
+                    class="group flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:bg-slate-700/20 dark:text-zinc-100 dark:hover:bg-slate-700 dark:hover:text-zinc-100"
                     :data-test="`select-language-${language.languageCode}`"
                 >
                     <span class="flex items-center gap-2">
