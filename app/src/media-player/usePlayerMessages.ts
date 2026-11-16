@@ -69,7 +69,7 @@ export function usePlayerMessages() {
         ...defined({
             dataSaver: known("media_player.data_saver"),
             autoplay: known("media_player.autoplay"),
-            cameraLabel: known("media_player.camera"),
+            cameraLabel: known("media_player.view"),
             replay: known("media_player.replay"),
             playNow: known("media_player.play_now"),
             cancel: known("media_player.cancel"),

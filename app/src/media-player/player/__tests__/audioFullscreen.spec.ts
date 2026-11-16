@@ -970,6 +970,7 @@ describe("AudioFullscreen: badges, gear menu, end panel, tool slots", () => {
             ],
             activeAngleId: "wide",
         });
+        expect(find(wrapper, "afsCamera").text()).toBe("View");
         await find(wrapper, "afsCamera").trigger("click");
         const rows = wrapper.findAll("[role=menu] .lmpl-afs-menuitem");
         expect(rows[0]!.attributes("aria-checked")).toBe("true");

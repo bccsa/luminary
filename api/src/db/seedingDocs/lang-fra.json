@@ -257,7 +257,7 @@
         "media_player.autoplay": "Lecture automatique",
         "media_player.autoplay_on": "Activée",
         "media_player.autoplay_off": "Désactivée",
-        "media_player.camera": "Caméra",
+        "media_player.view": "Vue",
         "media_player.strict_video_title": "Regarder la vidéo ?",
         "media_player.strict_video_description": "L'économiseur de données est sur Strict, qui ne lit que le son. Regarder la vidéo règle l'économiseur de données sur Léger : la vidéo est lue en basse qualité.",
         "media_player.strict_video_confirm": "Regarder la vidéo",
