@@ -56,7 +56,10 @@ const badgeVariant = computed(() => (isGlobal.value ? "warning" : "default"));
                 >
                     {{ group!.name }}
                 </LBadge>
-                <span v-if="assignedGroups.length === 0" class="text-xs text-zinc-400 dark:text-zinc-500">
+                <span
+                    v-if="assignedGroups.length === 0"
+                    class="text-xs text-zinc-400 dark:text-zinc-500"
+                >
                     No groups assigned
                 </span>
             </div>
@@ -77,7 +80,10 @@ const badgeVariant = computed(() => (isGlobal.value ? "warning" : "default"));
                     >
                         {{ group!.name }}
                     </LBadge>
-                    <span v-if="assignedGroups.length === 0" class="text-xs text-zinc-400 dark:text-zinc-500">
+                    <span
+                        v-if="assignedGroups.length === 0"
+                        class="text-xs text-zinc-400 dark:text-zinc-500"
+                    >
                         No groups assigned
                     </span>
                 </div>
