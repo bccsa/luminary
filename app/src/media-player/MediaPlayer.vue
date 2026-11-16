@@ -1262,16 +1262,27 @@ const nowPlaying = computed(() => !isDesktop.value);
 
 /**
  * A phone's browser turned sideways on a video: a page cannot take the screen without a tap, so the picture fills
- * the window instead, with the player's own controls; turning upright gives the now-playing screen back.
+ * the window instead, with the player's own controls; turning upright gives the now-playing screen back. Only a touch
+ * screen is a phone turned sideways: a computer's or a TV box's window wider than tall keeps the now-playing screen.
  */
 const landscapeQuery = window.matchMedia("(orientation: landscape)");
 const landscape = ref(landscapeQuery.matches);
 const onLandscapeChange = (event: MediaQueryListEvent) => (landscape.value = event.matches);
 landscapeQuery.addEventListener("change", onLandscapeChange);
 onBeforeUnmount(() => landscapeQuery.removeEventListener("change", onLandscapeChange));
+const touchQuery = window.matchMedia("(pointer: coarse)");
+const touch = ref(touchQuery.matches);
+const onTouchChange = (event: MediaQueryListEvent) => (touch.value = event.matches);
+touchQuery.addEventListener("change", onTouchChange);
+onBeforeUnmount(() => touchQuery.removeEventListener("change", onTouchChange));
 const webFill = computed(
     () =>
-        nowPlaying.value && !isNativeApp() && landscape.value && expanded.value && !audioMode.value,
+        nowPlaying.value &&
+        !isNativeApp() &&
+        touch.value &&
+        landscape.value &&
+        expanded.value &&
+        !audioMode.value,
 );
 /**
  * The now-playing screen is what the full player shows on a phone, and on a computer too, as the card in the

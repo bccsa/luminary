@@ -332,6 +332,7 @@ async function playing() {
 let screenWide = true;
 let screenLandscape = false;
 let pointerFine = false;
+let pointerCoarse = true;
 const setupMatchMedia = window.matchMedia;
 beforeEach(() => {
     chosenAudio.value = null;
@@ -339,6 +340,7 @@ beforeEach(() => {
     screenWide = true;
     screenLandscape = false;
     pointerFine = false;
+    pointerCoarse = true;
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
         matches: query.includes("1024px")
             ? screenWide
@@ -346,7 +348,9 @@ beforeEach(() => {
               ? screenLandscape
               : query.includes("pointer: fine")
                 ? pointerFine
-                : false,
+                : query.includes("pointer: coarse")
+                  ? pointerCoarse
+                  : false,
         media: query,
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
@@ -1375,6 +1379,23 @@ describe("MediaPlayer", () => {
 
             await find(wrapper, "mediaPlayerAudio").trigger("click");
             await flushPromises();
+            expect(screen(wrapper).props().fill).toBe(false);
+            expect(
+                wrapper.findComponent({ name: "MediaPlayerWrapper" }).props("windowedControls"),
+            ).toBe(false);
+        });
+
+        // #2625: a computer's or a TV box's window under 1024 px but wider than tall is not a phone turned sideways.
+        it.each([
+            ["900×700", "a mouse", true],
+            ["1023×900", "a mouse", true],
+            ["960×490", "a mouse", true],
+            ["960×490", "only a remote or keyboard", false],
+        ])("keeps the now-playing screen in a %s window with %s", async (_size, _input, fine) => {
+            screenLandscape = true;
+            pointerFine = fine;
+            pointerCoarse = false;
+            const wrapper = await playing();
             expect(screen(wrapper).props().fill).toBe(false);
             expect(
                 wrapper.findComponent({ name: "MediaPlayerWrapper" }).props("windowedControls"),
