@@ -331,6 +331,13 @@ function timeAt(clientX: number): number {
     if (!rect || !rect.width) return 0;
     return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width)) * knownDuration.value;
 }
+/** A finger moves the playhead by how far it slid along the bar, so it never jumps to where the finger landed. */
+function timeAfterDrag(press: { x: number; from: number }, clientX: number): number {
+    const width = barEl.value?.getBoundingClientRect().width;
+    if (!width) return press.from;
+    const moved = ((clientX - press.x) / width) * knownDuration.value;
+    return Math.min(knownDuration.value, Math.max(0, press.from + moved));
+}
 // Measured on each move, not once: a turn of the phone moves the bar mid-drag.
 function announceScrub(time: number, held = false): void {
     const bar = barEl.value?.getBoundingClientRect();
@@ -387,8 +394,8 @@ onBeforeUnmount(() => timelineScrub.reset());
 
 /** How far a finger travels along the bar before a tap becomes a drag. */
 const TOUCH_DRAG_SLOP_PX = 8;
-/** A finger that came down on the bar, until it lifts. */
-let touchPress: { id: number; x: number; dragging: boolean } | null = null;
+/** A finger that came down on the bar, until it lifts; `from` is the playhead when its drag began. */
+let touchPress: { id: number; x: number; from: number; dragging: boolean } | null = null;
 
 function isTouch(event: PointerEvent): boolean {
     return event.pointerType === "touch" || event.pointerType === "pen";
@@ -502,7 +509,7 @@ function onBarDown(event: PointerEvent): void {
     if (!knownDuration.value) return;
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
     if (isTouch(event)) {
-        touchPress = { id: event.pointerId, x: event.clientX, dragging: false };
+        touchPress = { id: event.pointerId, x: event.clientX, from: 0, dragging: false };
         timelineScrub.touchBegan();
         return;
     }
@@ -516,6 +523,7 @@ function onBarMove(event: PointerEvent): void {
     if (touchPress && event.pointerId === touchPress.id) {
         if (!touchPress.dragging && Math.abs(event.clientX - touchPress.x) > TOUCH_DRAG_SLOP_PX) {
             touchPress.dragging = true;
+            touchPress.from = shownTime.value;
             // A drag is the thick bar with the dragged frame over the picture, never the strip: an open strip goes.
             if (timelineScrub.mode === "strip") timelineScrub.reset();
             timelineScrub.dragBegan(false, props.playing);
@@ -523,7 +531,9 @@ function onBarMove(event: PointerEvent): void {
         if (!touchPress.dragging) return;
     }
     if (dragTime.value === null && !touchPress?.dragging) return;
-    dragTime.value = timeAt(event.clientX);
+    dragTime.value = touchPress?.dragging
+        ? timeAfterDrag(touchPress, event.clientX)
+        : timeAt(event.clientX);
     announceScrub(dragTime.value);
 }
 function onBarUp(event?: PointerEvent): void {

@@ -292,7 +292,7 @@ describe("AudioFullscreen — the transport", () => {
         }
     });
 
-    it("seeks once when a finger drags the bar and lets go", async () => {
+    it("seeks once when a finger drags the bar and lets go, by how far it moved from the playhead", async () => {
         const wrapper = mountScreen();
         const bar = find(wrapper, "afsBar");
         bar.element.getBoundingClientRect = () => ({
@@ -309,8 +309,34 @@ describe("AudioFullscreen — the transport", () => {
         await bar.trigger("pointerdown", { clientX: 200, pointerId: 3, pointerType: "touch" });
         await bar.trigger("pointermove", { clientX: 250, pointerId: 3, pointerType: "touch" });
         expect(wrapper.emitted("seek")).toBeUndefined();
+        // 50 px of a 200 px bar is a quarter of 8:00 on from 2:30, not the 6:00 under the finger.
+        expect(find(wrapper, "afsElapsed").text()).toBe("4:30");
         await bar.trigger("pointerup", { clientX: 250, pointerId: 3, pointerType: "touch" });
-        expect(wrapper.emitted("seek")).toEqual([[360]]);
+        expect(wrapper.emitted("seek")).toEqual([[270]]);
+    });
+
+    it("never jumps the playhead to where a finger lands, and stops at either end", async () => {
+        const wrapper = mountScreen();
+        const bar = find(wrapper, "afsBar");
+        bar.element.getBoundingClientRect = () => ({
+            left: 100,
+            width: 200,
+            top: 0,
+            height: 30,
+            right: 300,
+            bottom: 30,
+            x: 100,
+            y: 0,
+            toJSON: () => ({}),
+        });
+        // Down near the end of the bar, far from the playhead at 2:30.
+        await bar.trigger("pointerdown", { clientX: 290, pointerId: 13, pointerType: "touch" });
+        await bar.trigger("pointermove", { clientX: 280, pointerId: 13, pointerType: "touch" });
+        expect(find(wrapper, "afsElapsed").text()).toBe("2:06");
+        await bar.trigger("pointermove", { clientX: 0, pointerId: 13, pointerType: "touch" });
+        expect(find(wrapper, "afsElapsed").text()).toBe("0:00");
+        await bar.trigger("pointerup", { clientX: 0, pointerId: 13, pointerType: "touch" });
+        expect(wrapper.emitted("seek")).toEqual([[0]]);
     });
 
     describe("with frames, a finger's drag on the bar", () => {
@@ -343,11 +369,11 @@ describe("AudioFullscreen — the transport", () => {
             await bar.trigger("pointerdown", { clientX: 200, pointerId: 7, pointerType: "touch" });
             await bar.trigger("pointermove", { clientX: 250, pointerId: 7, pointerType: "touch" });
             await bar.trigger("pointermove", { clientX: 260, pointerId: 7, pointerType: "touch" });
-            expect(scrubs(wrapper).map((position) => position?.time)).toEqual([360, 384]);
+            expect(scrubs(wrapper).map((position) => position?.time)).toEqual([270, 294]);
             expect(scrubs(wrapper).some((position) => position?.held)).toBe(false);
 
             await bar.trigger("pointerup", { clientX: 260, pointerId: 7, pointerType: "touch" });
-            expect(wrapper.emitted("seek")).toEqual([[384]]);
+            expect(wrapper.emitted("seek")).toEqual([[294]]);
             expect(scrubs(wrapper).at(-1)).toBeNull();
             expect(scrubs(wrapper).some((position) => position?.held)).toBe(false);
 
@@ -382,11 +408,11 @@ describe("AudioFullscreen — the transport", () => {
             await bar.trigger("pointermove", { clientX: 200, pointerId: 10, pointerType: "touch" });
             const during = scrubs(wrapper).slice(before);
             expect(during[0]).toBeNull();
-            expect(during.slice(1)).toEqual([expect.objectContaining({ time: 240 })]);
+            expect(during.slice(1)).toEqual([expect.objectContaining({ time: 30 })]);
             expect(during.slice(1)[0]).not.toHaveProperty("held");
 
             await bar.trigger("pointerup", { clientX: 200, pointerId: 10, pointerType: "touch" });
-            expect(wrapper.emitted("seek")).toEqual([[240]]);
+            expect(wrapper.emitted("seek")).toEqual([[30]]);
             expect(scrubs(wrapper).at(-1)).toBeNull();
         });
     });
@@ -410,7 +436,7 @@ describe("AudioFullscreen — the transport", () => {
         await bar.trigger("pointermove", { clientX: 250, pointerId: 4, pointerType: "touch" });
         expect(wrapper.emitted("pause")).toHaveLength(1);
         await bar.trigger("pointerup", { clientX: 250, pointerId: 4, pointerType: "touch" });
-        expect(wrapper.emitted("seek")).toEqual([[360]]);
+        expect(wrapper.emitted("seek")).toEqual([[270]]);
         expect(wrapper.emitted("play")).toHaveLength(1);
         expect(wrapper.emitted("toggle-play")).toBeUndefined();
     });
