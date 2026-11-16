@@ -1750,18 +1750,25 @@
     line-height: 1.25;
 }
 
-/* Where the playhead is among the chapters, under what plays; shown where the screen is wide. */
+/* Where the playhead is among the chapters, under what plays; one line, a long chapter title cut short. */
 .lmpl-afs-chip {
-    display: none;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
     margin-top: 8px;
     max-width: 100%;
+    box-sizing: border-box;
     padding: 4px 10px;
     border-radius: 999px;
     background: rgb(255 255 255 / 0.1);
     font-size: calc(12px * var(--lmpl-s));
     white-space: nowrap;
+}
+
+.lmpl-afs-chip-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .lmpl-afs-chip i {
@@ -2606,10 +2613,6 @@
 
     .lmpl-afs-titles {
         display: block;
-    }
-
-    .lmpl-afs-chip {
-        display: inline-flex;
     }
 
     /* The sound's screen on its side has no collapse button and no bar of its own: the parts are centred on the whole screen. */
