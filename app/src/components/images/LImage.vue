@@ -37,6 +37,7 @@ const { bucketBaseUrl } = useBucketInfo(bucketIdRef);
 const rounding = {
     smallSquare: "rounded-md",
     small: "rounded-md",
+    searchThumbnail: "rounded-md",
     thumbnail: "rounded-lg",
     thumbnailFeatured: "rounded-xl",
     thumbnailCompact: "rounded-lg",
