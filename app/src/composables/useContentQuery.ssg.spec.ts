@@ -60,7 +60,7 @@ const publishedCorpusDoc = {
     _rev: "1-abc",
 } as unknown as ContentDto;
 
-describe("useContentQuery — SSR prerender path", () => {
+describe("useContentQuery — SSG prerender path", () => {
     beforeEach(() => {
         queryRemoteMock.mockReset().mockResolvedValue([{ ...fakeDoc }]);
         writeResponseCacheMock.mockReset();
@@ -104,7 +104,7 @@ describe("useContentQuery — SSR prerender path", () => {
     });
 
     it("writes the response cache once per fetch, scoped :anon regardless of session state", async () => {
-        hasPersistedSessionMock.mockReturnValue(true); // SSR is always anonymous either way
+        hasPersistedSessionMock.mockReturnValue(true); // the prerender is always anonymous either way
         useContentQuery(() => [], {
             publishedFilter: false,
             languageFilter: false,
@@ -133,16 +133,16 @@ describe("useContentQuery — SSR prerender path", () => {
             remote: [],
         });
         expect(limit).toBeUndefined();
-        expect(stripFields).toBeUndefined(); // neither ssrCacheStripFields nor cacheStripFields passed
+        expect(stripFields).toBeUndefined(); // neither ssgCacheStripFields nor cacheStripFields passed
     });
 
-    it("strips ssrCacheStripFields from the cache write ONLY — the live output keeps the field", async () => {
+    it("strips ssgCacheStripFields from the cache write ONLY — the live output keeps the field", async () => {
         const out = useContentQuery(() => [], {
             publishedFilter: false,
             languageFilter: false,
             cache: true,
             stripFields: ["fts", "ftsTokenCount", "_rev"], // SingleContent's own live-output override
-            ssrCacheStripFields: ["text"],
+            ssgCacheStripFields: ["text"],
         });
         await flushPromises();
 
@@ -152,7 +152,7 @@ describe("useContentQuery — SSR prerender path", () => {
         expect(stripFields).toEqual(["text"]);
     });
 
-    it("falls back to cacheStripFields for the SSR write when ssrCacheStripFields is not given", async () => {
+    it("falls back to cacheStripFields for the prerender write when ssgCacheStripFields is not given", async () => {
         useContentQuery(() => [], {
             publishedFilter: false,
             languageFilter: false,
@@ -165,13 +165,13 @@ describe("useContentQuery — SSR prerender path", () => {
         expect(stripFields).toEqual(["fts"]);
     });
 
-    it("ssrCacheStripFields overrides (not merges with) cacheStripFields for the SSR write", async () => {
+    it("ssgCacheStripFields overrides (not merges with) cacheStripFields for the prerender write", async () => {
         useContentQuery(() => [], {
             publishedFilter: false,
             languageFilter: false,
             cache: true,
             cacheStripFields: ["fts"],
-            ssrCacheStripFields: ["text"],
+            ssgCacheStripFields: ["text"],
         });
         await flushPromises();
 
@@ -182,7 +182,7 @@ describe("useContentQuery — SSR prerender path", () => {
     // End-to-end (no writeResponseCache mock): proves the localStorage entry a real
     // build inlines into the page is actually missing `text`, not just that the right
     // args were handed to a mocked writer.
-    it("end-to-end: the persisted response-cache entry omits ssrCacheStripFields", async () => {
+    it("end-to-end: the persisted response-cache entry omits ssgCacheStripFields", async () => {
         vi.doUnmock("luminary-shared");
         vi.resetModules();
         vi.doMock("luminary-shared", async (importOriginal) => {
@@ -204,7 +204,7 @@ describe("useContentQuery — SSR prerender path", () => {
             languageFilter: false,
             cache: true,
             stripFields: ["fts", "ftsTokenCount", "_rev"],
-            ssrCacheStripFields: ["text"],
+            ssgCacheStripFields: ["text"],
             cacheId: "e2e-slug",
         });
         await flushPromises();
@@ -221,7 +221,7 @@ describe("useContentQuery — SSR prerender path", () => {
         vi.resetModules();
     });
 
-    // Regression: the SSR branch must attribute the seed to its route under the FULL
+    // Regression: the prerender branch must attribute the seed to its route under the FULL
     // `hqcache:`-prefixed storage key (the one shared writes and the client reads), not
     // the bare structural cacheKey. A bare-key attribution read back null, so the seed
     // was never inlined into the page HTML — the logged-out 404-flash root cause.
@@ -326,7 +326,7 @@ describe("useContentQuery — SSR prerender path", () => {
         delete (globalThis as Record<string, unknown>).__SSG_DEPS__;
     });
 
-    it("serializes SSR fetches within one route in registration order (per-route chain)", async () => {
+    it("serializes prerender fetches within one route in registration order (per-route chain)", async () => {
         const order: string[] = [];
         queryRemoteMock.mockReset().mockImplementation(async (q: { use_index?: string }) => {
             // First call resolves slower than the second, on purpose.

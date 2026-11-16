@@ -4,7 +4,7 @@ import { renderToString } from "@vue/server-renderer";
 import { DocType, PublishStatus, TagType, type ContentDto } from "luminary-shared";
 import { SSG_DISPLAY_LANGUAGES } from "@/ssg/renderLanguage";
 import { takeRenderIssues } from "@/ssg/renderDiagnostics";
-import { releaseSsrChain } from "@/ssg/ssrChains";
+import { releaseSsgChain } from "@/ssg/ssgChains";
 
 // Activate the prerender branch in useContentQuery so queries resolve from the corpus
 // instead of the network, exactly as the real vite-ssg Node pass does.
@@ -277,7 +277,7 @@ describe("SingleContent — server-render (prerender) regression", () => {
         delete (globalThis as Record<string, unknown>)[ISSUES_KEY];
         // The per-route chain is a module-level Map; release this route's entry so a
         // stale resolved promise can't interfere with a later test's chain ordering.
-        releaseSsrChain(ROUTE_PATH);
+        releaseSsgChain(ROUTE_PATH);
         (import.meta.env as { SSR: boolean }).SSR = false;
         (import.meta.env as { VITE_BUILD_TARGET?: string }).VITE_BUILD_TARGET = undefined;
     });

@@ -59,26 +59,26 @@ describe("useContentQuery", () => {
         expect(o.persistOffline).toBe(true);
     });
 
-    // ssrCacheStripFields only affects the SSR-authored response-cache write
-    // (onServerPrefetch, not exercised outside a real SSR build) — here we only need
+    // ssgCacheStripFields only affects the prerender-authored response-cache write
+    // (onServerPrefetch, not exercised outside a real SSG build) — here we only need
     // to prove it never leaks into the client-side HybridQuery options, which would
     // otherwise strip it from the client's own ongoing re-cache writes too.
-    it("does not forward ssrCacheStripFields to the client HybridQuery options", () => {
-        useContentQuery(() => [], { cache: true, ssrCacheStripFields: ["text"] });
+    it("does not forward ssgCacheStripFields to the client HybridQuery options", () => {
+        useContentQuery(() => [], { cache: true, ssgCacheStripFields: ["text"] });
         const o = lastOptions();
-        expect(o.ssrCacheStripFields).toBeUndefined();
+        expect(o.ssgCacheStripFields).toBeUndefined();
         expect(o.cacheStripFields).toBeUndefined();
     });
 
-    it("keeps cacheStripFields separate from ssrCacheStripFields on the client options", () => {
+    it("keeps cacheStripFields separate from ssgCacheStripFields on the client options", () => {
         useContentQuery(() => [], {
             cache: true,
             cacheStripFields: ["fts"],
-            ssrCacheStripFields: ["text"],
+            ssgCacheStripFields: ["text"],
         });
         const o = lastOptions();
         expect(o.cacheStripFields).toEqual(["fts"]);
-        expect(o.ssrCacheStripFields).toBeUndefined();
+        expect(o.ssgCacheStripFields).toBeUndefined();
     });
 
     // Response-cache auth scoping: the SSG build always seeds the `:anon` entry, so a returning authenticated client must read/write a distinct `:auth` entry instead.

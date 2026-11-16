@@ -55,7 +55,7 @@ let inFlight = false;
  * (no `window`/`fetch`, e.g. prerender). Pass `force` to bypass the throttle.
  */
 export async function runProbe(force = false): Promise<void> {
-    if (typeof window === "undefined" || typeof fetch === "undefined") return; // SSR / prerender
+    if (typeof window === "undefined" || typeof fetch === "undefined") return; // SSG prerender
     if (typeof navigator !== "undefined" && navigator.onLine === false) return;
     // Don't spend data measuring when we're already serving reduced-quality images anyway.
     if (dataSaverOn.value) return;
