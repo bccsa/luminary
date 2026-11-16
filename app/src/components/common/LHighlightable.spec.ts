@@ -679,6 +679,127 @@ describe("LHighlightable", () => {
             wrapper.unmount();
         });
 
+        describe("a tap on a highlight", () => {
+            // jsdom lays nothing out, and the menu only opens for a selection with a size.
+            const proto = Range.prototype as { getBoundingClientRect?: () => DOMRect };
+            const layout = proto.getBoundingClientRect;
+            let rect: Partial<DOMRect>;
+            beforeEach(() => {
+                rect = { left: 100, top: 300, bottom: 320, width: 100, height: 20 };
+                proto.getBoundingClientRect = () => rect as DOMRect;
+            });
+            afterEach(() => {
+                window.getSelection()?.removeAllRanges();
+                if (layout) proto.getBoundingClientRect = layout;
+                else delete proto.getBoundingClientRect;
+                delete (document as { elementsFromPoint?: unknown }).elementsFromPoint;
+            });
+
+            const menu = () => document.body.querySelector<HTMLElement>(".fixed.z-50")!;
+            const tapHighlight = async () => {
+                const wrapper = await mountWith({
+                    ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
+                    updatedAt: 1,
+                });
+                (wrapper.find("mark[data-highlight]").element as HTMLElement).click();
+                await settle(300);
+                return wrapper;
+            };
+
+            it("opens the menu above the highlight when there is room", async () => {
+                const wrapper = await tapHighlight();
+
+                expect(menu().style.top).toBe("292px");
+                expect(menu().classList).toContain("-translate-y-full");
+                wrapper.unmount();
+            });
+
+            it("opens the menu below the highlight when a bar covers the room above", async () => {
+                const bar = document.createElement("div");
+                bar.style.position = "sticky";
+                document.body.appendChild(bar);
+                (document as { elementsFromPoint?: unknown }).elementsFromPoint = () => [bar];
+
+                const wrapper = await tapHighlight();
+
+                expect(menu().style.top).toBe("328px");
+                expect(menu().classList).not.toContain("-translate-y-full");
+                wrapper.unmount();
+                bar.remove();
+            });
+
+            it("opens the menu below the highlight at the top of the screen", async () => {
+                rect = { left: 100, top: 20, bottom: 40, width: 100, height: 20 };
+
+                const wrapper = await tapHighlight();
+
+                expect(menu().style.top).toBe("48px");
+                expect(menu().classList).not.toContain("-translate-y-full");
+                wrapper.unmount();
+            });
+
+            it("selects the whole highlight and opens its menu", async () => {
+                const wrapper = await mountWith({
+                    ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
+                    updatedAt: 1,
+                });
+
+                (wrapper.find("mark[data-highlight]").element as HTMLElement).click();
+                await settle(300);
+
+                expect(window.getSelection()!.toString()).toBe("highlighted");
+                expect(removeButton()).toBeTruthy();
+                expect(document.body.querySelector("[data-test='highlightCopy']")).toBeTruthy();
+                wrapper.unmount();
+            });
+
+            it("removes the highlight from that menu", async () => {
+                const wrapper = await mountWith({
+                    ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
+                    updatedAt: 1,
+                });
+
+                (wrapper.find("mark[data-highlight]").element as HTMLElement).click();
+                await settle(300);
+                removeButton().click();
+                await settle();
+
+                expect(marks(wrapper)).toEqual([]);
+                expect(wrapper.emitted("highlightRemoved")).toHaveLength(1);
+                wrapper.unmount();
+            });
+
+            it("opens nothing for a tap on text without a highlight", async () => {
+                const wrapper = await mountWith({
+                    ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
+                    updatedAt: 1,
+                });
+
+                (wrapper.find("p").element as HTMLElement).click();
+                await settle(300);
+
+                expect(window.getSelection()!.isCollapsed).toBe(true);
+                expect(document.body.querySelector(".fixed.z-50")).toBeNull();
+                wrapper.unmount();
+            });
+
+            it("leaves a selection the reader is making alone", async () => {
+                const wrapper = await mountWith({
+                    ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
+                    updatedAt: 1,
+                });
+                const prose = wrapper.find(".prose").element;
+                const range = document.createRange();
+                range.selectNodeContents(prose);
+                window.getSelection()!.addRange(range);
+
+                (wrapper.find("mark[data-highlight]").element as HTMLElement).click();
+
+                expect(window.getSelection()!.toString()).toBe("Some highlighted text content.");
+                wrapper.unmount();
+            });
+        });
+
         it("offers both Highlight and Remove over an existing highlight", async () => {
             const wrapper = await mountWith({
                 ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
