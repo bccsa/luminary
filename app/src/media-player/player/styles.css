@@ -1018,7 +1018,7 @@
 
 /* --- Control names ----------------------------------------------------------- */
 
-/* The name of the control the pointer rests on: a dark pill above it. Placed by the player (see ui/controlTooltip.ts). */
+/* The name of the control the pointer rests on: a dark pill above it, or below when there is no room. Placed by the player (see ui/controlTooltip.ts). */
 .lmpl-tooltip {
     position: fixed;
     inset: auto;
@@ -1044,6 +1044,18 @@
     from {
         opacity: 0;
         transform: translateY(4px);
+    }
+}
+
+/* Below its control when there is no room above, so it slides in from above instead. */
+.lmpl-tooltip.lmpl-tooltip-below {
+    animation-name: lmpl-tooltip-in-below;
+}
+
+@keyframes lmpl-tooltip-in-below {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
     }
 }
 
