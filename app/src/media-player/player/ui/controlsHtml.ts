@@ -11,7 +11,7 @@ import { chapterIcon } from "./chapterSkip";
  * `styles.css`.
  *
  * The layout: pause/play in the middle with the skips either side and the chapter skips outside those, and under it the timeline, then one
- * row — volume and the four settings (quality, language, speed, captions) on the left, each its own
+ * row — volume and the four settings (speed, quality, language, captions, in the now-playing screen's order) on the left, each its own
  * button opening its own card, and casting, picture-in-picture and fullscreen on the right.
  */
 
@@ -164,13 +164,13 @@ function browseButton(id: string, label: string): string {
     );
 }
 
-/** The settings. Language and captions are left out when the host asks; the two always offered are quality and speed. */
+/** The settings, in the now-playing screen's order. Language and captions are left out when the host asks. */
 function settings(options: ControlsHtmlOptions, id: string, labels: ControlsHtmlLabels): string {
     return (
         '<div class="lmpl-group lmpl-options">' +
+        setting("speed", id, labels.speed) +
         setting("quality", id, labels.quality) +
         (options.audioMenu ? setting("audio", id, labels.audio) : "") +
-        setting("speed", id, labels.speed) +
         (options.subtitlesMenu ? setting("captions", id, labels.captions) : "") +
         browseButton(id, labels.browse) +
         "</div>"
