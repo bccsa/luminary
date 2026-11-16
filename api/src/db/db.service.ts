@@ -522,6 +522,21 @@ export class DbService extends EventEmitter {
                 delete (doc as ContentDto).statusChangeDeleteCmdId;
             }
 
+            // A draft saved again still owns its StatusChange deleteCmd. The change request
+            // strips the server-only tracking field, so carry it over from the stored draft;
+            // without it the republish above cannot find the deleteCmd and leaves it orphaned.
+            if (
+                existing &&
+                doc.type === DocType.Content &&
+                (existing as ContentDto).status === PublishStatus.Draft &&
+                (doc as ContentDto).status === PublishStatus.Draft &&
+                (existing as ContentDto).statusChangeDeleteCmdId
+            ) {
+                (doc as ContentDto).statusChangeDeleteCmdId = (
+                    existing as ContentDto
+                ).statusChangeDeleteCmdId;
+            }
+
             // Generate delete command if the document's status has changed to draft
             if (
                 existing &&
