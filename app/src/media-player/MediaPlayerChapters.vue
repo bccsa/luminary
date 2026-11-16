@@ -22,6 +22,7 @@ const current = computed(() => chapterIndexAt(props.chapters, props.currentTime)
         <li v-for="(chapter, index) in chapters" :key="`${chapter.startTime}-${index}`">
             <ChapterRow
                 :chapter="chapter"
+                :index="index"
                 :current="index === current"
                 :cue="cueAt?.(chapter.startTime) ?? null"
                 :progress="chapterProgress(chapter, currentTime)"

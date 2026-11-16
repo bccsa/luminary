@@ -47,7 +47,7 @@ import {
 } from "../ui/spriteWarm";
 import { liftCues, liftLine, type LiftableCue } from "../ui/cueLift";
 import { cuesToLyrics, type LyricCue } from "../ui/lyrics";
-import { chapterMask, formatChapterOf } from "../ui/chapterBar";
+import { chapterMask, formatChapterOf, numberedChapter } from "../ui/chapterBar";
 import { hasChapterSkip, nextChapterTime, previousChapterTime } from "../ui/chapterSkip";
 import {
     attachControlTooltips,
@@ -893,11 +893,11 @@ interface ScrubState {
 
 const scrub = shallowRef<ScrubState | null>(null);
 
-/** The title of the chapter a moment is in, or nothing when the video has no chapters or the moment is before the first. */
+/** The numbered chapter a moment is in, or nothing when the video has no chapters or the moment is before the first. */
 function chapterTitleAt(time: number): string {
     const chapters = state.value.chapters;
     const index = chapterIndexAt(chapters, time);
-    return index < 0 ? "" : (chapters[index]?.title ?? "");
+    return index < 0 ? "" : numberedChapter(index, chapters[index]?.title ?? "");
 }
 
 /** The timeline cut at the chapter starts; one plain bar when there are fewer than two chapters. */

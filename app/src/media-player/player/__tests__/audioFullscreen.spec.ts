@@ -94,9 +94,9 @@ describe("AudioFullscreen — what it shows", () => {
         await find(wrapper, "afsBrowse").trigger("click");
         const rows = wrapper.findAll(".lmpl-chapter");
         expect(rows).toHaveLength(chapters.length);
-        expect(rows[0]!.find(".lmpl-upnext-title").text()).toBe("Chapter 1");
+        expect(rows[0]!.find(".lmpl-upnext-title").text()).toBe("1. Chapter 1");
         expect(wrapper.find(".lmpl-chapter[aria-current=true] .lmpl-upnext-title").text()).toBe(
-            "Chapter 3",
+            "3. Chapter 3",
         );
     });
 
