@@ -164,7 +164,6 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     'block w-full border-0 py-2 ring-1 ring-inset transition-all duration-200 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6',
                     'disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200',
                     'dark:disabled:bg-slate-900 dark:disabled:text-zinc-600 dark:disabled:ring-slate-800',
-                    'dark:[color-scheme:dark]',
                 ]"
                 :id="id"
                 :name="name"

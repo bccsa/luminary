@@ -16,6 +16,7 @@ import {
     XMarkIcon,
 } from "@heroicons/vue/24/outline";
 import type { GroupDto } from "luminary-shared";
+import { isDarkTheme } from "@/globalConfig";
 import { GRID_SIZE, TREE_MAX_COLUMNS, TREE_MIN_COLUMNS } from "./types";
 import {
     graphGroupsToLayOut,
@@ -275,7 +276,7 @@ watch(isFullscreen, () => {
                     />
                 </template>
 
-                <Background pattern-color="#e4e4e7" :gap="GRID_SIZE" />
+                <Background :pattern-color="isDarkTheme ? '#334155' : '#e4e4e7'" :gap="GRID_SIZE" />
                 <Panel position="bottom-left">
                     <div class="flex flex-col gap-1">
                         <LButton
