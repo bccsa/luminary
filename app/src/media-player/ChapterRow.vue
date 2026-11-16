@@ -17,7 +17,7 @@ const props = withDefaults(
         index: number;
         /** The chapter the playhead is in. */
         current?: boolean;
-        /** A frame of the video at the chapter's start; none draws a text row. */
+        /** A frame of the video from the chapter's middle; none draws a text row. */
         cue?: ThumbnailSpriteCue | null;
         /** Width of the frame in px. */
         frameWidth?: number;
