@@ -16,7 +16,7 @@ import {
     Uuid,
 } from "../types";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
-import { ref, toRaw, watch } from "vue";
+import { ref, toRaw, watch, type Ref } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
@@ -28,8 +28,11 @@ import { isConnected } from "../socket/socketio";
 import { changeReqErrors, changeReqInfo, changeReqWarnings } from "../config";
 import { cloneDeep } from "lodash-es";
 import { retryOnTransientIndexedDbError } from "./transientRetry";
+import type { SyncListEntry } from "../api/sync/types";
 
-const dbName: string = "luminary-db";
+const DEFAULT_DB_NAME: string = "luminary-db";
+const DEFAULT_DB_INDEX_KEY = "dexie.dbIndex";
+const DEFAULT_SYNC_LIST_KEY = "syncList";
 
 /**
  * Whether the stored copy already holds this doc version. The API sets a new `updatedTimeUtc` on
@@ -64,7 +67,26 @@ type dbIndex = {
     localChanges: string;
     luminaryInternals: string;
     retention: string;
-    userActivity: string;
+    userActivity?: string;
+};
+
+type DatabaseOptions = {
+    name?: string;
+    indexStorageKey?: string;
+    syncListKey?: string;
+    requestPersistentStorage?: boolean;
+    includeUserActivityTable?: boolean;
+    quietAcks?: boolean;
+};
+
+export type OpenDatabaseOptions = {
+    name: string;
+    docsIndex?: string;
+    indexStorageKey?: string;
+    syncListKey?: string;
+    requestPersistentStorage?: boolean;
+    includeUserActivityTable?: boolean;
+    quietAcks?: boolean;
 };
 
 export type QueryOptions = {
@@ -132,6 +154,11 @@ class Database extends Dexie {
     luminaryInternals!: Table<LuminaryInternals>;
     retention!: Table<RetentionEntry>;
     userActivity!: Table<UserActivityEntry>;
+    private readonly indexStorageKey: string;
+    private readonly syncListKey: string;
+    private readonly quietAcks: boolean;
+    private readonly includeUserActivityTable: boolean;
+    private readonly isDefaultInstance: boolean;
 
     // In-memory (not persisted) acknowledgements for callers awaiting the real server ack
     // of a queued local change — see `upsert` and `waitForLocalChangeAck`.
@@ -192,9 +219,18 @@ class Database extends Dexie {
      * @param dbVersion - Current Dexie DB version
      * @param docsIndex - App specific Index
      */
-    constructor(dbVersion: number, docsIndex: string) {
-        super(dbName);
-        this.requestIndexDbPersistent();
+    constructor(dbVersion: number, docsIndex: string, options: DatabaseOptions = {}) {
+        const name = options.name ?? DEFAULT_DB_NAME;
+        super(name);
+        this.indexStorageKey = options.indexStorageKey ?? `${DEFAULT_DB_INDEX_KEY}:${name}`;
+        this.syncListKey = options.syncListKey ?? DEFAULT_SYNC_LIST_KEY;
+        this.quietAcks = options.quietAcks ?? false;
+        this.includeUserActivityTable = options.includeUserActivityTable ?? name === DEFAULT_DB_NAME;
+        this.isDefaultInstance = name === DEFAULT_DB_NAME;
+
+        if (options.requestPersistentStorage ?? this.isDefaultInstance) {
+            this.requestIndexDbPersistent();
+        }
 
         const index: string = concatIndex(
             "_id,type,parentType,language,expiryDate,parentId,publishDate,[type+tagType],*fts",
@@ -205,14 +241,17 @@ class Database extends Dexie {
             localChanges: "++id, reqId, docId, status",
             luminaryInternals: "id",
             retention: "docId, retainUntil",
-            userActivity:
-                "_id, type, parentId, contentId, updatedTimeUtc, [type+updatedTimeUtc]",
         };
+        if (this.includeUserActivityTable) {
+            dbIndex.userActivity =
+                "_id, type, parentId, contentId, updatedTimeUtc, [type+updatedTimeUtc]";
+        }
 
         const version: number = bumpDBVersion(
             (dbVersion >= 10 && dbVersion / 10) || 1,
-            localStorage.getItem("dexie.dbIndex") || "{}",
+            localStorage.getItem(this.indexStorageKey) || "{}",
             dbIndex,
+            this.indexStorageKey,
         );
 
         this.version(version).stores(dbIndex);
@@ -243,19 +282,25 @@ class Database extends Dexie {
         return uuidv4();
     }
 
-    async getSyncList() {
-        const _v = await this.getLuminaryInternals("syncList");
+    async getSyncList(syncListRef?: Ref<SyncListEntry[]>) {
+        const _v = await this.getLuminaryInternals(this.syncListKey);
         if (_v && Array.isArray(_v)) {
-            const { syncList } = await import("../api/sync/state");
-            syncList.value = _v;
+            if (syncListRef) {
+                syncListRef.value = _v;
+            } else {
+                const { syncList } = await import("../api/sync/state");
+                syncList.value = _v;
+            }
         }
         return _v;
     }
 
-    async setSyncList() {
-        const { syncList } = await import("../api/sync/state");
+    async setSyncList(syncListRef?: Ref<SyncListEntry[]>) {
+        const list = syncListRef
+            ? syncListRef.value
+            : (await import("../api/sync/state")).syncList.value;
         // Clone the raw array: cloning through the reactive proxy is several times slower.
-        return await this.setLuminaryInternals("syncList", cloneDeep(toRaw(syncList.value)));
+        return await this.setLuminaryInternals(this.syncListKey, cloneDeep(toRaw(list)));
     }
 
     async setLuminaryInternals(key: string, value: any) {
@@ -698,23 +743,23 @@ class Database extends Dexie {
             // i.e. another client deleted this doc before our change synced. The cleanup
             // below (deleting the local copy) already reconciles state correctly, so this
             // isn't an actionable error for the user.
-            if (ack.message !== "deleted") {
+            if (!this.quietAcks && ack.message !== "deleted") {
                 changeReqErrors.value.push(ack.message || "Unknown error occured");
             }
             if (ack.docs && Array.isArray(ack.docs)) {
                 // Replace our local copy(s) with the provided database version
                 await this.docs.bulkPut(ack.docs);
-            } else {
+            } else if (!this.quietAcks) {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
                 await this.docs.delete(localChange.doc._id);
             }
         }
 
-        if (ack.ack == "accepted" && ack.warnings && ack.warnings.length > 0) {
+        if (!this.quietAcks && ack.ack == "accepted" && ack.warnings && ack.warnings.length > 0) {
             changeReqWarnings.value = ack.warnings;
         }
 
-        if (ack.ack == "accepted" && ack.info && ack.info.length > 0) {
+        if (!this.quietAcks && ack.ack == "accepted" && ack.info && ack.info.length > 0) {
             changeReqInfo.value = ack.info;
         }
 
@@ -894,7 +939,20 @@ class Database extends Dexie {
      * Purge the local database. `userActivity` is left alone: it is not a cache of server
      * documents, so clearing the cache or signing out must not erase what the user did.
      */
+    async clear() {
+        await Promise.all([
+            this.docs.clear(),
+            this.localChanges.clear(),
+            this.luminaryInternals.clear(),
+            this.retention.clear(),
+        ]);
+    }
+
     async purge() {
+        if (!this.isDefaultInstance) {
+            throw new Error("purge() is only supported on the default database instance");
+        }
+
         for (const entry of Array.from(this.localChangeAcks.values())) {
             if (!entry.settled) {
                 entry.settled = true;
@@ -926,6 +984,22 @@ class Database extends Dexie {
 
 export let db: Database;
 
+const attachVersionChangeReloadHandler = (database: Database) => {
+    // Dexie's own `versionchange` default closes this connection so the other tab's upgrade
+    // can proceed, and it has to: holding on would block that tab for as long as this one
+    // lives. Subscribers run before the default, so this adds to it rather than replacing it.
+    //
+    // Closing is enough for a hidden tab, which reopens on next use. A visible one is running
+    // code built for the old schema, so it reloads onto the new version instead of carrying
+    // on against a database it can no longer use. Reloading only the visible tab keeps this
+    // to the page someone is actually looking at.
+    database.on("versionchange", () => {
+        if (typeof document === "undefined" || typeof window === "undefined") return;
+        if (document.visibilityState !== "visible") return;
+        window.location.reload();
+    });
+};
+
 /**
  * Opens the existing database for use in a Web Worker, where {@link initDatabase} cannot run
  * (it reads the schema version from localStorage). The schema is taken from the database as it
@@ -934,8 +1008,9 @@ export let db: Database;
  */
 export async function openDatabaseInWorker(): Promise<void> {
     // Opening a missing database would create an empty one ahead of the app's own schema.
-    if (!(await Dexie.exists(dbName))) throw new Error(`${dbName} does not exist yet`);
-    const connection = new Dexie(dbName);
+    if (!(await Dexie.exists(DEFAULT_DB_NAME)))
+        throw new Error(`${DEFAULT_DB_NAME} does not exist yet`);
+    const connection = new Dexie(DEFAULT_DB_NAME);
     await connection.open();
     db = {
         name: connection.name,
@@ -956,8 +1031,14 @@ export const dbUpgradeBlocked = ref(false);
 let deleteExpiredTimer: ReturnType<typeof setInterval> | undefined;
 
 export async function initDatabase() {
-    const _v: number = await getDbVersion();
-    db = new Database(_v, config.docsIndex);
+    const _v: number = await getDbVersion(DEFAULT_DB_NAME);
+    db = new Database(_v, config.docsIndex, {
+        name: DEFAULT_DB_NAME,
+        indexStorageKey: `${DEFAULT_DB_INDEX_KEY}:${DEFAULT_DB_NAME}`,
+        syncListKey: DEFAULT_SYNC_LIST_KEY,
+        requestPersistentStorage: true,
+        includeUserActivityTable: true,
+    });
 
     // Registered before open(): a blocked upgrade is raised during the open, not after it.
     // This is a waiting state — the other connection closing unblocks it and `open()` then
@@ -966,19 +1047,7 @@ export async function initDatabase() {
         dbUpgradeBlocked.value = true;
     });
 
-    // Dexie's own `versionchange` default closes this connection so the other tab's upgrade
-    // can proceed, and it has to: holding on would block that tab for as long as this one
-    // lives. Subscribers run before the default, so this adds to it rather than replacing it.
-    //
-    // Closing is enough for a hidden tab, which reopens on next use. A visible one is running
-    // code built for the old schema, so it reloads onto the new version instead of carrying
-    // on against a database it can no longer use. Reloading only the visible tab keeps this
-    // to the page someone is actually looking at.
-    db.on("versionchange", () => {
-        if (typeof document === "undefined" || typeof window === "undefined") return;
-        if (document.visibilityState !== "visible") return;
-        window.location.reload();
-    });
+    attachVersionChangeReloadHandler(db);
 
     // Awaiting open() rather than the "ready" event means a rejected open is raised as a
     // boot error instead of leaving this promise unsettled. A blocked open is not rejected:
@@ -1042,11 +1111,34 @@ export async function initDatabase() {
         watch(
             syncList,
             () => {
-                db.setSyncList();
+                db.setSyncList(syncList);
             },
             { deep: true },
         );
     });
+}
+
+/**
+ * Open a non-singleton database instance. Used by source-specific stores.
+ */
+export async function openDatabase(options: OpenDatabaseOptions): Promise<Database> {
+    const _v: number = await getDbVersion(options.name);
+    const instance = new Database(_v, options.docsIndex ?? config.docsIndex, {
+        name: options.name,
+        indexStorageKey: options.indexStorageKey,
+        syncListKey: options.syncListKey,
+        requestPersistentStorage: options.requestPersistentStorage,
+        includeUserActivityTable: options.includeUserActivityTable,
+        quietAcks: options.quietAcks,
+    });
+
+    attachVersionChangeReloadHandler(instance);
+
+    if (!instance.isOpen()) {
+        await instance.open();
+    }
+
+    return instance;
 }
 
 /**
@@ -1055,9 +1147,9 @@ export async function initDatabase() {
  * here strands the user on the boot screen with nothing reported.
  * @returns IndexDB Version
  */
-export const getDbVersion = () =>
+export const getDbVersion = (databaseName: string = DEFAULT_DB_NAME) =>
     new Promise<number>((resolve, reject) => {
-        const request = indexedDB.open(dbName);
+        const request = indexedDB.open(databaseName);
 
         request.onsuccess = (event: any) => {
             const db = event.target.result;
@@ -1100,9 +1192,14 @@ const concatIndex = (index1: string, index2: string) => {
  * @param newIndex - New DB docs index
  * @returns
  */
-const bumpDBVersion = (dbVersion: number, oldIndex: string, newIndex: dbIndex) => {
+const bumpDBVersion = (
+    dbVersion: number,
+    oldIndex: string,
+    newIndex: dbIndex,
+    indexStorageKey: string,
+) => {
     if (oldIndex.trim() == JSON.stringify(newIndex).trim()) return dbVersion;
-    localStorage.setItem("dexie.dbIndex", JSON.stringify(newIndex));
+    localStorage.setItem(indexStorageKey, JSON.stringify(newIndex));
     console.log(`dbVersion updated from ${dbVersion} to ${dbVersion + 1}`);
     return dbVersion + 1;
 };

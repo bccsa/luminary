@@ -19,11 +19,12 @@ import {
     subtractRanges,
 } from "./utils";
 import { trim } from "./trim";
-import { syncActive, syncList, syncTolerance } from "./state";
+import { syncActive, syncList, syncListOf, syncTolerance } from "./state";
 import { merge } from "./merge";
 import { getContentPublishDateCutoff, hasContentPublishDateCutoff } from "../../config";
 import { evictStaleBelowCutoff } from "../../db/retention";
 import { reportBreadcrumb } from "../../diagnostics";
+import type { SyncSource } from "./types";
 
 let _httpService: HttpReq<any>;
 
@@ -47,9 +48,10 @@ export let cancelSync = false;
  * "dual columns" with different memberOf are intentionally NOT flagged here — the recursion
  * guard + `mergeHorizontal` resolve those once both columns reach eof.
  */
-function findDegenerateChunkTypes(): Set<string> {
+function findDegenerateChunkTypes(source?: SyncSource): Set<string> {
+    const listRef = syncListOf(source);
     const byChunkType = new Map<string, SyncListEntry[]>();
-    for (const entry of syncList.value) {
+    for (const entry of listRef.value) {
         const list = byChunkType.get(entry.chunkType) ?? [];
         list.push(entry);
         byChunkType.set(entry.chunkType, list);
@@ -161,8 +163,9 @@ export async function initSync(httpService: HttpReq<any>) {
  * filtered array on its own, but `setSyncList()` here makes the persistence ordering deterministic
  * relative to whatever ran before us.
  */
-async function resetDegenerateChunkTypes(): Promise<void> {
-    const degenerate = findDegenerateChunkTypes();
+async function resetDegenerateChunkTypes(source?: SyncSource): Promise<void> {
+    const listRef = syncListOf(source);
+    const degenerate = findDegenerateChunkTypes(source);
     if (!degenerate.size) return;
     const toReset = new Set(degenerate);
     degenerate.forEach((chunkType) => {
@@ -171,8 +174,9 @@ async function resetDegenerateChunkTypes(): Promise<void> {
             toReset.add(getChunkTypeString(DocType.DeleteCmd, subType ?? type));
         }
     });
-    syncList.value = syncList.value.filter((entry) => !toReset.has(entry.chunkType));
-    await db.setSyncList();
+    listRef.value = listRef.value.filter((entry) => !toReset.has(entry.chunkType));
+    if (source) await source.setSyncList();
+    else await db.setSyncList();
 }
 
 /**
@@ -191,9 +195,9 @@ async function resetDegenerateChunkTypes(): Promise<void> {
  * every group in the subset's memberOf. Any docs the subset would still fetch are guaranteed to
  * have been (or be on track to be) fetched by the superset's continued sync.
  */
-function findStaleSubsetEntries(): Set<SyncListEntry> {
+function findStaleSubsetEntries(source?: SyncSource): Set<SyncListEntry> {
     const stale = new Set<SyncListEntry>();
-    const entries = syncList.value;
+    const entries = syncListOf(source).value;
     for (let i = 0; i < entries.length; i++) {
         const a = entries[i];
         // Only consider non-eof entries as candidates for being stale. An eof:true entry
@@ -223,11 +227,13 @@ function findStaleSubsetEntries(): Set<SyncListEntry> {
 /**
  * Drops entries flagged by {@link findStaleSubsetEntries}. Safe no-op when nothing is stale.
  */
-async function removeStaleSubsetEntries(): Promise<void> {
-    const stale = findStaleSubsetEntries();
+async function removeStaleSubsetEntries(source?: SyncSource): Promise<void> {
+    const listRef = syncListOf(source);
+    const stale = findStaleSubsetEntries(source);
     if (!stale.size) return;
-    syncList.value = syncList.value.filter((entry) => !stale.has(entry));
-    await db.setSyncList();
+    listRef.value = listRef.value.filter((entry) => !stale.has(entry));
+    if (source) await source.setSyncList();
+    else await db.setSyncList();
 }
 
 /**
@@ -274,6 +280,17 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
     };
     reportBreadcrumb(`Sync started: ${options.type}`, ctx);
     try {
+        if (options.source) {
+            await syncBatch({
+                ...options,
+                includeDeleteCmds: false,
+                initialSync: true,
+                httpService: _httpService,
+            });
+            reportBreadcrumb(`Sync finished: ${options.type}`, ctx);
+            return;
+        }
+
         await _runSync(options);
 
         // Content callers get an automatic companion run that syncs always-offline
@@ -371,7 +388,7 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
     // Compare passed languages with existing languages in the syncList for the given type and memberOf
     if (options.type === DocType.Content && options.languages) {
         // Get list of languages already present in the syncList for the given type and list of languages
-        const existingLanguages = getLanguages();
+        const existingLanguages = getLanguages(options.source);
 
         const newLanguages =
             options.languages.filter((lang) => !existingLanguages.includes(lang)) || [];
@@ -406,6 +423,7 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
             type: options.type,
             subType: options.subType,
             alwaysOffline: options.alwaysOffline,
+            source: options.source,
         });
         const requested = resolveRange(options.publishDateMin, options.publishDateMax);
 
@@ -513,7 +531,8 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
         };
 
         // Check if there are deleteCmd entries in the syncList for the given type and memberOf groups.
-        const hasDeleteCmdEntries = syncList.value.some(filterByTypeMemberOf(deleteCmdOptions));
+        const listRef = syncListOf(options.source);
+        const hasDeleteCmdEntries = listRef.value.some(filterByTypeMemberOf(deleteCmdOptions));
 
         if (!hasDeleteCmdEntries) {
             // If this is a new sync column, use the syncBatch result and set as the initial sync state for deleteCmds.
@@ -521,7 +540,7 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
             // doing an initial sync.
             // To prevent issues due to disconnection / app closure while syncing, we are checking if there are deleteCmd entries
             // on every sync run.
-            syncList.value.push({
+            listRef.value.push({
                 chunkType: getChunkTypeString(DocType.DeleteCmd, deleteCmdSubType),
                 memberOf: options.memberOf,
                 languages: undefined, // language-unscoped — see deleteCmdOptions above

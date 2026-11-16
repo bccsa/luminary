@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { ref } from "vue";
 import { syncList } from "./state";
 import { merge, mergeHorizontal, mergeVertical } from "./merge";
 import { DocType } from "../../types";
 import { OPEN_MAX, OPEN_MIN } from "./utils";
+import type { SyncSource } from "./types";
 
 describe("merge", () => {
     beforeEach(() => {
@@ -30,6 +32,47 @@ describe("merge", () => {
 
         // Should not perform horizontal merge (no merging across memberOf groups)
         expect(syncList.value).toHaveLength(1);
+    });
+
+    it("uses source-owned syncList without mutating the global list", () => {
+        syncList.value = [
+            {
+                chunkType: "post",
+                memberOf: ["global"],
+                blockStart: 500,
+                blockEnd: 400,
+                eof: false,
+            },
+        ];
+
+        const sourceList = ref([
+            {
+                chunkType: "post",
+                memberOf: ["source"],
+                blockStart: 300,
+                blockEnd: 200,
+                eof: false,
+            },
+            {
+                chunkType: "post",
+                memberOf: ["source"],
+                blockStart: 200,
+                blockEnd: 100,
+                eof: true,
+            },
+        ]);
+        const source: SyncSource = {
+            name: "user",
+            syncList: sourceList,
+            setSyncList: async () => undefined,
+            put: async () => undefined,
+        };
+
+        const result = mergeVertical({ type: DocType.Post, memberOf: ["source"], source });
+        expect(result.eof).toBe(true);
+        expect(sourceList.value).toHaveLength(1);
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].memberOf).toEqual(["global"]);
     });
 
     it("should perform both vertical and horizontal merge when eof is true", () => {

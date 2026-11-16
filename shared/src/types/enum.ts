@@ -6,6 +6,7 @@ export enum DocType {
     Post = "post",
     Tag = "tag",
     User = "user",
+    UserActivity = "userActivity",
     DeleteCmd = "deleteCmd",
     Storage = "storage",
     Crypto = "crypto",

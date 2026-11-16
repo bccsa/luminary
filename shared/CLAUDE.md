@@ -56,12 +56,18 @@ in that consumer's own docs, not here.)
 
 ### Data layer — `src/db/database.ts`
 
-One Dexie `Database` class wraps four tables:
+One Dexie `Database` class wraps these tables:
 
 - `docs` — all documents (Posts, Tags, Content, Languages, Groups, etc.) keyed by `_id`. The index string is built by concatenating a fixed shared index (`_id,type,parentType,language,expiryDate,parentId,publishDate,[type+tagType],*fts`) with the consumer's `docsIndex`. The `*fts` MultiEntry index powers offline trigram search.
 - `localChanges` — outgoing change queue; written to by `db.upsert()` and drained by `syncLocalChanges`.
-- `queryCache` — generic query result cache (`MangoQuery/queryCache.ts`).
 - `luminaryInternals` — key/value store for `syncMap`, `syncList`, FTS `corpusStats`, etc.
+- `retention` — keep-alive deadlines for below-cutoff content retained for offline use.
+- `userActivity` — legacy local user-activity side table on the default database only.
+
+Named/source databases are opened through `openDatabase(...)`. They keep their own
+`syncList` key, skip default-only startup behavior (`deleteExpired`, access-map watcher,
+FTS startup recompute), and may run in `quietAcks` mode so source queue acks don't mutate
+global change-request UI refs.
 
 Schema versioning is **automatic**: `bumpDBVersion` compares the JSON-serialized index against the previous one in `localStorage["dexie.dbIndex"]` and bumps the Dexie version when it changes. You usually don't need to manage versions manually — just add fields to the index string and the next load will migrate.
 

@@ -9,6 +9,7 @@ export * from "./socket/socketio";
 export * from "./socket/roomSubscriptions";
 export * from "./util";
 export * from "./api/RestApi";
+export * from "./api/dataSource";
 export * from "./api/sync";
 export * from "./s3/s3Utils";
 export * from "./config";

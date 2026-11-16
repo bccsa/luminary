@@ -91,6 +91,8 @@ Start an autonomous sync runner for a specific document type.
 - `publishDateMin` / `publishDateMax` (number, optional): Inclusive `publishDate` bounds for
   the column. Only meaningful for `Content` (and its `DeleteCmd` sibling); leave undefined for
   other types — an undefined bound is treated as an open range.
+- `source` (`SyncSource`, optional): Source-scoped sync state/storage target. When provided,
+    `sync()` uses source mode (single-column `syncBatch` path) and does not add DeleteCmd companions.
 
 > The `type`/`subType` examples below use illustrative type names (e.g. `"content:post"`) as
 > shorthand for the resulting `chunkType`. In real calls `type` and `subType` are `DocType`
@@ -123,6 +125,14 @@ await sync({
     languages: ["en"],
     limit: 100,
     cms: true,
+});
+
+// Source mode (e.g. user-data source)
+await sync({
+    type: "userActivity",
+    memberOf: ["*"],
+    limit: 100,
+    source: userSource,
 });
 ```
 
@@ -237,6 +247,10 @@ The `syncBatch()` function performs these steps iteratively:
 7. If EOF reached, performs horizontal merge
 8. Otherwise, recursively calls itself for the next chunk
 
+In source mode (`options.source` set), `syncBatch` writes fetched docs through
+`source.put(...)`, reads/writes `source.syncList`, sends `dataSource: source.name`
+to the API query, and omits the default `memberOf` selector injection.
+
 ### 3. Chunk Calculation
 
 The `calcChunk()` function determines the time range for the next API query:
@@ -290,6 +304,9 @@ The sync system constructs Mango queries in this format:
   use_index: "sync-lesson-index"
 }
 ```
+
+For source mode the query additionally carries `dataSource: <source name>` and omits the
+default `memberOf` selector clause.
 
 ## Usage Patterns
 

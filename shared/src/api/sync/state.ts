@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import type { SyncListEntry } from "./types";
+import type { SyncListEntry, SyncSource } from "./types";
 
 export const syncList = ref<SyncListEntry[]>([]);
 export const syncTolerance = 1000; // Once second tolerance for updatedTimeUtc to avoid missing documents due to API database sync delays
@@ -10,3 +10,6 @@ export const syncTolerance = 1000; // Once second tolerance for updatedTimeUtc t
  * binds to it). Maintained by an in-flight counter in `sync()`.
  */
 export const syncActive = ref(false);
+
+/** Source-scoped sync-list selector (default source when none is provided). */
+export const syncListOf = (source?: SyncSource) => source?.syncList ?? syncList;

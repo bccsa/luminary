@@ -1,5 +1,5 @@
 import { DocType } from "../../types";
-import { syncList } from "./state";
+import { syncListOf } from "./state";
 import { SyncBaseOptions } from "./types";
 import {
     getChunkTypeString,
@@ -21,13 +21,14 @@ import {
  *   The latter only applies to Content entries — DeleteCmd entries are always kept open.
  */
 export function trim(options: SyncBaseOptions): void {
+    const listRef = syncListOf(options.source);
     const targetChunkType = getChunkTypeString(options.type, options.subType);
     const targetRange = resolveRange(options.publishDateMin, options.publishDateMax);
     const targetRangeIsOpen = targetRange.min === OPEN_MIN && targetRange.max === OPEN_MAX;
 
     // Process entries in reverse to safely remove items during iteration
-    for (let i = syncList.value.length - 1; i >= 0; i--) {
-        const entry = syncList.value[i];
+    for (let i = listRef.value.length - 1; i >= 0; i--) {
+        const entry = listRef.value[i];
 
         // Only trim entries that match the target chunkType
         if (entry.chunkType !== targetChunkType) {
@@ -39,7 +40,7 @@ export function trim(options: SyncBaseOptions): void {
 
         // If no groups remain after trimming, remove the entire entry
         if (trimmedGroups.length === 0) {
-            syncList.value.splice(i, 1);
+            listRef.value.splice(i, 1);
             continue;
         }
 
@@ -60,7 +61,7 @@ export function trim(options: SyncBaseOptions): void {
 
             // If no languages remain after trimming, remove the entire entry
             if (trimmedLanguages.length === 0) {
-                syncList.value.splice(i, 1);
+                listRef.value.splice(i, 1);
                 continue;
             }
 
@@ -75,7 +76,7 @@ export function trim(options: SyncBaseOptions): void {
 
             // Drop entries fully outside the target range.
             if (entryRange.max < targetRange.min || entryRange.min > targetRange.max) {
-                syncList.value.splice(i, 1);
+                listRef.value.splice(i, 1);
                 continue;
             }
 
