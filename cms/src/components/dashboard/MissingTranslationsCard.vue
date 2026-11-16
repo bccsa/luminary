@@ -104,7 +104,7 @@ watch(missingTranslations, () => nextTick(update));
                 </div>
             </div>
             <div class="lg:min-h-0 lg:flex-1 lg:overflow-hidden">
-                <ul ref="listEl" class="divide-y divide-zinc-100 dark:divide-slate-500">
+                <ul ref="listEl" class="divide-y divide-zinc-100 dark:divide-slate-700">
                     <li
                         v-for="item in missingTranslations"
                         :key="item.parentId"

@@ -23,7 +23,7 @@ function formatDate(timestamp: number): string {
         collapsible
         defaultCollapsed
     >
-        <ul class="divide-y divide-zinc-100 dark:divide-slate-500">
+        <ul class="divide-y divide-zinc-100 dark:divide-slate-700">
             <li
                 v-for="doc in scheduledContent.slice(0, 5)"
                 :key="doc._id"

@@ -40,7 +40,7 @@ const maxContentCount = computed(() => {
                         :class="
                             lang._id === cmsLanguageIdAsRef
                                 ? 'text-yellow-600 dark:text-yellow-400'
-                                : 'text-zinc-700 dark:text-yellow-400'
+                                : 'text-zinc-700 dark:text-zinc-300'
                         "
                     >
                         {{ lang.name }}
@@ -53,14 +53,14 @@ const maxContentCount = computed(() => {
                     </span>
                 </div>
                 <div
-                    class="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-400"
+                    class="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-slate-700"
                 >
                     <div
                         class="h-full rounded-full transition-all"
                         :class="
                             lang._id === cmsLanguageIdAsRef
                                 ? 'bg-yellow-500 dark:bg-yellow-500'
-                                : 'bg-zinc-300 dark:bg-zinc-200'
+                                : 'bg-zinc-300 dark:bg-zinc-300'
                         "
                         :style="{
                             width:
