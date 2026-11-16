@@ -71,6 +71,10 @@ const actionsMenu = ref<HTMLElement | undefined>(undefined);
 const showActions = ref(false);
 const menuPos = ref({ x: 0, y: 0 });
 const menuWidth = ref(0);
+// Until the menu has been drawn once, about one row of buttons.
+const menuHeight = ref(44);
+// Opened under the selection, where the room above it is off screen or under a bar.
+const menuBelow = ref(false);
 // Centred on the selection, but never hanging off either side of the screen.
 const menuLeft = computed(() => {
     const half = menuWidth.value / 2 + 8;
@@ -127,12 +131,38 @@ function updateMenuState() {
     }
 }
 
+/**
+ * Whether a fixed or sticky element (a top bar, the article's title bar) sits at this point of the
+ * screen. A fixed container that holds the article itself is the page's layout, not a cover.
+ */
+function coveredAt(x: number, y: number): boolean {
+    if (typeof document.elementsFromPoint !== "function") return false;
+    for (const el of document.elementsFromPoint(x, y)) {
+        if (actionsMenu.value?.contains(el)) continue;
+        for (
+            let node: Element | null = el;
+            node && node !== document.body;
+            node = node.parentElement
+        ) {
+            const position = getComputedStyle(node).position;
+            if (position === "fixed" || position === "sticky") {
+                return !node.contains(content.value ?? null);
+            }
+        }
+        return false;
+    }
+    return false;
+}
+
 function positionMenu(rect: DOMRect) {
-    // Center menu above the selection
-    menuPos.value = {
-        x: rect.left + rect.width / 2,
-        y: rect.top - 8,
-    };
+    const x = rect.left + rect.width / 2;
+    const top = rect.top - 8 - menuHeight.value;
+    const middle = top + menuHeight.value / 2;
+    const half = menuWidth.value / 2;
+    menuBelow.value =
+        top < 0 || [x - half, x, x + half].some((px) => coveredAt(px, Math.max(middle, 0)));
+    // Centred on the selection: above it, or below it where above is taken.
+    menuPos.value = { x, y: menuBelow.value ? rect.bottom + 8 : rect.top - 8 };
 }
 
 function repositionMenu() {
@@ -155,13 +185,18 @@ function onScroll() {
 // The popup's width changes with what it shows (colours, share targets).
 const menuResizeObserver =
     typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => (menuWidth.value = actionsMenu.value?.offsetWidth ?? 0))
+        ? new ResizeObserver(() => {
+              menuWidth.value = actionsMenu.value?.offsetWidth ?? 0;
+              if (actionsMenu.value?.offsetHeight)
+                  menuHeight.value = actionsMenu.value.offsetHeight;
+          })
         : undefined;
 
 watch(actionsMenu, (el, old) => {
     if (old) menuResizeObserver?.unobserve(old);
     if (!el) return;
     menuWidth.value = el.offsetWidth;
+    if (el.offsetHeight) menuHeight.value = el.offsetHeight;
     menuResizeObserver?.observe(el);
 });
 
@@ -568,7 +603,8 @@ onUnmounted(() => {
             <div
                 v-if="showActions"
                 ref="actionsMenu"
-                class="fixed z-50 flex -translate-x-1/2 -translate-y-full flex-col items-center rounded-full bg-white p-1 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
+                class="fixed z-50 flex -translate-x-1/2 flex-col items-center rounded-full bg-white p-1 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
+                :class="{ '-translate-y-full': !menuBelow }"
                 :style="{ left: menuLeft + 'px', top: menuPos.y + 'px' }"
                 @mousedown.stop.prevent
             >

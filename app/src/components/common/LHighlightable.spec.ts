@@ -683,14 +683,59 @@ describe("LHighlightable", () => {
             // jsdom lays nothing out, and the menu only opens for a selection with a size.
             const proto = Range.prototype as { getBoundingClientRect?: () => DOMRect };
             const layout = proto.getBoundingClientRect;
+            let rect: Partial<DOMRect>;
             beforeEach(() => {
-                proto.getBoundingClientRect = () =>
-                    ({ left: 100, top: 100, width: 100 }) as DOMRect;
+                rect = { left: 100, top: 300, bottom: 320, width: 100, height: 20 };
+                proto.getBoundingClientRect = () => rect as DOMRect;
             });
             afterEach(() => {
                 window.getSelection()?.removeAllRanges();
                 if (layout) proto.getBoundingClientRect = layout;
                 else delete proto.getBoundingClientRect;
+                delete (document as { elementsFromPoint?: unknown }).elementsFromPoint;
+            });
+
+            const menu = () => document.body.querySelector<HTMLElement>(".fixed.z-50")!;
+            const tapHighlight = async () => {
+                const wrapper = await mountWith({
+                    ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
+                    updatedAt: 1,
+                });
+                (wrapper.find("mark[data-highlight]").element as HTMLElement).click();
+                await settle(300);
+                return wrapper;
+            };
+
+            it("opens the menu above the highlight when there is room", async () => {
+                const wrapper = await tapHighlight();
+
+                expect(menu().style.top).toBe("292px");
+                expect(menu().classList).toContain("-translate-y-full");
+                wrapper.unmount();
+            });
+
+            it("opens the menu below the highlight when a bar covers the room above", async () => {
+                const bar = document.createElement("div");
+                bar.style.position = "sticky";
+                document.body.appendChild(bar);
+                (document as { elementsFromPoint?: unknown }).elementsFromPoint = () => [bar];
+
+                const wrapper = await tapHighlight();
+
+                expect(menu().style.top).toBe("328px");
+                expect(menu().classList).not.toContain("-translate-y-full");
+                wrapper.unmount();
+                bar.remove();
+            });
+
+            it("opens the menu below the highlight at the top of the screen", async () => {
+                rect = { left: 100, top: 20, bottom: 40, width: 100, height: 20 };
+
+                const wrapper = await tapHighlight();
+
+                expect(menu().style.top).toBe("48px");
+                expect(menu().classList).not.toContain("-translate-y-full");
+                wrapper.unmount();
             });
 
             it("selects the whole highlight and opens its menu", async () => {
