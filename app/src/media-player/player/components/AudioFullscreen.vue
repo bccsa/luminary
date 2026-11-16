@@ -1135,10 +1135,16 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                         data-test="afsChapterChip"
                     >
                         <i aria-hidden="true"></i
-                        >{{
-                            formatChapterOf(messages.chapterOf, chapterIndex + 1, chapters.length)
-                        }}
-                        · {{ chapters[chapterIndex]?.title }}
+                        ><span class="lmpl-afs-chip-text"
+                            >{{
+                                formatChapterOf(
+                                    messages.chapterOf,
+                                    chapterIndex + 1,
+                                    chapters.length,
+                                )
+                            }}
+                            · {{ chapters[chapterIndex]?.title }}</span
+                        >
                     </span>
                     <!-- Under the title, the host's own way on from what plays (back to its page, say). -->
                     <div v-if="slots['under-title'] || pictureTools" class="lmpl-afs-undertitle">
