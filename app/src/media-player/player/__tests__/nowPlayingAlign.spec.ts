@@ -188,7 +188,7 @@ describe("AudioFullscreen, as the native screen draws it", () => {
         expect(label(wrapper, "afsSleep")).toBe("Sleep");
         expect(find(wrapper, "afsSleep").attributes("aria-label")).toBe("Sleep timer");
         expect(label(wrapper, "afsLanguage")).toBe("Audio");
-        expect(label(wrapper, "afsLyricsLanguage")).toBe("Lyrics");
+        expect(label(wrapper, "afsLyricsLanguage")).toBe("Subtitles");
         expect(label(wrapper, "afsBrowse")).toBe("More");
         expect(find(wrapper, "afsBrowse").attributes("aria-label")).toBe(DEFAULT_MESSAGES.browse);
     });
