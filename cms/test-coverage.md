@@ -60,9 +60,7 @@ The HTML report is generated at `coverage/index.html`.
 - `src/components/forms/LRadio.vue`
 - `src/components/forms/LSelect.vue`
 - `src/components/forms/LTextToggle.vue`
-- `src/components/forms/LTextarea.vue`
 - `src/components/forms/LToggle.vue`
-- `src/components/common/LTabs.vue`
 - `src/components/content/ContentValidator.ts`
 - `src/components/content/EditContentVideo.vue`
 - `src/components/content/LTag.vue`
@@ -135,13 +133,10 @@ V8 counts generated Vue `<script setup>` functions separately, which can depress
 | `src/util/waitUntilAuthIsLoaded.spec.ts` | Loading states, callback |
 | `src/components/BleedHorizontal.spec.ts` | Slot rendering |
 | `src/components/editor/icons/EditorIcons.spec.ts` | SVG rendering for Bold, Italic, Strikethrough |
-| `src/components/forms/LTextarea.spec.ts` | v-model, slots, states, sizes, disabled, icons, add-ons |
-| `src/components/common/LTabs.spec.ts` | Tab click, active state, icons, mobile select |
 | `src/components/common/DisplayCard.spec.ts` | Navigation, slots, offline changes badge |
 | `src/components/common/LDropdown.spec.ts` | Toggle, keyboard nav, padding, aria-expanded |
 | `src/components/redirects/RedirectDisplaycard.spec.ts` | Slugs, type badge, groups, HOMEPAGE fallback |
 | `src/components/redirects/RedirectOverview.spec.ts` | List rendering, permission-gated create button |
-| `src/components/redirects/RedirectTable.spec.ts` | Table headers, rows, empty state |
 | `src/components/navigation/SideBar.spec.ts` | Navigation items, permissions, toggle sections, close emit |
 | `src/components/s3/BucketDisplayCard.spec.ts` | Status display, groups, date, edit permission, all status types |
 | `src/components/images/ImageEditorThumbnail.spec.ts` | Srcset, blob URL, error fallback, delete dialog, emit events |
@@ -153,8 +148,6 @@ V8 counts generated Vue `<script setup>` functions separately, which can depress
 | ---- | -------------- |
 | `src/util/sortByName.spec.ts` | Equal names case, reverse order case |
 | `src/util/string.spec.ts` | `getTheFirstLetter()` tests |
-| `src/components/common/LPaginator.spec.ts` | First/last page, extended variant, page size, bounds |
-| `src/components/common/LTable.spec.ts` | Custom sortMethod, descending sort, sort cycling, unsortable |
 | `src/components/button/LButton.spec.ts` | Segmented button, main/right-click, actions, disabled, tooltip |
 | `src/auth.spec.ts` | Provider persistence, callback cleanup, silent refresh, provider-scoped token handling, cache clearing, and logout |
 | `src/components/modals/ConfirmBeforeLeavingModal.spec.ts` | Stay/discard actions, dialog text verification |
@@ -162,11 +155,9 @@ V8 counts generated Vue `<script setup>` functions separately, which can depress
 | `src/components/media/MediaEditor.spec.ts` | Empty collections, expose, upload thumbnails |
 | `src/components/groups/EditAclEntry.spec.ts` | Doc type display, multiple permissions, empty permissions, doc type filtering |
 | `src/components/navigation/ProfileMenu.spec.ts` | Avatar display, fallback icon, settings nav, language/settings menu items |
-| `src/components/common/LPaginator.spec.ts` | Extended variant page click, bounds checking, disabled buttons, pageCount |
 | `src/components/editor/RichTextEditor.spec.ts` | Toolbar link/unlink buttons, exposed editor instance |
 | `src/components/media/MediaEditorThumbnail.spec.ts` | Play/pause toggle, ended event, global audio coordination |
 | `src/components/redirects/RedirectOverview.spec.ts` | Multiple redirects, create modal open |
-| `src/components/common/LPaginator.spec.ts` | Disabled navigation when undefined docs, page window near end |
 | `src/components/content/EditContentBasic.spec.ts` | Slug auto-generation, slug editing, redirect warning, publish date setter |
 | `src/components/s3/StorageOverview.spec.ts` | Validation errors, access denied delete |
 | `src/components/groups/GroupOverview.spec.ts` | Permission-gated create button, ConfirmBeforeLeavingModal |
