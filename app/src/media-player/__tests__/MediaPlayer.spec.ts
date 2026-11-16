@@ -11,6 +11,7 @@ import MediaPlayer from "../MediaPlayer.vue";
 import LDialog from "@/components/common/LDialog.vue";
 import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 import { ScreenWakeKey } from "@/build-time/contracts/screen-wake/token";
+import { TIMELINE_SCRUB_IDLE_MS } from "../player/ui/timelineScrub";
 import {
     chosenAudio,
     closeMediaPlayer,
@@ -1123,6 +1124,34 @@ describe("MediaPlayer", () => {
             await flushPromises();
             expect(roster().exists()).toBe(false);
             expect(wrapper.find("[data-test='mediaPlayerScrubPicture']").exists()).toBe(false);
+        });
+
+        it("leaves the strip a tap opened to the player to close, however long the video plays on", async () => {
+            engine.thumbnailsReady = true;
+            const wrapper = await playing();
+            engine.state.playing = true;
+            await flushPromises();
+            const view = screen(wrapper);
+            vi.useFakeTimers();
+            try {
+                view.vm.$emit("scrub", {
+                    time: 30,
+                    markerX: 100,
+                    width: 390,
+                    bottom: 200,
+                    held: true,
+                });
+                await flushPromises();
+                vi.advanceTimersByTime(TIMELINE_SCRUB_IDLE_MS - 100);
+                await flushPromises();
+                expect(wrapper.findComponent({ name: "ScrubRoster" }).exists()).toBe(true);
+
+                view.vm.$emit("scrub", null);
+                await flushPromises();
+                expect(wrapper.findComponent({ name: "ScrubRoster" }).exists()).toBe(false);
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it("drops a strip still up when a drag arrives without the player closing it first", async () => {

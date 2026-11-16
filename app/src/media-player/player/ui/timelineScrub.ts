@@ -17,7 +17,7 @@ export type TimelineScrubEffect =
     | { kind: "seek"; time: number };
 
 /** How long after the last touch it closes on its own. */
-export const TIMELINE_SCRUB_IDLE_MS = 5000;
+export const TIMELINE_SCRUB_IDLE_MS = 10_000;
 
 export class TimelineScrub {
     private current: TimelineScrubMode = "closed";

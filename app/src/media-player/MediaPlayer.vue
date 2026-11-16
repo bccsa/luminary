@@ -98,6 +98,7 @@ import { mediaSourceFor } from "@/util/mediaSource";
 import { isYouTubeLink } from "@/util/youtube";
 import PlayerIcon from "./PlayerIcon.vue";
 import { timeEnds } from "./playerTime";
+import { TIMELINE_SCRUB_IDLE_MS } from "./player/ui/timelineScrub";
 import MediaPlayerMenuItem from "./MediaPlayerMenuItem.vue";
 import MediaPlayerUpNext from "./MediaPlayerUpNext.vue";
 import { useUpNext } from "./useUpNext";
@@ -927,9 +928,14 @@ watch(playing, (isPlaying) => {
     if (isPlaying && framesPinned.value && !playheadFrame) trackPlayhead();
 });
 
-/** Pinned frames nobody touches while the video plays on are put away: moving them redraws the page every frame. */
-const PIN_IDLE_MS = 5000;
+/**
+ * Pinned frames nobody touches while the video plays on are put away: moving them redraws the page every frame. A
+ * strip the player holds is its to close, on its own count, which a tap on its bar starts again.
+ */
 let pinIdleTimer: ReturnType<typeof setTimeout> | undefined;
+function unpinIdle() {
+    if (!heldByPlayer) unpinRoster();
+}
 watch(
     () =>
         [
@@ -942,7 +948,7 @@ watch(
     ([pinned, isPlaying, drag, finger, nowPlayingHeld]) => {
         clearTimeout(pinIdleTimer);
         if (pinned && isPlaying && !drag && !finger && !nowPlayingHeld) {
-            pinIdleTimer = setTimeout(unpinRoster, PIN_IDLE_MS);
+            pinIdleTimer = setTimeout(unpinIdle, TIMELINE_SCRUB_IDLE_MS);
         }
     },
 );

@@ -514,9 +514,10 @@ onMounted(() => {
     on("play", () => {
         keepAlive?.sync(true);
         // Played some other way (a key, the lock screen): the scrub has nothing left to hold still.
-        if (timelineScrub.isOpen) timelineScrub.reset();
+        if (timelineScrub.isOpen && !scrubResuming) timelineScrub.reset();
     });
     on("playing", () => {
+        scrubResuming = false;
         keepAlive?.sync(true);
         mediaWaiting.value = false;
     });
@@ -1019,14 +1020,17 @@ const timelineScrub = new TimelineScrub((effect) => {
             else barScrub.value = true;
             break;
         case "close":
+            scrubResuming = false;
             putAwayPin();
             barScrub.value = false;
             barDragAt.value = null;
             break;
         case "pause":
+            scrubResuming = false;
             pause();
             break;
         case "play":
+            scrubResuming = true;
             void play();
             break;
         case "seek":
@@ -1040,6 +1044,8 @@ onBeforeUnmount(() => {
     timelineScrub.reset();
     disarmPlayOnSeeked();
 });
+/** The scrub asked for play itself, after a drag: the strip stays up for its idle time, not put away as by a key. */
+let scrubResuming = false;
 
 /** Opened without frames: the bar thickens and carries a handle. */
 const barScrub = ref(false);
