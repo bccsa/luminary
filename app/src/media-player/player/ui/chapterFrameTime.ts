@@ -2,8 +2,8 @@ import type { Chapter } from "@luminary-media-converter/player-web";
 
 /**
  * The moment a chapter's picture is taken from: the middle of the chapter, which runs until the next one starts,
- * or for the last one until the end of the video (its own end while the duration is not known yet). The same rule
- * is in the native players' `NowPlayingRules.chapterFrameTime`.
+ * or for the last one until the end of the video (its own end while the duration is not known yet). The native
+ * players' chapter pictures follow the same rule.
  */
 export function chapterFrameTime(
     chapters: readonly Chapter[],
