@@ -15,6 +15,8 @@ import { setMediaProgress, setReadingProgress } from "@/contentProgress";
 import { computed, nextTick } from "vue";
 import { cmsLanguages } from "@/globalConfig";
 import { setSessionNow, __resetSessionNow } from "@/util/sessionNow";
+import { flushPromises } from "@vue/test-utils";
+import { resetLiveStreamCache } from "@/composables/useLiveStream";
 
 vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({
@@ -585,5 +587,54 @@ describe("ContentTile", () => {
 
         expect(wrapper.text()).toContain("SERMONS");
         expect(wrapper.text()).not.toContain("Jan 1, 2024");
+    });
+
+    describe("live stream", () => {
+        afterEach(() => {
+            vi.unstubAllGlobals();
+            resetLiveStreamCache();
+        });
+
+        const liveContent = (): ContentDto => ({
+            ...mockEnglishContentDto,
+            parentMedia: { hlsUrl: "https://live.example.com/stream/index.m3u8" },
+        });
+
+        it.each(["tile", "card"] as const)("marks a %s whose stream is on air", async (layout) => {
+            vi.stubGlobal(
+                "fetch",
+                vi.fn(() =>
+                    Promise.resolve({
+                        ok: true,
+                        text: () =>
+                            Promise.resolve("#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6,\ns.ts\n"),
+                    } as Response),
+                ),
+            );
+            const wrapper = mount(ContentTile, {
+                props: { content: liveContent(), layout },
+                global: { stubs: { RouterLink: RouterLinkStub } },
+            });
+            await flushPromises();
+            expect(wrapper.find('[data-test="liveBadge"]').exists()).toBe(true);
+        });
+
+        it("leaves a finished recording unmarked", async () => {
+            vi.stubGlobal(
+                "fetch",
+                vi.fn(() =>
+                    Promise.resolve({
+                        ok: true,
+                        text: () => Promise.resolve("#EXTM3U\n#EXTINF:6,\ns.ts\n#EXT-X-ENDLIST\n"),
+                    } as Response),
+                ),
+            );
+            const wrapper = mount(ContentTile, {
+                props: { content: liveContent() },
+                global: { stubs: { RouterLink: RouterLinkStub } },
+            });
+            await flushPromises();
+            expect(wrapper.find('[data-test="liveBadge"]').exists()).toBe(false);
+        });
     });
 });

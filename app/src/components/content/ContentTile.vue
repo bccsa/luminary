@@ -2,6 +2,7 @@
 import { type ContentDto } from "luminary-shared";
 import { DateTime } from "luxon";
 import LImage from "../images/LImage.vue";
+import LiveBadge from "./LiveBadge.vue";
 import { type AspectRatio, type ImageSize } from "../images/LImageProvider.vue";
 import { PlayIcon } from "@heroicons/vue/24/solid";
 import { getMediaDuration, getMediaProgress, getReadingProgress } from "@/contentProgress";
@@ -10,6 +11,7 @@ import { useI18n } from "vue-i18n";
 import { cmsLanguages, cmsDefaultLanguage } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
 import { hasMediaSource, mediaSourceFor } from "@/util/mediaSource";
+import { useLiveStream } from "@/composables/useLiveStream";
 
 const { t } = useI18n();
 
@@ -82,6 +84,10 @@ const isComingSoon = computed(() => {
     );
 });
 
+const isLive = useLiveStream(() =>
+    isComingSoon.value ? undefined : mediaSourceFor(props.content),
+);
+
 const mediaProgress = computed(() => {
     if (!props.showProgress) return 0;
 
@@ -118,8 +124,10 @@ const summaryText = computed(() => props.content.summary?.trim() ?? "");
         class="ease-out-expo group transition"
         :class="[
             layout === 'card'
-                ? 'relative flex min-h-24 gap-3 overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 hover:shadow-lg dark:bg-slate-800 dark:ring-white/10'
+                ? 'relative flex min-h-24 gap-3 overflow-hidden rounded-lg bg-white shadow hover:shadow-lg dark:bg-slate-800'
                 : '',
+            layout === 'card' &&
+                (isLive ? 'ring-2 ring-red-600' : 'ring-1 ring-zinc-950/10 dark:ring-white/10'),
             isComingSoon
                 ? 'cursor-not-allowed opacity-80 hover:brightness-100'
                 : 'hover:brightness-[1.15]',
@@ -158,6 +166,7 @@ const summaryText = computed(() => props.content.summary?.trim() ?? "");
                     <PlayIcon class="absolute h-9 w-9 text-white blur-sm" />
                     <PlayIcon class="relative h-9 w-9 text-white" />
                 </div>
+                <LiveBadge v-if="isLive" />
             </div>
 
             <div data-card-text class="flex min-w-0 flex-1 flex-col justify-start gap-1 py-2 pr-3">
@@ -220,6 +229,11 @@ const summaryText = computed(() => props.content.summary?.trim() ?? "");
                         </div>
                     </template>
                     <template #imageOverlay>
+                        <div
+                            v-if="isLive"
+                            class="pointer-events-none absolute inset-0 z-30 rounded-lg ring-2 ring-inset ring-red-600"
+                        ></div>
+                        <LiveBadge v-if="isLive" />
                         <div
                             v-if="isComingSoon"
                             class="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-black/50 opacity-100 transition-opacity duration-200"
