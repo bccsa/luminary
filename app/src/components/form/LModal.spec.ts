@@ -27,6 +27,20 @@ describe("LModal", () => {
             expect(wrapper.emitted("close")).toBeTruthy();
         });
 
+        it("gives the panel the same solid background as its sticky header", () => {
+            const wrapper = mount(LModal, {
+                props: { heading: "H", isVisible: true, closeButton: true },
+            });
+
+            const header = wrapper.find("[data-test='modal-close']").element.parentElement!;
+            const panel = header.parentElement!;
+            const backgrounds = (el: Element) =>
+                [...el.classList].filter((c) => /^(dark:)?bg-/.test(c)).sort();
+
+            expect(backgrounds(panel)).toEqual(["bg-white", "dark:bg-slate-700"]);
+            expect(backgrounds(header)).toEqual(backgrounds(panel));
+        });
+
         it("hides the close button by default", () => {
             const wrapper = mount(LModal, { props: { heading: "H", isVisible: true } });
 

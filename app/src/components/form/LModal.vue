@@ -23,14 +23,20 @@ const emit = defineEmits(["close"]);
             :class="[
                 props.closeButton ? 'max-h-[calc(100dvh-env(safe-area-inset-top)-1rem)]' : '',
                 props.withBackground !== false
-                    ? 'bg-white/90 p-5 shadow-xl dark:bg-slate-700/85'
+                    ? [
+                          'p-5 shadow-xl',
+                          // The sticky header is opaque; a translucent panel would not match it
+                          props.closeButton
+                              ? 'bg-white dark:bg-slate-700'
+                              : 'bg-white/90 dark:bg-slate-700/85',
+                      ]
                     : '',
             ]"
             @click.stop
         >
             <div
                 v-if="props.closeButton"
-                class="sticky top-0 z-10 -mx-5 -mt-5 mb-4 flex items-center justify-between gap-2 bg-white px-5 py-3 dark:bg-slate-700"
+                class="sticky -top-5 z-10 -mx-5 -mt-5 mb-4 flex items-center justify-between gap-2 bg-white px-5 py-3 dark:bg-slate-700"
             >
                 <h2 class="text-lg font-semibold">{{ heading }}</h2>
                 <button
