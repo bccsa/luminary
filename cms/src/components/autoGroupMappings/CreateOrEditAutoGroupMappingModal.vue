@@ -334,7 +334,10 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                 placeholder="Select groups that can manage this mapping..."
                 :disabled="props.disabled"
             />
-            <p v-if="memberOfError" class="mt-1 text-[11px] font-medium text-red-600">
+            <p
+                v-if="memberOfError"
+                class="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400"
+            >
                 {{ memberOfError }}
             </p>
             <p v-else class="mt-1 text-[11px] text-zinc-400 dark:text-zinc-200">
@@ -355,7 +358,10 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                 placeholder="Select groups to grant..."
                 :disabled="props.disabled"
             />
-            <p v-if="groupIdsError" class="mt-1 text-[11px] font-medium text-red-600">
+            <p
+                v-if="groupIdsError"
+                class="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400"
+            >
                 {{ groupIdsError }}
             </p>
             <p v-else class="mt-1 text-[11px] text-zinc-400 dark:text-zinc-200">
@@ -367,7 +373,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
         <!-- Conditions -->
         <div
             v-if="!isGlobal"
-            class="rounded-md border border-zinc-200 bg-white p-2 text-zinc-800 dark:border-slate-800 dark:bg-slate-800"
+            class="rounded-md border border-zinc-200 bg-white p-2 text-zinc-800 dark:border-slate-800 dark:bg-slate-800 dark:text-zinc-100"
         >
             <label class="text-sm font-medium dark:text-zinc-100">Conditions (AND)</label>
             <p class="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-100">
@@ -393,7 +399,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                     <!-- Compact summary (click to expand) -->
                     <div
                         v-if="!isEditing(cIdx)"
-                        class="group flex cursor-pointer items-center gap-2 px-3 py-2 text-zinc-700"
+                        class="group flex cursor-pointer items-center gap-2 px-3 py-2 text-zinc-700 dark:text-zinc-300"
                         @click="!props.disabled && toggleEdit(cIdx)"
                     >
                         <span class="min-w-0 flex-1 truncate text-sm dark:text-zinc-200">
@@ -401,7 +407,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                         </span>
                         <button
                             type="button"
-                            class="shrink-0 text-zinc-300 transition-colors hover:text-red-500"
+                            class="shrink-0 text-zinc-300 transition-colors hover:text-red-500 dark:text-zinc-600 dark:hover:text-red-400"
                             :disabled="props.disabled"
                             @click.stop="removeCondition(cIdx)"
                             aria-label="Remove condition"
@@ -425,7 +431,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                             />
                             <button
                                 type="button"
-                                class="ml-2 mt-5 shrink-0 text-zinc-400 transition-colors hover:text-red-500 dark:text-zinc-200"
+                                class="ml-2 mt-5 shrink-0 text-zinc-400 transition-colors hover:text-red-500 dark:text-zinc-200 dark:hover:text-red-400"
                                 :disabled="props.disabled"
                                 @click="removeCondition(cIdx)"
                                 aria-label="Remove condition"
