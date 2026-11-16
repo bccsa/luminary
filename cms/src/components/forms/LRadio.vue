@@ -13,11 +13,11 @@ import { twMerge } from "tailwind-merge";
 import FormLabel from "./FormLabel.vue";
 
 const radioClasses = cva({
-    base: "group inline-flex items-center justify-center gap-x-1.5 rounded-full text-sm font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed",
+    base: "group inline-flex items-center justify-center gap-x-1.5 rounded-full text-sm font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 cursor-pointer disabled:cursor-not-allowed",
     variants: {
         variant: {
             primary:
-                "bg-white focus:ring-zinc-950 ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100/70 disabled:bg-zinc-100 disabled:text-zinc-500 dark:bg-slate-800 dark:focus:ring-zinc-100 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-800 dark:active:bg-slate-800/70 dark:disabled:bg-slate-800 dark:disabled:text-zinc-500",
+                "bg-white focus:ring-zinc-950 ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100/70 disabled:bg-zinc-100 disabled:text-zinc-500 dark:bg-slate-800 dark:focus:ring-zinc-100 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-700 dark:active:bg-slate-600 dark:disabled:bg-slate-900 dark:disabled:text-zinc-500",
         },
         size: {
             sm: "px-2 py-1.5",
@@ -33,7 +33,7 @@ const radioClasses = cva({
         {
             variant: "primary",
             context: "danger",
-            class: "bg-red-600 ring-red-700/60 hover:bg-red-600/80 active:text-white active:bg-red-600/70 disabled:bg-red-300 disabled:text-red-50 disabled:ring-red-300/90 dark:bg-red-600 dark:ring-red-700/60 dark:hover:bg-red-600/80 dark:active:text-white dark:active:bg-red-600/70 dark:disabled:bg-red-300 dark:disabled:text-red-50 dark:disabled:ring-red-300/90",
+            class: "bg-red-600 ring-red-700/60 hover:bg-red-600/80 active:text-white active:bg-red-600/70 disabled:bg-red-300 disabled:text-red-50 disabled:ring-red-300/90",
         },
     ],
 });
@@ -82,6 +82,11 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             @input="emit('update:modelValue', value)"
             v-bind="attrsWithoutStyles"
         />
-        <FormLabel class="" :for="id" v-if="label">{{ label }}</FormLabel>
+        <FormLabel
+            :class="disabled ? 'cursor-not-allowed' : 'cursor-pointer'"
+            :for="id"
+            v-if="label"
+            >{{ label }}</FormLabel
+        >
     </div>
 </template>
