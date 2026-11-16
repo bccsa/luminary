@@ -337,3 +337,39 @@ export const removeReadingProgress = (contentId: Uuid) => {
     applyContentProgressList([..._contentProgress]);
     persistContentProgress();
 };
+
+/** Below this many seconds in, a playthrough is not worth resuming, so it is not saved. */
+export const MIN_MEDIA_PROGRESS_SECONDS = 60;
+
+/** The name a platform keeps a media item's position under while the app is in the background. */
+export const mediaProgressKey = (mediaId: string, contentId: Uuid): string =>
+    JSON.stringify({ mediaId, contentId });
+
+/**
+ * Applies a position a platform kept while the page could not save, unless the page saved one since: a record
+ * older than the entry would put the viewer back.
+ */
+export function applyBackgroundMediaProgress(record: {
+    key: string;
+    position: number;
+    duration: number;
+    savedAt: number;
+}): void {
+    let mediaId: unknown;
+    let contentId: unknown;
+    try {
+        ({ mediaId, contentId } = JSON.parse(record.key));
+    } catch {
+        return;
+    }
+    if (typeof mediaId !== "string" || typeof contentId !== "string") return;
+    if (record.position < MIN_MEDIA_PROGRESS_SECONDS || !(record.duration > 0)) return;
+    const entry = findContentProgressEntry(contentId);
+    if (entry && entry.updatedAt >= record.savedAt) return;
+    setMediaProgress(
+        mediaId,
+        contentId,
+        Math.min(record.position, record.duration),
+        record.duration,
+    );
+}

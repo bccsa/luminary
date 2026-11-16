@@ -8,6 +8,19 @@ export type VideoNowPlaying = {
     artworkUrl?: string;
     /** Shown when the artwork is absent or does not load: the page's own stand-in for the post. */
     fallbackArtworkUrl?: string;
+    /** The name a platform keeps the video's position under while the app is in the background. */
+    progressKey?: string;
+};
+
+/** Where a video had got to while the app was in the background and the page could not save it. */
+export type VideoBackgroundProgress = {
+    /** The `progressKey` of the video. */
+    key: string;
+    /** Seconds; the duration when it played to the end. */
+    position: number;
+    duration: number;
+    /** `Date.now()` time it was kept at. */
+    savedAt: number;
 };
 
 /** What a platform's own now-playing screen shows besides the player's state. */
@@ -162,6 +175,11 @@ export type VideoPlayerService = {
      * next video near the end of fullscreen. A player that does not would render the prop as a stray attribute.
      */
     acceptsNextUp?: boolean;
+    /**
+     * What the platform kept of the playing video while the app was in the background, taken so it is applied
+     * once; null when nothing was. A platform whose page saves on its own leaves it out.
+     */
+    takeBackgroundProgress?: () => Promise<VideoBackgroundProgress | null>;
 };
 
 /** What a template ref to the player reaches. */

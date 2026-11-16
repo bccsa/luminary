@@ -36,7 +36,13 @@ import {
     connectionSpeed,
     hasMeasuredConnectionSpeed,
 } from "@/composables/useNetworkSpeedEstimator";
-import { getMediaProgress, isMediaFinished, setMediaProgress } from "@/contentProgress";
+import {
+    getMediaProgress,
+    isMediaFinished,
+    MIN_MEDIA_PROGRESS_SECONDS,
+    mediaProgressKey,
+    setMediaProgress,
+} from "@/contentProgress";
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { ensureUserActivity } from "@/userActivity/store";
@@ -142,6 +148,9 @@ const nowPlaying = computed<VideoNowPlaying>(() => {
         ...(props.content.author ? { subtitle: props.content.author } : {}),
         ...(artworkUrl ? { artworkUrl } : {}),
         ...(fallbackArtworkUrl.value ? { fallbackArtworkUrl: fallbackArtworkUrl.value } : {}),
+        ...(mediaId.value
+            ? { progressKey: mediaProgressKey(mediaId.value, props.content._id) }
+            : {}),
     };
 });
 /** The post's picture as data while the device is offline; see {@link offlineArtworkDataUrl}. */
@@ -288,8 +297,7 @@ const startAngleId = ref<string | undefined>(undefined);
  * be neither chosen by ABR nor picked by hand. Low enough to be cheap, high enough to be watchable.
  */
 const DATA_SAVER_MAX_HEIGHT = 360;
-/** Below this, a position is not worth resuming and is not recorded. */
-const MIN_RESUME_SECONDS = 60;
+const MIN_RESUME_SECONDS = MIN_MEDIA_PROGRESS_SECONDS;
 /** Resuming lands slightly before where the viewer left, to re-establish context. */
 const RESUME_REWIND_SECONDS = 30;
 /** Where a part-watched video picks up, read when it opens; undefined from the start or once finished. */
