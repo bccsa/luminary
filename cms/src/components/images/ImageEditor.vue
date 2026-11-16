@@ -3,6 +3,7 @@ import { ref, computed, toRaw, shallowReactive, watchEffect } from "vue";
 import { ExclamationCircleIcon, ExclamationTriangleIcon } from "@heroicons/vue/24/solid";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
 import LSelect from "../forms/LSelect.vue";
+import MediaNotice from "../media/MediaNotice.vue";
 import {
     type ImageUploadDto,
     type ImageFileCollectionDto,
@@ -129,6 +130,7 @@ const isDragging = ref(false);
 const dragCounter = ref(0);
 const showFailureMessage = ref(false);
 const failureMessage = ref<string | undefined>(undefined);
+const BUCKET_GONE = "The selected storage bucket no longer exists. Please select another bucket.";
 
 // Validate that selected bucket still exists and auto-select if only one available
 watchEffect(() => {
@@ -148,30 +150,20 @@ watchEffect(() => {
         }
     }
 
-    // Proactively show error messages for bucket configuration issues
-    // This ensures users see the error immediately, not just when they try to upload
-    if (!bucketSelection.hasImageBuckets.value) {
-        // No buckets configured at all
-        failureMessage.value =
-            "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.";
-        showFailureMessage.value = true;
-    } else if (!effectiveImageBucketId.value && bucketSelection.imageBuckets.value.length > 1) {
-        // Multiple buckets available but none selected
-        failureMessage.value = "Please select a storage bucket before uploading images.";
-        showFailureMessage.value = true;
-    } else if (effectiveImageBucketId.value) {
-        // Bucket is selected, clear any bucket-related errors
-        // Only clear if the current error is about bucket selection/configuration
-        const bucketRelatedErrors = [
-            "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.",
-            "Please select a storage bucket before uploading images.",
-            "The selected storage bucket no longer exists. Please select another bucket.",
-        ];
-        if (failureMessage.value && bucketRelatedErrors.includes(failureMessage.value)) {
-            failureMessage.value = undefined;
-            showFailureMessage.value = false;
-        }
+    // A stale "no longer exists" error is resolved once a bucket is chosen again
+    if (effectiveImageBucketId.value && failureMessage.value === BUCKET_GONE) {
+        failureMessage.value = undefined;
+        showFailureMessage.value = false;
     }
+});
+
+// Worded and shown like the Media section's bucket select (MediaBucketSelect)
+const bucketProblem = computed(() => {
+    if (!bucketSelection.hasImageBuckets.value)
+        return "No storage buckets are configured. Add an S3 bucket in Storage settings before uploading images.";
+    if (!effectiveImageBucketId.value && bucketSelection.imageBuckets.value.length > 1)
+        return "Choose a storage bucket before uploading images.";
+    return undefined;
 });
 
 const handleFiles = (files: FileList | null) => {
@@ -182,11 +174,8 @@ const handleFiles = (files: FileList | null) => {
     // Resolve the bucket the user is uploading to. Persist it on the parent now —
     // the upload itself is a real user edit, so the resulting dirty state is
     // legitimate. Until this point the parent was untouched.
-    if (!effectiveImageBucketId.value) {
-        failureMessage.value = "Please select a storage bucket before uploading images.";
-        showFailureMessage.value = true;
-        return;
-    }
+    // bucketProblem already tells the editor why
+    if (!effectiveImageBucketId.value) return;
     if (parent.value && !parent.value.imageBucketId) {
         parent.value.imageBucketId = effectiveImageBucketId.value;
         emit("bucketSelected", effectiveImageBucketId.value);
@@ -199,16 +188,7 @@ const handleFiles = (files: FileList | null) => {
 
     if (!currentBucketExists) {
         if (parent.value) parent.value.imageBucketId = undefined;
-        failureMessage.value =
-            "The selected storage bucket no longer exists. Please select another bucket.";
-        showFailureMessage.value = true;
-        return;
-    }
-
-    // Check if buckets are configured
-    if (!bucketSelection.hasImageBuckets.value) {
-        failureMessage.value =
-            "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.";
+        failureMessage.value = BUCKET_GONE;
         showFailureMessage.value = true;
         return;
     }
@@ -331,7 +311,7 @@ defineExpose({
             <LSelect
                 v-model="parent!.imageBucketId"
                 :options="bucketOptions"
-                label="Storage"
+                label="Storage bucket"
                 placeholder="Select storage bucket"
                 :disabled="disabled"
                 @update:modelValue="handleBucketChange"
@@ -344,6 +324,10 @@ defineExpose({
                 {{ fileTypeDescription }}
             </p>
         </div>
+
+        <MediaNotice v-if="bucketProblem" state="warning" class="mb-2" data-test="bucket-problem">
+            {{ bucketProblem }}
+        </MediaNotice>
 
         <!-- Header with error message toggle -->
         <div :disabled="disabled" class="flex justify-between">

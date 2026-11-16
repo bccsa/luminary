@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { chapterSegments, type Chapter } from "@luminary-media-converter/player-web";
-import { DENSE_CHAPTERS, MAX_CUT_CHAPTERS, chapterMask, formatChapterOf } from "../ui/chapterBar";
+import {
+    DENSE_CHAPTERS,
+    MAX_CUT_CHAPTERS,
+    chapterMask,
+    formatChapterOf,
+    numberedChapter,
+} from "../ui/chapterBar";
 
 const chapter = (startTime: number, title = ""): Chapter => ({
     startTime,
@@ -65,5 +71,16 @@ describe("formatChapterOf", () => {
     it("fills both numbers, wherever the translation puts them", () => {
         expect(formatChapterOf("Chapter {index} of {count}", 4, 7)).toBe("Chapter 4 of 7");
         expect(formatChapterOf("{count} chapters, now {index}", 4, 7)).toBe("7 chapters, now 4");
+    });
+});
+
+describe("numberedChapter", () => {
+    it("leads the title with the chapter's number, counted from one", () => {
+        expect(numberedChapter(0, "Opening")).toBe("1. Opening");
+        expect(numberedChapter(11, "Sermon")).toBe("12. Sermon");
+    });
+
+    it("is the number alone for a chapter without a title", () => {
+        expect(numberedChapter(2, "")).toBe("3.");
     });
 });

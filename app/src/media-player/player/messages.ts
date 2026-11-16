@@ -211,7 +211,7 @@ export const DEFAULT_MESSAGES: PlayerMessages = {
     sleepOff: "Off",
     dataSaver: "Data saver",
     autoplay: "Autoplay",
-    cameraLabel: "Camera",
+    cameraLabel: "View",
     sleepMinutes: "{minutes} minutes",
     sleepEndOfChapter: "End of chapter",
     sleepLeft: "{minutes} min left",

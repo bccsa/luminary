@@ -1056,6 +1056,61 @@ describe("useReadingProgressTracker", () => {
         wrapper.unmount();
     });
 
+    it("does not offer progress saved this visit when the same content drops out and returns", async () => {
+        const { wrapper } = mountTracker(2);
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(50);
+
+        // A content query rebuild briefly empties SingleContent's `content`.
+        const vm = wrapper.vm as unknown as { contentId?: string; enabled: boolean };
+        vm.contentId = undefined;
+        vm.enabled = false;
+        await nextTick();
+        vm.contentId = TEST_CONTENT_ID;
+        vm.enabled = true;
+        await nextTick();
+        await nextTick();
+
+        expect(wrapper.vm.trackerApi.hasResumableProgressOnOpen.value).toBe(false);
+        wrapper.unmount();
+    });
+
+    it("stops offering to continue once reading goes past the saved progress", async () => {
+        setReadingProgress(TEST_CONTENT_ID, 25);
+
+        const { wrapper } = mountTracker(4);
+        await flushPromises();
+        await nextTick();
+        expect(wrapper.vm.trackerApi.hasResumableProgress.value).toBe(true);
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[1], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(50);
+        expect(wrapper.vm.trackerApi.hasResumableProgress.value).toBe(false);
+        wrapper.unmount();
+    });
+
+    it("does not offer to continue progress made during the current visit", async () => {
+        const { wrapper } = mountTracker(2);
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(50);
+        expect(wrapper.vm.trackerApi.hasResumableProgress.value).toBe(false);
+        wrapper.unmount();
+    });
+
     it("does not offer a resume prompt for progress created during the current session", async () => {
         const { wrapper } = mountTracker(2);
         await flushPromises();

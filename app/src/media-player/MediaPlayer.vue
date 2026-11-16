@@ -62,7 +62,8 @@ import type {
 } from "@/build-time/contracts/video-player/contract";
 import LImage from "@/components/images/LImage.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
-import { isMac } from "@/globalConfig";
+import { cmsLanguages, isMac } from "@/globalConfig";
+import { computeEstimatedReadingMinutes } from "@/util/readingTime";
 import LDialog from "@/components/common/LDialog.vue";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { fallbackImageFor } from "@/util/fallbackArtwork";
@@ -342,6 +343,14 @@ function playNext(next: ContentDto) {
  * full-screen carries on, and its page opens behind. The route change would minimise the player, which
  * is let through only for this one.
  */
+/** No way out to an article read in a minute or less; its page hides the reading time then too. */
+const canRead = computed(() => {
+    const doc = content.value;
+    if (!doc?.slug) return false;
+    const wpm = cmsLanguages.value.find((l) => l._id === doc.language)?.averageReadingSpeed;
+    return computeEstimatedReadingMinutes(doc.wordCount ?? 0, wpm) > 1;
+});
+
 /**
  * Back to the page of what plays, from the full player: the route change minimises it; already on that page, the
  * player only minimises.
@@ -1647,13 +1656,15 @@ watch(
 );
 onBeforeUnmount(() => stopTurns?.());
 
-/** The screen stays on for video and for landscape viewing; a mini bar or upright audio lets the OS time it out. */
+/** The screen stays on for video and for sound in full screen; a mini bar or upright sound lets the OS time it out (#2557). */
 const playerWake = useScreenWakeHold("player");
 const keepScreenOn = computed(
     () =>
         playing.value &&
-        expanded.value &&
-        (!audioMode.value || landscape.value || audioLandscapeLocked.value),
+        (audioMode.value
+            ? audioFullscreen.value ||
+              (soundScreen.value && (landscape.value || audioLandscapeLocked.value))
+            : expanded.value),
 );
 watch(keepScreenOn, (on) => (on ? playerWake.hold() : playerWake.release()), { immediate: true });
 const nowPlayingSubtitle = computed(() =>
@@ -1722,7 +1733,7 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
         ...(nowPlayingSubtitle.value ? { subtitle: nowPlayingSubtitle.value } : {}),
         ...(artworkUrl ? { artworkUrl } : {}),
         ...(nowPlayingHash.value ? { thumbHash: nowPlayingHash.value } : {}),
-        canRead: !!content.value.slug,
+        canRead: canRead.value,
         canSwitch: canSwitch.value,
         audioMode: audioMode.value,
         captionBand: captionBand.value,
@@ -1790,7 +1801,7 @@ const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
             playNow: known("media_player.play_now"),
             cancel: known("media_player.cancel"),
             closeScrub: known("media_player.close_frames"),
-            camera: known("media_player.camera"),
+            camera: known("media_player.view"),
             backToLine: known("media_player.back_to_line"),
             speedLabel: known("media_player.speed_label"),
             sleepLabel: known("media_player.sleep_label"),
@@ -2351,7 +2362,7 @@ function onKeydown(event: KeyboardEvent) {
                             </svg>
                         </button>
                     </template>
-                    <template v-if="content.slug" #under-title>
+                    <template v-if="canRead" #under-title>
                         <button
                             type="button"
                             class="lmpl-afs-pill"

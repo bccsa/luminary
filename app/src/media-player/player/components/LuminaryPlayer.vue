@@ -47,11 +47,12 @@ import {
 } from "../ui/spriteWarm";
 import { liftCues, liftLine, type LiftableCue } from "../ui/cueLift";
 import { cuesToLyrics, type LyricCue } from "../ui/lyrics";
-import { chapterMask, formatChapterOf } from "../ui/chapterBar";
+import { chapterMask, formatChapterOf, numberedChapter } from "../ui/chapterBar";
 import { hasChapterSkip, nextChapterTime, previousChapterTime } from "../ui/chapterSkip";
 import {
     attachControlTooltips,
     clampTooltipLeft,
+    tooltipFits,
     showOnTop,
     type Tooltip,
 } from "../ui/controlTooltip";
@@ -73,7 +74,7 @@ import ScrubRoster from "./ScrubRoster.vue";
 import ScrubPicture from "./ScrubPicture.vue";
 import NextUpThumb from "./NextUpThumb.vue";
 import AudioFullscreen from "./AudioFullscreen.vue";
-import { languageBadge, qualityBadge } from "../ui/audioFullscreen";
+import { languageBadge } from "../ui/audioFullscreen";
 import BrowsePanel from "./BrowsePanel.vue";
 import { imageAttempts, toPlayerImage, type PlayerImageInput } from "../image";
 import { isYouTubeUrl } from "@luminary-media-converter/player-web";
@@ -396,30 +397,15 @@ function readPlayingBandwidth(): void {
 }
 
 /**
- * The quality and language buttons of the control bar carry badges, as the now-playing screen's do. The bar is markup
- * the skin owns, so the badge text goes on the button as an attribute its CSS draws.
+ * The subtitles button carries the language on show as a badge. The bar is markup the skin owns, so the badge text
+ * goes on the button as an attribute its CSS draws. Quality and sound language are left to their menus (#2565).
  */
-const barBadges = computed(() => {
-    const held = state.value.qualities.find(
-        (quality) => quality.id === state.value.activeQualityId,
-    );
-    return {
-        quality: held
-            ? held.height
-                ? qualityBadge(held.height, undefined)
-                : held.label
-            : qualityBadge(undefined, playingHeight.value || undefined),
-        audio: languageBadge(
-            state.value.audioTracks.find((track) => track.id === state.value.activeAudioTrackId)
-                ?.lang,
-        ),
-        captions: languageBadge(
-            state.value.subtitleTracks.find(
-                (track) => track.id === state.value.activeSubtitleTrackId,
-            )?.lang,
-        ),
-    };
-});
+const barBadges = computed(() => ({
+    captions: languageBadge(
+        state.value.subtitleTracks.find((track) => track.id === state.value.activeSubtitleTrackId)
+            ?.lang,
+    ),
+}));
 function applyBarBadges(): void {
     const root = containerEl.value;
     if (!root) return;
@@ -497,7 +483,12 @@ watch(
         showOnTop(el);
         const frame = container.getBoundingClientRect();
         el.style.left = `${frame.left + clampTooltipLeft(tip.centre, el.offsetWidth, container.clientWidth)}px`;
-        el.style.bottom = `${document.documentElement.clientHeight - frame.bottom + tip.bottom}px`;
+        const below = tooltipFits(tip, el.offsetHeight, container.clientHeight) === "below";
+        el.classList.toggle("lmpl-tooltip-below", below);
+        el.style.top = below ? `${frame.top + tip.top}px` : "auto";
+        el.style.bottom = below
+            ? "auto"
+            : `${document.documentElement.clientHeight - frame.bottom + tip.bottom}px`;
     },
     { flush: "post" },
 );
@@ -548,7 +539,7 @@ onMounted(() => {
         readPlayingHeight();
         emit("loadedmetadata");
     });
-    // A rendition switch changes the picture's size: Auto's badge follows it.
+    // A rendition switch changes the picture's size.
     on("resize", readPlayingHeight);
     on("emptied", () => {
         readPlayingHeight();
@@ -902,11 +893,11 @@ interface ScrubState {
 
 const scrub = shallowRef<ScrubState | null>(null);
 
-/** The title of the chapter a moment is in, or nothing when the video has no chapters or the moment is before the first. */
+/** The numbered chapter a moment is in, or nothing when the video has no chapters or the moment is before the first. */
 function chapterTitleAt(time: number): string {
     const chapters = state.value.chapters;
     const index = chapterIndexAt(chapters, time);
-    return index < 0 ? "" : (chapters[index]?.title ?? "");
+    return index < 0 ? "" : numberedChapter(index, chapters[index]?.title ?? "");
 }
 
 /** The timeline cut at the chapter starts; one plain bar when there are fewer than two chapters. */

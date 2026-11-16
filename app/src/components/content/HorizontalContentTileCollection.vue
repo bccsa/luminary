@@ -97,7 +97,12 @@ useInfiniteScroll(
     () => {
         scrollPosition.value += 10;
     },
-    { distance: 10 },
+    // Without canLoadMore, a row that fits on screen loads (and forces a layout) every 100 ms forever
+    {
+        direction: "right",
+        distance: 10,
+        canLoadMore: () => scrollPosition.value < props.contentDocs.length,
+    },
 );
 </script>
 

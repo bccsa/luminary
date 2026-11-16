@@ -683,7 +683,11 @@ const resumeOffered = computed(
     () => hasResumableProgressOnOpen.value && !continuePromptHandled.value,
 );
 
-watch(contentId, () => {
+// The article drops out and back while its query rebuilds; only a different article is a new visit.
+let promptContentId = contentId.value;
+watch(contentId, (id) => {
+    if (!id || id === promptContentId) return;
+    promptContentId = id;
     continuePromptHandled.value = false;
 });
 
@@ -748,7 +752,7 @@ watch([isLoading, content, is404], async () => {
     <BasePage
         :showBackButton="true"
         desktopTopBar
-        :reserveTopBarCenter="resumeOffered && readingProgressPercent < 99"
+        :reserveTopBarCenter="!hasHeroImage && resumeOffered && readingProgressPercent < 99"
     >
         <!-- Reading pill: offers to resume on open, then stands in for the title as a chapter
              dropdown once it scrolls out of view. -->
@@ -930,7 +934,6 @@ watch([isLoading, content, is404], async () => {
                                         <div
                                             class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
                                             :class="hasMediaSource(content) && 'pr-24 lg:pr-32'"
-                                            @click.stop
                                         >
                                             <div class="flex items-start gap-2">
                                                 <h1
@@ -940,7 +943,7 @@ watch([isLoading, content, is404], async () => {
                                                 </h1>
                                                 <button
                                                     v-if="canEdit() && cmsUrl"
-                                                    @click="openCmsEditor"
+                                                    @click.stop="openCmsEditor"
                                                     class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-white/70 hover:text-yellow-400"
                                                     data-test="editButton"
                                                 >

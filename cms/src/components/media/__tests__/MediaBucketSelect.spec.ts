@@ -111,6 +111,13 @@ describe("MediaBucketSelect", () => {
         );
     });
 
+    it("labels the bucket select the same way as the Image section", () => {
+        mockMediaBuckets.value = TWO_BUCKETS;
+        const select = mountSelect().findComponent({ name: "LSelect" });
+        expect(select.props("label")).toBe("Storage bucket");
+        expect(select.props("placeholder")).toBe("Select storage bucket");
+    });
+
     it("warns when several buckets exist and none is chosen", async () => {
         mockMediaBuckets.value = TWO_BUCKETS;
         const wrapper = mountSelect();
