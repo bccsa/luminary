@@ -68,8 +68,26 @@ const prose = ref<HTMLElement | undefined>(undefined);
 let highlights: HighlightRange[] = [];
 const actionsMenu = ref<HTMLElement | undefined>(undefined);
 const showActions = ref(false);
-const menuPos = ref({ x: 0, y: 0 });
+const MENU_GAP = 8;
+// Touch selection handles hang below the selected text, so a menu placed there must clear them.
+const TOUCH_HANDLE_GAP = 32;
+const selectionRect = ref<DOMRect | undefined>(undefined);
+// Bottom edge of the page chrome overlaying the article top (top bar, pinned reading pill).
+const chromeBottom = ref(0);
 const menuWidth = ref(0);
+const menuHeight = ref(0);
+const menuPos = computed(() => {
+    const rect = selectionRect.value;
+    if (!rect) return { x: 0, y: 0, below: false };
+    const below = rect.top - MENU_GAP - menuHeight.value < chromeBottom.value;
+    return {
+        x: rect.left + rect.width / 2,
+        y: below
+            ? rect.bottom + (coarsePointer() ? TOUCH_HANDLE_GAP : MENU_GAP)
+            : rect.top - MENU_GAP,
+        below,
+    };
+});
 // Centred on the selection, but never hanging off either side of the screen.
 const menuLeft = computed(() => {
     const half = menuWidth.value / 2 + 8;
@@ -126,12 +144,22 @@ function updateMenuState() {
     }
 }
 
+function coarsePointer(): boolean {
+    return window.matchMedia?.("(pointer: coarse)")?.matches ?? false;
+}
+
+function topChromeBottom(): number {
+    let bottom = 0;
+    document.querySelectorAll("[data-top-chrome]").forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.height > 0) bottom = Math.max(bottom, r.bottom);
+    });
+    return bottom;
+}
+
 function positionMenu(rect: DOMRect) {
-    // Center menu above the selection
-    menuPos.value = {
-        x: rect.left + rect.width / 2,
-        y: rect.top - 8,
-    };
+    chromeBottom.value = topChromeBottom();
+    selectionRect.value = rect;
 }
 
 function repositionMenu() {
@@ -154,13 +182,17 @@ function onScroll() {
 // The popup's width changes with what it shows (colours, share targets).
 const menuResizeObserver =
     typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => (menuWidth.value = actionsMenu.value?.offsetWidth ?? 0))
+        ? new ResizeObserver(() => {
+              menuWidth.value = actionsMenu.value?.offsetWidth ?? 0;
+              menuHeight.value = actionsMenu.value?.offsetHeight ?? 0;
+          })
         : undefined;
 
 watch(actionsMenu, (el, old) => {
     if (old) menuResizeObserver?.unobserve(old);
     if (!el) return;
     menuWidth.value = el.offsetWidth;
+    menuHeight.value = el.offsetHeight;
     menuResizeObserver?.observe(el);
 });
 
@@ -543,7 +575,8 @@ onUnmounted(() => {
             <div
                 v-if="showActions"
                 ref="actionsMenu"
-                class="fixed z-50 flex -translate-x-1/2 -translate-y-full flex-col items-center rounded-full bg-white p-1 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
+                class="fixed z-50 flex -translate-x-1/2 flex-col items-center rounded-full bg-white p-1 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
+                :class="{ '-translate-y-full': !menuPos.below }"
                 :style="{ left: menuLeft + 'px', top: menuPos.y + 'px' }"
                 @mousedown.stop.prevent
             >
