@@ -1202,5 +1202,40 @@ describe("AuthGuard (Integrated)", () => {
             expect(captured.reason).toBe("token_invalid");
             expect(captured.message).toBe("Invalid authentication token");
         });
+
+        it("tags endpoint/DNS failures with reason=provider_unavailable", async () => {
+            mockDbService.getDoc = jest.fn().mockResolvedValue({
+                docs: [
+                    {
+                        _id: "provider-id",
+                        type: DocType.AuthProvider,
+                        domain: "example.auth0.com",
+                        audience: "https://example.auth0.com",
+                        clientId: "abc",
+                    },
+                ],
+            });
+            mockDbService.executeFindQuery = jest.fn().mockResolvedValue({ docs: [] });
+            mockJwtService.decode = jest.fn().mockImplementation(() => {
+                const err = new Error("getaddrinfo ENOTFOUND example.auth0.com") as Error & {
+                    code?: string;
+                    isEndpointUnavailable?: boolean;
+                };
+                err.code = "ENOTFOUND";
+                err.isEndpointUnavailable = true;
+                throw err;
+            });
+
+            let captured: any;
+            try {
+                await authIdentityService.resolveOrDefault("token", "provider-id");
+            } catch (e) {
+                captured = e;
+            }
+
+            expect(captured).toBeDefined();
+            expect(captured.reason).toBe("provider_unavailable");
+            expect(captured.message).toBe("Invalid authentication token");
+        });
     });
 });
