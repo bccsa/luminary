@@ -340,7 +340,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
             >
                 {{ memberOfError }}
             </p>
-            <p v-else class="mt-1 text-[11px] text-zinc-400 dark:text-zinc-200">
+            <p v-else class="mt-1 text-[11px] text-zinc-400 dark:text-zinc-400">
                 Only members of these groups can view or edit this mapping document in the CMS. Has
                 no effect on which users are assigned groups on login.
             </p>
@@ -364,7 +364,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
             >
                 {{ groupIdsError }}
             </p>
-            <p v-else class="mt-1 text-[11px] text-zinc-400 dark:text-zinc-200">
+            <p v-else class="mt-1 text-[11px] text-zinc-400 dark:text-zinc-400">
                 When a user matches this mapping, these groups are added to their session on login —
                 giving them the permissions those groups hold.
             </p>
@@ -376,7 +376,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
             class="rounded-md border border-zinc-200 bg-white p-2 text-zinc-800 dark:border-slate-800 dark:bg-slate-800 dark:text-zinc-100"
         >
             <label class="text-sm font-medium dark:text-zinc-100">Conditions (AND)</label>
-            <p class="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-100">
+            <p class="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-400">
                 Assign the selected groups when all conditions are true. If no conditions are set,
                 groups are assigned to all authenticated users.
             </p>
@@ -386,7 +386,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                     (editable.conditions ?? []).filter((c) => c.type !== 'authenticated').length ===
                     0
                 "
-                class="mt-2 text-[11px] italic text-zinc-400 dark:text-zinc-200"
+                class="mt-2 text-[11px] italic text-zinc-400 dark:text-zinc-400"
             >
                 Assigned to all authenticated users.
             </p>
@@ -483,7 +483,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                                         .filter(Boolean)
                                 "
                             />
-                            <p class="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-200">
+                            <p class="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-400">
                                 Comma-separated
                             </p>
                         </template>

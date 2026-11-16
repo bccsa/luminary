@@ -100,7 +100,7 @@ function normalizeDomainString(value: string | undefined): string {
                     :required="!isEditing"
                     @update:model-value="provider.audience = $event"
                 />
-                <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-100">
+                <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
                     The API identifier/audience configured in your auth provider
                 </p>
             </div>
