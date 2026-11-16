@@ -679,6 +679,82 @@ describe("LHighlightable", () => {
             wrapper.unmount();
         });
 
+        describe("a tap on a highlight", () => {
+            // jsdom lays nothing out, and the menu only opens for a selection with a size.
+            const proto = Range.prototype as { getBoundingClientRect?: () => DOMRect };
+            const layout = proto.getBoundingClientRect;
+            beforeEach(() => {
+                proto.getBoundingClientRect = () =>
+                    ({ left: 100, top: 100, width: 100 }) as DOMRect;
+            });
+            afterEach(() => {
+                window.getSelection()?.removeAllRanges();
+                if (layout) proto.getBoundingClientRect = layout;
+                else delete proto.getBoundingClientRect;
+            });
+
+            it("selects the whole highlight and opens its menu", async () => {
+                const wrapper = await mountWith({
+                    ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
+                    updatedAt: 1,
+                });
+
+                (wrapper.find("mark[data-highlight]").element as HTMLElement).click();
+                await settle(300);
+
+                expect(window.getSelection()!.toString()).toBe("highlighted");
+                expect(removeButton()).toBeTruthy();
+                expect(document.body.querySelector("[data-test='highlightCopy']")).toBeTruthy();
+                wrapper.unmount();
+            });
+
+            it("removes the highlight from that menu", async () => {
+                const wrapper = await mountWith({
+                    ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
+                    updatedAt: 1,
+                });
+
+                (wrapper.find("mark[data-highlight]").element as HTMLElement).click();
+                await settle(300);
+                removeButton().click();
+                await settle();
+
+                expect(marks(wrapper)).toEqual([]);
+                expect(wrapper.emitted("highlightRemoved")).toHaveLength(1);
+                wrapper.unmount();
+            });
+
+            it("opens nothing for a tap on text without a highlight", async () => {
+                const wrapper = await mountWith({
+                    ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
+                    updatedAt: 1,
+                });
+
+                (wrapper.find("p").element as HTMLElement).click();
+                await settle(300);
+
+                expect(window.getSelection()!.isCollapsed).toBe(true);
+                expect(document.body.querySelector(".fixed.z-50")).toBeNull();
+                wrapper.unmount();
+            });
+
+            it("leaves a selection the reader is making alone", async () => {
+                const wrapper = await mountWith({
+                    ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
+                    updatedAt: 1,
+                });
+                const prose = wrapper.find(".prose").element;
+                const range = document.createRange();
+                range.selectNodeContents(prose);
+                window.getSelection()!.addRange(range);
+
+                (wrapper.find("mark[data-highlight]").element as HTMLElement).click();
+
+                expect(window.getSelection()!.toString()).toBe("Some highlighted text content.");
+                wrapper.unmount();
+            });
+        });
+
         it("offers both Highlight and Remove over an existing highlight", async () => {
             const wrapper = await mountWith({
                 ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],

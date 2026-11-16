@@ -21,6 +21,7 @@ import {
     anchorHighlights,
     overlaps,
     paintHighlights,
+    rangeAt,
     rangesFromLegacyHtml,
     removeHighlights,
     snapToWords,
@@ -202,6 +203,30 @@ function selectedHighlights(): { start: number; end: number } | undefined {
 function checkIfHighlighted() {
     isHighlighted.value = !!selectedHighlights();
     canHighlight.value = !!selectedWords();
+}
+
+/**
+ * A tap or click on a highlight selects all of it, which opens the menu as a selection does, so
+ * it can be removed, recoloured, copied or shared without first long-pressing its text. A link
+ * inside the highlight still opens, and a selection the reader is making is left alone.
+ */
+function onProseClick(event: MouseEvent) {
+    const target = event.target as Element | null;
+    if (!prose.value || !target || target.closest("a")) return;
+    const mark = target.closest("mark[data-highlight]");
+    if (!mark || !prose.value.contains(mark)) return;
+
+    const sel = window.getSelection();
+    if (!sel || !sel.isCollapsed) return;
+
+    const at = textOffset(prose.value, mark, 0);
+    const highlight = highlights.find((h) => h.start <= at && at < h.end);
+    if (!highlight) return;
+
+    sel.removeAllRanges();
+    sel.addRange(rangeAt(prose.value, highlight.start, highlight.end));
+    // Not every engine reports a selection set from script; the event, where it comes, only restarts the wait.
+    onSelectionChange();
 }
 
 // Highlighting
@@ -534,7 +559,7 @@ onUnmounted(() => {
         @touchcancel.passive="handleTouchCancel"
     >
         <!-- Content Container -->
-        <div ref="prose" class="prose max-w-none select-text">
+        <div ref="prose" class="prose max-w-none select-text" @click="onProseClick">
             <slot />
         </div>
 

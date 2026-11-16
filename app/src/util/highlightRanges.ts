@@ -171,6 +171,30 @@ export function textOffset(root: Node, node: Node, offset: number): number {
     return range.toString().length;
 }
 
+/** The DOM range covering `root`'s text from `start` to `end`: the reverse of {@link textOffset}. */
+export function rangeAt(root: Node, start: number, end: number): Range {
+    const range = document.createRange();
+    range.setStart(root, 0);
+    range.setEnd(root, root.childNodes.length);
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let offset = 0;
+    let startSet = false;
+    while (walker.nextNode()) {
+        const node = walker.currentNode as Text;
+        if (!startSet && start <= offset + node.length) {
+            range.setStart(node, start - offset);
+            startSet = true;
+        }
+        if (startSet && end <= offset + node.length) {
+            range.setEnd(node, end - offset);
+            break;
+        }
+        offset += node.length;
+    }
+    return range;
+}
+
 const MARK_ATTR = "data-highlight";
 
 /**

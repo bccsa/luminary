@@ -8,6 +8,7 @@ import {
     rangesFromLegacyHtml,
     removeHighlights,
     snapToWords,
+    rangeAt,
     textOffset,
 } from "./highlightRanges";
 
@@ -169,5 +170,18 @@ describe("paintHighlights", () => {
         const root = article();
         const em = root.querySelector("em")!.firstChild!;
         expect(textOffset(root, em, 0)).toBe(root.textContent!.indexOf("brown"));
+    });
+});
+
+describe("rangeAt", () => {
+    it("spans the text between two offsets, across marks and elements", () => {
+        const root = document.createElement("div");
+        root.innerHTML = "<p>Some <mark>highlighted</mark> text</p><p>and more</p>";
+
+        expect(rangeAt(root, 5, 16).toString()).toBe("highlighted");
+        expect(rangeAt(root, 5, 24).toString()).toBe("highlighted textand");
+        expect(
+            textOffset(root, rangeAt(root, 5, 16).startContainer, rangeAt(root, 5, 16).startOffset),
+        ).toBe(5);
     });
 });
