@@ -3,7 +3,7 @@ permissions:
   contents: read
 
 # A stale submodule checkout committed by accident silently reverts the encoder/player on merge,
-# so the pointer may only ever be the latest commit released to luminary-media-convert's prod branch.
+# so the pointer may only move forward, and only onto code released to luminary-media-convert's prod branch.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -13,7 +13,6 @@ on:
       - luminary-media-convert
       - .gitmodules
       - .github/workflows/submodule-pointer-check.yml
-  workflow_call:
 
 env:
   SUBMODULE_PATH: luminary-media-convert
@@ -28,20 +27,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Check pointer matches the latest prod commit
+      - name: Check the pointer is on prod and has not moved backwards
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
+          git fetch --quiet --depth=1 origin "$BASE_SHA"
           pointer=$(git ls-tree HEAD "$SUBMODULE_PATH" | awk '{print $3}')
-          prod=$(git ls-remote "$SUBMODULE_URL" "refs/heads/$RELEASE_BRANCH" | awk '{print $1}')
+          base_pointer=$(git ls-tree "$BASE_SHA" "$SUBMODULE_PATH" | awk '{print $3}')
 
-          if [ -z "$prod" ]; then
-            echo "::error::$SUBMODULE_PATH has no '$RELEASE_BRANCH' branch to check the pointer against."
+          # Blobless clone: enough history for ancestry checks without downloading file contents.
+          git clone --quiet --bare --filter=blob:none --branch "$RELEASE_BRANCH" "$SUBMODULE_URL" lmc.git
+
+          if ! git -C lmc.git cat-file -e "$pointer^{commit}" 2>/dev/null \
+            || ! git -C lmc.git merge-base --is-ancestor "$pointer" "$RELEASE_BRANCH"; then
+            echo "::error::$SUBMODULE_PATH points at $pointer, which is not on its '$RELEASE_BRANCH' branch." \
+              "Release it to '$RELEASE_BRANCH' first, or point at a commit that is already there."
             exit 1
           fi
 
-          if [ "$pointer" != "$prod" ]; then
-            echo "::error::$SUBMODULE_PATH points at $pointer, but the latest '$RELEASE_BRANCH' commit is $prod." \
-              "Update it with: git -C $SUBMODULE_PATH fetch && git -C $SUBMODULE_PATH checkout $prod && git add $SUBMODULE_PATH"
+          if [ -n "$base_pointer" ] && [ "$pointer" != "$base_pointer" ] \
+            && ! git -C lmc.git merge-base --is-ancestor "$base_pointer" "$pointer"; then
+            echo "::error::$SUBMODULE_PATH moves from $base_pointer to $pointer, which is not a step forward." \
+              "A stale submodule checkout was probably committed; restore it with: git checkout origin/main -- $SUBMODULE_PATH"
             exit 1
           fi
 
-          echo "$SUBMODULE_PATH points at the latest '$RELEASE_BRANCH' commit ($prod)."
+          echo "$SUBMODULE_PATH points at $pointer: on '$RELEASE_BRANCH' and not behind main ($base_pointer)."
