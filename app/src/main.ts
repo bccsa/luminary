@@ -1,3 +1,4 @@
+import "./polyfills";
 import "./assets/main.css";
 import { createApp, nextTick, watch } from "vue";
 import { createPinia } from "pinia";

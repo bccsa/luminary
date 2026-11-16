@@ -7,6 +7,7 @@
 // Must import polyfills first so jsdom-missing globals (e.g. window.matchMedia)
 // exist before globalConfig.ts and friends touch them at module load.
 import "./ssg/polyfills";
+import "./polyfills";
 import "./assets/main.css";
 import { ViteSSG } from "vite-ssg";
 import { createPinia } from "pinia";
