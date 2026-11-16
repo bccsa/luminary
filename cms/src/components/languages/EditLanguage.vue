@@ -522,7 +522,7 @@ const contentActions = computed(() => {
                 />
 
                 <!-- add a divider line -->
-                <div class="my-3 border-t border-zinc-200 dark:border-zinc-400"></div>
+                <div class="my-3 border-t border-zinc-200 dark:border-slate-700"></div>
 
                 <div class="mt-2 flex items-center justify-between">
                     <FormLabel for="is-language-default-toggle" class="flex items-center">

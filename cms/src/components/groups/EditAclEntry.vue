@@ -124,7 +124,7 @@ onMounted(() => {
                         }
                     "
                     :disabled="disabled"
-                    class="flex items-center gap-1 rounded-md border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-200"
+                    class="flex items-center gap-1 rounded-md border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors dark:border-slate-600 dark:bg-transparent dark:text-zinc-200 dark:enabled:hover:bg-slate-700"
                 >
                     <CheckCircleIcon
                         v-if="aclEntry.permission.includes(aclPermission)"
@@ -133,7 +133,7 @@ onMounted(() => {
                             isPermissionAvailable(aclEntry.type, aclPermission)
                                 ? disabled
                                     ? 'text-zinc-300 dark:text-zinc-600'
-                                    : 'text-zinc-500 dark:text-zinc-400'
+                                    : 'text-zinc-500 dark:text-yellow-400'
                                 : 'text-zinc-200 dark:text-zinc-700',
                         ]"
                     />
