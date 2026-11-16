@@ -48,7 +48,7 @@ const show = ref(true);
                         <button
                             type="button"
                             data-test="notification-action"
-                            class="rounded-md bg-zinc-900 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            class="rounded-md bg-zinc-900 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:bg-zinc-100 dark:hover:bg-zinc-700 dark:focus:ring-indigo-400"
                             @click="notification.action.onClick()"
                         >
                             {{ notification.action.label }}
