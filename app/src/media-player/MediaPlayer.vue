@@ -3198,6 +3198,7 @@ function onKeydown(event: KeyboardEvent) {
                     :chapters="chapters"
                     :current-time="currentTime"
                     :cue-at="chapterCueAt"
+                    :duration="duration"
                     @select="playChapter"
                 />
             </div>

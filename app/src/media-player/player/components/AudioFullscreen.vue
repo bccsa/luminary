@@ -1754,6 +1754,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
             :messages="messages"
             :id-prefix="uid"
             :thumbnail-at="thumbnailAt"
+            :duration="knownDuration"
             data-test="afsSheet"
             @close="browseOpen = false"
             @pick-chapter="pickChapter"

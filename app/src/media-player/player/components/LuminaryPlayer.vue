@@ -2343,6 +2343,7 @@ defineExpose({
                     :messages="msg"
                     :id-prefix="instanceId"
                     :thumbnail-at="state.thumbnailsReady ? chapterThumbnailAt : undefined"
+                    :duration="state.duration"
                     @close="closeBrowse"
                     @pick-chapter="pickChapter"
                     @pick-upnext="pickUpNext"
