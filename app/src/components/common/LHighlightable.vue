@@ -27,19 +27,9 @@ import {
     snapToWords,
     textOffset,
 } from "@/util/highlightRanges";
-import TelegramIcon from "@/components/icons/TelegramIcon.vue";
-import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
-import XIcon from "@/components/icons/XIcon.vue";
-import RedditIcon from "@/components/icons/RedditIcon.vue";
-import InstagramIcon from "@/components/icons/InstagramIcon.vue";
-import {
-    buildTelegramShareUrl,
-    buildWhatsAppShareUrl,
-    buildXShareUrl,
-    buildRedditShareUrl,
-    formatShareMessage,
-} from "@/composables/useSocialShare";
-import { useNotificationStore } from "@/stores/notification";
+import ShareTargets from "@/components/content/ShareTargets.vue";
+import { formatShareMessage } from "@/composables/useSocialShare";
+import { useShare, type ShareDraft } from "@/composables/useShare";
 
 const props = withDefaults(
     defineProps<{
@@ -50,6 +40,8 @@ const props = withDefaults(
         copyright?: string;
         /** Gates the share targets on the ACL Share permission; defaults open for callers that don't check it. */
         canShare?: boolean;
+        /** The article link that shares and copied quotes point to; defaults to the current page. */
+        shareUrl?: string;
         /** Changes whenever the slotted article is re-rendered, so its highlights are repainted. */
         revision?: unknown;
     }>(),
@@ -311,7 +303,7 @@ function copyText() {
     const sel = window.getSelection();
     if (sel) {
         navigator.clipboard
-            .writeText(shareMessage(sel.toString(), { withUrl: true }))
+            .writeText(formatShareMessage({ ...shareDraft(sel.toString()), url: shareLink() }))
             .catch((e) => console.error("Failed to copy highlight text to clipboard:", e));
         showActions.value = false;
         sel.removeAllRanges();
@@ -320,12 +312,30 @@ function copyText() {
 
 // Sharing
 
-// Captured on open, not read lazily by each platform button — the selection can
-// collapse once the user starts interacting with the popup.
-function openShareMenu() {
+const { nativeShareAvailable, shareNatively } = useShare();
+
+const shareLink = () => props.shareUrl ?? window.location.href;
+
+const shareDraft = (quote: string): ShareDraft => ({
+    quote,
+    title: props.title,
+    copyright: props.copyright,
+    url: shareLink(),
+});
+
+// The selection is captured on open, not read lazily by each target — it can collapse once
+// the user starts interacting with the popup.
+async function openShareMenu() {
     if (!props.canShare) return;
     const sel = window.getSelection();
     selectedTextForShare.value = sel ? sel.toString() : "";
+    if (
+        nativeShareAvailable.value &&
+        (await shareNatively(shareDraft(selectedTextForShare.value)))
+    ) {
+        finalizeShare();
+        return;
+    }
     showShareMenu.value = true;
 }
 
@@ -336,77 +346,6 @@ function closeShareMenu() {
 function finalizeShare() {
     showActions.value = false;
     showShareMenu.value = false;
-}
-
-function shareMessage(quote: string, options: { withUrl?: boolean } = {}): string {
-    return formatShareMessage({
-        quote,
-        title: props.title,
-        copyright: props.copyright,
-        url: options.withUrl ? window.location.href : undefined,
-    });
-}
-
-function shareHighlightText(options: { withUrl?: boolean } = {}): string {
-    return shareMessage(selectedTextForShare.value, options);
-}
-
-function shareHighlightToTelegram() {
-    window.open(
-        buildTelegramShareUrl(shareHighlightText(), window.location.href),
-        "_blank",
-        "noopener,noreferrer",
-    );
-    finalizeShare();
-}
-
-function shareHighlightToWhatsApp() {
-    const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
-    window.open(
-        buildWhatsAppShareUrl(shareHighlightText({ withUrl: true }), isCoarsePointer),
-        "_blank",
-        "noopener,noreferrer",
-    );
-    finalizeShare();
-}
-
-function shareHighlightToX() {
-    window.open(
-        buildXShareUrl(shareHighlightText(), window.location.href),
-        "_blank",
-        "noopener,noreferrer",
-    );
-    finalizeShare();
-}
-
-function shareHighlightToReddit() {
-    window.open(
-        buildRedditShareUrl(props.title, window.location.href),
-        "_blank",
-        "noopener,noreferrer",
-    );
-    finalizeShare();
-}
-
-// Instagram has no web share-URL API for posts/links, so the closest one-click
-// equivalent is copying the text + link for the user to paste into a DM, Story or bio.
-async function shareHighlightToInstagram() {
-    try {
-        await navigator.clipboard.writeText(shareHighlightText({ withUrl: true }));
-    } catch (e) {
-        console.error("Failed to copy share text to clipboard:", e);
-        finalizeShare();
-        return;
-    }
-    useNotificationStore().addNotification({
-        id: "share-link-copied",
-        title: t("singlecontent.shareInstagramCopiedTitle"),
-        description: t("singlecontent.shareInstagramCopiedDescription"),
-        state: "success",
-        type: "toast",
-        timeout: 5000,
-    });
-    finalizeShare();
 }
 
 // Persistence
@@ -603,8 +542,11 @@ onUnmounted(() => {
             <div
                 v-if="showActions"
                 ref="actionsMenu"
-                class="fixed z-50 flex -translate-x-1/2 flex-col items-center rounded-full bg-white p-1 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
-                :class="{ '-translate-y-full': !menuBelow }"
+                class="fixed z-50 flex -translate-x-1/2 flex-col items-center bg-white shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
+                :class="[
+                    showShareMenu ? 'rounded-lg p-1.5' : 'rounded-full p-1',
+                    { '-translate-y-full': !menuBelow },
+                ]"
                 :style="{ left: menuLeft + 'px', top: menuPos.y + 'px' }"
                 @mousedown.stop.prevent
             >
@@ -680,7 +622,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Share Targets -->
-                <div v-else class="flex items-center gap-1 px-1 py-0.5">
+                <div v-else class="flex w-60 flex-col items-start gap-0.5">
                     <button
                         @click="closeShareMenu"
                         :aria-label="t('singlecontent.back')"
@@ -689,49 +631,11 @@ onUnmounted(() => {
                     >
                         <ChevronLeftIcon class="size-5" />
                     </button>
-
-                    <div class="flex gap-1">
-                        <button
-                            @click="shareHighlightToTelegram"
-                            data-test="highlightShareTelegram"
-                            :aria-label="t('singlecontent.shareTelegram')"
-                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
-                        >
-                            <TelegramIcon class="size-5" />
-                        </button>
-                        <button
-                            @click="shareHighlightToWhatsApp"
-                            data-test="highlightShareWhatsApp"
-                            :aria-label="t('singlecontent.shareWhatsApp')"
-                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
-                        >
-                            <WhatsAppIcon class="size-5" />
-                        </button>
-                        <button
-                            @click="shareHighlightToX"
-                            data-test="highlightShareX"
-                            :aria-label="t('singlecontent.shareX')"
-                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
-                        >
-                            <XIcon class="size-5" />
-                        </button>
-                        <button
-                            @click="shareHighlightToReddit"
-                            data-test="highlightShareReddit"
-                            :aria-label="t('singlecontent.shareReddit')"
-                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
-                        >
-                            <RedditIcon class="size-5" />
-                        </button>
-                        <button
-                            @click="shareHighlightToInstagram"
-                            data-test="highlightShareInstagram"
-                            :aria-label="t('singlecontent.shareInstagram')"
-                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
-                        >
-                            <InstagramIcon class="size-5" />
-                        </button>
-                    </div>
+                    <ShareTargets
+                        class="w-full"
+                        :draft="shareDraft(selectedTextForShare)"
+                        @done="finalizeShare"
+                    />
                 </div>
             </div>
         </teleport>

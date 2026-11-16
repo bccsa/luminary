@@ -1,4 +1,13 @@
 import type { ContentDto } from "luminary-shared";
+import { publicUrl } from "@/seo/publicSite";
+
+/**
+ * The link a share points to: the public site, not the current origin. An installed PWA or
+ * the native app runs on its own origin, which wouldn't resolve for a recipient without it.
+ */
+export function articleShareUrl(slug: string): string {
+    return publicUrl(`/${slug}`) ?? window.location.href;
+}
 
 // `url` must carry the link: t.me/share/url treats it as the thing being shared and
 // bounces to Telegram's home page when it's empty, whatever `text` holds. Telegram

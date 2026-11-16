@@ -55,6 +55,7 @@ import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 
 import LImage from "@/components/images/LImage.vue";
 import ShareMenu from "@/components/content/ShareMenu.vue";
+import { articleShareUrl } from "@/composables/useSocialShare";
 
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
@@ -1082,6 +1083,7 @@ watch([isLoading, content, is404], async () => {
                             :revision="text"
                             :copyright="shareCopyright"
                             :can-share="canShare()"
+                            :share-url="articleShareUrl(content.slug)"
                             @highlighted="
                                 recordAffinity(
                                     content?.parentTags,
