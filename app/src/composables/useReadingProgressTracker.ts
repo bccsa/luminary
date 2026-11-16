@@ -368,6 +368,9 @@ export function useReadingProgressTracker(options: {
     });
 
     const initialSavedProgressPercent = ref(0);
+    // A query rebuild can drop and restore the same article mid-read; progress saved
+    // meanwhile must not come back as a resume offer, so the snapshot is taken once per id.
+    let snapshotContentId: Uuid | undefined;
     const hasResumableProgress = computed(() => {
         const p = savedProgressPercent.value;
         return p > 0 && p < 100;
@@ -490,7 +493,6 @@ export function useReadingProgressTracker(options: {
         scrollRafPending = false;
         visibilityRafPending = false;
         isRestoring.value = false;
-        initialSavedProgressPercent.value = 0;
     }
 
     function collectSegments() {
@@ -919,7 +921,10 @@ export function useReadingProgressTracker(options: {
 
         if (contentChanged) {
             const id = options.contentId.value;
-            initialSavedProgressPercent.value = id ? getReadingProgress(id) : 0;
+            if (id !== snapshotContentId) {
+                snapshotContentId = id;
+                initialSavedProgressPercent.value = id ? getReadingProgress(id) : 0;
+            }
             if (segments.value.length > 0) {
                 seedConfirmedFromSavedProgress();
             }
