@@ -53,7 +53,6 @@ import { articleJsonLd, languageCodeForContent } from "@/seo/contentHead";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import ShareMenu from "@/components/content/ShareMenu.vue";
 import { highlightVersion } from "@/recommendation/highlightStore";
-import ArticleOutline from "../ArticleOutline.vue";
 import { bumpSessionNow } from "@/util/sessionNow";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
