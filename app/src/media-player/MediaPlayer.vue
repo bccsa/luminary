@@ -2215,7 +2215,10 @@ function onKeydown(event: KeyboardEvent) {
                 // corner there is the card's less the line.
                 'lg:w-96 lg:rounded-xl',
                 // The screen has no height of its own, so on a computer the card is as tall as a phone's screen.
-                screen && expanded ? 'lg:h-[min(46rem,calc(100dvh-2.5rem))]' : '',
+                // `vh` first: older Chromium (a Raspberry Pi's) has no `dvh` and would leave the card 0 px tall.
+                screen && expanded
+                    ? 'lg:h-[min(46rem,calc(100vh-2.5rem))] lg:supports-[height:100dvh]:h-[min(46rem,calc(100dvh-2.5rem))]'
+                    : '',
             ]"
             :style="{
                 ...(playerDragging

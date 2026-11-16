@@ -2352,6 +2352,49 @@
     aspect-ratio: auto;
 }
 
+/* Chromium before 105 (a Raspberry Pi's) has no container units: every size above that uses them is dropped, and the
+   picture and the cover shrink to nothing. The plain column layout, sized from the screen's box and the window. */
+@supports not (width: 1cqw) {
+    .lmpl-afs-art {
+        width: min(78%, 42vh);
+    }
+    .lmpl-afs-video .lmpl-afs-art {
+        width: 100%;
+        max-height: 46vh;
+    }
+    .lmpl-afs-captions .lmpl-afs-art {
+        aspect-ratio: var(--lmpl-stage-ar, 16 / 9);
+        height: auto;
+    }
+    .lmpl-afs-captions .lmpl-afs-stage {
+        bottom: 0;
+    }
+    .lmpl-afs-art.lmpl-afs-art-lyrics {
+        height: 42vh;
+    }
+}
+/* A window on its side fills with the screen, which then lays the picture beside the controls, as the wide layout does. */
+@supports not (width: 1cqw) {
+    @media (orientation: landscape) and (max-width: 1023px) {
+        .lmpl-afs-main {
+            flex-direction: row;
+            align-items: center;
+            gap: 28px;
+        }
+        .lmpl-afs-art {
+            width: min(34vw, 62vh);
+        }
+        .lmpl-afs-video .lmpl-afs-art {
+            width: min(52vw, 62vh * 16 / 9);
+            max-height: 62vh;
+        }
+        .lmpl-afs-info {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+    }
+}
+
 /* A picture the platform draws behind the page shows only where nothing of the screen covers it: the screen's
    colour is cut out across the stage's band, and the stage itself is clear. */
 .lmpl-afs.lmpl-afs-hole {
