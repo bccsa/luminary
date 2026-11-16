@@ -13,6 +13,7 @@ import {
     AckStatus,
     type ContentDto,
     type ContentParentDto,
+    type MediaDto,
     type PostDto,
     type PostType,
     type TagDto,
@@ -69,6 +70,11 @@ export type UseEditContentSource = {
     isLoading: Ref<boolean>;
     /** Persist the parent + edited content children and re-baseline the dirty state. */
     save: () => Promise<void>;
+    /**
+     * Persist `media` onto the parent as last saved, and nothing else: the editor's other
+     * unsaved edits stay unsaved, and the new media reads as saved.
+     */
+    saveMedia: (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => Promise<void>;
     /** Whether anything other than `fields` is unsaved, on the parent or any translation. */
     hasEditsBesides: (fields: (keyof ContentParentDto)[]) => boolean;
     /** Delete the parent document (does not mark content children for deletion). */
@@ -370,6 +376,18 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         );
     };
 
+    const saveMedia = async (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => {
+        const saved = existingParent.value;
+        if (!saved) throw new Error("The document has not been saved yet.");
+
+        const doc = _.cloneDeep(toRaw(saved));
+        doc.media = { ...doc.media, ...media };
+        await db.upsert({ doc });
+        // Set rather than left to the live query, so the editor sees it at once: `media` is
+        // back-patched, which moves it into the editable copy and its baseline together.
+        parentSource.value = [doc];
+    };
+
     /**
      * Delete the parent and, when asked, the media files in storage with it.
      *
@@ -422,6 +440,7 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         isIncomingChange,
         isLoading,
         save,
+        saveMedia,
         hasEditsBesides,
         deleteParent,
         revert,
