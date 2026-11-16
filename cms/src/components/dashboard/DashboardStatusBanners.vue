@@ -29,7 +29,7 @@ defineProps<{
             class="flex flex-1 items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 dark:border-orange-900 dark:bg-orange-950/20"
         >
             <ExclamationTriangleIcon
-                class="h-4 w-4 shrink-0 text-orange-500 text-orange-800 dark:text-orange-400"
+                class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400"
             />
             <p class="text-xs font-medium dark:text-orange-400">
                 {{ expiredContent.length }} expired item{{ expiredContent.length !== 1 ? "s" : "" }}
