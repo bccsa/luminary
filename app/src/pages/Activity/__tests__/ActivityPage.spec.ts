@@ -6,6 +6,7 @@ import { createTestingPinia } from "@pinia/testing";
 import { reactive } from "vue";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
 import ActivityPage from "../ActivityPage.vue";
+import ActivityFilterChips from "../ActivityFilterChips.vue";
 
 const route = reactive<{ query: Record<string, string> }>({ query: {} });
 const replace = vi.fn((to: { query: Record<string, string> }) => {
@@ -38,10 +39,11 @@ describe("ActivityPage", () => {
     it("shows the four filters and starts on all", async () => {
         const wrapper = mount(ActivityPage);
 
-        expect(wrapper.text()).toContain("All");
-        expect(wrapper.text()).toContain("Viewed");
-        expect(wrapper.text()).toContain("Liked");
-        expect(wrapper.text()).toContain("Highlighted");
+        const chips = wrapper
+            .findComponent(ActivityFilterChips)
+            .findAll("[role=tab]")
+            .map((chip) => chip.text());
+        expect(chips).toEqual(["All", "Views", "Likes", "Highlights"]);
         expect(wrapper.find("[data-test=activity-all]").exists()).toBe(true);
     });
 
