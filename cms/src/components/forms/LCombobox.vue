@@ -246,7 +246,7 @@ const onEscape = (e: KeyboardEvent) => {
                     <!-- Inline tags trigger -->
                     <div
                         v-if="inlineTags"
-                        class="relative flex min-h-[42px] flex-wrap items-center gap-1 rounded-md bg-white pl-2 pr-1 transition-all focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950 dark:bg-slate-900 dark:focus-within:outline-indigo-500"
+                        class="relative flex min-h-[42px] flex-wrap items-center gap-1 rounded-md bg-white pl-2 pr-1 transition-all focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950 dark:bg-slate-900 dark:focus-within:outline-slate-400"
                         :class="{ 'border-[1px] border-zinc-300 dark:border-slate-700': !noBorder }"
                         v-bind="attrsWithoutStyles"
                     >
@@ -320,7 +320,7 @@ const onEscape = (e: KeyboardEvent) => {
                     <!-- Standard trigger -->
                     <div
                         v-else
-                        class="relative flex w-full justify-between gap-2 rounded-md bg-white transition-all focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950 dark:bg-slate-900 dark:focus-within:outline-indigo-500"
+                        class="relative flex w-full justify-between gap-2 rounded-md bg-white transition-all focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950 dark:bg-slate-900 dark:focus-within:outline-slate-400"
                         :class="{
                             'border-[1px] border-zinc-300 dark:border-slate-700': !noBorder,
                             'pl-1 pr-3': smallInput && isMobileScreen,

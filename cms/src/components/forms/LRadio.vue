@@ -17,7 +17,7 @@ const radioClasses = cva({
     variants: {
         variant: {
             primary:
-                "bg-white focus:ring-zinc-950 ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100/70 disabled:bg-zinc-100 disabled:text-zinc-500 dark:bg-slate-800 dark:focus:ring-zinc-100 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-700 dark:active:bg-slate-600 dark:disabled:bg-slate-900 dark:disabled:text-zinc-500",
+                "bg-white focus:ring-zinc-950 ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100/70 disabled:bg-zinc-100 disabled:text-zinc-500 dark:bg-slate-800 dark:focus:ring-slate-400 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-700 dark:active:bg-slate-600 dark:disabled:bg-slate-900 dark:disabled:text-zinc-500",
         },
         size: {
             sm: "px-2 py-1.5",

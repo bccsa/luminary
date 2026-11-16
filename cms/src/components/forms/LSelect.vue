@@ -39,7 +39,7 @@ const model = defineModel<string | number | undefined>();
 const states = {
     default: `
         border-zinc-300 bg-white focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-zinc-500 focus-within:ring-0
-        dark:border-slate-700 dark:bg-slate-900 dark:focus-within:outline-indigo-500
+        dark:border-slate-700 dark:bg-slate-900 dark:focus-within:outline-slate-400
     `,
     error: `
         border-red-300 bg-red-50 text-red-900 focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-red-500 focus-within:ring-0
