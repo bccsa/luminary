@@ -322,6 +322,61 @@ describe("LHighlightable", () => {
         wrapper.unmount();
     });
 
+    describe("menu placement", () => {
+        const selectAt = async (wrapper: ReturnType<typeof mountHighlightable>, top: number) => {
+            await wrapper.find(".no-native-menu").trigger("touchstart");
+            const textNode = wrapper.find(".prose p").element.firstChild!;
+            const range = document.createRange();
+            range.setStart(textNode, 0);
+            range.setEnd(textNode, 4);
+            range.getBoundingClientRect = vi.fn(
+                () =>
+                    ({
+                        left: 100,
+                        top,
+                        right: 200,
+                        bottom: top + 20,
+                        width: 100,
+                        height: 20,
+                    }) as DOMRect,
+            );
+            vi.spyOn(window, "getSelection").mockReturnValue({
+                isCollapsed: false,
+                rangeCount: 1,
+                getRangeAt: () => range,
+                toString: () => "Some",
+                removeAllRanges: vi.fn(),
+                anchorNode: textNode,
+            } as any);
+            vi.advanceTimersByTime(400);
+        };
+        const menu = () => document.body.querySelector<HTMLElement>(".fixed.z-50")!;
+
+        it("opens above the selection when there is room", async () => {
+            const wrapper = mountHighlightable();
+            await selectAt(wrapper, 300);
+            await wrapper.vm.$nextTick();
+            expect(menu().style.top).toBe("292px");
+            expect(menu().classList).toContain("-translate-y-full");
+            wrapper.unmount();
+        });
+
+        it("opens below the selection when the top chrome leaves no room above", async () => {
+            const chrome = document.createElement("div");
+            chrome.setAttribute("data-top-chrome", "");
+            chrome.getBoundingClientRect = () => ({ top: 0, bottom: 120, height: 120 }) as DOMRect;
+            document.body.appendChild(chrome);
+
+            const wrapper = mountHighlightable();
+            await selectAt(wrapper, 124);
+            await wrapper.vm.$nextTick();
+            expect(menu().style.top).toBe("152px");
+            expect(menu().classList).not.toContain("-translate-y-full");
+            wrapper.unmount();
+            chrome.remove();
+        });
+    });
+
     it("shows share targets and opens the correct URL for the selected text", async () => {
         const wrapper = mountHighlightable("share-test", "Test Article");
         // Let the async onMounted (restoreHighlights) finish before dispatching

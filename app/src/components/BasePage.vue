@@ -148,6 +148,7 @@ onUnmounted(() => {
             <div
                 ref="topBarWrap"
                 data-top-bar
+                data-top-chrome
                 class="absolute inset-x-0 top-0 z-30 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform xl:hidden"
                 :class="mobileChrome.hidden.value ? '-translate-y-full' : 'translate-y-0'"
             >
@@ -190,7 +191,7 @@ onUnmounted(() => {
                             :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
                             aria-hidden="true"
                         />
-                        <div class="relative flex h-9 w-full items-center">
+                        <div data-top-chrome class="relative flex h-9 w-full items-center">
                             <!-- Centred on the full row (= the content column's axis) rather than
                              on the space left between the two asymmetric control groups.
                              top-0.5 matches the 2px inset the centred back/quick controls get
@@ -252,6 +253,7 @@ onUnmounted(() => {
                         :style="pillPinnedStyle"
                     >
                         <div
+                            data-top-chrome
                             class="pointer-events-auto relative flex h-9 min-w-0 max-w-full items-center justify-center"
                         >
                             <slot name="topBarCenter" />
