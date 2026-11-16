@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, ref } from "vue";
 import type { Chapter, ThumbnailSpriteCue } from "@luminary-media-converter/player-web";
 import type { PlayerMessages } from "../messages";
+import { numberedChapter } from "../ui/chapterBar";
 import { formatClock } from "../ui/scrubPreview";
 import { withSectionHeadings, type PlayerUpNextItem } from "../upNext";
 import NextUpThumb from "./NextUpThumb.vue";
@@ -241,7 +242,9 @@ defineExpose({ hasFocus });
                             </svg>
                         </span>
                         <span class="lmpl-upnext-text">
-                            <span class="lmpl-upnext-title">{{ chapter.title }}</span>
+                            <span class="lmpl-upnext-title">{{
+                                numberedChapter(index, chapter.title)
+                            }}</span>
                             <span class="lmpl-upnext-subtitle lmpl-chapter-time">{{
                                 formatClock(chapter.startTime, haveHours)
                             }}</span>

@@ -312,6 +312,14 @@ describe("BrowsePanel — the chapters", () => {
         expect(style).toContain("-160px -90px");
     });
 
+    it("numbers each chapter's title", () => {
+        const wrapper = mountPanel();
+        expect(wrapper.findAll(".lmpl-chapter .lmpl-upnext-title").map((t) => t.text())).toEqual([
+            "1. Opening",
+            "2. Sermon",
+        ]);
+    });
+
     it("keeps the chapter symbol while there are no thumbnails", () => {
         const wrapper = mountPanel();
         expect(wrapper.find("[data-test='chapterFrame']").exists()).toBe(false);

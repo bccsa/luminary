@@ -36,6 +36,11 @@ export function chapterMask(segments: readonly ChapterSegment[]): string {
     return `linear-gradient(to right, ${stops.join(", ")})`;
 }
 
+/** "3. Title": how a chapter is named where chapters are listed or one is pointed at. `index` counts from zero. */
+export function numberedChapter(index: number, title: string): string {
+    return title ? `${index + 1}. ${title}` : `${index + 1}.`;
+}
+
 /** Fills `{index}` and `{count}` in the "Chapter 4 of 7" message; a translator may move either. */
 export function formatChapterOf(template: string, index: number, count: number): string {
     return template.replace("{index}", String(index)).replace("{count}", String(count));
