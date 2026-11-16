@@ -135,6 +135,20 @@ afterEach(() => {
 });
 
 describe("SearchPanel (page mode — /search)", () => {
+    it("backs the gap under the top bar so results can't show above the pinned search bar", () => {
+        mountPage();
+
+        const bar = wrapper!.find("[data-keeps-keyboard]");
+        expect(bar.classes()).toEqual(
+            expect.arrayContaining([
+                "max-lg:sticky",
+                "max-lg:before:absolute",
+                "max-lg:before:bottom-full",
+                "max-lg:before:bg-inherit",
+            ]),
+        );
+    });
+
     it("populates the input and runs the search when /search?q is present", async () => {
         routeMock.query = { q: "public search" };
         mountPage();
