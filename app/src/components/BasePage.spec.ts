@@ -132,4 +132,22 @@ describe("BasePage", () => {
             expect(wrapper.html()).toContain("Test Description");
         });
     });
+
+    it("keeps the desktop banner at page width on desktopTopBar pages that are not articles", () => {
+        const page = mount(BasePage, { props: { desktopTopBar: true } });
+
+        const managers = page.findAllComponents(NotificationBannerManager);
+        expect(managers).toHaveLength(1);
+        expect(managers[0].classes()).not.toContain("lg:hidden");
+        expect(page.find(".lg\\:max-w-3xl").exists()).toBe(false);
+        page.unmount();
+    });
+
+    it("lines the desktop banner up with the article column on article pages", () => {
+        const page = mount(BasePage, { props: { desktopTopBar: true, articleWidthBanner: true } });
+
+        const articleColumn = page.find(".lg\\:max-w-3xl");
+        expect(articleColumn.findComponent(NotificationBannerManager).exists()).toBe(true);
+        page.unmount();
+    });
 });
