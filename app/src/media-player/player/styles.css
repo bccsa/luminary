@@ -2884,9 +2884,11 @@
 .lmpl-root .lmpl-afs.lmpl-afs-fill .lmpl-afs-info {
     display: none;
 }
+/* Stretched: the large window's layout centres the column, which shrinks an absolute box to its content's 0 height. */
 .lmpl-root .lmpl-afs.lmpl-afs-fill .lmpl-afs-main {
     position: absolute;
     inset: 0;
+    align-self: stretch;
     padding: 0;
     gap: 0;
 }
