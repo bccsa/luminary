@@ -13,6 +13,7 @@ import { loadFallbackImageUrls } from "./util/loadFallbackImages";
 import { migrateUserActivityOnStartup } from "./userActivity/migrate";
 import { startContentProgressMirror } from "./userActivity/fromContentProgress";
 import { pruneUserActivityTombstones } from "./userActivity/store";
+import { setBootStage } from "./bootDiagnostics";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -430,6 +431,9 @@ export const initLanguage = () => {
         let sawSyncRun = false;
         bootGate.stop = watchEffect(() => {
             if (bootGate.stopped) return bootGate.stop?.();
+            setBootStage(
+                `Loading languages (available: ${cmsLanguages.value.length}; local read: ${localSeedSettled.value ? "done" : "pending"}; query: ${languagesQuery.isFetching.value ? "pending" : "done"}; connected: ${isConnected.value}; sync: ${syncActive.value})`,
+            );
             if (syncActive.value) sawSyncRun = true;
 
             // Still a chance of languages: a read is in flight, or some arrived. The seed

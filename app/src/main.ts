@@ -26,6 +26,7 @@ import { markAppReady, markAppError } from "@/util/renderState";
 import { notifyUiReady } from "virtual:app-lifecycle";
 import { initLivePublishClock } from "@/util/livePublishClock";
 import { BOOT_SPLASH_ID } from "./bootSplash";
+import { setBootStage } from "./bootDiagnostics";
 import { initUserActivitySource, setupUserActivitySync } from "@/userActivity/source";
 
 export const app = createApp(App);
@@ -46,6 +47,7 @@ initSentry(app);
 const BROWSER_CONTENT_SYNC_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // ~1 month
 
 async function Startup() {
+    setBootStage("Preparing local query caches");
     // Pre-warm Mango query caches from localStorage before any queries run.
     // On the first visit this is a no-op; on subsequent loads it eliminates
     // cold-start compilation latency for IndexedDB queries.
@@ -55,6 +57,7 @@ async function Startup() {
     // rolling ~1 month window (older content is fetched on demand by HybridQuery).
     const installedStandalone = isInstalledStandalone();
 
+    setBootStage("Opening local content storage and sync state");
     await init({
         cms: false,
         docsIndex: APP_DOCS_INDEX,
@@ -70,6 +73,7 @@ async function Startup() {
         deleteExpiredIntervalMs,
     });
 
+    setBootStage("Opening and migrating local activity storage");
     await initUserActivitySource();
     initUserActivity();
 
@@ -97,7 +101,9 @@ async function Startup() {
     // platform auth-flow strategy from the app.
     app.use(appPluginsManager);
 
+    setBootStage("Restoring sign-in");
     await setupAuth(app, router);
+    setBootStage("Reconciling activity ownership");
     await setupUserActivitySync();
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
@@ -136,12 +142,15 @@ async function Startup() {
 
     app.use(router);
     app.use(i18n);
+    setBootStage("Mounting the interface");
     app.mount("#app");
     // The web loading UI is rendering from here on — the build target may have
     // launch chrome of its own to hand over from.
     notifyUiReady();
 
+    setBootStage("Loading languages");
     await initLanguage();
+    setBootStage("Starting content sync");
     initSync();
 
     isAppLoading.value = false;
@@ -153,6 +162,7 @@ async function Startup() {
     await nextTick();
     document.getElementById(BOOT_SPLASH_ID)?.remove();
 
+    setBootStage("Initializing the page title and analytics");
     initAppTitle(i18n);
     initAnalytics();
     markAppReady();
