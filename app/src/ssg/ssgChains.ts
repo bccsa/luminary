@@ -13,10 +13,10 @@
  * once its page has rendered without importing useContentQuery.ts's Vue-wired code into
  * the Node-only tsconfig project.
  */
-const ssrChains = new Map<string, Promise<unknown>>();
+const ssgChains = new Map<string, Promise<unknown>>();
 
 export function chainFor(route: string): Promise<unknown> {
-    return ssrChains.get(route) ?? Promise.resolve();
+    return ssgChains.get(route) ?? Promise.resolve();
 }
 
 export function queueOnChain(route: string, next: Promise<unknown>): void {
@@ -24,13 +24,13 @@ export function queueOnChain(route: string, next: Promise<unknown>): void {
     // for every later query on the same route. The caller still awaits its own
     // original promise, so its own error surfaces; later queries sequence after
     // this tail and run regardless.
-    ssrChains.set(
+    ssgChains.set(
         route,
         next.catch(() => {}),
     );
 }
 
 /** Frees a route's chain entry once its page has fully rendered. */
-export function releaseSsrChain(route: string): void {
-    ssrChains.delete(route);
+export function releaseSsgChain(route: string): void {
+    ssgChains.delete(route);
 }

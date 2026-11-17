@@ -2127,7 +2127,7 @@ describe("HybridQuery", () => {
             it("replaces a stripped seeded local doc with the full doc on the first live emission", async () => {
                 // Live mode (SingleContent's actual query mode): seed the local side with a
                 // stripped doc — same id/updatedTimeUtc as the doc the live Dexie read
-                // returns, differing only by the field the SSR cache write omitted.
+                // returns, differing only by the field the prerender cache write omitted.
                 const Lstripped = {
                     _id: "L1",
                     updatedTimeUtc: 5,
@@ -2197,7 +2197,7 @@ describe("HybridQuery", () => {
             });
 
             it("replaces a stripped seeded doc with the full doc once the POST answers", async () => {
-                // Remote-only branch (no Dexie leg), stripped seed as an SSR cache write
+                // Remote-only branch (no Dexie leg), stripped seed as a prerender cache write
                 // would leave it: `body` omitted, same `_id`/`updatedTimeUtc` as the real doc.
                 const r1 = { _id: "r1", updatedTimeUtc: 1, type: "redirect" };
                 writeResponseCache(

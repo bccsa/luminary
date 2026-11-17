@@ -122,7 +122,7 @@ paths**:
 - **Prerender (Node), `if (import.meta.env.SSR)`:** in `onServerPrefetch`, fetch via
   shared `queryRemote` (anonymous `POST /query` → public tier), set the out ref so the
   page renders with data, prime the response cache (below), and `reportKeys([...])` for
-  the manifest. A per-route chain (`ssrChains.ts`, keyed by route path) serializes
+  the manifest. A per-route chain (`ssgChains.ts`, keyed by route path) serializes
   prefetches so chained queries (e.g. SingleContent: content → translations → tags →
   related content) resolve in order.
 - **Browser + the normal SPA (else):** plain `useHybridQuery(buildQuery, options)` — the _same_
@@ -149,12 +149,12 @@ store**:
 
 **Article-text dedup:** a long article's `text` would otherwise ship twice — once as
 rendered HTML, once JSON-escaped inside the inline cache script. `SingleContent.vue`
-passes `ssrCacheStripFields: ["text"]` (a `useContentQuery` option, SSR-write-only) so the
-prerender omits `text` from the cache seed; on the client, `recoverSsrArticleText`
-(`src/util/ssrTextRecovery.ts`) reads it back from a `[data-ssr-article-text]` marker on
+passes `ssgCacheStripFields: ["text"]` (a `useContentQuery` option, prerender-write-only) so the
+prerender omits `text` from the cache seed; on the client, `recoverSsgArticleText`
+(`src/util/ssgTextRecovery.ts`) reads it back from a `[data-ssg-article-text]` marker on
 the rendered article `<div>` before first render, so hydration still matches the server
 output. A plain client-side navigation has no such DOM to recover from, so
-`cacheStripFields` (which affects both writers) is left untouched — only the SSR write is
+`cacheStripFields` (which affects both writers) is left untouched — only the prerender write is
 stripped.
 
 ### Paint-before-hydrate — the deferred entry
@@ -198,7 +198,7 @@ empty state during a prerender — a personalised feed with no user state, a tag
 tagged documents, a related-content lookup with nothing to relate. So a build with zero
 rejected queries succeeds regardless of how many provably-empty warnings it logged.
 
-### i18n SSR (`main.web.ts`)
+### i18n prerender (`main.web.ts`)
 
 UI strings live in CouchDB Language docs. The prerender fetches languages via
 `queryRemote`, sets `cmsLanguages` + `appLanguageIdsAsRef` **before** `app.use(initI18n())`
@@ -365,7 +365,7 @@ prerender authenticates as **anonymous** (default group mappings) to read public
 **Working & verified at build level:** type-check, scoped `SSG_ONLY_ROUTES=... npm run build:web`, and the
 normal SPA build are green. Article/tag pages prerender content + SEO + hreflang + related
 lists with the `hqcache` first-paint seed. `/explore`, `/watch`, and locale-prefixed
-static variants prerender. Sidebar uses real anchors. i18n SSR renders strings in the
+static variants prerender. Sidebar uses real anchors. i18n prerender renders strings in the
 right language. Full builds also emit static meta-refresh redirect files.
 
 **ISR verified end-to-end:** a real changed doc on staging triggered

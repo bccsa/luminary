@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { chainFor, queueOnChain, releaseSsrChain } from "./ssrChains";
+import { chainFor, queueOnChain, releaseSsgChain } from "./ssgChains";
 
-describe("ssrChains", () => {
+describe("ssgChains", () => {
     it("resolves immediately for a route with no queued chain", async () => {
         await expect(chainFor("/never-queued")).resolves.toBeUndefined();
     });
@@ -15,7 +15,7 @@ describe("ssrChains", () => {
 
     it("resets a route back to the resolved-promise default after release", async () => {
         queueOnChain("/route-b", Promise.resolve("done"));
-        releaseSsrChain("/route-b");
+        releaseSsgChain("/route-b");
         await expect(chainFor("/route-b")).resolves.toBeUndefined();
     });
 
@@ -26,7 +26,7 @@ describe("ssrChains", () => {
         await expect(chainFor("/route-c")).resolves.toBe("a");
         await expect(chainFor("/route-d")).resolves.toBe("b");
 
-        releaseSsrChain("/route-c");
+        releaseSsgChain("/route-c");
         await expect(chainFor("/route-d")).resolves.toBe("b");
     });
 

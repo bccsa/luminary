@@ -310,7 +310,7 @@ describe("SingleContent", () => {
         });
     });
 
-    it("does not render the SSR article-text marker on the hydrated client", async () => {
+    it("does not render the SSG article-text marker on the hydrated client", async () => {
         // The marker is prerender-only (import.meta.env.SSR): the hydrated client must
         // omit it so the recovered text doesn't carry a stale attribute into the vdom.
         wrapper = mount(SingleContent, {
@@ -323,7 +323,7 @@ describe("SingleContent", () => {
             expect(wrapper!.find("article").exists()).toBe(true);
         });
 
-        expect(wrapper!.find("[data-ssr-article-text]").exists()).toBe(false);
+        expect(wrapper!.find("[data-ssg-article-text]").exists()).toBe(false);
     });
 
     it("displays the publish date", async () => {

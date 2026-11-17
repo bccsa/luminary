@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { DocType, type StorageDto } from "luminary-shared";
 
 // Collect onServerPrefetch callbacks instead of invoking them immediately (unlike
-// useContentQuery.ssr.spec.ts's mock) so a rejecting fetch in the retry test below can be
+// useContentQuery.ssg.spec.ts's mock) so a rejecting fetch in the retry test below can be
 // awaited explicitly via Promise.allSettled, rather than becoming an unhandled rejection.
 const prefetchCallbacks: Array<() => Promise<unknown>> = [];
 vi.mock("vue", async (importOriginal) => {
@@ -41,7 +41,7 @@ async function loadSubject() {
     return (await import("./useBucketInfo")).useBucketInfo;
 }
 
-describe("useBucketInfo — SSR prerender path", () => {
+describe("useBucketInfo — SSG prerender path", () => {
     beforeEach(() => {
         prefetchCallbacks.length = 0;
         queryRemoteMock.mockReset().mockResolvedValue([fakeBucket]);

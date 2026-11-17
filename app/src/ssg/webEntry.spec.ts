@@ -24,7 +24,7 @@ vi.mock("@/App.vue", () => ({ default: {} }));
 vi.mock("@/i18n", () => ({ initI18n: () => ({ install: () => undefined }) }));
 vi.mock("@/ssg/clientRuntime", () => ({ initSsgClient: vi.fn(async () => undefined) }));
 vi.mock("@/auth", () => ({ setupAuth: vi.fn(async () => undefined) }));
-vi.mock("@/util/ssrTextRecovery", () => ({ captureSsrArticleTextSnapshot: vi.fn() }));
+vi.mock("@/util/ssgTextRecovery", () => ({ captureSsgArticleTextSnapshot: vi.fn() }));
 vi.mock("@/ssg/hydrationLanguage", () => ({ applyServedLanguage: vi.fn() }));
 
 const TELEGRAM_UA = "Mozilla/5.0 (Linux; Android 14) Telegram-Android/11.0";

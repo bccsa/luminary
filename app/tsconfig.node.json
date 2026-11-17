@@ -11,7 +11,7 @@
         "src/bootSplash.ts",
         "src/util/sessionNow.ts",
         "src/ssg/facetKeys.ts",
-        "src/ssg/ssrChains.ts",
+        "src/ssg/ssgChains.ts",
         "src/ssg/renderDiagnostics.ts",
         "src/ssg/docFacetShards.ts",
         "src/ssg/redirectIndex.ts",

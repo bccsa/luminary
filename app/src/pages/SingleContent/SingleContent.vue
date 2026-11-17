@@ -82,7 +82,7 @@ import {
 import { useContentHead, type PublicTaxonomy } from "@/seo/contentHead";
 import { useTranslationSwitcher } from "@/composables/useTranslationSwitcher";
 import { useKeepScreenAwake } from "@/composables/useKeepScreenAwake";
-import { recoverSsrArticleText, takeSsrArticleTextSnapshot } from "@/util/ssrTextRecovery";
+import { recoverSsgArticleText, takeSsgArticleTextSnapshot } from "@/util/ssgTextRecovery";
 import { isPrerender } from "@/ssg/isPrerender";
 
 const router = useRouter();
@@ -126,10 +126,10 @@ const { output: contentArr, isFetching: isContentFetching } = useContentQueryWit
         stripFields: [],
         persistOffline: true,
         // `text` is the heaviest field on the page and already sits in the prerendered
-        // `[data-ssr-article-text]` node — omit it (and the FTS/rev fields, which the
-        // live/persisted copy above now keeps) from the SSR-authored cache write so it
+        // `[data-ssg-article-text]` node — omit it (and the FTS/rev fields, which the
+        // live/persisted copy above now keeps) from the prerender-authored cache write so it
         // isn't shipped twice; the hydration patch below recovers `text` from that node.
-        ssrCacheStripFields: ["text", "fts", "ftsTokenCount", "_rev"],
+        ssgCacheStripFields: ["text", "fts", "ftsTokenCount", "_rev"],
     },
 );
 
@@ -152,9 +152,9 @@ watch(
     },
 );
 
-// One-time hydration patch (client only): recover `text` (omitted from the cache seed via `ssrCacheStripFields`) from the snapshot `main.web.ts` captured before `app.mount` cleared the prerendered DOM, so `v-html` matches the prerendered HTML. Runs in setup (not a watcher) so it lands before the template's first evaluation. Guarded on `!isPrerender` so it runs in the browser after the web build hydrates but skips the Node prerender pass; the normal SPA always passes. No-op when the seed already carries `text` or there's nothing to recover.
+// One-time hydration patch (client only): recover `text` (omitted from the cache seed via `ssgCacheStripFields`) from the snapshot `main.web.ts` captured before `app.mount` cleared the prerendered DOM, so `v-html` matches the prerendered HTML. Runs in setup (not a watcher) so it lands before the template's first evaluation. Guarded on `!isPrerender` so it runs in the browser after the web build hydrates but skips the Node prerender pass; the normal SPA always passes. No-op when the seed already carries `text` or there's nothing to recover.
 if (!isPrerender()) {
-    const recovered = recoverSsrArticleText(contentArr.value[0], takeSsrArticleTextSnapshot());
+    const recovered = recoverSsgArticleText(contentArr.value[0], takeSsgArticleTextSnapshot());
     if (recovered) contentOverride.value = recovered;
 }
 
@@ -261,7 +261,7 @@ const resolveNotFound = async () => {
     // Cold-start backstop: the prerender seeds `:anon` only, so a logged-in
     // client (reads `:auth`) or cleared/quota-hit localStorage has no seed, and
     // Dexie is empty until sync runs. Before declaring not-found, confirm the
-    // slug exists via the same REST path the SSR prerender used — mirrors the
+    // slug exists via the same REST path the SSG prerender used — mirrors the
     // composable's query shape for the `languageFilter: false` case (the
     // publishDate sort is required for the slug-led index to engage). If the
     // API confirms absence or is unreachable, fall through to the real 404.
@@ -401,7 +401,7 @@ const translationsArr = useContentQuery(
         // scoped to isSSG so normal SPA use doesn't accumulate one entry per slug
         // ever visited for no benefit.
         cacheId: isSSG ? `translations:${props.slug}` : undefined,
-        // These are sibling metadata for the dropdown/hreflang, not the article itself, so don't persist them offline. `cache: true` stays so the SSR-rendered translations list matches the client's first paint.
+        // These are sibling metadata for the dropdown/hreflang, not the article itself, so don't persist them offline. `cache: true` stays so the prerendered translations list matches the client's first paint.
         persistOffline: false,
         // Seek siblings by parentId rather than scanning the publishDate index.
         useIndex: "content-parentId-publishDate-index",
@@ -493,7 +493,7 @@ const languages = computed<LanguageDto[]>(() =>
         .filter((l): l is LanguageDto => !!l),
 );
 
-// Tags drive the category chips and RelatedContent. In the prerender the seam fetches them chained after `content` (via `ssrChain`, so the selector reads a resolved parent) and primes a per-slug cache for no-flash hydration.
+// Tags drive the category chips and RelatedContent. In the prerender the seam fetches them chained after `content` (via `ssgChain`, so the selector reads a resolved parent) and primes a per-slug cache for no-flash hydration.
 const tags = useContentQuery(
     () => {
         // Before `content` resolves, match nothing via a provably-empty `$in` rather
@@ -1098,7 +1098,7 @@ watch([isLoading, content, is404], async () => {
                         >
                             <div
                                 ref="articleProseRef"
-                                :data-ssr-article-text="isPrerender() ? true : undefined"
+                                :data-ssg-article-text="isPrerender() ? true : undefined"
                                 v-html="text"
                                 class="prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
                                 :class="{

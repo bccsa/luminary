@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import { defineComponent, h, ref, computed } from "vue";
 import type { ContentDto } from "luminary-shared";
 import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
-import { captureSsrArticleTextSnapshot } from "@/util/ssrTextRecovery";
+import { captureSsgArticleTextSnapshot } from "@/util/ssgTextRecovery";
 import SingleContent from "../SingleContent.vue";
 
 // Client boot of the web build: isPrerender false, VITE_BUILD_TARGET "web" so the
@@ -166,7 +166,7 @@ vi.mock("@/pages/NotFoundPage.vue", () => ({ default: voidStub("NotFoundPage") }
 const SNAPSHOT_KEY = "__SSG_ARTICLE_TEXT__";
 
 // The text-stripped `:anon` seed: what the prerendered cache write left for the
-// hydrated client (ssrCacheStripFields dropped `text`).
+// hydrated client (ssgCacheStripFields dropped `text`).
 function textStrippedSeed(): ContentDto {
     const doc = { ...mockEnglishContentDto } as Record<string, unknown>;
     delete doc.text;
@@ -191,8 +191,8 @@ describe("SingleContent — client-boot article text recovery", () => {
 
     it("recovers the article body from the prerendered snapshot over a text-stripped seed", () => {
         // Stand in for the prerendered prose node main.web.ts snapshots before mount.
-        document.body.innerHTML = `<div data-ssr-article-text="true"><p>Article body text</p></div>`;
-        captureSsrArticleTextSnapshot();
+        document.body.innerHTML = `<div data-ssg-article-text="true"><p>Article body text</p></div>`;
+        captureSsgArticleTextSnapshot();
 
         const wrapper = mount(SingleContent, { props: { slug: mockEnglishContentDto.slug } });
 
@@ -203,8 +203,8 @@ describe("SingleContent — client-boot article text recovery", () => {
     });
 
     it("renders no prose when no snapshot was captured (negative control)", () => {
-        // No [data-ssr-article-text] node → capture stores null → nothing to recover.
-        captureSsrArticleTextSnapshot();
+        // No [data-ssg-article-text] node → capture stores null → nothing to recover.
+        captureSsgArticleTextSnapshot();
 
         const wrapper = mount(SingleContent, { props: { slug: mockEnglishContentDto.slug } });
 
