@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { TimelineScrub, type TimelineScrubEffect } from "../ui/timelineScrub";
+import {
+    TIMELINE_SCRUB_IDLE_MS,
+    TimelineScrub,
+    type TimelineScrubEffect,
+} from "../ui/timelineScrub";
 
 /** Mirrors the native players' TimelineScrub tests. */
 describe("TimelineScrub: two touches to scrub", () => {
@@ -59,9 +63,10 @@ describe("TimelineScrub: two touches to scrub", () => {
         expect(effects).toEqual([open("strip"), pause, { kind: "seek", time: 5 }, play]);
     });
 
-    it("it closes five seconds after the last touch, leaving playback alone", () => {
+    it("it closes ten seconds after the last touch, leaving playback alone", () => {
+        expect(TIMELINE_SCRUB_IDLE_MS).toBe(10_000);
         scrub.tapped(true);
-        vi.advanceTimersByTime(4900);
+        vi.advanceTimersByTime(TIMELINE_SCRUB_IDLE_MS - 100);
         expect(scrub.isOpen).toBe(true);
         vi.advanceTimersByTime(100);
         expect(scrub.isOpen).toBe(false);
@@ -72,10 +77,10 @@ describe("TimelineScrub: two touches to scrub", () => {
         scrub.tapped(true);
         vi.advanceTimersByTime(2000);
         scrub.dragBegan(true, true);
-        vi.advanceTimersByTime(10000);
+        vi.advanceTimersByTime(2 * TIMELINE_SCRUB_IDLE_MS);
         expect(scrub.isOpen).toBe(true);
         scrub.dragEnded(5);
-        vi.advanceTimersByTime(4900);
+        vi.advanceTimersByTime(TIMELINE_SCRUB_IDLE_MS - 100);
         expect(scrub.isOpen).toBe(true);
         vi.advanceTimersByTime(100);
         expect(scrub.isOpen).toBe(false);
@@ -98,7 +103,7 @@ describe("TimelineScrub: two touches to scrub", () => {
     it("a new video mid-drag puts it away without playing", () => {
         scrub.dragBegan(true, true);
         scrub.reset();
-        vi.advanceTimersByTime(10000);
+        vi.advanceTimersByTime(2 * TIMELINE_SCRUB_IDLE_MS);
         expect(effects).toEqual([open("strip"), pause, close]);
     });
 
@@ -106,7 +111,7 @@ describe("TimelineScrub: two touches to scrub", () => {
         scrub.tapped(true);
         vi.advanceTimersByTime(2000);
         scrub.tapped(true);
-        vi.advanceTimersByTime(4900);
+        vi.advanceTimersByTime(TIMELINE_SCRUB_IDLE_MS - 100);
         expect(scrub.isOpen).toBe(true);
         expect(effects).toEqual([open("strip")]);
     });

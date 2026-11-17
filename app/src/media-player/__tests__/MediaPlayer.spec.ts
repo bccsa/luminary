@@ -11,6 +11,7 @@ import MediaPlayer from "../MediaPlayer.vue";
 import LDialog from "@/components/common/LDialog.vue";
 import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 import { ScreenWakeKey } from "@/build-time/contracts/screen-wake/token";
+import { TIMELINE_SCRUB_IDLE_MS } from "../player/ui/timelineScrub";
 import {
     chosenAudio,
     closeMediaPlayer,
@@ -332,6 +333,7 @@ async function playing() {
 let screenWide = true;
 let screenLandscape = false;
 let pointerFine = false;
+let pointerCoarse = true;
 const setupMatchMedia = window.matchMedia;
 beforeEach(() => {
     chosenAudio.value = null;
@@ -339,6 +341,7 @@ beforeEach(() => {
     screenWide = true;
     screenLandscape = false;
     pointerFine = false;
+    pointerCoarse = true;
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
         matches: query.includes("1024px")
             ? screenWide
@@ -346,7 +349,9 @@ beforeEach(() => {
               ? screenLandscape
               : query.includes("pointer: fine")
                 ? pointerFine
-                : false,
+                : query.includes("pointer: coarse")
+                  ? pointerCoarse
+                  : false,
         media: query,
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
@@ -1125,6 +1130,34 @@ describe("MediaPlayer", () => {
             expect(wrapper.find("[data-test='mediaPlayerScrubPicture']").exists()).toBe(false);
         });
 
+        it("leaves the strip a tap opened to the player to close, however long the video plays on", async () => {
+            engine.thumbnailsReady = true;
+            const wrapper = await playing();
+            engine.state.playing = true;
+            await flushPromises();
+            const view = screen(wrapper);
+            vi.useFakeTimers();
+            try {
+                view.vm.$emit("scrub", {
+                    time: 30,
+                    markerX: 100,
+                    width: 390,
+                    bottom: 200,
+                    held: true,
+                });
+                await flushPromises();
+                vi.advanceTimersByTime(TIMELINE_SCRUB_IDLE_MS - 100);
+                await flushPromises();
+                expect(wrapper.findComponent({ name: "ScrubRoster" }).exists()).toBe(true);
+
+                view.vm.$emit("scrub", null);
+                await flushPromises();
+                expect(wrapper.findComponent({ name: "ScrubRoster" }).exists()).toBe(false);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
         it("drops a strip still up when a drag arrives without the player closing it first", async () => {
             engine.thumbnailsReady = true;
             const wrapper = await playing();
@@ -1375,6 +1408,23 @@ describe("MediaPlayer", () => {
 
             await find(wrapper, "mediaPlayerAudio").trigger("click");
             await flushPromises();
+            expect(screen(wrapper).props().fill).toBe(false);
+            expect(
+                wrapper.findComponent({ name: "MediaPlayerWrapper" }).props("windowedControls"),
+            ).toBe(false);
+        });
+
+        // #2625: a computer's or a TV box's window under 1024 px but wider than tall is not a phone turned sideways.
+        it.each([
+            ["900×700", "a mouse", true],
+            ["1023×900", "a mouse", true],
+            ["960×490", "a mouse", true],
+            ["960×490", "only a remote or keyboard", false],
+        ])("keeps the now-playing screen in a %s window with %s", async (_size, _input, fine) => {
+            screenLandscape = true;
+            pointerFine = fine;
+            pointerCoarse = false;
+            const wrapper = await playing();
             expect(screen(wrapper).props().fill).toBe(false);
             expect(
                 wrapper.findComponent({ name: "MediaPlayerWrapper" }).props("windowedControls"),

@@ -167,6 +167,36 @@ describe("ActivityAll", () => {
         expect(wrapper.text()).not.toContain(mockEnglishContentDto.summary);
     });
 
+    it("clamps the passage to the lines a summary takes, so the card keeps its size", async () => {
+        await recordUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId });
+        await recordUserActivity(
+            {
+                type: "highlighted",
+                contentId: mockEnglishContentDto._id,
+                parentId: mockEnglishContentDto.parentId,
+            },
+            { ranges: [range("a long passage ".repeat(40))] },
+        );
+
+        const wrapper = mount(ActivityAll);
+
+        await waitForExpect(() => {
+            expect(wrapper.find("[data-test=activity-excerpt]").exists()).toBe(true);
+            expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
+        });
+        const sizing = (classes: string) =>
+            classes
+                .split(/\s+/)
+                .filter((c) => /^(line-clamp|leading|text-(xs|sm|base|lg))/.test(c))
+                .sort();
+        const summary = wrapper
+            .findAll("[data-card-text] p")
+            .find((p) => p.text() === mockEnglishContentDto.summary)!;
+        const excerpt = wrapper.find("[data-test=activity-excerpt]").element.parentElement!;
+
+        expect(sizing(excerpt.className)).toEqual(sizing(summary.classes().join(" ")));
+    });
+
     it("paints the passage in the colour it was highlighted in", async () => {
         await recordUserActivity(
             {
