@@ -371,9 +371,11 @@ export function useReadingProgressTracker(options: {
     // A query rebuild can drop and restore the same article mid-read; progress saved
     // meanwhile must not come back as a resume offer, so the snapshot is taken once per id.
     let snapshotContentId: Uuid | undefined;
+    // Reading past the saved point means the reader is already beyond where they left off.
+    const progressAdvancedThisVisit = ref(false);
     const hasResumableProgress = computed(() => {
         const p = savedProgressPercent.value;
-        return p > 0 && p < 100;
+        return p > 0 && p < 100 && !progressAdvancedThisVisit.value;
     });
     const hasResumableProgressOnOpen = computed(() => {
         const p = initialSavedProgressPercent.value;
@@ -655,6 +657,7 @@ export function useReadingProgressTracker(options: {
 
         const computedProgress = Math.round((confirmedSegments.size / segments.value.length) * 100);
         const existing = savedReadingProgress(id);
+        if (computedProgress > existing) progressAdvancedThisVisit.value = true;
         const progress = Math.max(existing, computedProgress);
         readingProgressPercent.value = progress;
 
@@ -924,6 +927,7 @@ export function useReadingProgressTracker(options: {
             if (id !== snapshotContentId) {
                 snapshotContentId = id;
                 initialSavedProgressPercent.value = id ? getReadingProgress(id) : 0;
+                progressAdvancedThisVisit.value = false;
             }
             if (segments.value.length > 0) {
                 seedConfirmedFromSavedProgress();

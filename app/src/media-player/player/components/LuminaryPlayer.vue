@@ -47,7 +47,7 @@ import {
 } from "../ui/spriteWarm";
 import { liftCues, liftLine, type LiftableCue } from "../ui/cueLift";
 import { cuesToLyrics, type LyricCue } from "../ui/lyrics";
-import { chapterMask, formatChapterOf } from "../ui/chapterBar";
+import { chapterMask, formatChapterOf, numberedChapter } from "../ui/chapterBar";
 import { hasChapterSkip, nextChapterTime, previousChapterTime } from "../ui/chapterSkip";
 import {
     attachControlTooltips,
@@ -514,9 +514,10 @@ onMounted(() => {
     on("play", () => {
         keepAlive?.sync(true);
         // Played some other way (a key, the lock screen): the scrub has nothing left to hold still.
-        if (timelineScrub.isOpen) timelineScrub.reset();
+        if (timelineScrub.isOpen && !scrubResuming) timelineScrub.reset();
     });
     on("playing", () => {
+        scrubResuming = false;
         keepAlive?.sync(true);
         mediaWaiting.value = false;
     });
@@ -893,11 +894,11 @@ interface ScrubState {
 
 const scrub = shallowRef<ScrubState | null>(null);
 
-/** The title of the chapter a moment is in, or nothing when the video has no chapters or the moment is before the first. */
+/** The numbered chapter a moment is in, or nothing when the video has no chapters or the moment is before the first. */
 function chapterTitleAt(time: number): string {
     const chapters = state.value.chapters;
     const index = chapterIndexAt(chapters, time);
-    return index < 0 ? "" : (chapters[index]?.title ?? "");
+    return index < 0 ? "" : numberedChapter(index, chapters[index]?.title ?? "");
 }
 
 /** The timeline cut at the chapter starts; one plain bar when there are fewer than two chapters. */
@@ -1019,14 +1020,17 @@ const timelineScrub = new TimelineScrub((effect) => {
             else barScrub.value = true;
             break;
         case "close":
+            scrubResuming = false;
             putAwayPin();
             barScrub.value = false;
             barDragAt.value = null;
             break;
         case "pause":
+            scrubResuming = false;
             pause();
             break;
         case "play":
+            scrubResuming = true;
             void play();
             break;
         case "seek":
@@ -1040,6 +1044,8 @@ onBeforeUnmount(() => {
     timelineScrub.reset();
     disarmPlayOnSeeked();
 });
+/** The scrub asked for play itself, after a drag: the strip stays up for its idle time, not put away as by a key. */
+let scrubResuming = false;
 
 /** Opened without frames: the bar thickens and carries a handle. */
 const barScrub = ref(false);
@@ -2337,6 +2343,7 @@ defineExpose({
                     :messages="msg"
                     :id-prefix="instanceId"
                     :thumbnail-at="state.thumbnailsReady ? chapterThumbnailAt : undefined"
+                    :duration="state.duration"
                     @close="closeBrowse"
                     @pick-chapter="pickChapter"
                     @pick-upnext="pickUpNext"

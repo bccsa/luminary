@@ -8,13 +8,16 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import type { Chapter, ThumbnailSpriteCue } from "@luminary-media-converter/player-web";
+import { numberedChapter } from "./player/ui/chapterBar";
 
 const props = withDefaults(
     defineProps<{
         chapter: Chapter;
+        /** Where the chapter stands in the video, from zero; its title is numbered after it. */
+        index: number;
         /** The chapter the playhead is in. */
         current?: boolean;
-        /** A frame of the video at the chapter's start; none draws a text row. */
+        /** A frame of the video from the chapter's middle; none draws a text row. */
         cue?: ThumbnailSpriteCue | null;
         /** Width of the frame in px. */
         frameWidth?: number;
@@ -118,7 +121,8 @@ const imageStyle = computed(() => {
                         ? 'font-bold text-yellow-800 dark:text-yellow-300'
                         : 'font-semibold text-zinc-800 dark:text-slate-200'
                 "
-                >{{ chapter.title }}</span
+                data-test="mediaPlayerChapterTitle"
+                >{{ numberedChapter(index, chapter.title) }}</span
             >
             <span
                 class="truncate text-sm tabular-nums"

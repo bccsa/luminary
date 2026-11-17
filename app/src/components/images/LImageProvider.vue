@@ -37,6 +37,9 @@ export const sizes = {
     // Fills the width of a card in a multi-column grid (e.g. the related-content grid).
     card: "w-full max-w-full",
     smallSquare: "w-12 max-w-12 min-w-12 md:w-12 md:max-w-12 md:min-w-12",
+    // Square at the height a 16:9 `small` thumbnail has (80x45, md 96x54).
+    searchThumbnail:
+        "w-[45px] max-w-[45px] min-w-[45px] md:w-[54px] md:max-w-[54px] md:min-w-[54px]",
     icon: "",
 };
 export type ImageSize = keyof typeof sizes;
@@ -56,6 +59,7 @@ export const sizesMap: Record<ImageSize, string> = {
     // 5 from xl. (Mobile uses the left-thumbnail slot instead.)
     card: "(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw",
     smallSquare: "48px",
+    searchThumbnail: "(min-width: 768px) 54px, 45px",
     icon: "",
 };
 
@@ -72,6 +76,7 @@ export const sizesReducedMap: Record<ImageSize, string> = {
     post: "50vw",
     card: "200px",
     smallSquare: "48px",
+    searchThumbnail: "45px",
     icon: "",
 };
 

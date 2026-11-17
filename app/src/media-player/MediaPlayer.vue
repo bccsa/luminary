@@ -98,6 +98,7 @@ import { mediaSourceFor } from "@/util/mediaSource";
 import { isYouTubeLink } from "@/util/youtube";
 import PlayerIcon from "./PlayerIcon.vue";
 import { timeEnds } from "./playerTime";
+import { TIMELINE_SCRUB_IDLE_MS } from "./player/ui/timelineScrub";
 import MediaPlayerMenuItem from "./MediaPlayerMenuItem.vue";
 import MediaPlayerUpNext from "./MediaPlayerUpNext.vue";
 import { useUpNext } from "./useUpNext";
@@ -927,9 +928,14 @@ watch(playing, (isPlaying) => {
     if (isPlaying && framesPinned.value && !playheadFrame) trackPlayhead();
 });
 
-/** Pinned frames nobody touches while the video plays on are put away: moving them redraws the page every frame. */
-const PIN_IDLE_MS = 5000;
+/**
+ * Pinned frames nobody touches while the video plays on are put away: moving them redraws the page every frame. A
+ * strip the player holds is its to close, on its own count, which a tap on its bar starts again.
+ */
 let pinIdleTimer: ReturnType<typeof setTimeout> | undefined;
+function unpinIdle() {
+    if (!heldByPlayer) unpinRoster();
+}
 watch(
     () =>
         [
@@ -942,7 +948,7 @@ watch(
     ([pinned, isPlaying, drag, finger, nowPlayingHeld]) => {
         clearTimeout(pinIdleTimer);
         if (pinned && isPlaying && !drag && !finger && !nowPlayingHeld) {
-            pinIdleTimer = setTimeout(unpinRoster, PIN_IDLE_MS);
+            pinIdleTimer = setTimeout(unpinIdle, TIMELINE_SCRUB_IDLE_MS);
         }
     },
 );
@@ -1262,16 +1268,27 @@ const nowPlaying = computed(() => !isDesktop.value);
 
 /**
  * A phone's browser turned sideways on a video: a page cannot take the screen without a tap, so the picture fills
- * the window instead, with the player's own controls; turning upright gives the now-playing screen back.
+ * the window instead, with the player's own controls; turning upright gives the now-playing screen back. Only a touch
+ * screen is a phone turned sideways: a computer's or a TV box's window wider than tall keeps the now-playing screen.
  */
 const landscapeQuery = window.matchMedia("(orientation: landscape)");
 const landscape = ref(landscapeQuery.matches);
 const onLandscapeChange = (event: MediaQueryListEvent) => (landscape.value = event.matches);
 landscapeQuery.addEventListener("change", onLandscapeChange);
 onBeforeUnmount(() => landscapeQuery.removeEventListener("change", onLandscapeChange));
+const touchQuery = window.matchMedia("(pointer: coarse)");
+const touch = ref(touchQuery.matches);
+const onTouchChange = (event: MediaQueryListEvent) => (touch.value = event.matches);
+touchQuery.addEventListener("change", onTouchChange);
+onBeforeUnmount(() => touchQuery.removeEventListener("change", onTouchChange));
 const webFill = computed(
     () =>
-        nowPlaying.value && !isNativeApp() && landscape.value && expanded.value && !audioMode.value,
+        nowPlaying.value &&
+        !isNativeApp() &&
+        touch.value &&
+        landscape.value &&
+        expanded.value &&
+        !audioMode.value,
 );
 /**
  * The now-playing screen is what the full player shows on a phone, and on a computer too, as the card in the
@@ -2215,7 +2232,10 @@ function onKeydown(event: KeyboardEvent) {
                 // corner there is the card's less the line.
                 'lg:w-96 lg:rounded-xl',
                 // The screen has no height of its own, so on a computer the card is as tall as a phone's screen.
-                screen && expanded ? 'lg:h-[min(46rem,calc(100dvh-2.5rem))]' : '',
+                // `vh` first: older Chromium (a Raspberry Pi's) has no `dvh` and would leave the card 0 px tall.
+                screen && expanded
+                    ? 'lg:h-[min(46rem,calc(100vh-2.5rem))] lg:supports-[height:100dvh]:h-[min(46rem,calc(100dvh-2.5rem))]'
+                    : '',
             ]"
             :style="{
                 ...(playerDragging
@@ -3192,6 +3212,7 @@ function onKeydown(event: KeyboardEvent) {
                     :chapters="chapters"
                     :current-time="currentTime"
                     :cue-at="chapterCueAt"
+                    :duration="duration"
                     @select="playChapter"
                 />
             </div>

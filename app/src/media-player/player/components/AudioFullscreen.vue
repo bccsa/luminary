@@ -356,7 +356,7 @@ function announceScrub(time: number, held = false): void {
 /**
  * A finger on the bar does not seek where it lands: a tap opens it for scrubbing and holds the sound; only a drag
  * moves it. With frames, opening shows the host's strip of them (the `scrub` event, as a drag does); without, the bar
- * thickens and carries a handle. It closes on a tap elsewhere, on play, or five seconds after the last touch, as the
+ * thickens and carries a handle. It closes on a tap elsewhere, on play, or ten seconds after the last touch, as the
  * video players' timelines do. A mouse still seeks on a click.
  */
 const scrubOpen = ref(false);
@@ -408,7 +408,7 @@ function framesReady(): boolean {
 
 /**
  * A press anywhere but the bar and the host's strip closes it, and play closes it and plays. A finger on the strip,
- * which the host drags itself, keeps it open until five seconds after it lifts.
+ * which the host drags itself, keeps it open until ten seconds after it lifts.
  */
 function onRootDown(event: PointerEvent): void {
     pressClosesOverlay = timelineScrub.isOpen || menu.value !== null || browseOpen.value;
@@ -1135,10 +1135,16 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                         data-test="afsChapterChip"
                     >
                         <i aria-hidden="true"></i
-                        >{{
-                            formatChapterOf(messages.chapterOf, chapterIndex + 1, chapters.length)
-                        }}
-                        · {{ chapters[chapterIndex]?.title }}
+                        ><span class="lmpl-afs-chip-text"
+                            >{{
+                                formatChapterOf(
+                                    messages.chapterOf,
+                                    chapterIndex + 1,
+                                    chapters.length,
+                                )
+                            }}
+                            · {{ chapters[chapterIndex]?.title }}</span
+                        >
                     </span>
                     <!-- Under the title, the host's own way on from what plays (back to its page, say). -->
                     <div v-if="slots['under-title'] || pictureTools" class="lmpl-afs-undertitle">
@@ -1748,6 +1754,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
             :messages="messages"
             :id-prefix="uid"
             :thumbnail-at="thumbnailAt"
+            :duration="knownDuration"
             data-test="afsSheet"
             @close="browseOpen = false"
             @pick-chapter="pickChapter"

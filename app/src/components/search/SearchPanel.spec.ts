@@ -236,6 +236,35 @@ describe("SearchPanel (page mode — /search)", () => {
         expect(selected[0].attributes("id")).toBe("search-result-0");
     });
 
+    it("shows result thumbnails as squares at the original thumbnail height", async () => {
+        const results = [
+            {
+                docId: "a",
+                score: 1,
+                wordMatchScore: 0,
+                doc: { _id: "a", title: "Title a", slug: "a", language: "lang-eng" },
+            } as unknown as FtsSearchResult,
+        ];
+        setupFts({ results, lastSearchedQuery: "title" });
+        wrapper = mount(SearchPanel, {
+            props: { mode: "page" },
+            global: {
+                stubs: {
+                    LImage: {
+                        props: ["size", "aspectRatio"],
+                        template:
+                            '<div data-test="thumb" :data-size="size" :data-aspect="aspectRatio" />',
+                    },
+                },
+            },
+        });
+        await flushPromises();
+
+        const thumb = wrapper.find('[data-test="thumb"]');
+        expect(thumb.attributes("data-size")).toBe("searchThumbnail");
+        expect(thumb.attributes("data-aspect")).toBe("square");
+    });
+
     it("clears the query on Escape instead of closing an overlay", async () => {
         mountPage();
         await wrapper!.find("input").setValue("hello");
