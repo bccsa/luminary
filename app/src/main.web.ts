@@ -28,6 +28,8 @@ import { markAppReady } from "./util/renderState";
 // from normal app load.
 const LANGUAGES_QUERY = { selector: { type: DocType.Language }, identifier: "ssgPrerender" };
 
+const CHUNK_RELOAD_FLAG = "chunkReloadAttempted";
+
 // The language list is identical for every prerendered page, so fetch it ONCE per
 // build (the full ~2k-route build otherwise re-fetches + re-allocates it per page).
 let ssgLanguages: LanguageDto[] | undefined;
@@ -91,6 +93,19 @@ export const createApp = ViteSSG(
                 keep.has(l._id) ? l : { ...l, translations: {} },
             );
         } else {
+            // A lazy chunk can 404 when the page or tab predates a deploy. Reload once to pick
+            // up the current build; the session flag stops a genuinely missing chunk looping.
+            window.addEventListener("vite:preloadError", (event) => {
+                try {
+                    if (sessionStorage.getItem(CHUNK_RELOAD_FLAG)) return;
+                    sessionStorage.setItem(CHUNK_RELOAD_FLAG, "1");
+                } catch {
+                    return;
+                }
+                event.preventDefault();
+                window.location.reload();
+            });
+
             // Snapshot the prerendered article body before `app.mount` clears #app; the
             // hydration patch in SingleContent recovers `text` (stripped from the cache
             // seed) from this snapshot so the body survives the JS boot.
