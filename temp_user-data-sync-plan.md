@@ -15,13 +15,22 @@
   handling and have regression coverage for schema/cursor isolation. The interrupted-pull
   regression now exercises the real sync engine across a database reopen.
 - **Phase 2:** intentionally not implemented yet; Phase 3 development was started first.
-- **Phase 3:** in progress. These Phase 0–1 corrections preserve that work; they do not
-  complete its owner handling, boot sequencing, highlight readers, logout or UI integration.
+- **Phase 3:** implemented. Activity opens and migrates before components mount in both
+  builds, then reconciles its owner after auth before enabling transport. Store, highlight
+  and recommendation readers use the source; UI dates use `activityTimeUtc`. Lost sessions
+  retain data, different owners clear first, and explicit logout flushes/warns/clears with
+  an offline guard. Signed-in clearing queues tombstones; signed-out clearing wipes locally.
+  Progress backfill runs once per device to avoid recreating cleared or signed-out history.
 - The durable architecture decision is recorded in ADR 0020.
 
 Verification of these corrections: all 1,502 shared tests and 133 focused app tests
 passed; the shared build, app type-check, and lint of changed TypeScript files passed.
 Playwright and DB/S3-dependent API tests were not run.
+
+Phase 3 verification: the full app suite passed (1,834 tests passed, one skipped), as did
+its production SPA build, app type-check, changed-file lint and English/French seed validation.
+Web startup and mounted-article refresh are covered by unit tests. Full prerender and two-browser
+account sync remain unverified until the Phase 2 API source is available.
 
 ## 1. Summary
 
@@ -34,7 +43,7 @@ The approach is to reuse the existing sync engine and change-request queue again
 - **Wire:** the existing `POST /query` and `POST /changerequest` endpoints, with an optional `dataSource: "user"` field. With no field, both behave exactly as today.
 - **Security:** an owner rule. A user reads and writes only their own docs. The group/ACL permission system is not involved.
 
-The work is four changes merged in order (Phases 0–3), followed by two later phases (4–5). All decisions in section 3 are settled with the product owner; section 4 lists alternatives already ruled out.
+The work is four changes (Phases 0–3), followed by two later phases (4–5). Implementation proceeds through 0, 1, 3, then 2; capability gating keeps the app local until the API source is available. All decisions in section 3 are settled with the product owner; section 4 lists alternatives already ruled out.
 
 ## 2. Terms
 
@@ -86,7 +95,7 @@ The work is four changes merged in order (Phases 0–3), followed by two later p
 | Decision | Detail and reason |
 |---|---|
 | First upload | Existing history is uploaded in full, paced to a few requests per second while a backlog is queued; likes and highlights first, viewed last. |
-| Order | Four separate changes, merged in order: Phase 0, 1, 2, 3. |
+| Order | Four separate changes: Phase 0, 1, 3, then 2. Capability gating keeps user-data transport off until the API supports it. |
 | Later | Live updates (Phase 4); per-user quota and tombstone clean-up (Phase 5). Device authorization is a design seam only. |
 
 ## 4. Alternatives already ruled out
@@ -140,7 +149,7 @@ These were considered and rejected; please do not revisit them without new infor
 | `type` | client | `"userActivity"` |
 | `activityType` | client | `viewed` / `liked` / `highlighted`. This is today's row field `type`, renamed because `type` is the doc type everywhere else. |
 | `parentId`, `contentId?` | client | Unchanged from today. |
-| `payload?` | client | Highlights only: one passage `{ start, end, color, text }`. |
+| `payload?` | client | Highlights only: one passage `{ range: { start, end, color, text } }`. |
 | `activityTimeUtc` | client | When the activity happened. Orders and groups the activity pages and decides which copy wins a merge. The server caps it at its own clock so a wrong device clock cannot win forever. |
 | `updatedTimeUtc` | server | The sync cursor. `DbService`-style: overwritten on every write. |
 | `deleted?` | client | Tombstone flag. |
@@ -313,6 +322,7 @@ Write one with `adr new` during Phase 1 or 2. It should record the owner-scoped 
 Commands:
 
 - `cd shared && npm run test && npm run build`
+- `cd app && npm run type-check` — checks application, Vite configuration and Vitest TypeScript projects; running Vitest alone does not type-check specs.
 - `cd api && npm run typecheck && npm test -- src/userData`, plus the adjusted `query.controller`, `changeRequest.service` and `changeRequest.controller` specs.
 - `cd app && npx vitest run src/userActivity src/pages/Activity src/components/common src/util`. Note that `npm run test:unit` in `app/` is watch mode and never exits.
 - The CouchDB-backed API specs and the Playwright E2E suite need a local CouchDB and MinIO (see `api/README.md`). The repository owner runs E2E.

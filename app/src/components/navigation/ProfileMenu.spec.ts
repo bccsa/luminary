@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
+import DesktopSidebar from "./DesktopSidebar.vue";
 import ProfileMenu from "./ProfileMenu.vue";
 import * as auth from "@/auth";
 import { setActivePinia } from "pinia";
@@ -197,6 +198,22 @@ describe("ProfileMenu", () => {
             expect(logout).not.toHaveBeenCalled();
             expect(notificationStore.addNotification).toHaveBeenCalled();
         });
+    });
+
+    it("refuses offline logout from the desktop sidebar", async () => {
+        const logout = vi.fn();
+        vi.mocked(auth.useAuth).mockReturnValue({
+            isAuthenticated: ref(true),
+            user: ref({ name: "Test" }),
+            logout,
+        } as any);
+        isConnected.value = false;
+        const wrapper = mount(DesktopSidebar, { global: { stubs: { LanguageModal: true } } });
+        await wrapper.find("button[title='Logout']").trigger("click");
+        expect(logout).not.toHaveBeenCalled();
+        expect(useNotificationStore().addNotification).toHaveBeenCalledWith(
+            expect.objectContaining({ id: "no-internet-connection-logout" }),
+        );
     });
 
     it("offers an available update and applies it", async () => {

@@ -8,8 +8,13 @@ import {
     ShareIcon,
 } from "@heroicons/vue/24/outline";
 import { useI18n } from "vue-i18n";
-import { db, reportError, type HighlightColor, type HighlightRange } from "luminary-shared";
-import { recordUserActivity, removeUserActivity } from "@/userActivity/store";
+import { reportError, type HighlightColor, type HighlightRange } from "luminary-shared";
+import {
+    getUserActivity,
+    recordUserActivity,
+    removeUserActivity,
+    userActivityVersion,
+} from "@/userActivity/store";
 import {
     HIGHLIGHT_COLORS,
     addHighlight,
@@ -371,11 +376,9 @@ function rangeKey(range: HighlightRange): string {
 
 /** Every active highlight row for this content, oldest first by activity time. */
 async function loadHighlightRowsForContent() {
-    return db.userActivity
-        .where("type")
-        .equals("highlighted")
-        .filter((row) => row.contentId === props.contentId && !row.deleted)
-        .sortBy("updatedTimeUtc");
+    return (await getUserActivity("highlighted"))
+        .filter((row) => row.contentId === props.contentId)
+        .sort((a, b) => a.activityTimeUtc - b.activityTimeUtc);
 }
 
 /**
@@ -437,12 +440,14 @@ async function saveHighlights(): Promise<boolean> {
     }
 }
 
+watch(userActivityVersion, () => void restoreHighlights(false));
+
 let restoreGeneration = 0;
 
 /** Loads this content's highlights and paints them onto the article as it is now. */
-async function restoreHighlights() {
+async function restoreHighlights(force = true) {
     const generation = ++restoreGeneration;
-    highlights = [];
+    let restored: HighlightRange[] = [];
     try {
         const rows = await loadHighlightRowsForContent();
 
@@ -454,14 +459,17 @@ async function restoreHighlights() {
                 if (!range) continue;
                 const anchored = anchorHighlights([range], articleText)[0];
                 if (!anchored) continue;
-                highlights = addHighlight(
-                    highlights,
+                restored = addHighlight(
+                    restored,
                     articleText,
                     anchored.start,
                     anchored.end,
                     anchored.color,
                 );
             }
+        }
+        if (prose.value && (force || JSON.stringify(restored) !== JSON.stringify(highlights))) {
+            highlights = restored;
             paintHighlights(prose.value, highlights);
         }
     } catch (error) {

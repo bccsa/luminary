@@ -6,6 +6,10 @@
     "name": "Français",
     "default": 0,
     "translations": {
+        "logout.unsent_activity_warning": "Certaines activités ne sont pas synchronisées. La déconnexion les supprimera de cet appareil. Se déconnecter quand même ?",
+        "settings.clear_activity.description_account": "Effacez l’historique, les mentions J’aime et les surlignages de votre compte sur tous les appareils.",
+        "settings.clear_activity.modal.description_account": "Effacer l’activité sur tous les appareils ? Les suppressions seront synchronisées à la connexion. Les activités non envoyées d’un autre appareil hors ligne peuvent réapparaître.",
+        "settings.clear_activity.notification.description_account": "Votre activité a été effacée. Les autres appareils seront mis à jour à leur prochaine connexion.",
         "search.placeholder": "Rechercher...",
         "search.go": "Rechercher",
         "search.pressGo": "Appuyez sur Rechercher pour lancer",

@@ -1,184 +1,163 @@
-/**
- * Local store for what the user did to content — viewed, liked, highlighted.
- *
- * Each activity is its own row, so the three are independently mergeable if they ever sync
- * across a user's devices: a like on one device and a highlight on another cannot overwrite
- * each other. Undoing an activity writes a tombstone rather than deleting the row, so the
- * undo itself can propagate.
- *
- * The data never leaves the device, so `privacyPolicy` gates nothing here — it gates any
- * future upload.
- */
-
-import { ref } from "vue";
-import Dexie from "dexie";
 import {
-    db,
+    DocType,
     type HighlightRange,
+    type UserActivityDto,
     type UserActivityEntry,
     type UserActivityType,
     type Uuid,
 } from "luminary-shared";
-import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
+import {
+    clearLocalUserActivity,
+    deleteSourceUserActivityDocs,
+    getSourceUserActivityDoc,
+    getUserActivitySource,
+    isUserActivitySignedIn,
+    listSourceUserActivityDocs,
+    upsertSourceUserActivityDoc,
+} from "./source";
+import { notifyUserActivityChanged } from "./state";
+export { userActivityVersion } from "./state";
 
-/**
- * IndexedDB has no Vue reactivity. Every write bumps this, so views reading the table
- * re-read when it changes — the same idiom as `seenVersion` and `highlightVersion`.
- */
-export const userActivityVersion = ref(0);
-
-/** Bound `viewed` so a long-lived install can't grow it without limit. */
+/** UI row: activity time is distinct from the server's sync cursor. */
+export type ActivityEntry = UserActivityEntry & { activityTimeUtc: number };
 export const MAX_VIEWED = 500;
-/** How long an undone activity is kept before the tombstone itself is dropped. */
 export const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
-/**
- * What identifies one activity. Liking and viewing apply to a post; highlighting applies to
- * one translation of it. Expressed as a union so a caller cannot name a post highlight or a
- * per-translation like — combinations the stored row itself cannot rule out.
- */
 export type ActivityRef =
     | { type: "liked" | "viewed"; parentId: Uuid }
     | { type: "highlighted"; contentId: Uuid; parentId: Uuid; range: HighlightRange };
 
-/** The id that makes an activity unique, taken from its type rather than from what is set. */
-const identityOf = (ref: ActivityRef): string =>
-    ref.type === "highlighted"
-        ? `${ref.contentId}:${ref.range.start}-${ref.range.end}`
-        : ref.parentId;
+export const userActivityId = (activity: ActivityRef): string =>
+    activity.type === "highlighted"
+        ? `highlighted:${activity.contentId}:${activity.range.start}-${activity.range.end}`
+        : `${activity.type}:${activity.parentId}`;
 
-export const userActivityId = (ref: ActivityRef): string => `${ref.type}:${identityOf(ref)}`;
-
-async function readStoredActivity(ref: ActivityRef): Promise<UserActivityEntry | undefined> {
-    return db.userActivity.get(userActivityId(ref));
+function toEntry(doc: UserActivityDto): ActivityEntry {
+    return {
+        _id: doc._id,
+        type: doc.activityType,
+        parentId: doc.parentId,
+        contentId: doc.contentId,
+        updatedTimeUtc: doc.updatedTimeUtc,
+        activityTimeUtc: doc.activityTimeUtc,
+        deleted: doc.deleted,
+        payload: doc.payload,
+    };
 }
 
-async function writeStoredActivity(row: UserActivityEntry): Promise<void> {
-    await db.userActivity.put(row);
+function toDoc(row: UserActivityEntry & { activityTimeUtc?: number }): UserActivityDto {
+    return {
+        _id: row._id,
+        type: DocType.UserActivity,
+        activityType: row.type,
+        parentId: row.parentId,
+        contentId: row.contentId,
+        activityTimeUtc: row.activityTimeUtc ?? row.updatedTimeUtc,
+        updatedTimeUtc: row.updatedTimeUtc,
+        deleted: row.deleted,
+        payload: row.payload,
+    };
 }
 
-/**
- * Record an activity, or refresh the timestamp of one already recorded. Re-recording revives
- * a tombstoned row, so re-liking something that was unliked needs no special case.
- */
+/** Migration/backfill writes never replace an existing row, including a tombstone. */
+export async function addMissingUserActivity(rows: UserActivityEntry[]): Promise<number> {
+    const source = await getUserActivitySource();
+    return source.db.transaction("rw", source.db.docs, source.db.localChanges, async () => {
+        let added = 0;
+        for (const row of rows) {
+            if (await source.db.docs.get(row._id)) continue;
+            await source.db.upsert({ doc: toDoc(row), overwriteLocalChanges: true });
+            added++;
+        }
+        if (added) notifyUserActivityChanged();
+        return added;
+    });
+}
+
 export async function recordUserActivity(
-    ref: ActivityRef,
+    activity: ActivityRef,
     payload?: UserActivityEntry["payload"],
 ): Promise<void> {
-    const resolvedPayload =
-        ref.type === "highlighted"
-            ? { range: payload?.range ?? ref.range }
-            : payload;
-
-    const row: UserActivityEntry = {
-        _id: userActivityId(ref),
-        type: ref.type,
-        parentId: ref.parentId,
-        contentId: ref.type === "highlighted" ? ref.contentId : undefined,
-        updatedTimeUtc: Date.now(),
-        payload: resolvedPayload,
-    };
-
-    await writeStoredActivity(row);
-
-    if (ref.type === "viewed") await trimViewed();
-    if (ref.type === "highlighted") notifyHighlightsChanged();
-    userActivityVersion.value++;
+    await upsertSourceUserActivityDoc(
+        toDoc({
+            _id: userActivityId(activity),
+            type: activity.type,
+            parentId: activity.parentId,
+            contentId: activity.type === "highlighted" ? activity.contentId : undefined,
+            updatedTimeUtc: Date.now(),
+            payload:
+                activity.type === "highlighted"
+                    ? { range: payload?.range ?? activity.range }
+                    : payload,
+        }),
+    );
+    if (activity.type === "viewed") await trimViewed();
+    notifyUserActivityChanged();
 }
 
-/**
- * Undo an activity. Keeps the row as a tombstone so the removal is itself a fact.
- */
-export async function removeUserActivity(ref: ActivityRef): Promise<void> {
-    const existing = await readStoredActivity(ref);
-    if (!existing || existing.deleted) return;
-
-    const row: UserActivityEntry = {
-        ...existing,
-        updatedTimeUtc: Date.now(),
+async function tombstone(doc: UserActivityDto): Promise<void> {
+    await upsertSourceUserActivityDoc({
+        ...doc,
+        activityTimeUtc: Date.now(),
         deleted: true,
         payload: undefined,
-    };
-    await writeStoredActivity(row);
-
-    if (ref.type === "highlighted") notifyHighlightsChanged();
-
-    userActivityVersion.value++;
+    });
 }
 
-/** Delete one passage's row by tombstoning it. */
+export async function removeUserActivity(activity: ActivityRef): Promise<void> {
+    const doc = await getSourceUserActivityDoc(userActivityId(activity));
+    if (!doc || doc.deleted) return;
+    await tombstone(doc);
+    notifyUserActivityChanged();
+}
+
 export async function removeHighlightRange(
-    ref: Omit<Extract<ActivityRef, { type: "highlighted" }>, "range">,
+    activity: Omit<Extract<ActivityRef, { type: "highlighted" }>, "range">,
     range: HighlightRange,
 ): Promise<void> {
-    await removeUserActivity({ ...ref, range });
+    await removeUserActivity({ ...activity, range });
 }
 
-/** Every row of one type, oldest first, straight off the compound index. */
-const ofType = async (type: UserActivityType): Promise<UserActivityEntry[]> => {
-    return db.userActivity
-        .where("[type+updatedTimeUtc]")
-        .between([type, Dexie.minKey], [type, Dexie.maxKey])
-        .toArray();
-};
-
-/** Newest first, tombstones excluded. */
 export async function getUserActivity(
     type: UserActivityType,
     limit?: number,
-): Promise<UserActivityEntry[]> {
-    const rows = (await ofType(type)).filter((row: UserActivityEntry) => !row.deleted);
-    const newestFirst = rows.sort((a: UserActivityEntry, b: UserActivityEntry) => b.updatedTimeUtc - a.updatedTimeUtc);
-    return limit === undefined ? newestFirst : newestFirst.slice(0, limit);
+): Promise<ActivityEntry[]> {
+    const rows = (await getAllUserActivity()).filter((row) => row.type === type);
+    return limit === undefined ? rows : rows.slice(0, limit);
 }
 
-/**
- * Every activity, whatever its type, newest first and tombstones excluded — the feed the
- * activity page's "all" filter shows.
- */
-export async function getAllUserActivity(): Promise<UserActivityEntry[]> {
-    return db.userActivity
-        .orderBy("updatedTimeUtc")
-        .reverse()
-        .filter((row: UserActivityEntry) => !row.deleted)
-        .toArray();
+export async function getAllUserActivity(): Promise<ActivityEntry[]> {
+    return (await listSourceUserActivityDocs())
+        .filter((doc) => !doc.deleted)
+        .map(toEntry)
+        .sort((a, b) => b.activityTimeUtc - a.activityTimeUtc);
 }
 
-/** Whether a single activity is currently recorded — for a like button's state. */
-export async function hasUserActivity(ref: ActivityRef): Promise<boolean> {
-    const row = await readStoredActivity(ref);
-    return !!row && !row.deleted;
+export async function hasUserActivity(activity: ActivityRef): Promise<boolean> {
+    const doc = await getSourceUserActivityDoc(userActivityId(activity));
+    return !!doc && !doc.deleted;
 }
 
-/**
- * Drop the oldest `viewed` rows past the cap. Counts and deletes off the index so a record
- * never has to read the rows it is keeping.
- */
 async function trimViewed(): Promise<void> {
-    const stored = await ofType("viewed");
-    if (stored.length <= MAX_VIEWED) return;
-
-    const excess = stored
-        .sort((a: UserActivityEntry, b: UserActivityEntry) => a.updatedTimeUtc - b.updatedTimeUtc)
-        .slice(0, stored.length - MAX_VIEWED)
-        .map((row: UserActivityEntry) => row._id);
-    await db.userActivity.bulkDelete(excess as string[]);
+    const viewed = (await listSourceUserActivityDocs())
+        .filter((doc) => doc.activityType === "viewed" && !doc.deleted)
+        .sort((a, b) => b.activityTimeUtc - a.activityTimeUtc);
+    for (const doc of viewed.slice(MAX_VIEWED)) await tombstone(doc);
 }
 
-/** Forget every activity. Backs the user-facing "clear activity" action. */
 export async function clearUserActivity(): Promise<void> {
-    await db.userActivity.clear();
-    notifyHighlightsChanged();
-    userActivityVersion.value++;
+    if (!isUserActivitySignedIn()) {
+        await clearLocalUserActivity();
+    } else {
+        // Include existing tombstones too, so every held row records this account-wide clear.
+        for (const doc of await listSourceUserActivityDocs()) await tombstone(doc);
+        notifyUserActivityChanged();
+    }
 }
 
-/** Drop tombstones old enough that nothing can still need to learn of the removal. */
-export async function pruneUserActivityTombstones(now: number = Date.now()): Promise<void> {
-    const expired = await db.userActivity
-        .where("updatedTimeUtc")
-        .below(now - TOMBSTONE_TTL_MS)
-        .filter((row: UserActivityEntry) => !!row.deleted)
-        .primaryKeys();
-
-    if (expired.length > 0) await db.userActivity.bulkDelete(expired as string[]);
+export async function pruneUserActivityTombstones(now = Date.now()): Promise<void> {
+    const expired = (await listSourceUserActivityDocs())
+        .filter((doc) => doc.deleted && doc.activityTimeUtc < now - TOMBSTONE_TTL_MS)
+        .map((doc) => doc._id);
+    if (expired.length) await deleteSourceUserActivityDocs(expired);
 }

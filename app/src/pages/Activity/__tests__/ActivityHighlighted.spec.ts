@@ -1,3 +1,5 @@
+import { activityDocs as activityTable, setupActivityTests } from "@/tests/activityStorage";
+setupActivityTests();
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
@@ -32,7 +34,7 @@ describe("ActivityHighlighted", () => {
         appLanguageIdsAsRef.value.unshift(mockLanguageDtoEng._id);
 
         await db.docs.bulkPut([mockEnglishContentDto]);
-        await db.userActivity.clear();
+        await activityTable.clear();
 
         setActivePinia(createTestingPinia());
     });
@@ -60,7 +62,7 @@ describe("ActivityHighlighted", () => {
     });
 
     it("displays a message when nothing is highlighted", async () => {
-        await db.userActivity.clear();
+        await activityTable.clear();
         const wrapper = mount(ActivityHighlighted);
 
         expect(wrapper.text()).toContain("Posts where you highlight text will show up here.");

@@ -1,6 +1,11 @@
+import {
+    activityDocs as activityTable,
+    setupActivityTests,
+    seedUserActivity,
+} from "@/tests/activityStorage";
+setupActivityTests();
 import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it } from "vitest";
-import { db } from "luminary-shared";
 import {
     extractHighlightQueries,
     loadHighlightQueriesFor,
@@ -69,11 +74,11 @@ describe("extractHighlightQueries", () => {
 
 describe("loadHighlightQueriesFor", () => {
     afterEach(async () => {
-        await db.userActivity.clear();
+        await activityTable.clear();
     });
 
     it("returns only the requested content's own highlight(s), not other saved highlights", async () => {
-        await db.userActivity.bulkPut([
+        await seedUserActivity([
             {
                 _id: "highlighted:content-this-article:0-29",
                 type: "highlighted",
@@ -114,7 +119,7 @@ describe("loadHighlightQueriesFor", () => {
     it("returns an empty array when nothing is stored, or the content id has no highlight", async () => {
         expect(await loadHighlightQueriesFor("content-none")).toEqual([]);
 
-        await db.userActivity.put({
+        await seedUserActivity({
             _id: "highlighted:content-other-article:0-9",
             type: "highlighted",
             parentId: "post-other",

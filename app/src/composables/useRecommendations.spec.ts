@@ -1,3 +1,5 @@
+import { seedUserActivity } from "@/tests/activityStorage";
+import { getUserActivitySource } from "@/userActivity/source";
 import { describe, it, expect, vi } from "vitest";
 import { effectScope, nextTick, watch } from "vue";
 import waitForExpect from "wait-for-expect";
@@ -288,15 +290,25 @@ describe("useRecommendations FTS retrieval", () => {
         const previousLanguages = [...appLanguageIdsAsRef.value];
         const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
         const previousProfile = affinityProfile.value;
-        const previousHighlights = await shared.db.getLuminaryInternals("highlights");
+        const activitySource = await getUserActivitySource();
+        const previousHighlights = await activitySource.db.docs.toArray();
         const fts = spyOnFtsSearch([makeFtsResult(highlightedMatch, 10)]);
         const scope = effectScope();
 
         try {
-            await shared.db.setLuminaryInternals("highlights", {
-                "content-highlight-source": {
-                    html: "<p><mark>Specific highlighted vocabulary</mark></p>",
-                    updatedAt: Date.now(),
+            await seedUserActivity({
+                _id: "highlighted:content-highlight-source:0-31",
+                type: "highlighted",
+                parentId: "highlight-source-post",
+                contentId: "content-highlight-source",
+                updatedTimeUtc: Date.now(),
+                payload: {
+                    range: {
+                        start: 0,
+                        end: 31,
+                        color: "yellow",
+                        text: "Specific highlighted vocabulary",
+                    },
                 },
             });
             appLanguageIdsAsRef.value = [languageId];
@@ -322,7 +334,8 @@ describe("useRecommendations FTS retrieval", () => {
             affinityProfile.value = previousProfile;
             appLanguageIdsAsRef.value = previousLanguages;
             appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
-            await shared.db.setLuminaryInternals("highlights", previousHighlights);
+            await activitySource.db.docs.clear();
+            await activitySource.db.docs.bulkPut(previousHighlights);
         }
     });
 

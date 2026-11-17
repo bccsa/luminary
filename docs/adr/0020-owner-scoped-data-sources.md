@@ -4,8 +4,8 @@ Date: 2026-11-17
 
 ## Status
 
-Accepted. The shared client foundation is implemented; the API and application
-integration are delivered separately.
+Accepted. The shared client foundation and application integration are implemented.
+The server source is delivered separately and enables transport through capability advertisement.
 
 ## Context
 
@@ -64,7 +64,10 @@ queue. An interrupted pull resumes from its own persisted cursor after reload.
   Activity recording and the move to local source storage remain unconditional.
 - Explicit sign-out flushes then clears local source data. Lost sessions retain it;
   a different owner clears it before transport resumes.
-- The server endpoints, provisioning, owner validation and application lifecycle
-  remain follow-up work; the shared foundation alone does not enable account sync.
+- The application initializes activity storage before mount and reconciles ownership
+  after auth. Its store, highlight readers and activity lists share the same source.
+- Server endpoints, provisioning and owner validation remain follow-up work. The client
+  remains local and queued until that source is advertised; application integration alone
+  does not enable account sync.
 - Different identity providers produce separate accounts until account linking exists.
 - Live owner updates, quotas and server tombstone cleanup are later extensions.

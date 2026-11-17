@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type App } from "vue";
 import { createRouter, createWebHistory, type Router } from "vue-router";
-import { DocType, type AuthProviderDto } from "luminary-shared";
+import { DocType, isConnected, type AuthProviderDto } from "luminary-shared";
 import * as Sentry from "@sentry/vue";
 import { AuthFlowKey } from "@/build-time/contracts/auth-flow/token";
 
@@ -61,6 +61,23 @@ vi.mock("luminary-shared", async (importOriginal) => {
         },
     });
 });
+
+const { mockFlushActivity, mockClearActivity, mockSuspendActivity, mockNotify } = vi.hoisted(
+    () => ({
+        mockFlushActivity: vi.fn(),
+        mockClearActivity: vi.fn(),
+        mockSuspendActivity: vi.fn(),
+        mockNotify: vi.fn(),
+    }),
+);
+vi.mock("@/userActivity/source", () => ({
+    flushUserActivity: mockFlushActivity,
+    clearLocalUserActivity: mockClearActivity,
+    suspendUserActivitySync: mockSuspendActivity,
+}));
+vi.mock("@/stores/notification", () => ({
+    useNotificationStore: () => ({ addNotification: mockNotify }),
+}));
 
 vi.mock("oidc-client-ts", () => ({
     UserManager: mockUserManager,
@@ -137,6 +154,11 @@ function installManagerMock(): void {
 }
 
 function resetWorld(): void {
+    isConnected.value = true;
+    mockFlushActivity.mockReset().mockResolvedValue(true);
+    mockClearActivity.mockReset().mockResolvedValue(undefined);
+    mockSuspendActivity.mockReset();
+    mockNotify.mockReset();
     localStorage.clear();
     sessionStorage.clear();
     history.replaceState(null, "", "/");
@@ -949,6 +971,57 @@ describe("auth", () => {
     });
 
     describe("useAuth", () => {
+        it("refuses offline logout inside the auth function without changing credentials or activity", async () => {
+            await loginWithProvider(providerA);
+            isConnected.value = false;
+            expect(await useAuth().logout()).toBe(false);
+            expect(mockFlushActivity).not.toHaveBeenCalled();
+            expect(mockClearActivity).not.toHaveBeenCalled();
+            expect(mockSignoutRedirect).not.toHaveBeenCalled();
+            expect(mockNotify).toHaveBeenCalledWith(
+                expect.objectContaining({ id: "no-internet-connection-logout" }),
+            );
+            expect(readPersistedProvider()).not.toBeNull();
+        });
+
+        it("keeps the session and data when the unsent warning is cancelled", async () => {
+            await loginWithProvider(providerA);
+            mockFlushActivity.mockResolvedValue(false);
+            const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+            expect(await useAuth().logout()).toBe(false);
+            expect(mockFlushActivity).toHaveBeenCalledWith(3000);
+            expect(confirm).toHaveBeenCalledTimes(1);
+            expect(mockClearActivity).not.toHaveBeenCalled();
+            expect(readPersistedProvider()).not.toBeNull();
+            confirm.mockRestore();
+        });
+
+        it("clears activity before credentials only after the unsent warning is accepted", async () => {
+            await loginWithProvider(providerA);
+            mockFlushActivity.mockResolvedValue(false);
+            const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+            mockClearActivity.mockImplementation(async () => {
+                expect(readPersistedProvider()).not.toBeNull();
+                expect(mockSuspendActivity).toHaveBeenCalled();
+            });
+            expect(await useAuth().logout()).toBe(true);
+            expect(mockClearActivity).toHaveBeenCalledTimes(1);
+            expect(readPersistedProvider()).toBeNull();
+            expect(mockSignoutRedirect).toHaveBeenCalledTimes(1);
+            confirm.mockRestore();
+        });
+
+        it("retains activity if connectivity is lost while flushing", async () => {
+            await loginWithProvider(providerA);
+            mockFlushActivity.mockImplementation(async () => {
+                isConnected.value = false;
+                return false;
+            });
+            expect(await useAuth().logout()).toBe(false);
+            expect(mockClearActivity).not.toHaveBeenCalled();
+            expect(readPersistedProvider()).not.toBeNull();
+        });
+
         it("delegates explicit login and logout to the installed OIDC manager", async () => {
             mockClearStaleState.mockResolvedValue(undefined);
             mockSigninRedirect.mockResolvedValue(undefined);
@@ -984,7 +1057,7 @@ describe("auth", () => {
         it("is inert before a provider has been installed", async () => {
             const { loginWithRedirect, logout } = useAuth();
 
-            await expect(logout()).resolves.toBeUndefined();
+            await expect(logout()).resolves.toBe(false);
             expect(loginWithRedirect()).toBeUndefined();
             expect(mockSignoutRedirect).not.toHaveBeenCalled();
             expect(mockSigninRedirect).not.toHaveBeenCalled();

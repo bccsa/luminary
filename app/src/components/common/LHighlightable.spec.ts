@@ -1,11 +1,18 @@
+import {
+    activityDocs as activityTable,
+    setupActivityTests,
+    seedUserActivity,
+} from "@/tests/activityStorage";
+setupActivityTests();
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import waitForExpect from "wait-for-expect";
 import { mount } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import LHighlightable from "./LHighlightable.vue";
 import * as luminaryShared from "luminary-shared";
-import { db } from "luminary-shared";
+import * as activityStore from "@/userActivity/store";
 
 // Mock teleport to render in place
 vi.mock("vue", async (importOriginal) => {
@@ -210,9 +217,7 @@ describe("LHighlightable", () => {
 
     it("handles save highlights error gracefully", async () => {
         const reportErrorSpy = vi.spyOn(luminaryShared, "reportError");
-        vi.spyOn(db.userActivity, "where").mockImplementation(() => {
-            throw new Error("DB error");
-        });
+        vi.spyOn(activityStore, "getUserActivity").mockRejectedValueOnce(new Error("DB error"));
 
         const wrapper = mountHighlightable("error-test");
 
@@ -568,14 +573,14 @@ describe("LHighlightable", () => {
 
         beforeEach(() => {
             vi.useRealTimers();
-            return db.userActivity.clear();
+            return activityTable.clear();
         });
 
         const seedRanges = async (
             ranges: Array<{ start: number; end: number; color: string; text: string }>,
         ) => {
             for (const [index, range] of ranges.entries()) {
-                await db.userActivity.put({
+                await seedUserActivity({
                     _id: `highlighted:model-test:${range.start}-${range.end}`,
                     type: "highlighted",
                     parentId: "post-test",
@@ -653,7 +658,7 @@ describe("LHighlightable", () => {
             expect(marks(wrapper)).toEqual(["Some highlighted text content."]);
             expect(wrapper.emitted("highlighted")).toHaveLength(1);
 
-            const rows = await db.userActivity.where("type").equals("highlighted").toArray();
+            const rows = await activityTable.where("activityType").equals("highlighted").toArray();
             expect(rows).toHaveLength(1);
             expect(rows[0]._id).toBe("highlighted:model-test:0-30");
             expect(rows[0].payload).toEqual({
@@ -677,6 +682,23 @@ describe("LHighlightable", () => {
             wrapper.unmount();
         });
 
+        it("refreshes a mounted article when source rows arrive or are tombstoned", async () => {
+            const wrapper = await mountWith();
+            expect(marks(wrapper)).toEqual([]);
+            await seedUserActivity({
+                _id: "highlighted:model-test:5-16",
+                type: "highlighted",
+                parentId: "post-test",
+                contentId: "model-test",
+                updatedTimeUtc: 1,
+                payload: { range: { start: 5, end: 16, color: "blue", text: "highlighted" } },
+            });
+            await waitForExpect(() => expect(marks(wrapper)).toEqual(["highlighted"]));
+            await activityTable.update("highlighted:model-test:5-16", { deleted: true });
+            await waitForExpect(() => expect(marks(wrapper)).toEqual([]));
+            wrapper.unmount();
+        });
+
         it("removes the touched highlight row by tombstoning it", async () => {
             const wrapper = await mountWith([
                 { start: 5, end: 16, color: "blue", text: "highlighted" },
@@ -690,7 +712,7 @@ describe("LHighlightable", () => {
             expect(wrapper.find(".prose").text()).toBe("Some highlighted text content.");
             expect(wrapper.emitted("highlightRemoved")).toHaveLength(1);
             expect(wrapper.emitted("highlighted")).toBeFalsy();
-            const row = await db.userActivity.get("highlighted:model-test:5-16");
+            const row = await activityTable.get("highlighted:model-test:5-16");
             expect(row?.deleted).toBe(true);
             wrapper.unmount();
         });
@@ -708,7 +730,7 @@ describe("LHighlightable", () => {
                 ["Some", "yellow"],
                 ["highlighted text content.", "blue"],
             ]);
-            const rows = await db.userActivity.orderBy("updatedTimeUtc").toArray();
+            const rows = await activityTable.orderBy("activityTimeUtc").toArray();
             expect(rows.map((row) => [row.updatedTimeUtc, row.deleted])).toEqual([
                 [1, undefined],
                 [2, undefined],
@@ -724,8 +746,8 @@ describe("LHighlightable", () => {
             await select(wrapper, "Some", "Some");
             removeButton().click();
             await settle();
-            expect((await db.userActivity.get("highlighted:model-test:0-4"))?.deleted).toBe(true);
-            expect(await db.userActivity.get("highlighted:model-test:5-16")).toMatchObject({
+            expect((await activityTable.get("highlighted:model-test:0-4"))?.deleted).toBe(true);
+            expect(await activityTable.get("highlighted:model-test:5-16")).toMatchObject({
                 updatedTimeUtc: 2,
                 payload: { range: { color: "blue" } },
             });

@@ -1,8 +1,9 @@
 <script lang="ts" setup>
+import type { ActivityEntry } from "@/userActivity/store";
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { type ContentDto, type HighlightRange, type UserActivityEntry } from "luminary-shared";
+import { type ContentDto, type HighlightRange } from "luminary-shared";
 import ActivityCard from "./ActivityCard.vue";
 import ActivitySection from "./ActivitySection.vue";
 import { groupByActivityDate } from "./activityGroups";
@@ -34,7 +35,7 @@ const translations = useContentQuery(() => [{ _id: { $in: highlightedIds.value }
     keepPreviousResult: true,
 });
 
-type Entry = { row: UserActivityEntry; content: ContentDto; range?: HighlightRange };
+type Entry = { row: ActivityEntry; content: ContentDto; range?: HighlightRange };
 
 /**
  * One card per activity, in the order the table returned — so the same post appears once
@@ -52,7 +53,7 @@ const entries = computed<Entry[]>(() =>
     }),
 );
 
-const sections = computed(() => groupByActivityDate(entries.value, (e) => e.row.updatedTimeUtc));
+const sections = computed(() => groupByActivityDate(entries.value, (e) => e.row.activityTimeUtc));
 </script>
 
 <template>

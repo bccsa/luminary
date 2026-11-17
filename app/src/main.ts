@@ -26,6 +26,7 @@ import { markAppReady, markAppError } from "@/util/renderState";
 import { notifyUiReady } from "virtual:app-lifecycle";
 import { initLivePublishClock } from "@/util/livePublishClock";
 import { BOOT_SPLASH_ID } from "./bootSplash";
+import { initUserActivitySource, setupUserActivitySync } from "@/userActivity/source";
 
 export const app = createApp(App);
 
@@ -69,6 +70,9 @@ async function Startup() {
         deleteExpiredIntervalMs,
     });
 
+    await initUserActivitySource();
+    initUserActivity();
+
     // Keep the CMS-managed default-affinity baseline/config in sync with the local
     // copy of the singleton doc, now that it's synced like any other doc type.
     initDefaultAffinitySync();
@@ -94,6 +98,7 @@ async function Startup() {
     app.use(appPluginsManager);
 
     await setupAuth(app, router);
+    await setupUserActivitySync();
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
     // Install all plugins before mounting — components rendered during the
@@ -138,8 +143,6 @@ async function Startup() {
 
     await initLanguage();
     initSync();
-
-    initUserActivity();
 
     isAppLoading.value = false;
 

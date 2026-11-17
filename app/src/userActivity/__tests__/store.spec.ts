@@ -1,7 +1,10 @@
+import { getUserActivitySource } from "../source";
+import { activityDocs as activityTable, setupActivityTests } from "@/tests/activityStorage";
+setupActivityTests();
 import "fake-indexeddb/auto";
 import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
 
-import { db, type HighlightRange } from "luminary-shared";
+import { type HighlightRange } from "luminary-shared";
 import {
     MAX_VIEWED,
     TOMBSTONE_TTL_MS,
@@ -17,7 +20,7 @@ import {
 
 describe("userActivity", () => {
     beforeEach(async () => {
-        await db.userActivity.clear();
+        await activityTable.clear();
     });
 
     afterEach(() => {
@@ -39,10 +42,14 @@ describe("userActivity", () => {
         it("keys likes and views on the post", async () => {
             await recordUserActivity({ type: "liked", parentId: "post-1" });
 
-            const row = await db.userActivity.get("liked:post-1");
-            expect(row).toMatchObject({ type: "liked", parentId: "post-1" });
+            const row = await activityTable.get("liked:post-1");
+            expect(row).toMatchObject({
+                type: "userActivity",
+                activityType: "liked",
+                parentId: "post-1",
+            });
             expect(row!.contentId).toBeUndefined();
-            expect(row!.updatedTimeUtc).toBeGreaterThan(0);
+            expect(row!.activityTimeUtc).toBeGreaterThan(0);
         });
 
         it("keys highlights on the translation while keeping the post", async () => {
@@ -56,9 +63,9 @@ describe("userActivity", () => {
                 { range: range("hi") },
             );
 
-            const row = await db.userActivity.get("highlighted:content-1:0-2");
+            const row = await activityTable.get("highlighted:content-1:0-2");
             expect(row).toMatchObject({
-                type: "highlighted",
+                activityType: "highlighted",
                 contentId: "content-1",
                 parentId: "post-1",
             });
@@ -92,7 +99,7 @@ describe("userActivity", () => {
                 range: range("hi"),
             });
 
-            expect(await db.userActivity.count()).toBe(3);
+            expect(await activityTable.count()).toBe(3);
         });
 
         it("counts viewing two translations as one post viewed", async () => {
@@ -136,8 +143,8 @@ describe("userActivity", () => {
             await recordUserActivity({ type: "liked", parentId: "post-1" });
             await removeUserActivity({ type: "liked", parentId: "post-1" });
 
-            expect(await db.userActivity.count()).toBe(1);
-            expect((await db.userActivity.get("liked:post-1"))!.deleted).toBe(true);
+            expect(await activityTable.count()).toBe(1);
+            expect((await activityTable.get("liked:post-1"))!.deleted).toBe(true);
             expect(await getUserActivity("liked")).toEqual([]);
             expect(await hasUserActivity({ type: "liked", parentId: "post-1" })).toBe(false);
         });
@@ -159,7 +166,7 @@ describe("userActivity", () => {
                 range: range("secret"),
             });
 
-            expect((await db.userActivity.get("highlighted:content-1:0-6"))!.payload).toBeUndefined();
+            expect((await activityTable.get("highlighted:content-1:0-6"))!.payload).toBeUndefined();
         });
 
         it("revives a tombstoned activity when it is recorded again", async () => {
@@ -168,13 +175,13 @@ describe("userActivity", () => {
             await recordUserActivity({ type: "liked", parentId: "post-1" });
 
             expect(await hasUserActivity({ type: "liked", parentId: "post-1" })).toBe(true);
-            expect(await db.userActivity.count()).toBe(1);
+            expect(await activityTable.count()).toBe(1);
         });
 
         it("does not tombstone an activity that was never recorded", async () => {
             await removeUserActivity({ type: "liked", parentId: "never-liked" });
 
-            expect(await db.userActivity.count()).toBe(0);
+            expect(await activityTable.count()).toBe(0);
         });
     });
 
@@ -191,8 +198,8 @@ describe("userActivity", () => {
             at(5000);
             await removeHighlightRange(ref, first);
 
-            expect((await db.userActivity.get("highlighted:content-1:0-5"))!.deleted).toBe(true);
-            expect((await db.userActivity.get("highlighted:content-1:10-16"))!.deleted).toBeFalsy();
+            expect((await activityTable.get("highlighted:content-1:0-5"))!.deleted).toBe(true);
+            expect((await activityTable.get("highlighted:content-1:10-16"))!.deleted).toBeFalsy();
         });
 
         it("keeps the activity where it was in the feed", async () => {
@@ -202,7 +209,9 @@ describe("userActivity", () => {
             at(5000);
             await removeHighlightRange(ref, second);
 
-            expect((await db.userActivity.get("highlighted:content-1:10-16"))!.updatedTimeUtc).toBe(5000);
+            expect((await activityTable.get("highlighted:content-1:10-16"))!.activityTimeUtc).toBe(
+                5000,
+            );
         });
 
         it("removes the whole activity once its last passage goes", async () => {
@@ -210,7 +219,7 @@ describe("userActivity", () => {
 
             await removeHighlightRange(ref, first);
 
-            expect((await db.userActivity.get("highlighted:content-1:0-5"))!.deleted).toBe(true);
+            expect((await activityTable.get("highlighted:content-1:0-5"))!.deleted).toBe(true);
             expect(await getUserActivity("highlighted")).toEqual([]);
         });
 
@@ -220,14 +229,16 @@ describe("userActivity", () => {
 
             await removeHighlightRange(ref, { ...first, start: 99, end: 104 });
 
-            expect((await db.userActivity.get("highlighted:content-1:0-5"))!.deleted).not.toBe(true);
-            expect((await db.userActivity.get("highlighted:content-1:10-16"))!.deleted).not.toBe(true);
+            expect((await activityTable.get("highlighted:content-1:0-5"))!.deleted).not.toBe(true);
+            expect((await activityTable.get("highlighted:content-1:10-16"))!.deleted).not.toBe(
+                true,
+            );
         });
 
         it("ignores an activity that was never recorded", async () => {
             await removeHighlightRange(ref, first);
 
-            expect(await db.userActivity.count()).toBe(0);
+            expect(await activityTable.count()).toBe(0);
         });
     });
 
@@ -241,7 +252,7 @@ describe("userActivity", () => {
             const viewed = await getUserActivity("viewed");
             expect(viewed).toHaveLength(MAX_VIEWED);
             expect(viewed[0].parentId).toBe(`post-${MAX_VIEWED + 4}`);
-            expect(await db.userActivity.get("viewed:post-0")).toBeUndefined();
+            expect((await activityTable.get("viewed:post-0"))?.deleted).toBe(true);
         });
 
         it("does not cap likes or highlights", async () => {
@@ -259,9 +270,10 @@ describe("userActivity", () => {
             await removeUserActivity({ type: "liked", parentId: "old-removal" });
             await recordUserActivity({ type: "liked", parentId: "kept" });
 
+            await (await getUserActivitySource()).db.localChanges.clear();
             await pruneUserActivityTombstones(1_000_000_000 + TOMBSTONE_TTL_MS + 1);
 
-            expect(await db.userActivity.count()).toBe(1);
+            expect(await activityTable.count()).toBe(1);
             expect(await hasUserActivity({ type: "liked", parentId: "kept" })).toBe(true);
         });
 
@@ -271,7 +283,7 @@ describe("userActivity", () => {
 
             await clearUserActivity();
 
-            expect(await db.userActivity.count()).toBe(0);
+            expect(await activityTable.count()).toBe(0);
         });
     });
 

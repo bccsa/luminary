@@ -130,6 +130,8 @@ export const createApp = ViteSSG(
                 await initSsgClient();
                 const { setupAuth } = await import("./auth");
                 await setupAuth(app, router);
+                const { setupUserActivitySync } = await import("./userActivity/source");
+                await setupUserActivitySync();
             } catch (err) {
                 console.error("[ssg] client runtime/auth init failed", err);
             }

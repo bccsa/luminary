@@ -12,7 +12,11 @@ import { vi } from "vitest";
  *   (auth as any).useAuth.mockReturnValue({ isAuthenticated: ref(true), ... });
  */
 export function createAuthMock() {
+    const isAuthenticated = ref(false);
+    const user = ref(null);
     return {
+        isAuthenticated,
+        user,
         activeProviderId: ref<string | null>(null),
         clearAuthCache: vi.fn(),
         hasPersistedSession: vi.fn(() => false),
@@ -23,8 +27,8 @@ export function createAuthMock() {
         showProviderSelectionModal: ref(false),
         useAuth: vi.fn(() => ({
             isLoading: ref(false),
-            isAuthenticated: ref(false),
-            user: ref(null),
+            isAuthenticated,
+            user,
             loginWithRedirect: vi.fn(),
             logout: vi.fn(),
         })),

@@ -28,7 +28,7 @@ const content = useContentQuery(() => [{ _id: { $in: contentIds.value } }], {
     keepPreviousResult: true,
 });
 
-type Entry = { content: ContentDto; range: HighlightRange; updatedTimeUtc: number };
+type Entry = { content: ContentDto; range: HighlightRange; activityTimeUtc: number };
 
 /** One entry per saved passage, so each can be filtered by colour and opened on its own. */
 const entries = computed<Entry[]>(() =>
@@ -37,13 +37,13 @@ const entries = computed<Entry[]>(() =>
             const translation = content.value.find((c) => c._id === row.contentId);
             const range = row.payload?.range;
             return translation && range
-                ? [{ content: translation, range, updatedTimeUtc: row.updatedTimeUtc }]
+                ? [{ content: translation, range, activityTimeUtc: row.activityTimeUtc }]
                 : [];
         })
         .filter((entry) => !props.colour || entry.range.color === props.colour),
 );
 
-const sections = computed(() => groupByActivityDate(entries.value, (e) => e.updatedTimeUtc));
+const sections = computed(() => groupByActivityDate(entries.value, (e) => e.activityTimeUtc));
 </script>
 
 <template>

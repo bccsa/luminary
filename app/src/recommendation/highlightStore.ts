@@ -1,5 +1,6 @@
-import { ref } from "vue";
-import { db, type HighlightRange, type Uuid } from "luminary-shared";
+import { type HighlightRange, type Uuid } from "luminary-shared";
+import { getUserActivity } from "@/userActivity/store";
+export { highlightVersion, notifyHighlightsChanged } from "@/userActivity/state";
 import { parseSavedRanges } from "@/util/highlightRanges";
 
 /** Bound local FTS work when a long-lived install has many saved highlights. */
@@ -22,16 +23,6 @@ export type HighlightQuery = {
     query: string;
     updatedAt: number;
 };
-
-/**
- * IndexedDB has no Vue reactivity. SingleContent bumps this only after LHighlightable
- * successfully saves, so mounted recommendation feeds reload their local text signals.
- */
-export const highlightVersion = ref(0);
-
-export function notifyHighlightsChanged() {
-    highlightVersion.value++;
-}
 
 /** The saved ranges, when the entry is in the current (range) shape. */
 export function getHighlightRanges(value: unknown): HighlightRange[] | undefined {
@@ -110,11 +101,7 @@ export function extractHighlightQueries(data: unknown): HighlightQuery[] {
 /** Best-effort local read: unavailable/corrupt highlight storage must not break tags. */
 export async function loadHighlightQueries(): Promise<HighlightQuery[]> {
     try {
-        const rows = await db.userActivity
-            .where("type")
-            .equals("highlighted")
-            .filter((row) => !row.deleted)
-            .toArray();
+        const rows = await getUserActivity("highlighted");
 
         const data: Record<string, SavedHighlight> = {};
         for (const row of rows) {
@@ -122,7 +109,7 @@ export async function loadHighlightQueries(): Promise<HighlightQuery[]> {
             if (!range) continue;
             data[row._id] = {
                 ranges: [range],
-                updatedAt: row.updatedTimeUtc,
+                updatedAt: row.activityTimeUtc,
             };
         }
 
@@ -139,11 +126,9 @@ export async function loadHighlightQueries(): Promise<HighlightQuery[]> {
  */
 export async function loadHighlightQueriesFor(contentId: string): Promise<HighlightQuery[]> {
     try {
-        const rows = await db.userActivity
-            .where("type")
-            .equals("highlighted")
-            .filter((row) => !row.deleted && row.contentId === contentId)
-            .toArray();
+        const rows = (await getUserActivity("highlighted")).filter(
+            (row) => row.contentId === contentId,
+        );
 
         if (!rows.length) return [];
 
@@ -153,7 +138,7 @@ export async function loadHighlightQueriesFor(contentId: string): Promise<Highli
             if (!range) continue;
             data[row._id] = {
                 ranges: [range],
-                updatedAt: row.updatedTimeUtc,
+                updatedAt: row.activityTimeUtc,
             };
         }
 

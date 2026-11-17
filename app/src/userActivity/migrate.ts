@@ -14,17 +14,11 @@ import {
     isConnected,
     type BaseDocumentDto,
     type HighlightRange,
-    type UserActivityEntry,
     type Uuid,
 } from "luminary-shared";
 import { getHighlightRanges, getLegacyHighlightHtml } from "@/recommendation/highlightStore";
 import { rangesFromLegacyHtml } from "@/util/highlightRanges";
-import { userActivityId, userActivityVersion } from "./store";
-import {
-    getSourceUserActivityDocs,
-    isUserActivitySourceEnabled,
-    upsertSourceUserActivityDoc,
-} from "./source";
+import { addMissingUserActivity, userActivityId } from "./store";
 
 function legacyRangesOfPayload(payload: unknown): HighlightRange[] {
     if (!payload || typeof payload !== "object" || !("ranges" in payload)) return [];
@@ -66,41 +60,7 @@ async function lookupMissingContent(ids: string[]): Promise<{
 }
 
 /** Write the rows the database does not already hold, and report how many were added. */
-async function addMissing(rows: UserActivityEntry[]): Promise<number> {
-    if (!rows.length) return 0;
-
-    if (isUserActivitySourceEnabled()) {
-        const existing = await getSourceUserActivityDocs(rows.map((row) => row._id));
-        const missing = rows.filter((_, i) => existing[i] === undefined);
-
-        for (const row of missing) {
-            await upsertSourceUserActivityDoc({
-                _id: row._id,
-                type: DocType.UserActivity,
-                activityType: row.type,
-                parentId: row.parentId,
-                contentId: row.contentId,
-                activityTimeUtc: row.updatedTimeUtc,
-                updatedTimeUtc: row.updatedTimeUtc,
-                deleted: row.deleted,
-                payload: row.payload,
-                memberOf: ["*"],
-            });
-        }
-
-        if (missing.length) userActivityVersion.value++;
-        return missing.length;
-    }
-
-    const existing = await db.userActivity.bulkGet(rows.map((row) => row._id));
-    const missing = rows.filter((_, i) => existing[i] === undefined);
-
-    if (missing.length) {
-        await db.userActivity.bulkPut(missing);
-        userActivityVersion.value++;
-    }
-    return missing.length;
-}
+const addMissing = addMissingUserActivity;
 
 /** Likes already store the post id, so they convert directly. The caller clears the source. */
 export async function migrateLikesToUserActivity(likes?: LegacyLike[]): Promise<number> {

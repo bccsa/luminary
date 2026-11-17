@@ -1,3 +1,5 @@
+import { activityDocs as activityTable, setupActivityTests } from "@/tests/activityStorage";
+setupActivityTests();
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
@@ -41,7 +43,7 @@ describe("ActivityAll", () => {
         appLanguageIdsAsRef.value.unshift(mockLanguageDtoEng._id);
 
         await db.docs.bulkPut([mockEnglishContentDto]);
-        await db.userActivity.clear();
+        await activityTable.clear();
 
         localStorage.removeItem("contentProgress");
         syncContentProgressFromStorage();

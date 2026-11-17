@@ -478,9 +478,12 @@ watch(userPreferencesAsRef.value, (newVal) => {
 });
 
 /**
- * Starts the user-activity store. Needs the shared database open, so call it after sync has started.
+ * Starts activity maintenance and progress mirroring after the source migration.
  */
+let userActivityStarted = false;
 export const initUserActivity = () => {
+    if (userActivityStarted) return;
+    userActivityStarted = true;
     // Expired tombstones are dropped once per start.
     void pruneUserActivityTombstones().catch((err) =>
         console.error("User activity tombstone prune failed:", err),
@@ -490,11 +493,17 @@ export const initUserActivity = () => {
     // listening before anything can scroll.
     startContentProgressMirror();
 
-    void migrateUserActivityOnStartup(userPreferencesAsRef.value.likes)
-        .then(() => {
-            delete userPreferencesAsRef.value.likes;
-        })
-        .catch((err) => console.error("User activity migration failed:", err));
+    // The source opens before auth connects the socket; retry unresolved legacy content online.
+    watch(
+        isConnected,
+        (connected) => {
+            if (connected)
+                void migrateUserActivityOnStartup().catch((error) =>
+                    console.error("User activity migration retry failed:", error),
+                );
+        },
+        { immediate: true },
+    );
 };
 
 /**

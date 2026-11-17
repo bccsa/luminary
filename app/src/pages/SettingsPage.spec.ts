@@ -1,3 +1,5 @@
+import { activityDocs as activityTable, setupActivityTests } from "@/tests/activityStorage";
+setupActivityTests();
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsPage from "./SettingsPage.vue";
@@ -15,6 +17,10 @@ import {
     youtubeAlwaysAllow,
     subtitlesOnVideo,
 } from "@/globalConfig";
+
+vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
+import { isAuthenticated } from "@/auth";
+import * as activitySource from "@/userActivity/source";
 
 vi.mock("@/globalConfig", async () => {
     const { ref, watch } = await import("vue");
@@ -86,6 +92,7 @@ const mountSettingsPage = () =>
 describe("SettingsPage clearing state", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
+        (isAuthenticated as any).value = false;
     });
 
     afterEach(async () => {
@@ -162,6 +169,7 @@ describe("SettingsPage clearing state", () => {
 describe("SettingsPage data saver", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
+        (isAuthenticated as any).value = false;
         vi.mocked(isDataSaverEnabled).mockReturnValue(false);
         connectionSpeed.value = 10;
         userDataSaverEnabled.value = false;
@@ -169,6 +177,7 @@ describe("SettingsPage data saver", () => {
     });
 
     afterEach(() => {
+        vi.restoreAllMocks();
         vi.mocked(isDataSaverEnabled).mockReset();
         userDataSaverEnabled.value = false;
         localStorage.clear();
@@ -246,16 +255,33 @@ describe("SettingsPage data saver", () => {
         expect(wrapper.find("[data-test='dataSaverNote']").exists()).toBe(false);
     });
 
+    it("explains account-wide clearing and queues tombstones for signed-in users", async () => {
+        (isAuthenticated as any).value = true;
+        vi.spyOn(activitySource, "isUserActivitySignedIn").mockReturnValue(true);
+        await recordUserActivity({ type: "liked", parentId: "account-post" });
+        const wrapper = mountSettingsPage();
+        await wrapper.find("[data-test=clearUserActivity]").trigger("click");
+        const dialog = wrapper.findComponent(LDialog);
+        expect(dialog.props("description")).toContain("all devices");
+        await dialog.props("primaryAction")();
+        expect((await activityTable.get("liked:account-post"))?.deleted).toBe(true);
+        const queued = await (
+            await activitySource.getUserActivitySource()
+        ).db.localChanges.toArray();
+        expect(queued).toHaveLength(1);
+        expect(queued[0].doc).toMatchObject({ deleted: true });
+    });
+
     it("clears the activity only after the confirmation is accepted", async () => {
         await recordUserActivity({ type: "liked", parentId: "post-1" });
         const wrapper = mount(SettingsPage);
 
         await wrapper.find("[data-test=clearUserActivity]").trigger("click");
-        expect(await db.userActivity.count()).toBe(1);
+        expect(await activityTable.count()).toBe(1);
 
         await wrapper.findComponent(LDialog).props("primaryAction")();
 
         await flushPromises();
-        expect(await db.userActivity.count()).toBe(0);
+        expect(await activityTable.count()).toBe(0);
     });
 });
