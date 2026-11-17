@@ -38,6 +38,25 @@ describe("SeedRetention", () => {
             expect(r.shouldRetainLocal(5, true)).toBe(false);
         });
 
+        it("retains an empty local read while the local store is not authoritative", () => {
+            const r = new SeedRetention();
+            r.recordSeed(3, []);
+            expect(r.shouldRetainLocal(0, false, false)).toBe(true);
+            expect(r.shouldRetainLocal(0, false, true)).toBe(false);
+        });
+
+        it("does not retain a non-empty read while the local store is not authoritative", () => {
+            const r = new SeedRetention();
+            r.recordSeed(3, []);
+            expect(r.shouldRetainLocal(2, false, false)).toBe(false);
+        });
+
+        it("does not retain an unseeded empty read while the local store is not authoritative", () => {
+            const r = new SeedRetention();
+            r.recordSeed(0, []);
+            expect(r.shouldRetainLocal(0, false, false)).toBe(false);
+        });
+
         it("leaves remoteFromSeed false for an empty remoteIds array", () => {
             const r = new SeedRetention();
             r.recordSeed(3, []);
