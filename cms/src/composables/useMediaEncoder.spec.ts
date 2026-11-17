@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { nextTick, ref } from "vue";
 
 /**
  * One assertion, on the value that was wrong for months.
@@ -373,6 +374,81 @@ describe("useMediaEncoder resume", () => {
 
 describe("useMediaEncoder acknowledging a stored version", () => {
     afterEach(() => vi.useRealTimers());
+
+    const R1 = "https://cdn/master_r1.m3u8";
+    const R2 = "https://cdn/master_r2.m3u8";
+
+    /** Starts an encode for post-1 and hands back the session's event callback. */
+    const startFollowing = async (storedHlsUrl: () => string | undefined) => {
+        const encoder = useMediaEncoder({ storedHlsUrl });
+        await encoder.start({
+            documentId: "post-1",
+            title: "Episode 1",
+            mediaBucketId: "bucket-1",
+            onMediaReady: vi.fn(),
+        });
+        const handlers = (subscribeMock.mock.calls.at(-1) as any[])[1];
+        return { encoder, emit: handlers.onEvent, drop: handlers.onError };
+    };
+
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    it("waits until the document holds the version, then tells the encoder once", async () => {
+        // Until then the encoder refuses further edits, so no edit builds on a version
+        // the document does not name.
+        const stored = ref<string>();
+        const { emit } = await startFollowing(() => stored.value);
+
+        emit({ status: "completed", hlsUrl: R1 });
+        await settle();
+        expect(ackEncoderSessionMock).not.toHaveBeenCalled();
+
+        stored.value = R1;
+        await nextTick();
+        expect(ackEncoderSessionMock).toHaveBeenCalledWith("s1", "r1", R1);
+
+        emit({ status: "completed", hlsUrl: R1, progress: 100 });
+        await settle();
+        expect(ackEncoderSessionMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("tells the encoder about each new version as it is stored", async () => {
+        const stored = ref(R1);
+        const { emit } = await startFollowing(() => stored.value);
+        emit({ status: "completed", hlsUrl: R1 });
+        await settle();
+
+        emit({ status: "completed", hlsUrl: R2 });
+        await settle();
+        expect(ackEncoderSessionMock).toHaveBeenCalledTimes(1);
+
+        stored.value = R2;
+        await nextTick();
+        expect(ackEncoderSessionMock).toHaveBeenLastCalledWith("s1", "r1", R2);
+        expect(ackEncoderSessionMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("follows the session again once the encoder answers after its stream dropped", async () => {
+        // The encoder takes no edit while nobody follows the session, so a stream lost to
+        // a sleeping laptop or a restarted encoder must not stay lost until a reload.
+        fetchEncoderSessionStatusMock.mockResolvedValue({
+            sessionId: "s1",
+            documentId: "post-1",
+            status: "completed",
+            hlsUrl: R1,
+        });
+        const { encoder, drop } = await startFollowing(() => R1);
+        vi.useFakeTimers();
+        drop();
+        expect(subscribeMock).toHaveBeenCalledTimes(1);
+
+        encoder.watchForEncoder();
+        await vi.advanceTimersByTimeAsync(10000);
+
+        expect(subscribeMock).toHaveBeenCalledTimes(2);
+        expect((subscribeMock.mock.calls[1] as unknown[])[0]).toBe(EVENTS_URL);
+        encoder.stop();
+    });
 
     it("asks again on the next availability check when the encoder failed to record it", async () => {
         // An edit session can go quiet after a save, leaving no event to retry on.

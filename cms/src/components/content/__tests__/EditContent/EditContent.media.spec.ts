@@ -32,6 +32,7 @@ import {
     setupTestEnvironment,
     cleanupTestEnvironment,
     mockPostDto,
+    mockEnglishContentDto,
 } from "./EditContent.test-utils";
 
 /**
@@ -82,6 +83,39 @@ describe("EditContent - saving a new version of the video", () => {
 
         expect(titles()).toHaveBeenCalledWith(expect.objectContaining({ title: "Video saved" }));
         expect(media.props("savedParent")!.media?.hlsUrl).toBe("test-hls-url_r1.m3u8");
+    });
+
+    it("saves only the video, leaving the editor's other edits theirs to save", async () => {
+        vi.spyOn(db, "waitForLocalChangeAck").mockResolvedValue({ ack: AckStatus.Accepted } as any);
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+        await waitForExpect(() => {
+            expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+        });
+        await wrapper.find('input[name="title"]').setValue("A title not saved yet");
+
+        await wrapper.findComponent(EditContentMedia).props("saveMediaOnly")!({
+            hlsUrl: "test-hls-url_r1.m3u8",
+        });
+
+        expect(titles()).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: "Video saved",
+                description: expect.stringContaining("Your other changes are not saved yet"),
+            }),
+        );
+        const queued = (await db.localChanges.toArray()).map((change) => change.doc?._id);
+        expect(queued).toEqual([mockPostDto._id]);
+        expect((await db.get(mockEnglishContentDto._id))?.title).toBe(mockEnglishContentDto.title);
+        expect((wrapper.find('input[name="title"]').element as HTMLInputElement).value).toBe(
+            "A title not saved yet",
+        );
     });
 
     it("puts the saved video back when the server refuses the new one", async () => {
