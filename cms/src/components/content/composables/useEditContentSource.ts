@@ -109,6 +109,9 @@ function normaliseParent(item: ContentParentDto): ContentParentDto {
  * Must be called synchronously in a component `setup` so the live subscriptions tear
  * down on unmount.
  */
+/** How often a change still queued after a lost connection is looked at again. */
+export const QUEUED_CHANGE_POLL_MS = 1000;
+
 export function useEditContentSource(options: UseEditContentSourceOptions): UseEditContentSource {
     const { docType, tagOrPostType, onParentNotFound } = options;
 
@@ -377,6 +380,23 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         );
     };
 
+    /**
+     * The server's answer to a queued change. A connection lost before it answered also
+     * reads as rejected, but leaves the change queued to be sent again; only once it has
+     * left the queue is the answer the server's own.
+     */
+    const serverAnswer = async (localChangeId: number) => {
+        for (;;) {
+            const ack = await db.waitForLocalChangeAck(localChangeId);
+            if (ack.ack !== AckStatus.Rejected) return ack;
+            if (!(await db.localChanges.get(localChangeId))) {
+                // The queue entry goes just before its answer is recorded: read it again.
+                return db.waitForLocalChangeAck(localChangeId);
+            }
+            await new Promise((resolve) => setTimeout(resolve, QUEUED_CHANGE_POLL_MS));
+        }
+    };
+
     const saveMedia = async (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => {
         const saved = existingParent.value;
         if (!saved) throw new Error("The document has not been saved yet.");
@@ -388,7 +408,7 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         // back-patched, which moves it into the editable copy and its baseline together.
         parentSource.value = [doc];
 
-        const ack = await db.waitForLocalChangeAck(localChangeId);
+        const ack = await serverAnswer(localChangeId);
         if (ack.ack !== AckStatus.Rejected) return;
         // A refusal without the server's copy deletes the local one, which the live query
         // does not pass on: put back what was saved, so the refused media does not read

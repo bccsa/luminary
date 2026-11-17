@@ -80,6 +80,8 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
     let announced: string | undefined;
     /** The URL the encoder was last told the document holds, on this connection. */
     let acknowledged: string | undefined;
+    /** Hands over again a URL whose handover failed, while its session is followed. */
+    let retryHandOver: (() => void) | undefined;
     /**
      * Whose session to pick up again when its stream drops. The encoder takes no
      * edit of a video while nobody follows its session, so a stream lost to a
@@ -139,8 +141,9 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
         // A hidden tab is nobody waiting for an answer; the next focus asks.
         if (!document.hidden && (await refreshAvailability())) {
             await pickUpLostSession();
-            // An acknowledgement the encoder failed to record is asked again here: an
-            // edit session may send no further event to retry it on.
+            // A handover or acknowledgement that failed is tried again here: an edit
+            // session may send no further event to retry it on.
+            retryHandOver?.();
             acknowledgeIfStored();
         }
         if (!disposed) schedule();
@@ -203,6 +206,7 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
         followed = undefined;
         announced = undefined;
         acknowledged = undefined;
+        retryHandOver = undefined;
     }
 
     /** Stop following for good: the caller has moved on from this document. */
@@ -372,6 +376,9 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
      * `stillWanted` is asked once the key is in: a newer version published meanwhile
      * is handed over instead, and an older one arriving after it must not replace it.
      */
+    /** The error a failed key read left, cleared once a later read succeeds. */
+    let keyError: string | undefined;
+
     async function publish(
         handle: EncoderSessionHandle,
         documentId: string,
@@ -386,11 +393,14 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
             hlsKey = await fetchEncoderSessionKey(handle.sessionId, handle.readToken);
         } catch (err: any) {
             if (disposed) return false;
-            error.value = `Could not read the encryption key for this encode: ${
+            error.value = keyError = `Could not read the encryption key for this encode: ${
                 err?.message ?? String(err)
             } The media was not written to the document.`;
             return false;
         }
+        // Read on a later try: the error from the failed one no longer holds.
+        if (keyError && error.value === keyError) error.value = undefined;
+        keyError = undefined;
 
         if (disposed || !stillWanted()) return false;
 
@@ -425,6 +435,23 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
 
         // The URL handed over, or being handed over.
         let claimed = handedOver;
+
+        const handOver = (hlsUrl: string) => {
+            if (hlsUrl === claimed) return;
+            // Claimed before awaiting so two events in flight cannot both publish, and
+            // released again when the attempt did not write anything.
+            claimed = hlsUrl;
+            retryHandOver = undefined;
+            const stillWanted = () => claimed === hlsUrl;
+            void publish(handle, documentId, hlsUrl, onMediaReady, stillWanted).then(
+                (published) => {
+                    if (published || !stillWanted()) return;
+                    claimed = undefined;
+                    if (followed === handle) retryHandOver = () => handOver(hlsUrl);
+                },
+            );
+        };
+
         unsubscribe = subscribeToEncoderSession(handle.eventsUrl, {
             onEvent: (event: EncoderSessionEvent) => {
                 status.value = event.status;
@@ -434,17 +461,7 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
 
                 if (!event.hlsUrl) return;
                 announce(event.hlsUrl);
-                if (event.hlsUrl === claimed) return;
-
-                // Claimed before awaiting so two events in flight cannot both publish,
-                // and released again when the attempt did not write anything.
-                const hlsUrl = (claimed = event.hlsUrl);
-                const stillWanted = () => claimed === hlsUrl;
-                void publish(handle, documentId, hlsUrl, onMediaReady, stillWanted).then(
-                    (published) => {
-                        if (!published && stillWanted()) claimed = undefined;
-                    },
-                );
+                handOver(event.hlsUrl);
             },
             onError: () => {
                 // The stream drops when the encoder quits, the machine sleeps or the

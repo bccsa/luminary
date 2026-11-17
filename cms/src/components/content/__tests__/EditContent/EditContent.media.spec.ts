@@ -118,13 +118,41 @@ describe("EditContent - saving a new version of the video", () => {
         );
     });
 
+    it("waits out a lost connection: the change is still queued, not refused", async () => {
+        // The database reports a connection lost before the server answered as rejected,
+        // but keeps the change queued and sends it again once the connection is back.
+        const answers = vi
+            .spyOn(db, "waitForLocalChangeAck")
+            .mockResolvedValue({ ack: AckStatus.Rejected, message: "Saved locally." } as any);
+        const media = await mountEditor();
+
+        const saving = media.props("saveMediaOnly")!({ hlsUrl: "test-hls-url_r1.m3u8" });
+        await waitForExpect(() => expect(answers).toHaveBeenCalled());
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(titles()).not.toHaveBeenCalledWith(
+            expect.objectContaining({ title: "Video not saved" }),
+        );
+
+        // Back online: the queued change goes through and is accepted.
+        answers.mockResolvedValue({ ack: AckStatus.Accepted } as any);
+        await db.localChanges.clear();
+        await saving;
+
+        expect(titles()).toHaveBeenCalledWith(expect.objectContaining({ title: "Video saved" }));
+        expect(titles()).not.toHaveBeenCalledWith(
+            expect.objectContaining({ title: "Video not saved" }),
+        );
+        expect(media.props("savedParent")!.media?.hlsUrl).toBe("test-hls-url_r1.m3u8");
+    });
+
     it("puts the saved video back when the server refuses the new one", async () => {
         // Refused without the server's copy, the local copy is deleted; left alone, the
         // editor would go on reading the refused version as saved, and acknowledge it.
-        vi.spyOn(db, "waitForLocalChangeAck").mockResolvedValue({
-            ack: AckStatus.Rejected,
-            message: "No access",
-        } as any);
+        vi.spyOn(db, "waitForLocalChangeAck").mockImplementation(async () => {
+            // As the server's answer does: the change leaves the queue.
+            await db.localChanges.clear();
+            return { ack: AckStatus.Rejected, message: "No access" } as any;
+        });
         const media = await mountEditor();
 
         await media.props("saveMediaOnly")!({ hlsUrl: "test-hls-url_r1.m3u8" });
