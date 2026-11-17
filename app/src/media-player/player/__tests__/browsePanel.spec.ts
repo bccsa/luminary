@@ -288,9 +288,10 @@ const mountPanel = (props: Record<string, unknown> = {}) =>
     });
 
 describe("BrowsePanel — the chapters", () => {
-    it("shows each chapter's preview frame from just after its start, cut out of the sprite sheet", () => {
+    it("shows each chapter's preview frame from its middle, cut out of the sprite sheet", () => {
         const asked: number[] = [];
         const wrapper = mountPanel({
+            duration: 300,
             thumbnailAt: (seconds: number) => {
                 asked.push(seconds);
                 return {
@@ -306,10 +307,19 @@ describe("BrowsePanel — the chapters", () => {
         });
         const frames = wrapper.findAll("[data-test='chapterFrame']");
         expect(frames).toHaveLength(2);
-        expect(asked).toEqual([0.5, 60.5]);
+        // The last chapter runs to the end of the video, not its own end.
+        expect(asked).toEqual([30, 180]);
         const style = frames[0]!.attributes("style");
         expect(style).toContain("s.jpg");
         expect(style).toContain("-160px -90px");
+    });
+
+    it("numbers each chapter's title", () => {
+        const wrapper = mountPanel();
+        expect(wrapper.findAll(".lmpl-chapter .lmpl-upnext-title").map((t) => t.text())).toEqual([
+            "1. Opening",
+            "2. Sermon",
+        ]);
     });
 
     it("keeps the chapter symbol while there are no thumbnails", () => {

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import AudioFullscreen from "../components/AudioFullscreen.vue";
 import { DEFAULT_MESSAGES } from "../messages";
+import { TIMELINE_SCRUB_IDLE_MS } from "../ui/timelineScrub";
 
 const chapters = Array.from({ length: 8 }, (_, i) => ({
     startTime: i * 60,
@@ -94,9 +95,9 @@ describe("AudioFullscreen — what it shows", () => {
         await find(wrapper, "afsBrowse").trigger("click");
         const rows = wrapper.findAll(".lmpl-chapter");
         expect(rows).toHaveLength(chapters.length);
-        expect(rows[0]!.find(".lmpl-upnext-title").text()).toBe("Chapter 1");
+        expect(rows[0]!.find(".lmpl-upnext-title").text()).toBe("1. Chapter 1");
         expect(wrapper.find(".lmpl-chapter[aria-current=true] .lmpl-upnext-title").text()).toBe(
-            "Chapter 3",
+            "3. Chapter 3",
         );
     });
 
@@ -259,7 +260,7 @@ describe("AudioFullscreen — the transport", () => {
         expect(bar.classes()).not.toContain("lmpl-afs-bar-open");
     });
 
-    it("stays open while a finger is on the host strip, and closes five seconds after it lifts", async () => {
+    it("stays open while a finger is on the host strip, and closes ten seconds after it lifts", async () => {
         vi.useFakeTimers();
         try {
             const wrapper = mountScreen({}, { roster: '<div data-test="hostStrip"></div>' });
@@ -282,10 +283,12 @@ describe("AudioFullscreen — the transport", () => {
             await bar.trigger("pointerup", { clientX: 250, pointerId: 5, pointerType: "touch" });
             const strip = wrapper.find('[data-test="hostStrip"]');
             await strip.trigger("pointerdown", { pointerId: 6, pointerType: "touch" });
-            vi.advanceTimersByTime(10000);
+            vi.advanceTimersByTime(2 * TIMELINE_SCRUB_IDLE_MS);
             expect(wrapper.emitted("scrub")?.at(-1)?.[0]).not.toBeNull();
             await strip.trigger("pointerup", { pointerId: 6, pointerType: "touch" });
-            vi.advanceTimersByTime(5000);
+            vi.advanceTimersByTime(TIMELINE_SCRUB_IDLE_MS - 100);
+            expect(wrapper.emitted("scrub")?.at(-1)?.[0]).not.toBeNull();
+            vi.advanceTimersByTime(100);
             expect(wrapper.emitted("scrub")?.at(-1)?.[0]).toBeNull();
         } finally {
             vi.useRealTimers();

@@ -775,8 +775,8 @@ defineExpose({
                                     :image="result.parentImageData"
                                     :content-parent-id="result.parentId"
                                     :parent-image-bucket-id="result.parentImageBucketId"
-                                    size="small"
-                                    aspect-ratio="video"
+                                    size="searchThumbnail"
+                                    aspect-ratio="square"
                                 />
                             </div>
                             <div class="min-w-0 flex-1">

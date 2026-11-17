@@ -152,15 +152,17 @@
 /*
  * Everything under here is drawn in multiples of `--lmpl-s`, which steps up with the width of the player
  * rather than with whether it is fullscreen or what device it is on: the same controls that suit a phone
- * look like a stamp on a 2000px desktop screen. It is set on the controls and the scrub preview — the
- * elements the size container's query can reach — and read by everything inside them, menus included, since
- * a menu in the top layer still inherits from where it sits in the tree.
+ * look like a stamp on a 2000px desktop screen. It is set on the controls, the scrub preview and the loading
+ * ring — the elements the size container's query can reach — and read by everything inside them, menus
+ * included, since a menu in the top layer still inherits from where it sits in the tree. An element sized by
+ * it but outside all of these gets no size at all.
  */
 .lmpl-root .lmpl-controls-content,
 .lmpl-root .lmpl-scrub-preview,
 .lmpl-root .lmpl-tooltip,
 .lmpl-root .lmpl-nextup,
-.lmpl-root .lmpl-browse {
+.lmpl-root .lmpl-browse,
+.lmpl-root .lmpl-busy {
     --lmpl-s: 1;
     --media-spacing: calc(4px * var(--lmpl-s));
 }
@@ -174,7 +176,8 @@
     .lmpl-root .lmpl-controls-content,
     .lmpl-root .lmpl-scrub-preview,
     .lmpl-root .lmpl-tooltip,
-    .lmpl-root .lmpl-browse {
+    .lmpl-root .lmpl-browse,
+    .lmpl-root .lmpl-busy {
         --lmpl-s: 1.25;
     }
 }
@@ -183,7 +186,8 @@
     .lmpl-root .lmpl-controls-content,
     .lmpl-root .lmpl-scrub-preview,
     .lmpl-root .lmpl-tooltip,
-    .lmpl-root .lmpl-browse {
+    .lmpl-root .lmpl-browse,
+    .lmpl-root .lmpl-busy {
         --lmpl-s: 1.6;
     }
 }
@@ -1750,18 +1754,25 @@
     line-height: 1.25;
 }
 
-/* Where the playhead is among the chapters, under what plays; shown where the screen is wide. */
+/* Where the playhead is among the chapters, under what plays; one line, a long chapter title cut short. */
 .lmpl-afs-chip {
-    display: none;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
     margin-top: 8px;
     max-width: 100%;
+    box-sizing: border-box;
     padding: 4px 10px;
     border-radius: 999px;
     background: rgb(255 255 255 / 0.1);
     font-size: calc(12px * var(--lmpl-s));
     white-space: nowrap;
+}
+
+.lmpl-afs-chip-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .lmpl-afs-chip i {
@@ -2651,10 +2662,6 @@
         display: block;
     }
 
-    .lmpl-afs-chip {
-        display: inline-flex;
-    }
-
     /* The sound's screen on its side has no collapse button and no bar of its own: the parts are centred on the whole screen. */
     .lmpl-afs:not(.lmpl-afs-video) .lmpl-afs-top {
         position: absolute;
@@ -2920,9 +2927,11 @@
 .lmpl-root .lmpl-afs.lmpl-afs-fill .lmpl-afs-info {
     display: none;
 }
+/* Stretched: the large window's layout centres the column, which shrinks an absolute box to its content's 0 height. */
 .lmpl-root .lmpl-afs.lmpl-afs-fill .lmpl-afs-main {
     position: absolute;
     inset: 0;
+    align-self: stretch;
     padding: 0;
     gap: 0;
 }

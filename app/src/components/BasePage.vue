@@ -27,6 +27,8 @@ const props = defineProps<{
     desktopTopBar?: boolean;
     /** The centre slot is occupied before any scrolling; keep the row below the chrome clear for it. */
     reserveTopBarCenter?: boolean;
+    /** Lines the desktop banner up with the article column instead of the full page width. */
+    articleWidthBanner?: boolean;
 }>();
 
 const { onBackClick } = useBackNavigation();
@@ -270,7 +272,7 @@ onUnmounted(() => {
 
                     <!-- Desktop notification: normal flow below the pinned chrome; pushes article down when present.
                      [&>div]:mb-2 trims the banner's default mb-4 so the gap above the title matches the page-top gap. -->
-                    <div v-if="desktopTopBar" class="hidden justify-center lg:flex">
+                    <div v-if="articleWidthBanner" class="hidden justify-center lg:flex">
                         <div class="w-full lg:w-3/4 lg:max-w-3xl">
                             <NotificationBannerManager
                                 v-if="showNotifications && notificationsReady"
@@ -279,10 +281,10 @@ onUnmounted(() => {
                         </div>
                     </div>
 
-                    <!-- Notification for mobile (desktopTopBar pages) and all non-desktopTopBar pages. -->
+                    <!-- Notification for mobile (article pages) and all other pages. -->
                     <NotificationBannerManager
                         v-if="showNotifications && notificationsReady"
-                        :class="desktopTopBar ? 'lg:hidden' : 'px-2'"
+                        :class="articleWidthBanner ? 'lg:hidden' : 'px-2'"
                     />
 
                     <slot />

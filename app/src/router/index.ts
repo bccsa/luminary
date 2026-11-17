@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHistory, type Router } from "vue-router";
 import { isInAppBrowser } from "@/util/inAppBrowser";
 import { markPageLoading } from "@/util/renderState";
 import { markHistoryNavigation } from "@/composables/useScrollMemory";
@@ -23,37 +23,42 @@ const router = createRouter({
     routes,
 });
 
-// Registered before the router's own popstate listener, so the flag is set when its guards run.
-let pendingPop = false;
-router.options.history.listen((_to, _from, info) => {
-    pendingPop = info.type === "pop";
-});
-
 const routeHistory = ref<string[]>([]);
 
-router.beforeEach((to) => {
-    markPageLoading();
-    markHistoryNavigation(pendingPop);
-    pendingPop = false;
+/** App navigation guards; shared by the SPA router and the web (ViteSSG) router. */
+export function registerRouterGuards(router: Router) {
+    // Registered before the router's own popstate listener, so the flag is set when its guards run.
+    let pendingPop = false;
+    router.options.history.listen((_to, _from, info) => {
+        pendingPop = info.type === "pop";
+    });
 
-    const inAppWarningAcknowledged = sessionStorage.getItem("inapp_open_warning_ack") === "1";
+    router.beforeEach((to) => {
+        markPageLoading();
+        markHistoryNavigation(pendingPop);
+        pendingPop = false;
 
-    // Only show the interstitial on the first load inside an in-app browser.
-    if (
-        !inAppWarningAcknowledged &&
-        isInAppBrowser() &&
-        isExternalNavigation() &&
-        to.name !== "open-warning"
-    ) {
-        return {
-            name: "open-warning",
-            query: { to: to.fullPath },
-            replace: true,
-        };
-    }
-    // Handle history navigation
-    routeHistory.value.push(to.fullPath);
-});
+        const inAppWarningAcknowledged = sessionStorage.getItem("inapp_open_warning_ack") === "1";
+
+        // Only show the interstitial on the first load inside an in-app browser.
+        if (
+            !inAppWarningAcknowledged &&
+            isInAppBrowser() &&
+            isExternalNavigation() &&
+            to.name !== "open-warning"
+        ) {
+            return {
+                name: "open-warning",
+                query: { to: to.fullPath },
+                replace: true,
+            };
+        }
+        // Handle history navigation
+        routeHistory.value.push(to.fullPath);
+    });
+}
+
+registerRouterGuards(router);
 
 export function getRouteHistory() {
     return routeHistory;
