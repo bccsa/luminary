@@ -39,8 +39,7 @@ const DEFAULT_SYNC_LIST_KEY = "syncList";
  * every write, so an equal timestamp means an identical doc.
  */
 const isSameDoc = (stored: BaseDocumentDto | undefined, doc: BaseDocumentDto): boolean =>
-    stored !== undefined &&
-    stored.updatedTimeUtc === doc.updatedTimeUtc;
+    stored !== undefined && stored.updatedTimeUtc === doc.updatedTimeUtc;
 
 /** The access map `deleteRevoked` last completed against, kept in luminaryInternals. */
 const RECONCILED_ACCESS_MAP_KEY = "reconciledAccessMap";
@@ -225,7 +224,8 @@ class Database extends Dexie {
         this.indexStorageKey = options.indexStorageKey ?? `${DEFAULT_DB_INDEX_KEY}:${name}`;
         this.syncListKey = options.syncListKey ?? DEFAULT_SYNC_LIST_KEY;
         this.quietAcks = options.quietAcks ?? false;
-        this.includeUserActivityTable = options.includeUserActivityTable ?? name === DEFAULT_DB_NAME;
+        this.includeUserActivityTable =
+            options.includeUserActivityTable ?? name === DEFAULT_DB_NAME;
         this.isDefaultInstance = name === DEFAULT_DB_NAME;
 
         if (options.requestPersistentStorage ?? this.isDefaultInstance) {
@@ -612,6 +612,17 @@ class Database extends Dexie {
     async upsert<T extends BaseDocumentDto>(
         options: UpsertOptions<T>,
     ): Promise<{ localChangeId: number }> {
+        if (this.isDefaultInstance) return this.upsertAndQueue(options);
+        // Source pulls check the queue and write docs in the same transaction. Keep a
+        // local edit and its queue entry atomic too, so neither side can miss the other.
+        return this.transaction("rw", this.docs, this.localChanges, () =>
+            this.upsertAndQueue(options),
+        );
+    }
+
+    private async upsertAndQueue<T extends BaseDocumentDto>(
+        options: UpsertOptions<T>,
+    ): Promise<{ localChangeId: number }> {
         // Unwrap the (possibly) reactive object — toRaw is shallow, so cloneDeep is required
         // to strip nested reactive Proxies before IndexedDB's structured clone algorithm runs.
         const raw = cloneDeep(toRaw(options.doc));
@@ -738,6 +749,15 @@ class Database extends Dexie {
      * @param localChange The local change that was sent (used to identify which entry to delete)
      */
     async applyLocalChangeAck(ack: ChangeReqAckDto, localChange: LocalChangeDto) {
+        if (this.isDefaultInstance) return this.applyQueuedLocalChangeAck(ack, localChange);
+        await this.transaction("rw", this.docs, this.localChanges, async () => {
+            // A cleared or superseded source edit must not restore a previous owner's doc.
+            if (!(await this.localChanges.get(localChange.id))) return;
+            await this.applyQueuedLocalChangeAck(ack, localChange);
+        });
+    }
+
+    private async applyQueuedLocalChangeAck(ack: ChangeReqAckDto, localChange: LocalChangeDto) {
         if (ack.ack == "rejected") {
             // CouchDB's own tombstone reason for a write against an already-deleted doc —
             // i.e. another client deleted this doc before our change synced. The cleanup
@@ -935,19 +955,22 @@ class Database extends Dexie {
         return false;
     }
 
-    /**
-     * Purge the local database. `userActivity` is left alone: it is not a cache of server
-     * documents, so clearing the cache or signing out must not erase what the user did.
-     */
+    /** Clear source tables without changing the default sync cursor or response cache. */
     async clear() {
-        await Promise.all([
-            this.docs.clear(),
-            this.localChanges.clear(),
-            this.luminaryInternals.clear(),
-            this.retention.clear(),
-        ]);
+        await this.transaction(
+            "rw",
+            [this.docs, this.localChanges, this.luminaryInternals, this.retention],
+            () =>
+                Promise.all([
+                    this.docs.clear(),
+                    this.localChanges.clear(),
+                    this.luminaryInternals.clear(),
+                    this.retention.clear(),
+                ]),
+        );
     }
 
+    /** Purge the default content cache, leaving its legacy activity side table alone. */
     async purge() {
         if (!this.isDefaultInstance) {
             throw new Error("purge() is only supported on the default database instance");
@@ -1000,6 +1023,23 @@ const attachVersionChangeReloadHandler = (database: Database) => {
     });
 };
 
+const blockedDatabases = new Set<Database>();
+
+/** Register upgrade handlers before opening either the default or a source database. */
+async function openDatabaseConnection(database: Database): Promise<void> {
+    database.on("blocked", () => {
+        blockedDatabases.add(database);
+        dbUpgradeBlocked.value = true;
+    });
+    attachVersionChangeReloadHandler(database);
+    try {
+        if (!database.isOpen()) await database.open();
+    } finally {
+        blockedDatabases.delete(database);
+        dbUpgradeBlocked.value = blockedDatabases.size > 0;
+    }
+}
+
 /**
  * Opens the existing database for use in a Web Worker, where {@link initDatabase} cannot run
  * (it reads the schema version from localStorage). The schema is taken from the database as it
@@ -1040,22 +1080,10 @@ export async function initDatabase() {
         includeUserActivityTable: true,
     });
 
-    // Registered before open(): a blocked upgrade is raised during the open, not after it.
-    // This is a waiting state — the other connection closing unblocks it and `open()` then
-    // resolves on its own — so it is surfaced rather than treated as a failure.
-    db.on("blocked", () => {
-        dbUpgradeBlocked.value = true;
-    });
-
-    attachVersionChangeReloadHandler(db);
-
     // Awaiting open() rather than the "ready" event means a rejected open is raised as a
     // boot error instead of leaving this promise unsettled. A blocked open is not rejected:
     // it stays pending until the blocking connection closes, which is what we want.
-    if (!db.isOpen()) {
-        await db.open();
-    }
-    dbUpgradeBlocked.value = false;
+    await openDatabaseConnection(db);
 
     // Compute FTS corpus stats on startup.
     // Uses setTimeout(0) to avoid Dexie PSD zone deadlocks during initialization.
@@ -1132,11 +1160,7 @@ export async function openDatabase(options: OpenDatabaseOptions): Promise<Databa
         quietAcks: options.quietAcks,
     });
 
-    attachVersionChangeReloadHandler(instance);
-
-    if (!instance.isOpen()) {
-        await instance.open();
-    }
+    await openDatabaseConnection(instance);
 
     return instance;
 }

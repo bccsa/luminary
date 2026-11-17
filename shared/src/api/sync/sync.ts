@@ -271,8 +271,10 @@ let _activeRunners = 0;
 export async function sync(options: SyncRunnerOptions): Promise<void> {
     if (!_httpService) throw new Error("Sync module not initialized with HTTP service");
 
-    _activeRunners++;
-    syncActive.value = true;
+    if (!options.source) {
+        _activeRunners++;
+        syncActive.value = true;
+    }
     const ctx = {
         area: "sync",
         op: "run",
@@ -312,7 +314,7 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
         });
         throw err;
     } finally {
-        if (--_activeRunners === 0) syncActive.value = false;
+        if (!options.source && --_activeRunners === 0) syncActive.value = false;
     }
 }
 

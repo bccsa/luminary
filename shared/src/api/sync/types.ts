@@ -11,6 +11,8 @@ export type SyncSource = {
     setSyncList: () => Promise<void>;
     /** Write fetched docs into this source's local store. */
     put: (docs: BaseDocumentDto[]) => Promise<void>;
+    /** Stop a source pull when its readiness or lifecycle changes. */
+    isCancelled?: () => boolean;
 };
 
 /**

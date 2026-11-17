@@ -61,24 +61,34 @@ export async function createDataSource(config: DataSourceConfig): Promise<DataSo
 
     const syncList = ref<SyncListEntry[]>([]);
     await sourceDb.getSyncList(syncList);
+    const clearing = ref(false);
+    let generation = 0;
+    let disposed = false;
 
-    const source: SyncSource = {
-        name: config.name,
-        syncList,
-        setSyncList: () => sourceDb.setSyncList(syncList).then(() => undefined),
-        put: async (docs: BaseDocumentDto[]) => {
-            // Never overwrite a local unsent edit with pulled server state.
+    const putPulledDocs = async (docs: BaseDocumentDto[], isCancelled = () => false) => {
+        // Check cancellation inside the transaction too: a clear may precede its start.
+        await sourceDb.transaction("rw", sourceDb.docs, sourceDb.localChanges, async () => {
+            if (isCancelled()) return;
             const queued = await sourceDb.localChanges.toArray();
             const queuedDocIds = new Set(queued.map((c) => c.docId));
             const filtered = docs.filter((doc) => !queuedDocIds.has(doc._id));
             if (filtered.length > 0) {
                 await sourceDb.bulkPut(filtered);
             }
-        },
+        });
+    };
+
+    const source: SyncSource = {
+        name: config.name,
+        syncList,
+        setSyncList: () => sourceDb.setSyncList(syncList).then(() => undefined),
+        put: (docs) => putPulledDocs(docs),
     };
 
     const advertised = computed(() => dataSources.value.includes(config.name));
-    const ready = computed(() => advertised.value && (config.ready?.value ?? true));
+    const ready = computed(
+        () => !clearing.value && !disposed && advertised.value && (config.ready?.value ?? true),
+    );
 
     const scope: EffectScope = effectScope(true);
     const pending = ref(0);
@@ -89,6 +99,8 @@ export async function createDataSource(config: DataSourceConfig): Promise<DataSo
     let pullQueued = false;
 
     const runPull = async (): Promise<void> => {
+        if (disposed || clearing.value) return;
+        syncHandle?.restart();
         if (pullInFlight) {
             pullQueued = true;
             return pullInFlight;
@@ -100,6 +112,9 @@ export async function createDataSource(config: DataSourceConfig): Promise<DataSo
                 if (!isConnected.value || !ready.value) return;
                 if ((await sourceDb.localChanges.count()) > 0) return;
 
+                const pullGeneration = generation;
+                const isCancelled = () =>
+                    disposed || pullGeneration !== generation || !isConnected.value || !ready.value;
                 await sync({
                     type: config.sync.type,
                     subType: config.sync.subType,
@@ -109,7 +124,11 @@ export async function createDataSource(config: DataSourceConfig): Promise<DataSo
                     publishDateMax: config.sync.publishDateMax,
                     limit: config.sync.limit,
                     cms: config.sync.cms,
-                    source,
+                    source: {
+                        ...source,
+                        isCancelled,
+                        put: (docs) => putPulledDocs(docs, isCancelled),
+                    },
                 });
             } while (pullQueued);
         })();
@@ -153,12 +172,29 @@ export async function createDataSource(config: DataSourceConfig): Promise<DataSo
         );
     });
 
+    const foregroundPull = () => {
+        if (document.visibilityState === "visible") {
+            void runPull().catch((err) => {
+                reportError(err, {
+                    area: "dataSource",
+                    op: "foreground-pull",
+                    data: { source: config.name },
+                });
+            });
+        }
+    };
+    if (typeof document !== "undefined") {
+        document.addEventListener("visibilitychange", foregroundPull);
+    }
+
     return {
         db: sourceDb,
         pending,
         ready,
         pull: runPull,
         flush: async (timeoutMs = 5000) => {
+            if (disposed || clearing.value) return false;
+            syncHandle?.restart();
             const started = Date.now();
             while (Date.now() - started < timeoutMs) {
                 if ((await sourceDb.localChanges.count()) === 0) return true;
@@ -168,12 +204,24 @@ export async function createDataSource(config: DataSourceConfig): Promise<DataSo
             return (await sourceDb.localChanges.count()) === 0;
         },
         clear: async () => {
-            await sourceDb.clear();
-            syncList.value = [];
-            await sourceDb.setSyncList(syncList);
+            clearing.value = true;
+            generation++;
+            try {
+                await sourceDb.clear();
+                syncList.value = [];
+                await sourceDb.setSyncList(syncList);
+            } finally {
+                clearing.value = false;
+            }
         },
         dispose: async () => {
+            disposed = true;
+            generation++;
+            if (typeof document !== "undefined") {
+                document.removeEventListener("visibilitychange", foregroundPull);
+            }
             await syncHandle?.stop();
+            await pullInFlight?.catch(() => undefined);
             scope.stop();
             sourceDb.close();
         },

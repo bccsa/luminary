@@ -69,7 +69,14 @@ Named/source databases are opened through `openDatabase(...)`. They keep their o
 FTS startup recompute), and may run in `quietAcks` mode so source queue acks don't mutate
 global change-request UI refs.
 
-Schema versioning is **automatic**: `bumpDBVersion` compares the JSON-serialized index against the previous one in `localStorage["dexie.dbIndex"]` and bumps the Dexie version when it changes. You usually don't need to manage versions manually — just add fields to the index string and the next load will migrate.
+Schema versioning is **automatic**: `bumpDBVersion` compares the JSON-serialized index against the previous one in `localStorage["dexie.dbIndex:<database-name>"]` and bumps the Dexie version when it changes. Each database has its own schema key; opening a different source must not bump another database's version. The default database uses `dexie.dbIndex:luminary-db`. Both default and named connections surface blocked upgrades through `dbUpgradeBlocked` and share the visible-tab reload handler for version changes.
+
+`createDataSource(...)` owns a named database's queue and cursor. It sends nothing until
+the source is advertised in `clientConfig.dataSources` and the optional caller readiness
+gate is true. It persists cursor progress after each batch, retries a stalled queue on
+`pull()` / `flush()` / foreground, and pulls after uploads drain. Source pulls do not
+change the default `syncActive` ref. Source writes and queue replacement are atomic;
+pulled documents with pending local edits are skipped in a transaction.
 
 The exported singleton is `db`, available after `initDatabase()` resolves. `db.upsert(...)` is the standard write path: it writes to `docs` and queues a `localChange` for upload (or, for deletes with `deleteReq`, removes from `docs` and queues the delete). `db.bulkPut(docs)` handles incoming docs from the API including `DeleteCmd` resolution (with a stale-delete guard — skips deletes whose target is already newer).
 

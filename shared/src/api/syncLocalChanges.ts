@@ -41,11 +41,14 @@ async function send(
 }
 
 /**
- * Handle returned by {@link syncLocalChanges}. `stop()` unsubscribes the watcher and
+ * Handle returned by {@link syncLocalChanges}. `restart()` retries a stalled queue.
+ * `stop()` unsubscribes the watcher and
  * resolves once any in-flight drain has fully unwound, so callers (notably tests) can
  * deterministically join the async drain loop before tearing down shared state.
  */
 export type SyncLocalChangesHandle = {
+    /** Retry a stalled head without changing the durable queue. */
+    restart: () => void;
     stop: () => Promise<void>;
 };
 
@@ -66,20 +69,22 @@ export function syncLocalChanges(
     // tests register/teardown per test without leaking a stuck `running` flag.
     let running = false;
     let drainPromise: Promise<void> | null = null;
+    let stopped = false;
+    const restartTrigger = ref(0);
 
     // Trigger on the *contents* of the queue (its ids), not the liveQuery array identity.
     // Dexie's liveQuery re-emits a fresh array on observer churn even when the queued
     // changes are unchanged; watching the raw ref would restart the drain on every such
     // re-emit. After the head exhausts its retry cap and the drain bails, an identical
     // re-emit must NOT re-enter the drain and re-hammer the same failing change — only a
-    // real queue mutation (a different id set) or a reconnect should. Keying on the id
-    // signature makes those the only triggers.
+    // real queue mutation (a different id set), reconnect, readiness change, or explicit
+    // restart should. Keying on the id signature prevents accidental retry loops.
     const queueSignature = () => localChanges.value.map((c) => c.id).join(",");
 
     const unwatch = watch(
-        [isConnected, queueSignature, () => resolved.ready.value],
+        [isConnected, queueSignature, () => resolved.ready.value, restartTrigger],
         async () => {
-            if (!resolved.ready.value) return;
+            if (stopped || !resolved.ready.value) return;
 
             if (!isConnected.value) {
                 for (const change of localChanges.value) {
@@ -97,18 +102,16 @@ export function syncLocalChanges(
             const drain = (async () => {
                 let activeChange: LocalChangeDto | undefined;
                 try {
-                    while (isConnected.value && resolved.ready.value) {
+                    while (!stopped && isConnected.value && resolved.ready.value) {
                         const change = (await resolved.targetDb.localChanges
                             .toCollection()
-                            .first()) as
-                            | LocalChangeDto
-                            | undefined;
+                            .first()) as LocalChangeDto | undefined;
                         if (!change) return;
                         activeChange = change;
 
                         let sent = false;
                         for (let attempt = 0; attempt < 3; attempt++) {
-                            if (!isConnected.value || !resolved.ready.value) return;
+                            if (stopped || !isConnected.value || !resolved.ready.value) return;
                             if (await send(change, resolved)) {
                                 sent = true;
                                 break;
@@ -155,7 +158,11 @@ export function syncLocalChanges(
     );
 
     return {
+        restart() {
+            if (!stopped) restartTrigger.value++;
+        },
         async stop() {
+            stopped = true;
             unwatch();
             // Join any in-flight drain. The drain's own `isConnected` guards bail promptly
             // once the socket is disconnected, so this is bounded by at most one in-flight

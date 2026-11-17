@@ -35,7 +35,7 @@ function markColumnEof(options: SyncOptions) {
 export async function syncBatch(options: SyncOptions) {
     const listRef = syncListOf(options.source);
     // Check if sync has been cancelled before proceeding
-    if (cancelSync) {
+    if (cancelSync || options.source?.isCancelled?.()) {
         return;
     }
     const chunk = calcChunk(options);
@@ -53,13 +53,11 @@ export async function syncBatch(options: SyncOptions) {
     // Sealing the frontier there would falsely mark the column complete while leaving days of
     // data unfetched. In that case fall through so the gap-fill / vertical-merge paths can
     // resolve it instead of prematurely declaring eof.
-    if (
-        chunk.blockStart < chunk.blockEnd &&
-        chunk.blockEnd - chunk.blockStart <= syncTolerance
-    ) {
+    if (chunk.blockStart < chunk.blockEnd && chunk.blockEnd - chunk.blockStart <= syncTolerance) {
         const mergeResult = merge(options);
         mergeResult.eof = true;
         markColumnEof(options);
+        await options.source?.setSyncList();
         return { ...mergeResult, firstSync };
     }
 
@@ -145,18 +143,19 @@ export async function syncBatch(options: SyncOptions) {
     }
 
     // Check if sync has been cancelled before making API request
-    if (cancelSync) {
+    if (cancelSync || options.source?.isCancelled?.()) {
         return;
     }
 
     const res = await options.httpService.post("query", mangoQuery);
 
     // Check if sync was cancelled during the API call
-    if (cancelSync) {
+    if (cancelSync || options.source?.isCancelled?.()) {
         return;
     }
 
-    if (!res || !res.docs || !Array.isArray(res.docs)) throw new Error("Invalid API response format");
+    if (!res || !res.docs || !Array.isArray(res.docs))
+        throw new Error("Invalid API response format");
 
     // Surface API warnings (e.g. CouchDB "documents examined is high") together with the exact
     // query + index that triggered them, so the offending sync column is identifiable.
@@ -203,6 +202,7 @@ export async function syncBatch(options: SyncOptions) {
     if (fetchedDocs.length) {
         if (options.source) await options.source.put(fetchedDocs);
         else await db.bulkPut(fetchedDocs);
+        if (options.source?.isCancelled?.()) return;
         // publishDate is a Content-only sync dimension. For non-Content types (Language,
         // Redirect, Storage, AuthProvider, Group, …) the docs have no publishDate field and
         // every comparison path against these bounds wraps in `if (type === Content)`, so
@@ -214,11 +214,7 @@ export async function syncBatch(options: SyncOptions) {
             : { min: undefined, max: undefined };
         // Push chunk to chunk list
         listRef.value.push({
-            chunkType: getChunkTypeString(
-                options.type,
-                options.subType,
-                options.alwaysOffline,
-            ),
+            chunkType: getChunkTypeString(options.type, options.subType, options.alwaysOffline),
             memberOf: options.memberOf,
             languages: options.languages,
             blockStart,
@@ -244,14 +240,19 @@ export async function syncBatch(options: SyncOptions) {
         if (nextChunk.blockStart === chunk.blockStart && nextChunk.blockEnd === chunk.blockEnd) {
             mergeResult.eof = true;
             markColumnEof(options);
+            await options.source?.setSyncList();
             return { ...mergeResult, firstSync };
         }
 
+        // Commit each page before requesting the next one, including interrupted pulls.
+        await options.source?.setSyncList();
         mergeResult =
             (await syncBatch({
                 ...options,
                 initialSync: false,
             })) || mergeResult;
+    } else {
+        await options.source?.setSyncList();
     }
 
     return { ...mergeResult, firstSync };

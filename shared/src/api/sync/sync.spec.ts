@@ -10,6 +10,8 @@ import * as utils from "./utils";
 import { OPEN_MAX, OPEN_MIN } from "./utils";
 import { merge } from "./merge";
 import { initConfig } from "../../config";
+import { ref } from "vue";
+import { syncActive } from "./state";
 
 // Mock dependencies
 vi.mock("../../db/database", () => ({
@@ -65,6 +67,39 @@ describe("sync module", () => {
     afterEach(() => {
         // Ensure cancelSync is reset after each test
         setCancelSync(false);
+    });
+
+    it("keeps source pulls out of the global default-source activity counter", async () => {
+        await initSync(mockHttpService);
+        const source = {
+            name: "user",
+            syncList: ref([]),
+            setSyncList: vi.fn(async () => {}),
+            put: vi.fn(async () => {}),
+        };
+        vi.mocked(syncBatch).mockImplementationOnce(async () => {
+            expect(syncActive.value).toBe(false);
+            return { eof: true, blockStart: 0, blockEnd: 0, firstSync: true };
+        });
+        await sync({ type: DocType.UserActivity, memberOf: ["*"], limit: 100, source });
+        expect(syncActive.value).toBe(false);
+        expect(syncBatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                source,
+                includeDeleteCmds: false,
+            }),
+        );
+
+        syncActive.value = true;
+        try {
+            vi.mocked(syncBatch).mockRejectedValueOnce(new Error("source unavailable"));
+            await expect(
+                sync({ type: DocType.UserActivity, memberOf: ["*"], limit: 100, source }),
+            ).rejects.toThrow("source unavailable");
+            expect(syncActive.value).toBe(true);
+        } finally {
+            syncActive.value = false;
+        }
     });
 
     describe("initSync", () => {
@@ -228,9 +263,7 @@ describe("sync module", () => {
             await initSync(mockHttpService);
 
             expect(syncList.value).toHaveLength(3);
-            const byChunkType = Object.fromEntries(
-                syncList.value.map((e) => [e.chunkType, e]),
-            );
+            const byChunkType = Object.fromEntries(syncList.value.map((e) => [e.chunkType, e]));
             // Content + DeleteCmd entries get filled.
             expect(byChunkType["content:post"].publishDateMin).toBe(OPEN_MIN);
             expect(byChunkType["content:post"].publishDateMax).toBe(OPEN_MAX);

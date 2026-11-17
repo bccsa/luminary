@@ -4,6 +4,25 @@
 >
 > Written against `main` at `d4fce7cc` (12 November 2026). Code is referenced by file and symbol; line numbers are deliberately left out because they drift.
 
+## Progress — 17 November 2026
+
+- **Phase 0:** implemented, with follow-up fixes for upgrades from the earlier migration,
+  remote resolution of missing content, and retry after offline/failed lookups. The passage
+  migration uses its own completion marker and removes the legacy key when finished.
+- **Phase 1:** implemented, with follow-up fixes for durable per-page cursors, stalled queue
+  restart on pull/flush/foreground, default `syncActive` isolation, atomic local edits and
+  incoming writes, and safe clearing of in-flight source work. Named databases share upgrade
+  handling and have regression coverage for schema/cursor isolation. The interrupted-pull
+  regression now exercises the real sync engine across a database reopen.
+- **Phase 2:** intentionally not implemented yet; Phase 3 development was started first.
+- **Phase 3:** in progress. These Phase 0–1 corrections preserve that work; they do not
+  complete its owner handling, boot sequencing, highlight readers, logout or UI integration.
+- The durable architecture decision is recorded in ADR 0020.
+
+Verification of these corrections: all 1,502 shared tests and 133 focused app tests
+passed; the shared build, app type-check, and lint of changed TypeScript files passed.
+Playwright and DB/S3-dependent API tests were not run.
+
 ## 1. Summary
 
 User activity — what a user viewed, liked and highlighted — lives only on the device today, in the `userActivity` table of the `luminary-db` IndexedDB database. It should follow a signed-in user across devices.
