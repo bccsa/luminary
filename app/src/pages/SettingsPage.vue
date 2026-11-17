@@ -121,131 +121,133 @@ const deleteLocalData = async () => {
 
 <template>
     <BasePage showBackButton>
-        <div class="space-y-4 px-2">
-            <LCard :title="t('settings.local_cache.title')">
-                <div class="mb-4 text-sm text-zinc-600 dark:text-slate-100">
-                    {{ t("settings.local_cache.description") }}
-                </div>
-                <LButton
-                    @click="deleteLocalData"
-                    :disabled="isClearing"
-                    :icon="isClearing ? LoadingSpinner : undefined"
-                    data-test="deleteLocalDatabase"
-                >
-                    {{
-                        isClearing
-                            ? t("settings.local_cache.button_clearing")
-                            : t("settings.local_cache.button")
-                    }}
-                </LButton>
-            </LCard>
-            <LCard :title="t('settings.clear_activity.title')">
-                <div class="mb-4 text-sm text-zinc-600 dark:text-slate-100">
-                    {{ t("settings.clear_activity.description") }}
-                </div>
-                <LButton @click="showClearActivityDialog = true" data-test="clearUserActivity">
-                    {{ t("settings.clear_activity.button") }}
-                </LButton>
-            </LCard>
-            <AppVersionCard />
-            <LCard :title="t('settings.device_info.title')">
-                <div class="mb-4 text-sm text-zinc-600 dark:text-slate-100">
-                    {{ t("settings.device_info.description") }}
-                </div>
-                <div class="text-sm text-zinc-600 dark:text-slate-100">
-                    <span class="font-semibold">OS:</span>
-                    {{ deviceInfo.platform }}
-                </div>
-                <div class="text-sm text-zinc-600 dark:text-slate-100">
-                    <span class="font-semibold">Browser:</span>
-                    {{ deviceInfo.userAgent }}
-                </div>
-                <div class="text-sm text-zinc-600 dark:text-slate-100">
-                    <span class="font-semibold">Connection speed:</span>
-                    {{ connectionSpeed.toFixed(1) }} Mbps
-                </div>
-                <div class="text-sm text-zinc-600 dark:text-slate-100">
-                    <span class="font-semibold">Connection state:</span>
-                    {{ isConnected ? "Online" : "Offline" }}
-                </div>
-            </LCard>
-            <LCard :title="t('settings.data_saver.title')">
-                <div class="text-sm text-zinc-600 dark:text-slate-100">
-                    {{
-                        textOr(
-                            "settings.data_saver.description",
-                            "Choose how much data to save. Images also get lighter by themselves on slow connections.",
-                        )
-                    }}
-                </div>
-                <div
-                    class="mt-3 inline-flex rounded-full bg-zinc-100 p-1 dark:bg-slate-700"
-                    role="radiogroup"
-                    :aria-label="t('settings.data_saver.title')"
-                    data-test="dataSaverLevels"
-                >
-                    <button
-                        v-for="level in dataSaverLevels"
-                        :key="level"
-                        type="button"
-                        role="radio"
-                        :aria-checked="effectiveDataSaverLevel === level"
-                        class="min-h-[36px] rounded-full px-4 text-sm font-semibold"
-                        :class="
-                            effectiveDataSaverLevel === level
-                                ? 'bg-white text-zinc-900 shadow dark:bg-slate-500 dark:text-white'
-                                : 'text-zinc-600 dark:text-slate-300'
-                        "
-                        :data-test="`dataSaverLevel-${level}`"
-                        @click="dataSaverLevel = level"
+        <ClientOnly>
+            <div class="space-y-4 px-2">
+                <LCard :title="t('settings.local_cache.title')">
+                    <div class="mb-4 text-sm text-zinc-600 dark:text-slate-100">
+                        {{ t("settings.local_cache.description") }}
+                    </div>
+                    <LButton
+                        @click="deleteLocalData"
+                        :disabled="isClearing"
+                        :icon="isClearing ? LoadingSpinner : undefined"
+                        data-test="deleteLocalDatabase"
                     >
-                        {{ dataSaverName(level) }}
-                    </button>
-                </div>
-                <div
-                    class="mt-2 text-sm text-zinc-600 dark:text-slate-100"
-                    data-test="dataSaverLevelDescription"
-                >
-                    {{ dataSaverDescription(effectiveDataSaverLevel) }}
-                </div>
-                <div
-                    v-if="dataSaverNote"
-                    class="mt-3 text-sm text-zinc-600 dark:text-slate-100"
-                    data-test="dataSaverNote"
-                >
-                    {{ dataSaverNote }}
-                </div>
-            </LCard>
-            <LCard :title="textOr('settings.autoplay.title', 'Autoplay')">
-                <div class="flex items-center justify-between gap-4">
+                        {{
+                            isClearing
+                                ? t("settings.local_cache.button_clearing")
+                                : t("settings.local_cache.button")
+                        }}
+                    </LButton>
+                </LCard>
+                <LCard :title="t('settings.clear_activity.title')">
+                    <div class="mb-4 text-sm text-zinc-600 dark:text-slate-100">
+                        {{ t("settings.clear_activity.description") }}
+                    </div>
+                    <LButton @click="showClearActivityDialog = true" data-test="clearUserActivity">
+                        {{ t("settings.clear_activity.button") }}
+                    </LButton>
+                </LCard>
+                <AppVersionCard />
+                <LCard :title="t('settings.device_info.title')">
+                    <div class="mb-4 text-sm text-zinc-600 dark:text-slate-100">
+                        {{ t("settings.device_info.description") }}
+                    </div>
+                    <div class="text-sm text-zinc-600 dark:text-slate-100">
+                        <span class="font-semibold">OS:</span>
+                        {{ deviceInfo.platform }}
+                    </div>
+                    <div class="text-sm text-zinc-600 dark:text-slate-100">
+                        <span class="font-semibold">Browser:</span>
+                        {{ deviceInfo.userAgent }}
+                    </div>
+                    <div class="text-sm text-zinc-600 dark:text-slate-100">
+                        <span class="font-semibold">Connection speed:</span>
+                        {{ connectionSpeed.toFixed(1) }} Mbps
+                    </div>
+                    <div class="text-sm text-zinc-600 dark:text-slate-100">
+                        <span class="font-semibold">Connection state:</span>
+                        {{ isConnected ? "Online" : "Offline" }}
+                    </div>
+                </LCard>
+                <LCard :title="t('settings.data_saver.title')">
                     <div class="text-sm text-zinc-600 dark:text-slate-100">
                         {{
                             textOr(
-                                "settings.autoplay.description",
-                                "When a video ends, play the next one by itself after a short countdown.",
+                                "settings.data_saver.description",
+                                "Choose how much data to save. Images also get lighter by themselves on slow connections.",
                             )
                         }}
                     </div>
-                    <LToggle v-model="autoplayNext" data-test="autoplayToggle" />
-                </div>
-            </LCard>
-            <LCard :title="t('settings.subtitles.title')">
-                <div class="flex items-center justify-between gap-4">
-                    <div class="text-sm text-zinc-600 dark:text-slate-100">
-                        {{ t("settings.subtitles.description") }}
+                    <div
+                        class="mt-3 inline-flex rounded-full bg-zinc-100 p-1 dark:bg-slate-700"
+                        role="radiogroup"
+                        :aria-label="t('settings.data_saver.title')"
+                        data-test="dataSaverLevels"
+                    >
+                        <button
+                            v-for="level in dataSaverLevels"
+                            :key="level"
+                            type="button"
+                            role="radio"
+                            :aria-checked="effectiveDataSaverLevel === level"
+                            class="min-h-[36px] rounded-full px-4 text-sm font-semibold"
+                            :class="
+                                effectiveDataSaverLevel === level
+                                    ? 'bg-white text-zinc-900 shadow dark:bg-slate-500 dark:text-white'
+                                    : 'text-zinc-600 dark:text-slate-300'
+                            "
+                            :data-test="`dataSaverLevel-${level}`"
+                            @click="dataSaverLevel = level"
+                        >
+                            {{ dataSaverName(level) }}
+                        </button>
                     </div>
-                    <LToggle v-model="subtitlesOnVideo" data-test="subtitlesOnVideoToggle" />
-                </div>
-            </LCard>
-            <LCard :title="t('settings.youtube.title')">
-                <div class="flex items-center justify-between gap-4">
-                    <div class="text-sm text-zinc-600 dark:text-slate-100">
-                        {{ t("settings.youtube.description") }}
+                    <div
+                        class="mt-2 text-sm text-zinc-600 dark:text-slate-100"
+                        data-test="dataSaverLevelDescription"
+                    >
+                        {{ dataSaverDescription(effectiveDataSaverLevel) }}
                     </div>
-                    <LToggle v-model="youtubeAlwaysAllow" data-test="youtubeAllowToggle" />
-                </div>
-            </LCard>
-        </div>
+                    <div
+                        v-if="dataSaverNote"
+                        class="mt-3 text-sm text-zinc-600 dark:text-slate-100"
+                        data-test="dataSaverNote"
+                    >
+                        {{ dataSaverNote }}
+                    </div>
+                </LCard>
+                <LCard :title="textOr('settings.autoplay.title', 'Autoplay')">
+                    <div class="flex items-center justify-between gap-4">
+                        <div class="text-sm text-zinc-600 dark:text-slate-100">
+                            {{
+                                textOr(
+                                    "settings.autoplay.description",
+                                    "When a video ends, play the next one by itself after a short countdown.",
+                                )
+                            }}
+                        </div>
+                        <LToggle v-model="autoplayNext" data-test="autoplayToggle" />
+                    </div>
+                </LCard>
+                <LCard :title="t('settings.subtitles.title')">
+                    <div class="flex items-center justify-between gap-4">
+                        <div class="text-sm text-zinc-600 dark:text-slate-100">
+                            {{ t("settings.subtitles.description") }}
+                        </div>
+                        <LToggle v-model="subtitlesOnVideo" data-test="subtitlesOnVideoToggle" />
+                    </div>
+                </LCard>
+                <LCard :title="t('settings.youtube.title')">
+                    <div class="flex items-center justify-between gap-4">
+                        <div class="text-sm text-zinc-600 dark:text-slate-100">
+                            {{ t("settings.youtube.description") }}
+                        </div>
+                        <LToggle v-model="youtubeAlwaysAllow" data-test="youtubeAllowToggle" />
+                    </div>
+                </LCard>
+            </div>
+        </ClientOnly>
         <LDialog
             v-model:open="showClearActivityDialog"
             :title="t('settings.clear_activity.modal.title')"

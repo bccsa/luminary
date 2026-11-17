@@ -36,7 +36,7 @@ import {
     isRouteEligible,
     type KeysetDocument,
 } from "./src/ssg/queryDrain";
-import { enumerateSite, queryTransport } from "./src/ssg/routeEnumeration";
+import { enumerateSite, queryTransport, shellRoutes } from "./src/ssg/routeEnumeration";
 import {
     ACTIVE_PROVIDER_KEY,
     LEGACY_AUTH0_CACHE_PREFIX,
@@ -342,8 +342,12 @@ let docFacetRoutes: Record<string, string> = {};
 let renderedRouteSet: Set<string> = new Set();
 let routeLastmod: Record<string, string> = {};
 
+// Set from the route table in `includedRoutes`, before any page renders.
+let SHELL_ROUTES: ReadonlySet<string> = new Set();
+
 function writeSeoArtifacts() {
-    const crawlableRoutes = prerenderedRoutes.filter((r) => r !== "/404"); // not a crawlable URL
+    // /404 and the client-only shells are not crawlable URLs.
+    const crawlableRoutes = prerenderedRoutes.filter((r) => r !== "/404" && !SHELL_ROUTES.has(r));
     const urls = crawlableRoutes
         .map(
             (r) =>
@@ -714,6 +718,7 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             // tile to a slug page that was never prerendered. Must run before the first
             // render, where `mangoIsPublished` captures `sessionNow()` on first read.
             setSessionNow(routeEnumerationNow);
+            SHELL_ROUTES = new Set(shellRoutes(routes));
             const site = await enumerateSite<SsgContent>({
                 transportFor: (operation) => queryTransport(apiUrl, operation),
                 routeRecords: routes,
@@ -773,9 +778,15 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             const ls = (globalThis as { localStorage?: { removeItem(k: string): void } })
                 .localStorage;
             if (ls) for (const key of Object.keys(cache)) ls.removeItem(key);
+            // Injected here, not via the page's head, so the route table alone decides noindex.
+            const robots =
+                SHELL_ROUTES.has(route) || route === "/404"
+                    ? '<meta name="robots" content="noindex">'
+                    : "";
+            const inject = robots + script;
             return renderedHTML.includes("</head>")
-                ? renderedHTML.replace("</head>", `${script}</head>`)
-                : script + renderedHTML;
+                ? renderedHTML.replace("</head>", `${inject}</head>`)
+                : inject + renderedHTML;
         },
         onFinished: async () => {
             try {

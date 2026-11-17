@@ -77,47 +77,49 @@ onMounted(async () => {
             />
         </template>
 
-        <div class="px-2">
-            <!-- Mobile. Steps off the top with the top and bottom bars on scroll down, and returns with
+        <ClientOnly>
+            <div class="px-2">
+                <!-- Mobile. Steps off the top with the top and bottom bars on scroll down, and returns with
                  them on scroll up. Inert meanwhile, so its off-screen chips can't take focus. -->
-            <div
-                class="sticky top-0 z-10 -mx-2 -mt-[var(--top-bar-h,74px)] mb-[var(--top-bar-h,74px)] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform xl:hidden"
-                :style="mobileFilterStyle"
-                :inert="mobileChrome.hidden.value"
-            >
                 <div
-                    class="relative z-10 bg-white px-2 py-3 before:absolute before:inset-x-0 before:bottom-full before:h-2 before:bg-inherit dark:bg-slate-900"
+                    class="sticky top-0 z-10 -mx-2 -mt-[var(--top-bar-h,74px)] mb-[var(--top-bar-h,74px)] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform xl:hidden"
+                    :style="mobileFilterStyle"
+                    :inert="mobileChrome.hidden.value"
                 >
-                    <ActivityFilterChips
-                        :filters="filters"
-                        :active="activeFilter"
-                        @select="selectFilter($event as ActivityFilter)"
-                    />
+                    <div
+                        class="relative z-10 bg-white px-2 py-3 before:absolute before:inset-x-0 before:bottom-full before:h-2 before:bg-inherit dark:bg-slate-900"
+                    >
+                        <ActivityFilterChips
+                            :filters="filters"
+                            :active="activeFilter"
+                            @select="selectFilter($event as ActivityFilter)"
+                        />
+                    </div>
+                    <div v-if="showColours" class="bg-white px-2 pb-3 pt-1 dark:bg-slate-900">
+                        <ActivityColourChips
+                            :colours="colours"
+                            :active="colour"
+                            @select="colour = $event"
+                        />
+                    </div>
                 </div>
-                <div v-if="showColours" class="bg-white px-2 pb-3 pt-1 dark:bg-slate-900">
+
+                <!-- xl: the section chips sit in the pinned strip above, so the colours pin right under
+                 it. Like those chips, no backing: only the pills themselves. -->
+                <div
+                    v-if="showColours"
+                    class="sticky top-11 z-10 -mx-2 mb-4 hidden px-2 pb-2 xl:block xl:pl-10"
+                >
                     <ActivityColourChips
                         :colours="colours"
                         :active="colour"
                         @select="colour = $event"
                     />
                 </div>
+                <div role="tabpanel" class="isolate min-h-[calc(100dvh+18rem)] xl:min-h-0">
+                    <component :is="panels[activeFilter]" v-bind="panelProps" />
+                </div>
             </div>
-
-            <!-- xl: the section chips sit in the pinned strip above, so the colours pin right under
-                 it. Like those chips, no backing: only the pills themselves. -->
-            <div
-                v-if="showColours"
-                class="sticky top-11 z-10 -mx-2 mb-4 hidden px-2 pb-2 xl:block xl:pl-10"
-            >
-                <ActivityColourChips
-                    :colours="colours"
-                    :active="colour"
-                    @select="colour = $event"
-                />
-            </div>
-            <div role="tabpanel" class="isolate min-h-[calc(100dvh+18rem)] xl:min-h-0">
-                <component :is="panels[activeFilter]" v-bind="panelProps" />
-            </div>
-        </div>
+        </ClientOnly>
     </BasePage>
 </template>

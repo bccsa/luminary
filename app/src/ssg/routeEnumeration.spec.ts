@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import type { RouteRecordRaw } from "vue-router";
 import {
     enumerateSite,
+    shellRoutes,
     eligibleSlugRoutes,
     localizedStaticPaths,
     siteRoutes,
@@ -15,8 +16,8 @@ const routeRecords = [
     { path: "/", meta: { prerender: true } },
     { path: "/explore", meta: { prerender: true } },
     { path: "/404", meta: { prerender: true } },
-    { path: "/open" },
-    { path: "/settings", meta: { prerender: true } },
+    { path: "/open", meta: { prerender: true, shell: true } },
+    { path: "/settings", meta: { prerender: true, shell: true } },
     { path: "/:slug", meta: { prerender: true } },
 ] as unknown as RouteRecordRaw[];
 
@@ -36,7 +37,19 @@ const docs: EnumeratedContent[] = [
 
 describe("staticPrerenderRoutes", () => {
     it("takes only prerender-flagged, non-dynamic routes", () => {
-        expect(staticPrerenderRoutes(routeRecords)).toEqual(["/", "/explore", "/404", "/settings"]);
+        expect(staticPrerenderRoutes(routeRecords)).toEqual([
+            "/",
+            "/explore",
+            "/404",
+            "/open",
+            "/settings",
+        ]);
+    });
+});
+
+describe("shellRoutes", () => {
+    it("takes only shell-flagged routes", () => {
+        expect(shellRoutes(routeRecords)).toEqual(["/open", "/settings"]);
     });
 });
 
@@ -56,22 +69,38 @@ describe("eligibleSlugRoutes", () => {
 });
 
 describe("siteRoutes", () => {
-    it("composes the public set, excluding private routes and leaving /404 unlocalized", () => {
+    it("composes the public set, with /404 and shells unlocalized", () => {
         const result = siteRoutes({ routeRecords, docs, languages, now });
 
         expect(result.all).toEqual([
             "/",
             "/explore",
             "/404",
+            "/open",
+            "/settings",
             "/fra",
             "/fra/explore",
             "/one",
             "/no-publish-date",
         ]);
-        expect(result.all).not.toContain("/settings");
-        expect(result.all).not.toContain("/fra/settings");
+        expect(result.staticRoutes).toEqual(expect.arrayContaining(["/open", "/settings"]));
+        expect(result.localizedRoutes).not.toContain("/fra/settings");
+        expect(result.localizedRoutes).not.toContain("/fra/open");
         expect(result.all).not.toContain("/fra/404");
         expect(result.slugRoutes).toEqual(["/one", "/no-publish-date"]);
+    });
+});
+
+describe("siteRoutes slug collisions", () => {
+    it("drops a content slug equal to a shell path", () => {
+        const result = siteRoutes({
+            routeRecords,
+            docs: [{ _id: "c9", updatedTimeUtc: 9, slug: "settings", publishDate: 1 }],
+            languages,
+            now,
+        });
+        expect(result.all.filter((r) => r === "/settings")).toHaveLength(1);
+        expect(result.slugRoutes).toEqual(["/settings"]);
     });
 });
 

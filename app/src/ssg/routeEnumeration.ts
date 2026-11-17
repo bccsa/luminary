@@ -37,15 +37,22 @@ export type EnumeratedSite<TContent extends EnumeratedContent = EnumeratedConten
     routes: SiteRoutes;
 };
 
-/** Private / per-user routes — never prerendered. */
-export const EXCLUDED_ROUTES: ReadonlySet<string> = new Set(["/open", "/settings", "/activity"]);
-
 /**
  * The 404 error page is prerendered only in the default language — a worker-served custom error
  * page has no per-request locale — so it is kept out of the locale-prefixed variants while still
  * being prerendered itself.
  */
-const UNLOCALIZED_STATIC_ROUTES: ReadonlySet<string> = new Set(["/404"]);
+const NOT_FOUND_ROUTE = "/404";
+
+/**
+ * Per-user client-only routes (`meta.shell`), prerendered as empty noindex shells so a direct
+ * load doesn't 404 on a host with no SPA fallback.
+ */
+export function shellRoutes(routeRecords: readonly RouteRecordRaw[]): string[] {
+    return routeRecords
+        .filter((r) => r.meta?.shell && typeof r.path === "string" && !r.path.includes(":"))
+        .map((r) => r.path as string);
+}
 
 /** A thin `fetch` wrapper around `/query` for the build's own Node-side drains. */
 export function queryTransport(apiUrl: string, operation: string): QueryTransport {
@@ -117,19 +124,23 @@ export function siteRoutes(options: {
     now: number;
 }): SiteRoutes {
     const { routeRecords, docs, languages, now } = options;
-    // Excluded up front, not just out of `all`, so an excluded route that also carries
-    // `meta.prerender` can't reach the set through a locale-prefixed variant.
-    const staticRoutes = staticPrerenderRoutes(routeRecords).filter((r) => !EXCLUDED_ROUTES.has(r));
+    const staticRoutes = staticPrerenderRoutes(routeRecords);
+    const unlocalized = new Set([NOT_FOUND_ROUTE, ...shellRoutes(routeRecords)]);
     const localizedRoutes = localizedStaticPaths(
-        staticRoutes.filter((r) => !UNLOCALIZED_STATIC_ROUTES.has(r)),
+        staticRoutes.filter((r) => !unlocalized.has(r)),
         languageCodesOf(languages),
         defaultLanguageOf(languages)?.languageCode ?? "",
     );
     const slugRoutes = eligibleSlugRoutes(docs, now);
-    // Filtered again for the slug routes: a doc whose slug collides with an excluded path.
-    const all = [...new Set([...staticRoutes, ...localizedRoutes, ...slugRoutes])].filter(
-        (p) => !EXCLUDED_ROUTES.has(p),
-    );
+    // A doc whose slug collides with a static route must not overwrite its page.
+    const staticSet = new Set(staticRoutes);
+    const all = [
+        ...new Set([
+            ...staticRoutes,
+            ...localizedRoutes,
+            ...slugRoutes.filter((r) => !staticSet.has(r)),
+        ]),
+    ];
     return { staticRoutes, localizedRoutes, slugRoutes, all };
 }
 

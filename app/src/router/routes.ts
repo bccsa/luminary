@@ -12,7 +12,7 @@ const SingleContent = () => import("@/pages/SingleContent/SingleContent.vue");
 const NotFoundPage = () => import("@/pages/NotFoundPage.vue");
 
 /**
- * The shared route table for both the normal SPA entry and the web/SSG entry. `meta.prerender: true` marks public, crawlable routes the web build emits as static HTML; dynamic content slugs are enumerated from the API at build time.
+ * The shared route table for both the normal SPA entry and the web/SSG entry. `meta.prerender: true` marks routes the web build emits as static HTML; `meta.shell: true` marks per-user client-only routes emitted as a noindex shell (not localized, not in the sitemap); dynamic content slugs are enumerated from the API at build time.
  */
 export const routes: RouteRecordRaw[] = [
     {
@@ -21,6 +21,8 @@ export const routes: RouteRecordRaw[] = [
         name: "open-warning",
         meta: {
             analyticsIgnore: true,
+            prerender: true,
+            shell: true,
         },
     },
     {
@@ -67,6 +69,8 @@ export const routes: RouteRecordRaw[] = [
         meta: {
             title: "title.settings",
             analyticsIgnore: true,
+            prerender: true,
+            shell: true,
         },
     },
     {
@@ -75,6 +79,8 @@ export const routes: RouteRecordRaw[] = [
         name: "activity",
         meta: {
             title: "activity.title",
+            prerender: true,
+            shell: true,
         },
     },
     // Note that this route should always come after all defined routes,
