@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import BasePage from "@/components/BasePage.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { markPageReady } from "@/util/renderState";
+import { isPrerender } from "@/ssg/isPrerender";
 import type { HighlightColor } from "luminary-shared";
 import ActivityFilterChips from "./ActivityFilterChips.vue";
 import ActivityColourChips from "./ActivityColourChips.vue";
@@ -39,7 +40,8 @@ const selectFilter = (filter: ActivityFilter) =>
 
 // Not mirrored to the query string: where that state should live is still to be decided.
 const colour = ref<HighlightColor | undefined>(undefined);
-const colours = useHighlightColours();
+// The stored activity lives in the browser, so the prerender has no colours to read.
+const colours = isPrerender() ? computed<HighlightColor[]>(() => []) : useHighlightColours();
 // A single colour needs no filter: the chips would only state what is shown.
 const showColours = computed(
     () => activeFilter.value === "highlighted" && colours.value.length > 1,
