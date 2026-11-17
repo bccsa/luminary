@@ -72,7 +72,8 @@ export type UseEditContentSource = {
     save: () => Promise<void>;
     /**
      * Persist `media` onto the parent as last saved, and nothing else: the editor's other
-     * unsaved edits stay unsaved, and the new media reads as saved.
+     * unsaved edits stay unsaved, and the new media reads as saved. Settles with the
+     * server's answer, so it waits while offline; rejects when the server refuses it.
      */
     saveMedia: (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => Promise<void>;
     /** Whether anything other than `fields` is unsaved, on the parent or any translation. */
@@ -382,10 +383,18 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
 
         const doc = _.cloneDeep(toRaw(saved));
         doc.media = { ...doc.media, ...media };
-        await db.upsert({ doc });
+        const { localChangeId } = await db.upsert({ doc });
         // Set rather than left to the live query, so the editor sees it at once: `media` is
         // back-patched, which moves it into the editable copy and its baseline together.
         parentSource.value = [doc];
+
+        const ack = await db.waitForLocalChangeAck(localChangeId);
+        if (ack.ack !== AckStatus.Rejected) return;
+        // A refusal without the server's copy deletes the local one, which the live query
+        // does not pass on: put back what was saved, so the refused media does not read
+        // as saved.
+        if (!ack.docs?.length) parentSource.value = [saved];
+        throw new Error(ack.message || "The server refused the change.");
     };
 
     /**

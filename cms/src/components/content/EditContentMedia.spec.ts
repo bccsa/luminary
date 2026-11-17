@@ -23,7 +23,16 @@ const encoder = {
     stop: vi.fn(),
 };
 
-vi.mock("@/composables/useMediaEncoder", () => ({ useMediaEncoder: () => encoder }));
+/** What the section asks the encoder composable to acknowledge as stored. */
+const encoderOptions = vi.hoisted(() => ({
+    storedHlsUrl: undefined as (() => string | undefined) | undefined,
+}));
+vi.mock("@/composables/useMediaEncoder", () => ({
+    useMediaEncoder: (options: { storedHlsUrl?: () => string | undefined }) => {
+        encoderOptions.storedHlsUrl = options?.storedHlsUrl;
+        return encoder;
+    },
+}));
 
 vi.mock("@/composables/storageSelection", () => ({
     storageSelection: () => ({
@@ -386,6 +395,23 @@ describe("EditContentMedia new versions of the saved video", () => {
 
         expect(saveMediaOnly).toHaveBeenCalledWith(
             expect.objectContaining({ hlsUrl: "https://cdn.example.com/media/abc/master_r3.m3u8" }),
+        );
+    });
+
+    it("tells the encoder nothing is stored until the server has answered the save", async () => {
+        // Queued is not stored: the server can still refuse it.
+        resumeWith("https://cdn.example.com/media/abc/master_r3.m3u8");
+        let answer!: () => void;
+        const saveMediaOnly = vi.fn(() => new Promise<void>((resolve) => (answer = resolve)));
+
+        mountSection({ parent: { ...saved }, savedParent: saved, saveMediaOnly });
+        await settle();
+        expect(encoderOptions.storedHlsUrl!()).toBeUndefined();
+
+        answer();
+        await settle();
+        expect(encoderOptions.storedHlsUrl!()).toBe(
+            "https://cdn.example.com/media/abc/master_r2.m3u8",
         );
     });
 

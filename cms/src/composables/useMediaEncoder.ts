@@ -137,7 +137,12 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
 
     async function tick() {
         // A hidden tab is nobody waiting for an answer; the next focus asks.
-        if (!document.hidden && (await refreshAvailability())) await pickUpLostSession();
+        if (!document.hidden && (await refreshAvailability())) {
+            await pickUpLostSession();
+            // An acknowledgement the encoder failed to record is asked again here: an
+            // edit session may send no further event to retry it on.
+            acknowledgeIfStored();
+        }
         if (!disposed) schedule();
     }
 
@@ -220,7 +225,7 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
         // Sent as the encoder published it, not in the document's stored shape: the
         // encoder compares the string.
         void ackEncoderSession(handle.sessionId, handle.readToken, hlsUrl).catch(() => {
-            // An encoder out of reach is asked again on the session's next event.
+            // Asked again on the session's next event, or the next availability check.
             if (followed === handle && acknowledged === hlsUrl) acknowledged = undefined;
         });
     }

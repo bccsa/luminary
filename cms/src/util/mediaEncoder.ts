@@ -296,10 +296,11 @@ export async function fetchEncoderSessionKey(
  * the video until the version it last wrote is stored, so none is lost to a document
  * still naming an older one.
  *
- * Rejects only when the encoder cannot be reached. A refusal is no failure: encoders
- * from before versioned playlists have no such route (404), and a session the encoder
- * no longer holds (401) has nothing left to confirm. `hlsUrl` goes back exactly as the
- * encoder published it, which is what it compares.
+ * Rejects when the encoder cannot be reached or fails to record it, so the caller can
+ * ask again. A refusal is no failure: encoders from before versioned playlists have no
+ * such route (404), and a session the encoder no longer holds (401) has nothing left to
+ * confirm. `hlsUrl` goes back exactly as the encoder published it, which is what it
+ * compares.
  */
 export async function ackEncoderSession(
     sessionId: string,
@@ -307,7 +308,7 @@ export async function ackEncoderSession(
     hlsUrl: string,
     baseUrl: string = ENCODER_BASE_URL,
 ): Promise<void> {
-    await fetch(
+    const res = await fetch(
         `${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}/ack` +
             `?token=${encodeURIComponent(readToken)}`,
         {
@@ -316,6 +317,8 @@ export async function ackEncoderSession(
             body: JSON.stringify({ hlsUrl }),
         },
     );
+    if (res.ok || res.status === 401 || res.status === 404) return;
+    throw new Error(`The encoder answered ${res.status} to the acknowledgement.`);
 }
 
 /**

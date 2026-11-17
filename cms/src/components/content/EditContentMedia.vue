@@ -82,6 +82,8 @@ const savedVideoUrl = computed(() => {
 });
 
 const hasLocalChange = useHasLocalChanges();
+/** New versions handed to the editor to save whose server answer has not come. */
+const savingVersions = ref(0);
 
 const {
     availability,
@@ -99,10 +101,11 @@ const {
     resume,
     stop,
 } = useMediaEncoder({
-    // Not while a save is still queued: the server can yet refuse it.
+    // Not while a save is still queued or unanswered: the server can yet refuse it.
     storedHlsUrl: () => {
         const saved = props.savedParent;
-        return saved && !hasLocalChange.value(saved._id) ? savedVideoUrl.value : undefined;
+        if (!saved || savingVersions.value || hasLocalChange.value(saved._id)) return undefined;
+        return savedVideoUrl.value;
     },
 });
 
@@ -151,7 +154,11 @@ const handleEncodedMedia = (media: Pick<MediaDto, "hlsUrl" | "hlsKey">, document
     if (newVersion && revisionOf(media.hlsUrl) <= revisionOf(saved)) return;
 
     if (newVersion && props.saveMediaOnly && !props.disabled) {
-        void props.saveMediaOnly(media);
+        savingVersions.value++;
+        void props
+            .saveMediaOnly(media)
+            .catch(() => undefined)
+            .finally(() => savingVersions.value--);
         return;
     }
 

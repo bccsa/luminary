@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createHash } from "crypto";
 import {
+    ackEncoderSession,
     isEncoderOutdated,
     browserCanReachEncoder,
     checkEncoderHealth,
@@ -315,5 +316,32 @@ describe("isEncoderOutdated", () => {
     it("does not call an unknown version outdated", () => {
         expect(isEncoderOutdated(undefined)).toBe(false);
         expect(isEncoderOutdated("dev")).toBe(false);
+    });
+});
+
+describe("ackEncoderSession", () => {
+    it("settles when the encoder records it", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 204 }));
+
+        await expect(ackEncoderSession("s1", "read_1", "https://cdn/master.m3u8")).resolves.toBe(
+            undefined,
+        );
+    });
+
+    it.each([401, 404])("settles on %i: the encoder has nothing to confirm", async (status) => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status }));
+
+        await expect(ackEncoderSession("s1", "read_1", "https://cdn/master.m3u8")).resolves.toBe(
+            undefined,
+        );
+    });
+
+    it("rejects when the encoder fails to record it, so it is asked again", async () => {
+        // Taken as recorded, the encoder would refuse every further edit until a reload.
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+
+        await expect(ackEncoderSession("s1", "read_1", "https://cdn/master.m3u8")).rejects.toThrow(
+            "500",
+        );
     });
 });
