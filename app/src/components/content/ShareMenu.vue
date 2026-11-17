@@ -182,7 +182,7 @@ async function shareToInstagram() {
         v-else
         v-model:open="open"
         placement="top-start"
-        panel-class="w-60 rounded-lg bg-white p-1.5 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
+        panel-class="w-60 rounded-lg bg-white p-1.5 shadow-xl ring-1 ring-zinc-200 dark:bg-menu-dark dark:ring-slate-500"
     >
         <template #trigger>
             <span
@@ -242,7 +242,7 @@ async function shareToInstagram() {
                  trigger rather than the panel edge, so it still points at the share button
                  when the panel has been clamped to the viewport. -->
             <div
-                class="absolute h-3 w-3 -rotate-45 border-zinc-200 bg-white dark:border-slate-500 dark:bg-slate-700"
+                class="absolute h-3 w-3 -rotate-45 border-zinc-200 bg-white dark:border-slate-500 dark:bg-menu-dark"
                 :class="above ? '-bottom-1.5 border-b border-l' : '-top-1.5 border-r border-t'"
                 :style="{ left: `${triggerOffsetX - 6}px` }"
             ></div>
