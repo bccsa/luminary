@@ -1,12 +1,21 @@
 import "fake-indexeddb/auto";
-import { describe, it, beforeEach, expect } from "vitest";
-import { db, DocType, type ContentDto, type HighlightRange } from "luminary-shared";
+import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
+import {
+    db,
+    DocType,
+    HttpReq,
+    isConnected,
+    type ContentDto,
+    type HighlightRange,
+} from "luminary-shared";
 
 import {
     migrateLegacyHighlightRowsToPassages,
     migrateLikesToUserActivity,
     migrateHighlightsToUserActivity,
     migrateToUserActivity,
+    migrateUserActivityOnStartup,
+    USER_ACTIVITY_MIGRATION_KEY,
 } from "../migrate";
 import {
     clearUserActivity,
@@ -33,9 +42,86 @@ const contentDoc = (_id: string, parentId: string) =>
 
 describe("migration to userActivity", () => {
     beforeEach(async () => {
+        isConnected.value = false;
+        localStorage.removeItem(USER_ACTIVITY_MIGRATION_KEY);
+        localStorage.removeItem("userActivityMigrated");
         await db.userActivity.clear();
         await db.docs.clear();
         await db.setLuminaryInternals("highlights", undefined);
+    });
+
+    afterEach(() => {
+        isConnected.value = false;
+        vi.restoreAllMocks();
+    });
+
+    it("upgrades devices that already completed the earlier activity migration", async () => {
+        localStorage.setItem("userActivityMigrated", "true");
+        await db.userActivity.put({
+            _id: "highlighted:old-content",
+            type: "highlighted",
+            parentId: "old-post",
+            contentId: "old-content",
+            updatedTimeUtc: 123,
+            payload: { ranges: [range("saved")] },
+        } as any);
+        await migrateUserActivityOnStartup();
+        expect(await db.userActivity.get("highlighted:old-content")).toBeUndefined();
+        expect(await db.userActivity.get("highlighted:old-content:0-5")).toMatchObject({
+            updatedTimeUtc: 123,
+            payload: { range: range("saved") },
+        });
+        expect(localStorage.getItem(USER_ACTIVITY_MIGRATION_KEY)).toBe("true");
+    });
+
+    it("keeps an offline migration pending and resolves remote highlights on the next start", async () => {
+        const post = vi.spyOn(HttpReq.prototype, "post").mockResolvedValue({
+            docs: [contentDoc("content-remote", "post-remote")],
+        });
+        await db.setLuminaryInternals("highlights", {
+            "content-remote": { html: "<p><mark>remote</mark></p>", updatedAt: 17 },
+        });
+        await migrateUserActivityOnStartup();
+        expect(post).not.toHaveBeenCalled();
+        expect(localStorage.getItem(USER_ACTIVITY_MIGRATION_KEY)).toBeNull();
+        expect(await db.getLuminaryInternals("highlights")).toBeDefined();
+
+        isConnected.value = true;
+        await migrateUserActivityOnStartup();
+        expect(post).toHaveBeenCalledWith(
+            "query",
+            expect.objectContaining({
+                selector: { type: DocType.Content, _id: { $in: ["content-remote"] } },
+            }),
+        );
+        expect(await db.userActivity.get("highlighted:content-remote:0-6")).toMatchObject({
+            parentId: "post-remote",
+            updatedTimeUtc: 17,
+        });
+        expect(await db.luminaryInternals.get("highlights")).toBeUndefined();
+        expect(localStorage.getItem(USER_ACTIVITY_MIGRATION_KEY)).toBe("true");
+    });
+
+    it("does not discard highlights on an HTTP failure", async () => {
+        isConnected.value = true;
+        const post = vi.spyOn(HttpReq.prototype, "post").mockResolvedValue(undefined);
+        await db.setLuminaryInternals("highlights", {
+            "content-retry": { ranges: [range("retry")], updatedAt: 20 },
+        });
+        await migrateUserActivityOnStartup();
+        expect(await db.getLuminaryInternals("highlights")).toHaveProperty("content-retry");
+        expect(localStorage.getItem(USER_ACTIVITY_MIGRATION_KEY)).toBeNull();
+        post.mockResolvedValue({ docs: [] });
+        await migrateUserActivityOnStartup();
+        expect(await db.luminaryInternals.get("highlights")).toBeUndefined();
+        expect(localStorage.getItem(USER_ACTIVITY_MIGRATION_KEY)).toBe("true");
+    });
+
+    it("drops malformed legacy entries without keeping the migration pending", async () => {
+        await db.setLuminaryInternals("highlights", { invalid: { updatedAt: 20 } });
+        await migrateUserActivityOnStartup();
+        expect(await db.luminaryInternals.get("highlights")).toBeUndefined();
+        expect(localStorage.getItem(USER_ACTIVITY_MIGRATION_KEY)).toBe("true");
     });
 
     describe("likes", () => {

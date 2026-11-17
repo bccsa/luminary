@@ -10,7 +10,7 @@ import {
 } from "luminary-shared";
 import { computed, ref, watch, watchEffect, type WatchStopHandle } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
-import { migrateToUserActivity } from "./userActivity/migrate";
+import { migrateUserActivityOnStartup } from "./userActivity/migrate";
 import { startContentProgressMirror } from "./userActivity/fromContentProgress";
 import { pruneUserActivityTombstones } from "./userActivity/store";
 
@@ -477,8 +477,6 @@ watch(userPreferencesAsRef.value, (newVal) => {
     localStorage.setItem("userPreferences", JSON.stringify({ ...newVal }));
 });
 
-const USER_ACTIVITY_MIGRATED_KEY = "userActivityMigrated";
-
 /**
  * Starts the user-activity store. Needs the shared database open, so call it after sync has started.
  */
@@ -492,13 +490,9 @@ export const initUserActivity = () => {
     // listening before anything can scroll.
     startContentProgressMirror();
 
-    // Delete this block, and `userActivity/migrate.ts` with it, once every install has migrated.
-    if (localStorage.getItem(USER_ACTIVITY_MIGRATED_KEY)) return;
-
-    void migrateToUserActivity(userPreferencesAsRef.value.likes)
+    void migrateUserActivityOnStartup(userPreferencesAsRef.value.likes)
         .then(() => {
             delete userPreferencesAsRef.value.likes;
-            localStorage.setItem(USER_ACTIVITY_MIGRATED_KEY, "true");
         })
         .catch((err) => console.error("User activity migration failed:", err));
 };

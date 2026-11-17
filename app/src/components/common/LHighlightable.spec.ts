@@ -512,11 +512,7 @@ describe("LHighlightable", () => {
         const writeText = vi.fn().mockResolvedValue(undefined);
         Object.assign(navigator, { clipboard: { writeText } });
 
-        const wrapper = mountHighlightable(
-            "share-instagram-test",
-            "test-post-1",
-            "Test Article",
-        );
+        const wrapper = mountHighlightable("share-instagram-test", "test-post-1", "Test Article");
         await vi.advanceTimersByTimeAsync(50);
         const prose = wrapper.find(".prose");
 
@@ -575,7 +571,9 @@ describe("LHighlightable", () => {
             return db.userActivity.clear();
         });
 
-        const seedRanges = async (ranges: Array<{ start: number; end: number; color: string; text: string }>) => {
+        const seedRanges = async (
+            ranges: Array<{ start: number; end: number; color: string; text: string }>,
+        ) => {
             for (const [index, range] of ranges.entries()) {
                 await db.userActivity.put({
                     _id: `highlighted:model-test:${range.start}-${range.end}`,
@@ -589,7 +587,12 @@ describe("LHighlightable", () => {
         };
 
         const mountWith = async (
-            saved?: Array<{ start: number; end: number; color: "yellow" | "green" | "blue" | "pink" | "purple"; text: string }>,
+            saved?: Array<{
+                start: number;
+                end: number;
+                color: "yellow" | "green" | "blue" | "pink" | "purple";
+                text: string;
+            }>,
         ) => {
             if (saved?.length) await seedRanges(saved);
             const wrapper = mount(LHighlightable, {
@@ -692,6 +695,43 @@ describe("LHighlightable", () => {
             wrapper.unmount();
         });
 
+        it("replays overlapping passages in activity order without rewriting them on load", async () => {
+            const wrapper = await mountWith([
+                { start: 0, end: 21, color: "yellow", text: "Some highlighted text" },
+                { start: 5, end: 30, color: "blue", text: "highlighted text content." },
+            ]);
+            expect(
+                wrapper
+                    .findAll("mark[data-highlight]")
+                    .map((mark) => [mark.element.textContent, mark.attributes("data-highlight")]),
+            ).toEqual([
+                ["Some", "yellow"],
+                ["highlighted text content.", "blue"],
+            ]);
+            const rows = await db.userActivity.orderBy("updatedTimeUtc").toArray();
+            expect(rows.map((row) => [row.updatedTimeUtc, row.deleted])).toEqual([
+                [1, undefined],
+                [2, undefined],
+            ]);
+            wrapper.unmount();
+        });
+
+        it("leaves an unchanged passage and its timestamp alone when another is removed", async () => {
+            const wrapper = await mountWith([
+                { start: 0, end: 4, color: "yellow", text: "Some" },
+                { start: 5, end: 16, color: "blue", text: "highlighted" },
+            ]);
+            await select(wrapper, "Some", "Some");
+            removeButton().click();
+            await settle();
+            expect((await db.userActivity.get("highlighted:model-test:0-4"))?.deleted).toBe(true);
+            expect(await db.userActivity.get("highlighted:model-test:5-16")).toMatchObject({
+                updatedTimeUtc: 2,
+                payload: { range: { color: "blue" } },
+            });
+            wrapper.unmount();
+        });
+
         it("removes nothing when the selection is gone by the time Remove is pressed", async () => {
             const wrapper = await mountWith([
                 { start: 5, end: 16, color: "blue", text: "highlighted" },
@@ -728,9 +768,7 @@ describe("LHighlightable", () => {
         });
 
         it("can still remove a stray highlight on punctuation saved before snapping", async () => {
-            const wrapper = await mountWith([
-                { start: 29, end: 30, color: "green", text: "." },
-            ]);
+            const wrapper = await mountWith([{ start: 29, end: 30, color: "green", text: "." }]);
             expect(marks(wrapper)).toEqual(["."]);
             await select(wrapper, ".", ".");
 

@@ -80,6 +80,18 @@ The app tracks how far a user has read through article text and surfaces in-prog
 
 Full design, diagrams, and constants: **[docs/reading-progress-tracker/README.md](docs/reading-progress-tracker/README.md)**.
 
+## Local activity migration
+
+Highlights use one activity row per passage. The passage migration has its own
+completion marker (`userActivityPassagesMigrated`), so devices that already ran the
+older activity migration still upgrade. Existing passage rows, including tombstones,
+take precedence over legacy data.
+
+Legacy highlights whose content is missing locally are looked up remotely in bounded
+requests. Offline use and failed HTTP requests retain unresolved entries and retry on
+the next startup. A successful lookup retires entries that still cannot be resolved.
+The legacy `luminaryInternals["highlights"]` key is deleted after migration completes.
+
 ## Local setup
 
 Refer to the [setup guide](../docs/guides/setup-vue-app.md).
