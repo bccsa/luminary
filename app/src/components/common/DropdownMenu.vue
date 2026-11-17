@@ -177,7 +177,7 @@ const triggerOffsetX = computed(() => {
                 v-show="panelShown"
                 ref="panelRef"
                 role="menu"
-                class="fixed z-[60] min-w-[8rem] max-w-[calc(100vw-1rem)] rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-slate-700"
+                class="fixed z-[60] min-w-[8rem] max-w-[calc(100vw-1rem)] rounded-md bg-white py-2 shadow-lg ring-1 ring-zinc-900/5 focus:outline-none dark:bg-menu-dark dark:ring-white/10"
                 :class="[originClass, panelClass]"
                 :style="panelStyle"
             >

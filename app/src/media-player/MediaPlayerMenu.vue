@@ -9,7 +9,7 @@ defineProps<{ title?: string }>();
 
 <template>
     <div
-        class="absolute bottom-full left-0 z-10 mb-2 w-max min-w-[10.5rem] max-w-[14rem] rounded-[14px] bg-white p-1 shadow-xl ring-1 ring-black/10 dark:bg-slate-700 dark:ring-white/10"
+        class="absolute bottom-full left-0 z-10 mb-2 w-max min-w-[10.5rem] max-w-[14rem] rounded-[14px] bg-white p-1 shadow-xl ring-1 ring-black/10 dark:bg-menu-dark dark:ring-white/10"
         data-test="mediaPlayerMenu"
     >
         <p
