@@ -64,6 +64,7 @@ type Props = {
     iconClass?: string;
     mainDynamicCss?: string; // NEW: custom background for main (middle) segment
     rightDynamicCss?: string; // Custom classes for the right segment of a segmented button
+    leftDynamicCss?: string; // Custom classes for the left segment of a segmented button
     leftAction?: (event: MouseEvent) => void | Promise<void>;
     mainAction?: (event: MouseEvent) => void | Promise<void>;
     rightAction?: (event: MouseEvent) => void | Promise<void>;
@@ -81,6 +82,7 @@ const props = withDefaults(defineProps<Props>(), {
     iconClass: undefined,
     mainDynamicCss: undefined,
     rightDynamicCss: undefined,
+    leftDynamicCss: undefined,
     leftAction: undefined,
     mainAction: undefined,
     rightAction: undefined,
@@ -195,7 +197,12 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
             v-if="$slots.left"
             type="button"
             :disabled="disabled"
-            :class="segmentClass(buttonClasses({ variant, size, context }), 'left')"
+            :class="
+                twMerge(
+                    segmentClass(buttonClasses({ variant, size, context }), 'left'),
+                    leftDynamicCss,
+                )
+            "
             @click="handleSegmentClick('left', $event)"
         >
             <slot name="left" />

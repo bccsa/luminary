@@ -30,6 +30,10 @@ type Props = {
 
 defineProps<Props>();
 
+// Only Save is yellow in dark mode; Revert and the chevron use the secondary button colours.
+const neutralSegmentDark =
+    "dark:bg-slate-600 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-500 dark:active:bg-slate-500 dark:active:text-zinc-100";
+
 const showContentActionsMenuDesktop = ref(false);
 const showContentActionsMenuMobile = ref(false);
 
@@ -59,11 +63,8 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
                     ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none dark:!bg-zinc-400 dark:!text-zinc-900 dark:!ring-zinc-600'
                     : ''
             "
-            :right-dynamic-css="
-                !isDirty || isSaving
-                    ? 'dark:bg-slate-600 dark:text-zinc-200 dark:ring-slate-500 dark:hover:bg-slate-500 dark:active:bg-slate-400 dark:active:text-zinc-100'
-                    : ''
-            "
+            :left-dynamic-css="neutralSegmentDark"
+            :right-dynamic-css="neutralSegmentDark"
         >
             <template v-if="isDirty && !newDocument" #left>
                 <span data-test="revert-changes-button" class="flex items-center gap-1">
@@ -140,15 +141,12 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
                     ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none dark:!bg-zinc-400 dark:!text-zinc-900 dark:!ring-zinc-600'
                     : ''
             "
-            :right-dynamic-css="
-                !isDirty || isSaving
-                    ? 'dark:bg-slate-600 dark:text-zinc-200 dark:ring-slate-500 dark:hover:bg-slate-500 dark:active:bg-slate-400 dark:active:text-zinc-100'
-                    : ''
-            "
+            :left-dynamic-css="neutralSegmentDark"
+            :right-dynamic-css="neutralSegmentDark"
         >
             <template v-if="isDirty && !newDocument" #left>
                 <span data-test="revert-changes-button" class="flex items-center gap-1">
-                    <ArrowUturnLeftIcon class="size-5 dark:text-zinc-900" />
+                    <ArrowUturnLeftIcon class="size-5" />
                     Revert
                 </span>
             </template>
