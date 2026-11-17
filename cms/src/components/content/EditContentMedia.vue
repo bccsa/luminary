@@ -116,6 +116,13 @@ const folderOf = (url: string) => {
     return path.slice(0, path.lastIndexOf("/") + 1);
 };
 
+/** A playlist's version within its folder: `master.m3u8` is 0, `master_rN.m3u8` is N. */
+const revisionOf = (url: string) => {
+    const name = url.split(/[?#]/)[0].split("/").pop() ?? "";
+    const match = /^master_r(\d+)\.m3u8$/.exec(name);
+    return match ? Number(match[1]) : 0;
+};
+
 /**
  * The encoder publishes its URL when encoding *starts*, so this lands well before
  * the output exists. Saved straight away where the editor allows it, so the app's
@@ -138,6 +145,11 @@ const handleEncodedMedia = (media: Pick<MediaDto, "hlsUrl" | "hlsKey">, document
     // editor's Save, because the API deletes the saved video's files when the document
     // stops naming their folder.
     const newVersion = !!saved && !!folderOf(saved) && folderOf(saved) === folderOf(media.hlsUrl);
+
+    // An encoder that last saw an older version (another machine's, or one reopened from
+    // its own history) offers it again on resume. Storing it would undo the later edit.
+    if (newVersion && revisionOf(media.hlsUrl) <= revisionOf(saved)) return;
+
     if (newVersion && props.saveMediaOnly && !props.disabled) {
         void props.saveMediaOnly(media);
         return;
