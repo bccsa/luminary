@@ -949,7 +949,7 @@ describe("AudioFullscreen: badges, gear menu, end panel, tool slots", () => {
         });
         await find(wrapper, "afsQuality").trigger("click");
         const rows = wrapper.findAll("[role=menu] .lmpl-afs-menuitem").map((row) => row.text());
-        expect(rows).toEqual(["Auto", "128 kbps", "64 kbps", "Data saver"]);
+        expect(rows).toEqual(["Auto", "128 kbps", "64 kbps", "Data saver Default from Settings"]);
         wrapper.unmount();
     });
 
@@ -966,19 +966,19 @@ describe("AudioFullscreen: badges, gear menu, end panel, tool slots", () => {
             wrapper.unmount();
             return text;
         };
-        expect(await rows({ dataSaver: "light" })).toEqual(["Data saver"]);
+        expect(await rows({ dataSaver: "light" })).toEqual(["Data saver Default from Settings"]);
         expect(await rows({ dataSaver: "strict", activeQualityId: "b256000" })).toEqual([
             "Auto",
             "256 kbps",
             "64 kbps",
-            "Data saver",
+            "Data saver Default from Settings",
         ]);
         expect(await rows({ dataSaver: "off" })).toEqual([
             "Auto",
             "256 kbps",
             "128 kbps",
             "64 kbps",
-            "Data saver",
+            "Data saver Default from Settings",
         ]);
     });
 

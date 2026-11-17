@@ -31,7 +31,7 @@ const engine = vi.hoisted(() => ({
     handle: null as any,
     props: null as any,
     emit: null as any,
-    liftDataSaverCap: null as any,
+    syncDataSaverCap: null as any,
     mounts: 0,
     inlineActive: false,
     canMute: false,
@@ -296,7 +296,7 @@ vi.mock("@/media-player/MediaPlayerWrapper.vue", async () => {
                         : { nativeNowPlaying: engine.native === false ? false : null }),
                 });
                 expose({
-                    liftDataSaverCap: (engine.liftDataSaverCap = vi.fn(() => true)),
+                    syncDataSaverCap: (engine.syncDataSaverCap = vi.fn(() => true)),
                     player: engine.handle,
                     get inlineActive() {
                         return engine.inlineActive;
@@ -460,7 +460,7 @@ describe("MediaPlayer", () => {
     });
 
     describe("Data Saver mid-play", () => {
-        it("caps, never pins: no rendition is held when it goes on, and nothing reloads", async () => {
+        it("caps, never pins: no rendition is held when it goes on, and the cap follows", async () => {
             dataSaverLevel.value = "off";
             await playing();
             engine.state.lifecycle = "loading";
@@ -470,7 +470,7 @@ describe("MediaPlayer", () => {
             dataSaverLevel.value = "light";
             await flushPromises();
             expect(engine.controller.setQuality).not.toHaveBeenCalled();
-            expect(engine.liftDataSaverCap).not.toHaveBeenCalled();
+            expect(engine.syncDataSaverCap).toHaveBeenCalledTimes(1);
         });
 
         it("lifts the cap when it goes off and leaves the viewer's pick alone", async () => {
@@ -479,9 +479,22 @@ describe("MediaPlayer", () => {
             engine.controller.setQuality("q360");
             dataSaverLevel.value = "off";
             await flushPromises();
-            expect(engine.liftDataSaverCap).toHaveBeenCalledTimes(1);
+            expect(engine.syncDataSaverCap).toHaveBeenCalledTimes(1);
             expect(engine.controller.setQuality).toHaveBeenCalledTimes(1);
             expect(engine.state.activeQualityId).toBe("q360");
+        });
+
+        it("the quality menu's switch overrides Settings for this playback only", async () => {
+            dataSaverLevel.value = "off";
+            await playing();
+            engine.emit("nowplayingaction", "dataSaver", "light");
+            await flushPromises();
+            expect(dataSaverLevel.value).toBe("off");
+            expect(engine.syncDataSaverCap).toHaveBeenCalledTimes(1);
+            engine.emit("nowplayingaction", "dataSaver", "off");
+            await flushPromises();
+            expect(dataSaverLevel.value).toBe("off");
+            expect(engine.syncDataSaverCap).toHaveBeenCalledTimes(2);
         });
     });
 

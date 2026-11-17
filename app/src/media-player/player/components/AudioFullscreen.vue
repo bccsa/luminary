@@ -1481,7 +1481,14 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                         data-test="afsDataSaver"
                                         @click="toggleDataSaver"
                                     >
-                                        {{ messages.dataSaver }}
+                                        <span class="lmpl-afs-menutext">
+                                            {{ messages.dataSaver }}
+                                            <span
+                                                class="lmpl-afs-menusub"
+                                                data-test="afsDataSaverDefault"
+                                                >{{ messages.dataSaverDefault }}</span
+                                            >
+                                        </span>
                                         <span class="lmpl-afs-switch" aria-hidden="true"></span>
                                     </button>
                                 </div>

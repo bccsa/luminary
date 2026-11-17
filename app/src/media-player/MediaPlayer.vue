@@ -83,7 +83,6 @@ import {
     autoplayNext,
     dataSaverLevel,
     dataSaverOn,
-    effectiveDataSaverLevel,
     subtitlePreference,
     subtitlesOnVideo,
 } from "@/globalConfig";
@@ -116,6 +115,8 @@ import {
     chosenAudio,
     opensAsAudio,
     sleepTimerDefault,
+    dataSaverOverride,
+    playbackDataSaverLevel,
 } from "./mediaPlayer";
 
 const { t, te } = useI18n();
@@ -1026,7 +1027,7 @@ async function toSound() {
 /** Strict plays the sound only: the picture is offered by turning Data Saver down to Light, once the viewer agrees. */
 const strictVideoAsk = ref(false);
 function requestVideo() {
-    if (effectiveDataSaverLevel.value === "strict") strictVideoAsk.value = true;
+    if (playbackDataSaverLevel.value === "strict") strictVideoAsk.value = true;
     else void showVideo();
 }
 function confirmStrictVideo() {
@@ -1038,10 +1039,10 @@ function confirmStrictVideo() {
 async function showVideo() {
     chosenAudio.value = false;
     startingAsAudio.value = false;
-    // Data Saver went off while only the sound played: the picture comes back without its cap.
-    if (capLiftPending) {
-        capLiftPending = false;
-        engine.value?.liftDataSaverCap();
+    // Data Saver changed while only the sound played: the picture comes back under the cap now in force.
+    if (capSyncPending) {
+        capSyncPending = false;
+        engine.value?.syncDataSaverCap();
     }
     if (videoOffByChoice.value) {
         videoOffByChoice.value = false;
@@ -1064,23 +1065,20 @@ async function showVideo() {
 /**
  * Data Saver changed mid-play. Strict goes to sound exactly as the viewer's own Audio does (without counting as their
  * choice). Data Saver is a 360p cap, never a pinned rendition: Auto stays free beneath it and a quality the viewer
- * picks stands. Turning it on caps the next load, so nothing reloads now; turning it off lifts the cap by reloading
- * in place, and in sound waits for the picture to come back, as nothing shows it now.
+ * picks stands. Where the engine cannot move the cap in place it reloads in place, and in sound waits for the picture
+ * to come back, as nothing shows it now.
  */
-let capLiftPending = false;
-watch(effectiveDataSaverLevel, (level, before) => {
+let capSyncPending = false;
+watch(playbackDataSaverLevel, (level, before) => {
     if (!item.value) return;
     if (level === "strict") void toSound();
-    if (level !== "off" && before === "off") {
-        capLiftPending = false;
-    } else if (level === "off" && before !== "off") {
-        if (audioMode.value) capLiftPending = true;
-        else engine.value?.liftDataSaverCap();
-    }
+    if ((level === "off") === (before === "off")) return;
+    if (audioMode.value) capSyncPending = true;
+    else engine.value?.syncDataSaverCap();
 });
 watch(
     () => item.value?.content._id,
-    () => (capLiftPending = false),
+    () => (capSyncPending = false),
 );
 
 // The picture's off-switch belongs to the item it was used on; the next one starts as its own mode says.
@@ -1749,7 +1747,7 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
         sleep: nativeSleep.value,
         ...(upNext.value.tags.length ? { upNextTags: upNext.value.tags } : {}),
         ...(upNextTag.value ? { upNextTag: upNextTag.value } : {}),
-        dataSaver: effectiveDataSaverLevel.value,
+        dataSaver: playbackDataSaverLevel.value,
         autoplay: autoplayNext.value,
     };
 });
@@ -1782,6 +1780,7 @@ const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
             sleepOff: known("media_player.sleep_off"),
             playbackSettings: known("media_player.playback_settings"),
             dataSaver: known("media_player.data_saver"),
+            dataSaverDefault: playerMessages.value.dataSaverDefault,
             dataSaverOff: known("settings.data_saver.off"),
             dataSaverLight: known("settings.data_saver.light"),
             dataSaverStrict: known("settings.data_saver.strict"),
@@ -1846,7 +1845,7 @@ function onNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
     else if (action === "audio") void showAudio();
     // The native screen asks first under Strict, as `requestVideo` does here: a `video` that arrives then is confirmed.
     else if (action === "video") {
-        if (effectiveDataSaverLevel.value === "strict") dataSaverLevel.value = "light";
+        if (playbackDataSaverLevel.value === "strict") dataSaverLevel.value = "light";
         void showVideo();
     } else if (action === "sleep") pickNativeSleep(value);
     else if (action === "tag") upNextTag.value = (value || null) as Uuid | null;
@@ -1855,8 +1854,10 @@ function onNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
         autoplayNext.value = value === "on";
 }
 
+/** The quality menu's Data Saver switch overrides Settings for this playback only. */
 function pickDataSaver(value: string | undefined) {
-    if (value === "off" || value === "light" || value === "strict") dataSaverLevel.value = value;
+    if (value === "off" || value === "light" || value === "strict")
+        dataSaverOverride.value = value !== "off";
 }
 
 /** The platform's sleep menu: `off`, `chapter`, or the minutes. */
@@ -2278,7 +2279,7 @@ function onKeydown(event: KeyboardEvent) {
                     :active-audio-track-id="state?.activeAudioTrackId ?? null"
                     :sleep-timer="sleepTimer"
                     :sleep-minutes="sleepPickedMinutes"
-                    :data-saver="effectiveDataSaverLevel"
+                    :data-saver="playbackDataSaverLevel"
                     :autoplay="autoplayNext"
                     :angles="screenAngles"
                     :active-angle-id="state?.activeAngleId ?? null"
@@ -3273,7 +3274,7 @@ function onKeydown(event: KeyboardEvent) {
                 :active-quality-id="state?.activeQualityId ?? 'auto'"
                 :playing-height="handle?.playingHeight"
                 :playing-bandwidth="handle?.playingBandwidth"
-                :data-saver="effectiveDataSaverLevel"
+                :data-saver="playbackDataSaverLevel"
                 fullscreen-active
                 @fullscreen="audioFullscreen = false"
                 @exit="audioFullscreen = false"
