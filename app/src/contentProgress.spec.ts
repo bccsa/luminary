@@ -14,6 +14,8 @@ import {
     setReadingProgress,
     syncContentProgressFromStorage,
     watchContentProgressStorage,
+    applyBackgroundMediaProgress,
+    mediaProgressKey,
 } from "@/contentProgress";
 
 describe("contentProgress.ts", () => {
@@ -109,6 +111,66 @@ describe("contentProgress.ts", () => {
 
         expect(getMediaProgress("mediaIdInf", "contentIdInf")).toBe(0);
         expect(getMediaDuration("mediaIdInf", "contentIdInf")).toBe(0);
+    });
+
+    describe("progress kept while the app was in the background", () => {
+        const key = mediaProgressKey("mediaId", "contentId");
+
+        it("applies a position kept after the page's last save", () => {
+            setMediaProgress("mediaId", "contentId", 124, 600);
+            const savedAt = contentProgressAsRef.value[0].updatedAt + 1;
+
+            const applied = applyBackgroundMediaProgress({
+                key,
+                position: 289,
+                duration: 600,
+                savedAt,
+            });
+
+            expect(getMediaProgress("mediaId", "contentId")).toBe(289);
+            expect(applied).toEqual({ contentId: "contentId", from: 124, to: 289, duration: 600 });
+        });
+
+        it("applies one for media the page never saved", () => {
+            applyBackgroundMediaProgress({ key, position: 289, duration: 600, savedAt: 1 });
+            expect(getMediaProgress("mediaId", "contentId")).toBe(289);
+        });
+
+        it("keeps a page save made since", () => {
+            setMediaProgress("mediaId", "contentId", 300, 600);
+            const savedAt = contentProgressAsRef.value[0].updatedAt - 1;
+
+            const applied = applyBackgroundMediaProgress({
+                key,
+                position: 289,
+                duration: 600,
+                savedAt,
+            });
+
+            expect(getMediaProgress("mediaId", "contentId")).toBe(300);
+            expect(applied).toBeUndefined();
+        });
+
+        it("marks media that played to its end as finished", () => {
+            applyBackgroundMediaProgress({
+                key,
+                position: 600,
+                duration: 600,
+                savedAt: Date.now(),
+            });
+            expect(isMediaFinished("mediaId", "contentId")).toBe(true);
+        });
+
+        it("ignores a position too early to resume, and a key it did not make", () => {
+            applyBackgroundMediaProgress({ key, position: 30, duration: 600, savedAt: Date.now() });
+            applyBackgroundMediaProgress({
+                key: "nonsense",
+                position: 289,
+                duration: 600,
+                savedAt: Date.now(),
+            });
+            expect(hasContentProgress("contentId")).toBe(false);
+        });
     });
 
     describe("Reading Progress", () => {

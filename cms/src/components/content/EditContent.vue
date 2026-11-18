@@ -318,7 +318,7 @@ const saveChanges = async (options?: {
 const persistChanges = async (notice?: { title: string; description: string }) => {
     isSaving.value = true;
     try {
-        await source.save();
+        await source.save(selectedLanguage.value?._id);
         notify(
             "success",
             notice?.title ?? `${capitaliseFirstLetter(props.tagOrPostType)} saved`,

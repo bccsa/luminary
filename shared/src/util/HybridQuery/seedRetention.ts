@@ -35,13 +35,23 @@ export class SeedRetention {
     }
 
     /**
-     * Whether an empty authoritative local read must be held back. An empty
-     * authoritative local read must not collapse a seeded first paint while a
-     * remote supplement is still in flight; a non-empty read replaces wholesale so
-     * deletions still propagate.
+     * Whether an empty local read must be held back. It must not collapse a seeded
+     * first paint while a remote supplement is still in flight, nor while the local
+     * store has not finished syncing (an empty read there means "not downloaded
+     * yet", not "no docs"). A non-empty read replaces wholesale so deletions still
+     * propagate.
      */
-    shouldRetainLocal(localCount: number, remotePending: boolean): boolean {
-        return localCount === 0 && this.seededLocal && remotePending;
+    shouldRetainLocal(
+        localCount: number,
+        remotePending: boolean,
+        localAuthoritative = true,
+    ): boolean {
+        return localCount === 0 && this.seededLocal && (remotePending || !localAuthoritative);
+    }
+
+    /** Whether the local contribution is still the cache seed. */
+    holdsLocalSeed(): boolean {
+        return this.seededLocal;
     }
 
     /** Mark the local contribution as no longer a seed. */

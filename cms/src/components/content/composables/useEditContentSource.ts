@@ -1,5 +1,6 @@
 import {
     computed,
+    nextTick,
     ref,
     toRaw,
     watch,
@@ -68,8 +69,11 @@ export type UseEditContentSource = {
     isIncomingChange: ComputedRef<(id: Uuid) => boolean>;
     /** True while an existing doc has not yet hydrated (drives the loading state). */
     isLoading: Ref<boolean>;
-    /** Persist the parent + edited content children and re-baseline the dirty state. */
-    save: () => Promise<void>;
+    /**
+     * Persist the parent + edited content children and re-baseline the dirty state.
+     * `preferredLanguage`: the translation being edited, used as the linked-dates source.
+     */
+    save: (preferredLanguage?: Uuid) => Promise<void>;
     /**
      * Persist `media` onto the parent as last saved, and nothing else: the editor's other
      * unsaved edits stay unsaved, and the new media reads as saved. Settles with the
@@ -98,6 +102,24 @@ function normaliseParent(item: ContentParentDto): ContentParentDto {
     if (copy.alwaysOffline === false) delete copy.alwaysOffline;
     if (copy.authorType === "person") delete copy.authorType; // "person" = default — DB often omits the field
     return copy;
+}
+
+/**
+ * Give translations without a publish date the dates of a dated sibling (preferring the
+ * translation being edited), as the API's linkDates cascade would. Each translation is a
+ * separate change request, so one sent without a publish date is otherwise rejected before
+ * the cascade from its sibling can reach it.
+ */
+function fillLinkedDates(children: ContentDto[], preferredLanguage?: Uuid) {
+    const dated = children.filter((c) => !c.deleteReq && c.publishDate != null);
+    const source = dated.find((c) => c.language === preferredLanguage) ?? dated[0];
+    if (!source) return;
+    for (const c of children) {
+        if (c.deleteReq || c.publishDate != null) continue;
+        // Both dates, so a translation's own expiry can't land before the borrowed publish date
+        c.publishDate = source.publishDate;
+        c.expiryDate = source.expiryDate;
+    }
 }
 
 /**
@@ -364,7 +386,7 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         return editableContent.value.some((c) => contentEditable.isEdited.value(c._id));
     };
 
-    const save = async () => {
+    const save = async (preferredLanguage?: Uuid) => {
         const parent = editableParent.value;
         if (!parent) return;
 
@@ -375,6 +397,10 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         parentEditable.updateShadow(parent._id);
 
         const children = [...editableContent.value];
+        if (parent.linkDates) {
+            fillLinkedDates(children, preferredLanguage);
+            await nextTick(); // let toEditable's dirty tracking see the filled dates
+        }
         await Promise.all(
             children.map((c) => (c.deleteReq ? removeContent(c._id) : saveContent(c._id))),
         );
