@@ -94,6 +94,47 @@ describe("GroupOverview", () => {
         });
     });
 
+    it("filters the list by doc type and permission", async () => {
+        sessionStorage.setItem(
+            "queryOptions_group_overview",
+            JSON.stringify({ filterDocTypes: ["redirect"], filterPermissions: ["translate"] }),
+        );
+        const wrapper = mount(GroupOverview);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("No groups found");
+            expect(wrapper.text()).not.toContain("Super Admins");
+        });
+        sessionStorage.clear();
+    });
+
+    it("applies the search to the graph and shows an empty state when nothing matches", async () => {
+        sessionStorage.setItem(
+            "queryOptions_group_overview",
+            JSON.stringify({ search: "no such group" }),
+        );
+        // VueFlow measures its pane with ResizeObserver, which jsdom lacks
+        vi.stubGlobal(
+            "ResizeObserver",
+            class {
+                observe() {}
+                unobserve() {}
+                disconnect() {}
+            },
+        );
+        const wrapper = mount(GroupOverview);
+        await waitForExpect(() => expect(wrapper.text()).toContain("No groups found"));
+
+        await wrapper.find('button[aria-label="Show visualisation"]').trigger("click");
+
+        await waitForExpect(() => {
+            expect(wrapper.find('[data-test="graph-empty-state"]').exists()).toBe(true);
+        });
+        wrapper.unmount();
+        vi.unstubAllGlobals();
+        sessionStorage.clear();
+    });
+
     it("can create a new group", async () => {
         const wrapper = mount(GroupOverview);
 
