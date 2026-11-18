@@ -40,6 +40,12 @@ const props = defineProps<Props>();
 const editableParent = defineModel<ContentParentDto>("editableParent");
 const editableContent = defineModel<ContentDto[]>("editableContent");
 
+const hasLinkedPublishDate = computed(
+    () =>
+        !!editableParent.value?.linkDates &&
+        !!editableContent.value?.some((c) => !c.deleteReq && c.publishDate != null),
+);
+
 // Overall validation checking
 const overallValidations = ref([] as Validation[]);
 const overallIsValid = ref(true);
@@ -289,6 +295,7 @@ watch(
                         :existingContent="existingContent?.find((c) => c._id == content._id)"
                         :dirty="isContentItemDirty(content._id)"
                         :can-delete="canDelete"
+                        :has-linked-publish-date="hasLinkedPublishDate"
                         :isCardCollapsed="isLanguageSelectorCollapsed"
                     />
                 </div>
