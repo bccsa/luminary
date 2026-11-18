@@ -505,8 +505,8 @@ export class DbService extends EventEmitter {
             // Cleanup the obsolete StatusChange deleteCmd when switching content from draft to
             // published. The deleteCmd's `_id` is tracked on the draft doc itself
             // (`statusChangeDeleteCmdId`), so we can delete it by primary key — strongly consistent.
-            // Pre-fix orphan deleteCmds (no tracking field) are handled by a one-time schema
-            // upgrade in `schemaUpgrade/v15.ts`.
+            // deleteCmds of drafts that lost the tracking field are reconciled by the schema
+            // upgrades in `schemaUpgrade/v15.ts` and `schemaUpgrade/v25.ts`.
             if (
                 existing &&
                 doc.type === DocType.Content &&
@@ -520,6 +520,21 @@ export class DbService extends EventEmitter {
 
                 // Don't carry the field forward onto the republished doc.
                 delete (doc as ContentDto).statusChangeDeleteCmdId;
+            }
+
+            // A draft saved again still owns its StatusChange deleteCmd. The change request
+            // strips the server-only tracking field, so carry it over from the stored draft;
+            // without it the republish above cannot find the deleteCmd and leaves it orphaned.
+            if (
+                existing &&
+                doc.type === DocType.Content &&
+                (existing as ContentDto).status === PublishStatus.Draft &&
+                (doc as ContentDto).status === PublishStatus.Draft &&
+                (existing as ContentDto).statusChangeDeleteCmdId
+            ) {
+                (doc as ContentDto).statusChangeDeleteCmdId = (
+                    existing as ContentDto
+                ).statusChangeDeleteCmdId;
             }
 
             // Generate delete command if the document's status has changed to draft

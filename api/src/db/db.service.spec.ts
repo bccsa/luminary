@@ -1094,6 +1094,35 @@ describe("DbService", () => {
                 expect(trackedCmdAfter.docs.length).toBe(0);
             });
 
+            it("still deletes the tracked deleteCmd on republish when the draft was saved again in between", async () => {
+                const contentDocId = "delete-test-statusChange-trackingField-draftEdit";
+
+                const publishedDoc = {
+                    _id: contentDocId,
+                    testData: "test123",
+                    type: DocType.Content,
+                    status: "published",
+                    memberOf: ["group-public-content"],
+                };
+                await service.upsertDoc(publishedDoc);
+                await service.upsertDoc({ ...publishedDoc, status: "draft" });
+
+                const trackedCmdId = (await service.getDoc(contentDocId)).docs[0]
+                    .statusChangeDeleteCmdId;
+                expect(trackedCmdId).toBeDefined();
+
+                // The editor saves the draft again. A change request never carries the
+                // server-only tracking field, so the incoming draft arrives without it.
+                await service.upsertDoc({ ...publishedDoc, status: "draft", testData: "edited" });
+
+                const draftAfterEdit = (await service.getDoc(contentDocId)).docs[0];
+                expect(draftAfterEdit.statusChangeDeleteCmdId).toBe(trackedCmdId);
+
+                await service.upsertDoc({ ...publishedDoc, testData: "edited" });
+
+                expect((await service.getDoc(trackedCmdId)).docs.length).toBe(0);
+            });
+
             it("ignores client-provided statusChangeDeleteCmdId on a change request", async () => {
                 const contentDocId = "delete-test-statusChange-trackingField-forged";
 

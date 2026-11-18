@@ -134,7 +134,7 @@ Schema upgrades can be safely removed when:
 ### Current Baseline
 
 
-**Current Schema Version**: 24 (as of 2026-11-02)
+**Current Schema Version**: 25 (as of 2026-11-18)
 
 All production databases are expected to be at version 10 or higher. Historical upgrades v1-v9 have been removed as they are no longer needed.
 
@@ -202,5 +202,9 @@ Rebuilds every Tag's `taggedDocs` and its content's `parentTaggedDocs` from the 
 ### v24 — Content `parentMediaBucketId` re-stamp (2026-11-02)
 
 Re-stamps `parentMediaBucketId` on every Content doc from its parent Post/Tag's `mediaBucketId`. `processContentDto` copied `parentMedia` from the parent but never `parentMediaBucketId`, so a Content save persisted whatever the client sent; a CMS content save made before the editor received the parent's re-stamped copy (e.g. right after adding a video) dropped the field, and the app could not resolve the video's bucket. The API now stamps it on every Content save, which stops new damage; this upgrade repairs what was already lost. Idempotent (only writes documents whose value differs), DB-only and safe on fresh DBs. Uses `upsertDoc`, bumping `updatedTimeUtc` so the repaired documents re-sync to clients.
+
+### v25 — StatusChange deleteCmd reconciliation (2026-11-18)
+
+Re-runs the v15 reconciliation (`reconcileStatusChangeDeleteCmds.ts`). Saving a draft again dropped its `statusChangeDeleteCmdId` (#1886), so republishing it left the `StatusChange` deleteCmd behind, still naming live content; anything acting on its slug (the static site build) deleted the live page. The API now keeps the field on a save, which stops new damage; this upgrade repairs what was already lost. It deletes the deleteCmds of content that is Published or no longer exists, and keeps one per Draft, the newest by `updatedTimeUtc`, pointing the draft's `statusChangeDeleteCmdId` at it: a client that synced past an older deleteCmd only drops the unpublished content on the newest. Idempotent, DB-only and safe on fresh DBs. Uses `insertDoc`, so content docs keep their `updatedTimeUtc`.
 
 The CMS-managed "default affinity" recommendation feature (`DocType.DefaultAffinity`) followed the same ACL-administration path instead of an upgrade script: `group-super-admins`/`group-public-content` get the `DefaultAffinity` ACL entries directly in their seed fixtures (fresh DBs only — existing deployed DBs need it granted via ACL administration), and the singleton doc (`api/src/util/defaultAffinity.ts`) is created lazily by the CMS on first save rather than backfilled (`cms/src/composables/useDefaultAffinity.ts`'s `saveDoc`).
