@@ -909,6 +909,8 @@ function onPressOutsideRoster(event: Event) {
     const target = event.target as Node | null;
     if (target && (seekArea.value?.contains(target) || rosterEl.value?.contains(target))) return;
     if ((target as Element | null)?.closest?.(".lmpl-afs-bar, .lmpl-afs-scrubzone")) return;
+    // A press on the picture mid-spin catches the spin there (onPictureDown), as one on the strip does.
+    if (rosterSpin.spinning && target && pictureEl.value?.contains(target)) return;
     unpinRoster();
     resumeFromScrub();
 }
@@ -2628,6 +2630,7 @@ function onKeydown(event: KeyboardEvent) {
             <div
                 v-if="!screen"
                 ref="pictureEl"
+                data-test="mediaPlayerPicture"
                 class="relative w-full flex-none touch-pan-y"
                 :class="
                     audioMode

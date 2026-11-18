@@ -1095,6 +1095,55 @@ describe("MediaPlayer", () => {
         });
     });
 
+    describe("the picture in the corner", () => {
+        it("stops a flicked strip under a second press on the picture, and goes where it stopped", async () => {
+            engine.thumbnailsReady = true;
+            const wrapper = await playing();
+            minimiseMediaPlayer();
+            await flushPromises();
+            const picture = find(wrapper, "mediaPlayerPicture");
+            vi.spyOn(picture.element, "getBoundingClientRect").mockReturnValue({
+                width: 400,
+                height: 225,
+                left: 0,
+                top: 0,
+                right: 400,
+                bottom: 225,
+                x: 0,
+                y: 0,
+                toJSON: () => ({}),
+            });
+            vi.useFakeTimers({
+                toFake: [
+                    "requestAnimationFrame",
+                    "cancelAnimationFrame",
+                    "performance",
+                    "setTimeout",
+                ],
+            });
+            try {
+                await picture.trigger("pointerdown", { clientX: 300, clientY: 100 });
+                for (let x = 280; x >= 200; x -= 20) {
+                    vi.advanceTimersByTime(16);
+                    await picture.trigger("pointermove", { clientX: x, clientY: 100 });
+                }
+                await picture.trigger("pointerup", { clientX: 200, clientY: 100 });
+                vi.advanceTimersByTime(100);
+                await flushPromises();
+                expect(engine.handle.seek).not.toHaveBeenCalled();
+
+                await picture.trigger("pointerdown", { clientX: 200, clientY: 100 });
+                await picture.trigger("pointerup", { clientX: 200, clientY: 100 });
+                vi.advanceTimersByTime(3000);
+                await flushPromises();
+                expect(engine.handle.seek).toHaveBeenCalledTimes(1);
+                expect(engine.handle.seek.mock.calls[0][0]).toBeGreaterThan(0);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+    });
+
     describe("on a phone: the now-playing screen", () => {
         beforeEach(() => {
             screenWide = false;
