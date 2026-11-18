@@ -570,6 +570,9 @@ class Database extends Dexie {
         const raw = cloneDeep(toRaw(options.doc));
 
         if (!options.localChangesOnly) {
+            // The server's copy of this change is skipped when it syncs back, being identical, so
+            // the search stats are marked here.
+            let contentChanged = raw.type === DocType.Content;
             if (options.doc.deleteReq) {
                 // Delete the document from the local database. The document will be deleted from the API when the change is sent from the localChanges table
                 await this.docs.delete(raw._id);
@@ -578,11 +581,13 @@ class Database extends Dexie {
                 // If the document is a post or tag, delete all the associated content documents
                 // Note: We do not need to send delete requests to the API, as the API will delete the content documents when the parent document is deleted
                 if (raw.type == DocType.Post || raw.type == DocType.Tag) {
-                    await this.docs.where("parentId").equals(raw._id).delete();
+                    const children = await this.docs.where("parentId").equals(raw._id).delete();
+                    if (children > 0) contentChanged = true;
                 }
             } else {
                 await this.docs.put(raw, raw._id);
             }
+            if (contentChanged) scheduleCorpusStatsRecompute();
         }
 
         if (options.overwriteLocalChanges) {
@@ -702,9 +707,13 @@ class Database extends Dexie {
             if (ack.docs && Array.isArray(ack.docs)) {
                 // Replace our local copy(s) with the provided database version
                 await this.docs.bulkPut(ack.docs);
+                if (ack.docs.some((doc) => doc.type === DocType.Content)) {
+                    scheduleCorpusStatsRecompute();
+                }
             } else {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
                 await this.docs.delete(localChange.doc._id);
+                if (localChange.doc.type === DocType.Content) scheduleCorpusStatsRecompute();
             }
         }
 
@@ -777,24 +786,31 @@ class Database extends Dexie {
 
                 const revokedDocs = this.whereNotMemberOfAsCollection(groups, docType as DocType);
 
-                let deleted = 0;
+                // Only Content feeds the search stats, so only Content deletes are counted.
+                let contentDeleted = 0;
 
                 // Delete associated Language content documents
                 if (docType === DocType.Language) {
                     const revokedLanguages = await revokedDocs.toArray();
                     const revokedlanguageIds = revokedLanguages.map((l) => l._id);
-                    deleted += await this.docs.where("language").anyOf(revokedlanguageIds).delete();
+                    contentDeleted += await this.docs
+                        .where("language")
+                        .anyOf(revokedlanguageIds)
+                        .delete();
                 }
 
                 const revokedIds = (await revokedDocs.primaryKeys()) as string[];
 
                 if (revokedIds.length > 0) {
-                    deleted += await this.whereNotMemberOfAsCollection(
-                        groups,
-                        docType as DocType,
-                    ).delete();
+                    // A post's or tag's content goes with it (see whereNotMemberOfAsCollection).
+                    if (docType === DocType.Post || docType === DocType.Tag) {
+                        contentDeleted += await this.whereNotMemberOfAsCollection(groups, docType)
+                            .filter((doc) => doc.type === DocType.Content)
+                            .count();
+                    }
+                    await this.whereNotMemberOfAsCollection(groups, docType as DocType).delete();
                 }
-                return deleted;
+                return contentDeleted;
             });
 
         // Keep `syncList` consistent with the docs just evicted. A column must never claim coverage
@@ -805,9 +821,13 @@ class Database extends Dexie {
         // eviction above and generalises the one-time Group-only `resetGroupSyncListForRecovery`.
         const reconciled = this.reconcileSyncListToAccess(groupsPerDocType);
 
-        return Promise.all([Promise.all(evictions), reconciled]).then(([deleted]) => {
-            // The stats only go out of date when the access change actually removed docs.
-            if (deleted.some((n) => n > 0)) scheduleCorpusStatsRecompute();
+        return Promise.all([Promise.allSettled(evictions), reconciled]).then(([results]) => {
+            // The stats only go out of date when the access change removed Content. An eviction
+            // that failed may have removed some before it did, so it counts as a change too.
+            const failed = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
+            const contentDeleted = results.some((r) => r.status === "fulfilled" && r.value > 0);
+            if (contentDeleted || failed) scheduleCorpusStatsRecompute();
+            if (failed) throw failed.reason;
         });
     }
 
@@ -993,8 +1013,9 @@ export async function initDatabase() {
     }
     dbUpgradeBlocked.value = false;
 
-    // Rescan the FTS corpus stats on startup only when there are none or the docs changed since:
-    // the scan reads every doc's index, and the stats from the last run are kept in the database.
+    // Rescan the FTS corpus stats on startup only when they are missing or out of date (see
+    // corpusStatsNeedRecompute): the scan reads every doc's index, and the stats from the last
+    // run are kept in the database.
     // Uses setTimeout(0) to avoid Dexie PSD zone deadlocks during initialization.
     setTimeout(() => {
         void corpusStatsNeedRecompute()

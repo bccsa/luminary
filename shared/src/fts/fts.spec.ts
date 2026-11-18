@@ -775,7 +775,7 @@ describe("FTS Indexer and Search", () => {
             setCorpusScanner(async () => {
                 await new Promise((r) => setTimeout(r, 5));
                 await markCorpusStatsStale();
-                return { totalTokenCount: 0, docCount: 0, df: {} };
+                return { totalTokenCount: 0, docCount: 0, contentCount: 0, df: {} };
             });
             try {
                 await recomputeCorpusStats();
@@ -795,6 +795,43 @@ describe("FTS Indexer and Search", () => {
 
             await markCorpusStatsStale();
             expect(await corpusStatsNeedRecompute()).toBe(true);
+        });
+
+        it("needs a scan on start when an older build's scan produced the stats", async () => {
+            const { corpusStatsNeedRecompute } = await import("./ftsIndexer");
+            await recomputeCorpusStats();
+            const stats = await getCorpusStats();
+            await setCorpusStats({ ...stats, scanVersion: 0 });
+
+            expect(await corpusStatsNeedRecompute()).toBe(true);
+        });
+
+        it("needs a scan on start when content changed without being marked", async () => {
+            const { corpusStatsNeedRecompute } = await import("./ftsIndexer");
+            await recomputeCorpusStats();
+            expect(await corpusStatsNeedRecompute()).toBe(false);
+
+            await db.docs.put(makeContentDoc({ _id: "unmarked", title: "unmarked" }));
+
+            expect(await corpusStatsNeedRecompute()).toBe(true);
+        });
+
+        it("keeps the newest scan's stats when an older scan finishes last", async () => {
+            const { setCorpusScanner } = await import("./ftsIndexer");
+            let scans = 0;
+            setCorpusScanner(async () => {
+                const scan = ++scans;
+                // The first scan is the slow one.
+                if (scan === 1) await new Promise((r) => setTimeout(r, 30));
+                return { totalTokenCount: scan, docCount: scan, contentCount: scan, df: {} };
+            });
+            try {
+                await Promise.all([recomputeCorpusStats(), recomputeCorpusStats()]);
+            } finally {
+                setCorpusScanner();
+            }
+
+            expect((await getCorpusStats()).docCount).toBe(2);
         });
     });
 

@@ -2,10 +2,18 @@ import { db } from "../db/database";
 import { DocType, type ContentDto } from "../types";
 import { TRIGRAM_LENGTH } from "./trigram";
 
+/**
+ * Version of what {@link scanCorpus} counts and how. Raise it when the scan or the trigram rules
+ * change, so stats stored by an older build are rescanned on the next start.
+ */
+export const CORPUS_SCAN_VERSION = 1;
+
 /** Raw counts a corpus scan produces, before they are versioned and stored. */
 export type CorpusScanResult = {
     totalTokenCount: number;
     docCount: number;
+    /** Every Content doc scanned, indexed or not; compared with the docs table on start. */
+    contentCount: number;
     df: Record<string, number>;
 };
 
@@ -19,11 +27,13 @@ export type CorpusScanResult = {
 export async function scanCorpus(): Promise<CorpusScanResult> {
     let totalTokenCount = 0;
     let docCount = 0;
+    let contentCount = 0;
     const df: Record<string, number> = {};
     await db.docs
         .where("type")
         .equals(DocType.Content)
         .each((doc) => {
+            contentCount++;
             const { ftsTokenCount, fts } = doc as ContentDto;
             if (ftsTokenCount && ftsTokenCount > 0) {
                 totalTokenCount += ftsTokenCount;
@@ -35,5 +45,5 @@ export async function scanCorpus(): Promise<CorpusScanResult> {
                 df[token] = (df[token] ?? 0) + 1;
             }
         });
-    return { totalTokenCount, docCount, df };
+    return { totalTokenCount, docCount, contentCount, df };
 }

@@ -1,7 +1,8 @@
 import Dexie from "dexie";
 import { db } from "../db/database";
 import type { FtsCorpusStats } from "./types";
-import { scanCorpus, type CorpusScanResult } from "./corpusScan";
+import { CORPUS_SCAN_VERSION, scanCorpus, type CorpusScanResult } from "./corpusScan";
+import { DocType } from "../types";
 
 const DOC_FREQUENCY_KEY = "ftsDocFrequency";
 /** A new token each time the docs change after the stats were taken; absent while they are current. */
@@ -61,13 +62,24 @@ export function setCorpusScanner(scanner?: () => Promise<CorpusScanResult>): voi
     runScan = scanner ?? scanCorpus;
 }
 
+let recomputeQueue: Promise<void> = Promise.resolve();
+
 /**
  * Recompute corpus stats from scratch. The scan is delegated (see {@link setCorpusScanner});
  * the write stays here, because the worker attaches to the database read-only.
+ *
+ * Recomputes run one after another, so an older scan can never finish last and overwrite the
+ * stats of a newer one.
  */
-export async function recomputeCorpusStats(): Promise<void> {
+export function recomputeCorpusStats(): Promise<void> {
+    const run = recomputeQueue.catch(() => undefined).then(recomputeOnce);
+    recomputeQueue = run;
+    return run;
+}
+
+async function recomputeOnce(): Promise<void> {
     const staleBeforeScan = (await db.luminaryInternals.get(STALE_KEY))?.value;
-    const { totalTokenCount, docCount, df } = await runScan();
+    const { totalTokenCount, docCount, contentCount, df } = await runScan();
 
     const docFrequencyVersion = Date.now();
     // Frequencies that don't match the stats' version are ignored, so write both or neither.
@@ -76,7 +88,13 @@ export async function recomputeCorpusStats(): Promise<void> {
             id: DOC_FREQUENCY_KEY,
             value: { version: docFrequencyVersion, df } satisfies StoredDocFrequency,
         });
-        await setCorpusStats({ totalTokenCount, docCount, docFrequencyVersion });
+        await setCorpusStats({
+            totalTokenCount,
+            docCount,
+            docFrequencyVersion,
+            scanVersion: CORPUS_SCAN_VERSION,
+            contentCount,
+        });
         // A change that landed while the scan ran left a new mark, and may be missing from the scan.
         const stale = await db.luminaryInternals.get(STALE_KEY);
         if (stale?.value === staleBeforeScan) await db.luminaryInternals.delete(STALE_KEY);
@@ -96,15 +114,23 @@ export async function markCorpusStatsStale(): Promise<void> {
 }
 
 /**
- * Whether the stored stats have to be rescanned on start: there are none yet, or the docs
- * changed since they were taken. Scanning reads every doc's index, the largest field there is.
+ * Whether the stored stats have to be rescanned on start: there are none yet, the docs changed
+ * since they were taken, an older build's scan produced them, or the number of Content docs no
+ * longer matches (a change no write path marked). Scanning reads every doc's index, the largest
+ * field there is; counting the docs reads only the `type` index.
  */
 export async function corpusStatsNeedRecompute(): Promise<boolean> {
-    const [stats, stale] = await Promise.all([
+    const [stats, stale, contentCount] = await Promise.all([
         getCorpusStats(),
         db.luminaryInternals.get(STALE_KEY),
+        db.docs.where("type").equals(DocType.Content).count(),
     ]);
-    return stats.docFrequencyVersion === undefined || stale !== undefined;
+    return (
+        stats.docFrequencyVersion === undefined ||
+        stale !== undefined ||
+        stats.scanVersion !== CORPUS_SCAN_VERSION ||
+        stats.contentCount !== contentCount
+    );
 }
 
 /**
