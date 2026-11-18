@@ -115,7 +115,7 @@ const handleClick = () => {
         <!-- Footer: Bottom metadata -->
         <div
             v-if="isSmallScreen && $slots.mobileFooter"
-            class="flex flex-wrap items-center gap-1 py-1 dark:text-zinc-500"
+            class="flex flex-wrap items-center gap-1 py-1 text-zinc-400 dark:text-zinc-500"
         >
             <slot name="mobileFooter" />
             <div
