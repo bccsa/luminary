@@ -4,8 +4,8 @@ Date: 2026-11-17
 
 ## Status
 
-Accepted. The shared client foundation and application integration are implemented.
-The server source is delivered separately and enables transport through capability advertisement.
+Accepted. The shared client foundation, application integration and API source are implemented.
+Transport is enabled through configuration, database provisioning and capability advertisement.
 
 ## Context
 
@@ -31,7 +31,7 @@ User activity uses the wire name `user`. Its target local database is
 `luminary-user-db`, with documents, outbound changes and cursor stored together.
 The shared `UserActivityDto` uses `type: "userActivity"`, `activityType`, an
 activity timestamp, and the server's `updatedTimeUtc` cursor timestamp. The API
-will mirror that DTO independently; its shared-dataset `DocType` enum must not gain
+mirrors that DTO independently; its shared-dataset `DocType` enum must not gain
 `UserActivity`.
 
 The server stores activity in an ops-provisioned, partitioned CouchDB database.
@@ -66,8 +66,13 @@ queue. An interrupted pull resumes from its own persisted cursor after reload.
   a different owner clears it before transport resumes.
 - The application initializes activity storage before mount and reconciles ownership
   after auth. Its store, highlight readers and activity lists share the same source.
-- Server endpoints, provisioning and owner validation remain follow-up work. The client
-  remains local and queued until that source is advertised; application integration alone
-  does not enable account sync.
+- Server endpoints and owner validation use a dedicated partitioned database. Ops provisions
+  it before configuring `DB_USERDATA_DATABASE` and `USER_DATA_ID_SECRET`. The API verifies the
+  partitioned layout and installs its own design docs before advertising the source; failures
+  leave it disabled. The client remains local and queued until that advertisement arrives.
+- Invalid user activity receives a final rejected HTTP 200 ack. Unavailable storage remains
+  an HTTP error so the queue retries. Stale activity returns the stripped stored copy; conflict
+  retries compare activity times again. Source responses omit bookmarks, which may encode
+  internal owner-prefixed ids.
 - Different identity providers produce separate accounts until account linking exists.
 - Live owner updates, quotas and server tombstone cleanup are later extensions.

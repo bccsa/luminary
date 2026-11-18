@@ -323,6 +323,36 @@ setup_couchdb_docker() {
   success "CouchDB running at http://localhost:5984"
 }
 
+# Optional owner-scoped activity database. Never delete or recreate an existing database.
+setup_user_data_database() {
+  local db_name="${1:-luminary-user-data}"
+  if [[ ! "$db_name" =~ ^[a-z][a-z0-9_-]*$ ]]; then
+    error "Use a lowercase database name containing letters, digits, underscores or hyphens."
+    return 1
+  fi
+  sync_credentials_from_docker
+  local db_url="http://127.0.0.1:5984/${db_name}"
+  local status
+  status=$(curl --silent --show-error --max-time 15 \
+    -o /dev/null -w '%{http_code}' -X PUT \
+    -u "${LUMINARY_COUCHDB_USER}:${LUMINARY_COUCHDB_PASSWORD}" \
+    "${db_url}?partitioned=true") || return 1
+  case "$status" in
+    201|202|412) ;;
+    *) error "Could not provision user-data database (HTTP ${status})."; return 1 ;;
+  esac
+  # 412 means the database exists; verify its layout rather than silently accepting it.
+  if ! curl --silent --show-error --fail --max-time 15 \
+    -u "${LUMINARY_COUCHDB_USER}:${LUMINARY_COUCHDB_PASSWORD}" "$db_url" | \
+    node -e 'let input=""; process.stdin.on("data", c => input += c); process.stdin.on("end", () => { try { process.exit(JSON.parse(input).props?.partitioned === true ? 0 : 1); } catch { process.exit(1); } });'; then
+    error "User-data database must be partitioned. Existing data was left intact."
+    return 1
+  fi
+  success "Partitioned user-data database ${db_name} is ready."
+  info "Set DB_USERDATA_DATABASE=${db_name} and a dedicated USER_DATA_ID_SECRET in api/.env."
+  info "Generate the secret once with 'openssl rand -hex 32'; back it up and never rotate it."
+}
+
 # Start MinIO via Docker container.
 # MinIO provides S3-compatible object storage for media uploads.
 # Runs on port 9000 (API) and 9001 (Console UI).
@@ -503,6 +533,11 @@ setup_projects() {
   
   # Only seed if .env exists (created during environment setup)
   if [[ -f "$LUMINARY_ROOT/api/.env" ]]; then
+    local userdata_database
+    userdata_database=$(node -e 'const fs=require("fs"); const env=require("dotenv").parse(fs.readFileSync(".env")); process.stdout.write(env.DB_USERDATA_DATABASE || "");')
+    if [[ -n "$userdata_database" ]]; then
+      setup_user_data_database "$userdata_database"
+    fi
     info "Seeding database..."
     npm run seed || warn "Database seeding failed. You may need to seed manually later."
   fi
@@ -660,6 +695,9 @@ COMMANDS:
   reset-db            Delete, recreate, and reseed the CouchDB database
                       (requires CouchDB to be running)
 
+  setup-user-data [name]  Create/verify the optional partitioned activity database
+                         (default: luminary-user-data; existing data is preserved)
+
 ENVIRONMENT VARIABLES (optional):
 
   LUMINARY_ROOT                 Override the project root directory
@@ -761,6 +799,10 @@ main() {
 
     reset-db)
       reset_database
+      ;;
+
+    setup-user-data)
+      setup_user_data_database "${2:-luminary-user-data}"
       ;;
 
     *)

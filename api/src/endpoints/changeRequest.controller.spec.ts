@@ -1,6 +1,6 @@
 import { ChangeRequestRateLimiterService } from "../ratelimit/changeRequestRateLimiter.service";
 import { Test, TestingModule } from "@nestjs/testing";
-import { ValidationPipe } from "@nestjs/common";
+import { ValidationPipe, ServiceUnavailableException } from "@nestjs/common";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import * as request from "supertest";
 import multipart from "@fastify/multipart";
@@ -16,6 +16,7 @@ describe("ChangeRequestController", () => {
     const mockChangeRequest = jest.fn();
     const mockRateLimiter = { check: jest.fn(), recordRequest: jest.fn() };
     let mockAnonymous = false;
+    let mockIdentity: any;
     const testImagePath = path.join(__dirname, "../test/testImage.jpg");
 
     beforeAll(async () => {
@@ -37,7 +38,7 @@ describe("ChangeRequestController", () => {
                     const req = context.switchToHttp().getRequest();
                     req.user = mockAnonymous
                         ? { groups: ["group-public-users"], anonymous: true }
-                        : { groups: ["group-public-users"], userId: "mock-user" };
+                        : (mockIdentity ?? { groups: ["group-public-users"], userId: "mock-user" });
                     return true;
                 },
             })
@@ -62,6 +63,7 @@ describe("ChangeRequestController", () => {
         mockRateLimiter.check.mockReset().mockReturnValue({ allowed: true, retryAfterMs: 0 });
         mockRateLimiter.recordRequest.mockClear();
         mockAnonymous = false;
+        mockIdentity = undefined;
     });
 
     it("rejects anonymous requests with 401 before parsing the body, rate limiting or calling the service", async () => {
@@ -105,6 +107,53 @@ describe("ChangeRequestController", () => {
         expect(mockRateLimiter.recordRequest).toHaveBeenCalledWith("mock-user");
     });
 
+    it("keys authenticated callers without a User document separately from their IP", async () => {
+        mockIdentity = {
+            groups: [],
+            jwtPayload: { iss: "https://issuer.example", sub: "subject-a" },
+        };
+        mockChangeRequest.mockResolvedValue({ ack: "accepted" });
+        await app.inject({
+            method: "POST",
+            url: "/changerequest",
+            payload: { dataSource: "user", doc: {} },
+        });
+        const first = mockRateLimiter.recordRequest.mock.calls[0][0];
+        mockIdentity.jwtPayload.sub = "subject-b";
+        await app.inject({
+            method: "POST",
+            url: "/changerequest",
+            payload: { dataSource: "user", doc: {} },
+        });
+        expect(first).toMatch(/^jwt:[a-f0-9]{64}$/);
+        expect(mockRateLimiter.recordRequest.mock.calls[1][0]).not.toBe(first);
+    });
+
+    it("returns a bad user document's rejected ack with HTTP 200", async () => {
+        mockChangeRequest.mockResolvedValue({
+            ack: "rejected",
+            message: "Invalid user activity document",
+        });
+        const response = await app.inject({
+            method: "POST",
+            url: "/changerequest",
+            payload: { dataSource: "user", doc: {} },
+        });
+        expect(response.statusCode).toBe(200);
+        expect(response.json().ack).toBe("rejected");
+    });
+
+    it("returns a disabled user source's HTTP 503 instead of a final ack", async () => {
+        mockChangeRequest.mockRejectedValueOnce(new ServiceUnavailableException("disabled"));
+        const response = await app.inject({
+            method: "POST",
+            url: "/changerequest",
+            payload: { dataSource: "user", doc: {} },
+        });
+        expect(response.statusCode).toBe(503);
+        expect(response.json()).not.toHaveProperty("ack");
+    });
+
     /**
      * Helper function to create a test file buffer
      */
@@ -145,6 +194,17 @@ describe("ChangeRequestController", () => {
     };
 
     describe("LFormData binary handling", () => {
+        it("preserves the user source and returns HTTP 200 for multipart activity", async () => {
+            mockChangeRequest.mockResolvedValue({ ack: "accepted" });
+            const body = { dataSource: "user", doc: { _id: "liked:post-a", type: "userActivity" } };
+            const response = await createLFormDataRequest(body, []);
+            expect(response.status).toBe(200);
+            expect(mockChangeRequest).toHaveBeenCalledWith(
+                expect.objectContaining(body),
+                expect.anything(),
+            );
+        });
+
         it("should handle image upload with LFormData format", async () => {
             const responseData = { success: true };
             mockChangeRequest.mockResolvedValue(responseData);

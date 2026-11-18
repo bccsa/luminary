@@ -6,6 +6,12 @@ export type DatabaseConfig = {
     maxSockets: number;
 };
 
+export type UserDataConfig = {
+    database?: string;
+    /** Dedicated persistent identity key; back up and never rotate. */
+    idSecret?: string;
+};
+
 export type SyncConfig = {
     tolerance: number;
 };
@@ -134,6 +140,7 @@ export type SocketIoConfig = {
 };
 
 export type Configuration = {
+    userData?: UserDataConfig;
     s3?: S3Config;
     s3Audio?: AudioS3Config;
     database?: DatabaseConfig;
@@ -174,6 +181,10 @@ export default () =>
             database: process.env.DB_DATABASE,
             maxSockets: parseInt(process.env.DB_MAX_SOCKETS, 10) || 512,
         } as DatabaseConfig,
+        userData: {
+            database: process.env.DB_USERDATA_DATABASE,
+            idSecret: process.env.USER_DATA_ID_SECRET,
+        } as UserDataConfig,
         sync: {
             tolerance: parseInt(process.env.SYNC_TOLERANCE, 10) || 1000,
         } as SyncConfig,

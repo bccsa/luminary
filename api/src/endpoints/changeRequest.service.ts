@@ -1,5 +1,5 @@
 import { ChangeReqDto } from "../dto/ChangeReqDto";
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { DbService } from "../db/db.service";
 import { AckStatus, AclPermission, DocType, Uuid } from "../enums";
 import { JwtUserDetails } from "../auth/authIdentity.service";
@@ -7,12 +7,14 @@ import { processChangeRequest } from "../changeRequests/processChangeRequest";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { IdentityCacheService } from "../auth/identityCache.service";
+import { UserDataService } from "../userData/userData.service";
 
 @Injectable()
 export class ChangeRequestService {
     constructor(
         private db: DbService,
         private identityCacheService: IdentityCacheService,
+        private readonly userData: UserDataService,
     ) {}
 
     async changeRequest(
@@ -22,8 +24,16 @@ export class ChangeRequestService {
         // Hard rule independent of group ACLs: a misconfigured default group must never open writes to the public.
         // Returns a bare ack (no upsertDocAck) so a rejected anonymous request cannot read documents back.
         if (userDetails.anonymous) {
+            if (changeRequest?.dataSource === "user")
+                throw new UnauthorizedException("Authentication required");
             return { ack: AckStatus.Rejected, message: "Authentication required" };
         }
+
+        if (changeRequest?.dataSource === "user") {
+            return this.userData.changeRequest(changeRequest.doc, userDetails);
+        }
+        if (changeRequest?.dataSource !== undefined)
+            throw new BadRequestException("Unknown dataSource");
 
         // Process change request
         return await processChangeRequest(

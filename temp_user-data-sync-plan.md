@@ -4,7 +4,7 @@
 >
 > Written against `main` at `d4fce7cc` (12 November 2026). Code is referenced by file and symbol; line numbers are deliberately left out because they drift.
 
-## Progress — 17 November 2026
+## Progress — 18 November 2026
 
 - **Phase 0:** implemented, with follow-up fixes for upgrades from the earlier migration,
   remote resolution of missing content, and retry after offline/failed lookups. The passage
@@ -14,7 +14,13 @@
   incoming writes, and safe clearing of in-flight source work. Named databases share upgrade
   handling and have regression coverage for schema/cursor isolation. The interrupted-pull
   regression now exercises the real sync engine across a database reopen.
-- **Phase 2:** intentionally not implemented yet; Phase 3 development was started first.
+- **Phase 2:** implemented after Phase 3. The API has a standalone, optionally configured
+  partitioned store, HMAC owner authorization, a separate DTO and index registry, endpoint
+  dispatch, activity-time merging with conflict retries, and source capability advertisement.
+  Startup leaves the source off when configuration, the partitioned database or design-doc
+  initialization is unavailable. Provisioning is available through `setup-dev.sh setup-user-data`
+  and documented for ops. Validation failures are HTTP 200 acks; unavailable storage remains
+  a retryable HTTP error. Default-source routing and response statuses are preserved.
 - **Phase 3:** implemented. Activity opens and migrates before components mount in both
   builds, then reconciles its owner after auth before enabling transport. Store, highlight
   and recommendation readers use the source; UI dates use `activityTimeUtc`. Lost sessions
@@ -30,7 +36,17 @@ Playwright and DB/S3-dependent API tests were not run.
 Phase 3 verification: the full app suite passed (1,834 tests passed, one skipped), as did
 its production SPA build, app type-check, changed-file lint and English/French seed validation.
 Web startup and mounted-article refresh are covered by unit tests. Full prerender and two-browser
-account sync remain unverified until the Phase 2 API source is available.
+account sync remain unverified; Phase 2 is now available for the repository owner's integration checks.
+
+Phase 2 verification: 198 mock-only API tests passed across 10 suites, including JSON and
+multipart dispatch, owner isolation, conflict retries, source-off behavior and advertisement.
+The API type-check and production build passed; the user-data design document was verified in
+the built assets. Changed-file lint and shell syntax checks passed. Provisioning was checked
+with fake HTTP responses for new/existing partitioned databases, a plain database, an invalid
+name and an authorization failure; no database was contacted. Shared regressions passed (49
+batch-sync, 10 data-source and 20 queue tests), plus all 7 app source-lifecycle tests.
+No `.env` values were changed or databases provisioned. CouchDB/S3-dependent API tests and
+Playwright were not run; real partition/index behavior and two-browser sync remain owner-run checks.
 
 ## 1. Summary
 
@@ -341,7 +357,7 @@ Manual check, two browsers on one account against an API with the source on:
 
 ## 11. Not verified — check before relying on it
 
-- **Partition ids with several colons.** Stored ids look like `<ownerKey>:highlighted:<contentId>:<start>-<end>`. CouchDB should treat only the text before the first colon as the partition, but this was not tested. Check it on a development CouchDB before Phase 2.
+- **Partition ids with several colons.** Stored ids look like `<ownerKey>:highlighted:<contentId>:<start>-<end>`. Mocked prefix tests pass, but the real CouchDB behavior remains unverified. The repository owner should check it before enabling the source.
 - **Idle re-sync on a tiny dataset.** Reading the engine suggests an idle pull re-fetches the head doc and then issues a second request with `updatedTimeUtc` bounds of `0`/`0` before the column re-seals. This was traced by reading, not run. The server must accept those bounds either way.
 - **REST 401 while the socket stays connected.** The queue stops at a failing head and resumes on reconnect or a queue change. Token refresh reconnects the socket, which should restart it; confirm.
 - **The change-request limiter's exact burst arithmetic** was not checked against the paced first upload.

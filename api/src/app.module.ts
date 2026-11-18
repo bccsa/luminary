@@ -22,6 +22,8 @@ import { IdentityCacheService } from "./auth/identityCache.service";
 import { QueryRateLimiterService } from "./ratelimit/queryRateLimiter.service";
 import { ChangeRequestRateLimiterService } from "./ratelimit/changeRequestRateLimiter.service";
 import { SidecarRateLimiterService } from "./ratelimit/sidecarRateLimiter.service";
+import { UserDataDbService } from "./userData/userDataDb.service";
+import { UserDataService } from "./userData/userData.service";
 
 let winstonTransport: winston.transport;
 if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
@@ -66,6 +68,8 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         SidecarController,
     ],
     providers: [
+        UserDataDbService,
+        UserDataService,
         DbService,
         Socketio,
         S3Service,

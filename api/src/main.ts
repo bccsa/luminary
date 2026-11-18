@@ -12,6 +12,7 @@ import { AllExceptionsFilter } from "./exceptions/allExceptions.filter";
 import { S3Service } from "./s3/s3.service";
 import { warmIndexNameRegistry } from "./db/indexNameRegistry";
 import { reconcileLanguageTranslationSeeds } from "./db/languageSeedReconciliation";
+import { UserDataDbService } from "./userData/userDataDb.service";
 
 export async function bootstrap() {
     const app = await NestFactory.create<NestFastifyApplication>(
@@ -54,6 +55,7 @@ export async function bootstrap() {
     // mistake that drops the JSON assets fails loudly here instead of silently
     // rejecting every `use_index` at request time.
     warmIndexNameRegistry();
+    await app.get(UserDataDbService).initialize();
 
     // Seed database with default data if requested
     if (process.argv.length >= 3 && process.argv[2] === "seed") {

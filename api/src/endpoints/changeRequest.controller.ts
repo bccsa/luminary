@@ -17,6 +17,7 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { ChangeRequestRateLimiterService } from "../ratelimit/changeRequestRateLimiter.service";
 import { removeDangerousKeys } from "../util/removeDangerousKeys";
 import { patchFileData } from "../util/patchFileData";
+import { changeRequestIdentity } from "../userData/ownerKey";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -38,7 +39,7 @@ export class ChangeRequestController {
         }
 
         // Counted before parsing so a flood of oversized or malformed requests is limited too
-        const identityKey = request.user?.userId ?? `ip:${request.ip}`;
+        const identityKey = changeRequestIdentity(request.user, request.ip);
         const gate = this.rateLimiter.check(identityKey);
         if (!gate.allowed) {
             reply.header("Retry-After", String(Math.ceil(gate.retryAfterMs / 1000)));
@@ -141,6 +142,8 @@ export class ChangeRequestController {
                 changeRequest.apiVersion = apiVersion;
             }
 
+            if (changeRequest.dataSource === "user") reply.code(200);
+
             const result = await this.changeRequestService.changeRequest(
                 changeRequest,
                 request.user,
@@ -153,6 +156,7 @@ export class ChangeRequestController {
         await validateApiVersion(body.apiVersion);
         // Clean prototype pollution from the body before processing
         const cleanedBody = removeDangerousKeys(body);
+        if (cleanedBody.dataSource === "user") reply.code(200);
         const result = await this.changeRequestService.changeRequest(cleanedBody, request.user);
 
         return result;

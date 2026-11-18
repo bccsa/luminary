@@ -8,6 +8,11 @@ export class ChangeReqDto {
     @IsOptional()
     @IsString()
     @Expose()
+    dataSource?: string;
+
+    @IsOptional()
+    @IsString()
+    @Expose()
     apiVersion?: string;
 
     @IsNotEmpty()

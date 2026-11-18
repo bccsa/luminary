@@ -12,6 +12,8 @@ import * as winston from "winston";
 import { S3Service } from "../s3/s3.service";
 import { AuthIdentityService } from "../auth/authIdentity.service";
 import { IdentityCacheService } from "../auth/identityCache.service";
+import { UserDataService } from "../userData/userData.service";
+import { UserDataDbService } from "../userData/userDataDb.service";
 
 export type testingModuleOptions = {
     dbName?: string;
@@ -48,6 +50,8 @@ export async function createTestingModule(testName: string) {
             }),
         ],
         providers: [
+            UserDataDbService,
+            UserDataService,
             DbService,
             Socketio,
             S3Service,
