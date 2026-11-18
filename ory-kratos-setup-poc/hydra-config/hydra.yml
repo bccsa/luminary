@@ -1,0 +1,32 @@
+dsn: postgres://kratos:kratos@postgres:5432/hydra?sslmode=disable
+
+serve:
+  public:
+    cors:
+      enabled: true
+
+urls:
+  self:
+    issuer: https://auth.luminary.local/
+  consent: https://login.luminary.local/consent
+  login: https://login.luminary.local/login
+  logout: https://login.luminary.local/logout
+
+strategies:
+  access_token: jwt
+
+secrets:
+  system:
+    - PLEASE-CHANGE-ME-I-AM-INSECURE
+
+oidc:
+  subject_identifiers:
+    supported_types:
+      - public
+      - pairwise
+    pairwise:
+      salt: PLEASE-CHANGE-ME-I-AM-INSECURE
+
+log:
+  level: debug
+  format: text
