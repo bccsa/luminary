@@ -154,6 +154,46 @@ describe("validateQuery", () => {
         });
     });
 
+    describe("omitFields (response projection)", () => {
+        it("accepts a projection of heavy, client-unread fields", () => {
+            const q: any = validHybridQuery();
+            q.omitFields = ["fts", "ftsTokenCount", "text", "memberOf", "_rev"];
+            expect(validateQuery(q)).toEqual({ valid: true, error: "" });
+        });
+
+        it("rejects a non-array omitFields", () => {
+            const q: any = validHybridQuery();
+            q.omitFields = "text";
+            expect(validateQuery(q).error).toMatch(/'omitFields' must be an array/);
+        });
+
+        it("rejects non-string / empty members", () => {
+            const q1: any = validHybridQuery();
+            q1.omitFields = ["text", 7];
+            expect(validateQuery(q1).error).toMatch(/'omitFields' must contain non-empty strings/);
+            const q2: any = validHybridQuery();
+            q2.omitFields = [""];
+            expect(validateQuery(q2).valid).toBe(false);
+        });
+
+        it("rejects omitting a field the server itself reads after the find", () => {
+            // updatedTimeUtc drives blockStart/blockEnd; the rest drive the expired-content strip.
+            for (const field of ["_id", "type", "updatedTimeUtc", "status", "expiryDate"]) {
+                const q: any = validHybridQuery();
+                q.omitFields = ["text", field];
+                expect(validateQuery(q).error).toMatch(
+                    new RegExp(`'omitFields' may not omit '${field}'`),
+                );
+            }
+        });
+
+        it("rejects an implausibly long projection", () => {
+            const q: any = validHybridQuery();
+            q.omitFields = Array.from({ length: 33 }, (_, i) => `field${i}`);
+            expect(validateQuery(q).error).toMatch(/'omitFields' exceeds maximum length/);
+        });
+    });
+
     describe("limit cap", () => {
         it("rejects a limit above the default maximum", () => {
             const q: any = validHybridQuery();
