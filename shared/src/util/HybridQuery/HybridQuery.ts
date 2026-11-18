@@ -33,6 +33,7 @@ import { useDexieLiveQuery } from "../useDexieLiveQuery/useDexieLiveQuery";
 import { applySortLimit, mergeById, sameWindow } from "./mergeDocs";
 import { SeedRetention } from "./seedRetention";
 import {
+    contentSyncSettledRef,
     decideContentApiQuery,
     planRemoteContentQueries,
     readType,
@@ -452,6 +453,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     // survives before authoritative reads replace it. The seed-to-live transition
     // table lives in the `SeedRetention` module.
     private readonly _seed: SeedRetention = new SeedRetention();
+    // True for a Content query: its local read is authoritative only once Content sync settles.
+    private _contentQuery = false;
     // The two contributions to `output`, kept separate so live mode can replace
     // the local set wholesale (reflecting deletions) while the one-shot remote
     // supplement persists. `output = applySortLimit(mergeById(_local, _remote))`.
@@ -647,6 +650,28 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._generationDisposers.add(stop);
     }
 
+    // A seeded Content window retained past an empty read (local store still syncing)
+    // must settle once sync does: re-read local so a genuinely empty feed publishes
+    // empty instead of keeping the seed forever.
+    private _watchContentSyncSettled(gen: number): void {
+        const stop = watch(contentSyncSettledRef(), (settled) => {
+            if (!settled) return;
+            stop();
+            this._generationDisposers.delete(stop);
+            if (gen !== this._generation || this._disposed) return;
+            runInWorker("mangoQuery", this._query).then(
+                (docs) => {
+                    // A live emission may have replaced the seed in the meantime.
+                    if (gen !== this._generation || this._disposed) return;
+                    if (!this._seed.holdsLocalSeed()) return;
+                    this._setLocal(docs as T[]);
+                },
+                (err) => this._reportError("local-read", err),
+            );
+        });
+        this._generationDisposers.add(stop);
+    }
+
     private _run(): void {
         // Capture the generation so every async/event callback this method wires up
         // can bail if a later rebuild (or dispose) has superseded it. Most teardown
@@ -708,8 +733,12 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             }
 
             const type = readType(this._query);
+            this._contentQuery = type === DocType.Content;
 
             if (type === DocType.Content) {
+                if (this._seed.holdsLocalSeed() && !contentSyncSettledRef().value) {
+                    this._watchContentSyncSettled(gen);
+                }
                 // Local read merges instantly; the FIRST local result also drives
                 // the (one-shot) API-supplement decision. Later live emissions
                 // update `_local` only — the `_apiDecided` gate keeps the API
@@ -1094,11 +1123,17 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             });
             release.forEach((id) => this._tombstones.delete(id));
         }
-        // Retain a cache-seeded window while the remote leg is still in flight: a cold-start
-        // empty local read must not collapse the seeded first paint before the supplement
-        // lands. A non-empty read still replaces wholesale (deletions propagate); once the
-        // remote settles the flag is cleared and a genuine empty publishes as usual.
-        if (this._seed.shouldRetainLocal(local.length, this._remotePending.value)) {
+        // Retain a cache-seeded window while the remote leg is still in flight or the local
+        // store hasn't finished syncing: a cold-start empty local read must not collapse the
+        // seeded first paint. A non-empty read still replaces wholesale (deletions propagate).
+        const localAuthoritative = !this._contentQuery || contentSyncSettledRef().value;
+        if (
+            this._seed.shouldRetainLocal(
+                local.length,
+                this._remotePending.value,
+                localAuthoritative,
+            )
+        ) {
             this._recompute();
             return;
         }

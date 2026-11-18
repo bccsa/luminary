@@ -72,6 +72,29 @@ export function typeInSyncListRef(type: DocType): ComputedRef<boolean> {
 }
 
 /**
+ * True once Content sync has registered at least one column and every Content column
+ * has reached `eof`, i.e. the local store holds the synced Content corpus. Until then
+ * an empty local Content read means "not downloaded yet" rather than "no docs".
+ */
+export function contentSyncSettled(): boolean {
+    let seen = false;
+    for (const entry of syncList.value) {
+        if (splitChunkTypeString(entry.chunkType).type !== DocType.Content) continue;
+        if (entry.eof !== true) return false;
+        seen = true;
+    }
+    return seen;
+}
+
+let _contentSyncSettledRef: ComputedRef<boolean> | undefined;
+
+/** Memoized reactive twin of {@link contentSyncSettled}, so watchers fire per flip, not per sync chunk. */
+export function contentSyncSettledRef(): ComputedRef<boolean> {
+    if (!_contentSyncSettledRef) _contentSyncSettledRef = computed(contentSyncSettled);
+    return _contentSyncSettledRef;
+}
+
+/**
  * Locate a top-level `<field>: { $in: [...] }` constraint and return its (string)
  * value list + its position within the expanded `$and`. Shared by the id-diff and
  * fan-out paths.
