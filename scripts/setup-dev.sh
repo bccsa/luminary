@@ -331,26 +331,9 @@ setup_user_data_database() {
     return 1
   fi
   sync_credentials_from_docker
-  local db_url="http://127.0.0.1:5984/${db_name}"
-  local status
-  status=$(curl --silent --show-error --max-time 15 \
-    -o /dev/null -w '%{http_code}' -X PUT \
-    -u "${LUMINARY_COUCHDB_USER}:${LUMINARY_COUCHDB_PASSWORD}" \
-    "${db_url}?partitioned=true") || return 1
-  case "$status" in
-    201|202|412) ;;
-    *) error "Could not provision user-data database (HTTP ${status})."; return 1 ;;
-  esac
-  # 412 means the database exists; verify its layout rather than silently accepting it.
-  if ! curl --silent --show-error --fail --max-time 15 \
-    -u "${LUMINARY_COUCHDB_USER}:${LUMINARY_COUCHDB_PASSWORD}" "$db_url" | \
-    node -e 'let input=""; process.stdin.on("data", c => input += c); process.stdin.on("end", () => { try { process.exit(JSON.parse(input).props?.partitioned === true ? 0 : 1); } catch { process.exit(1); } });'; then
-    error "User-data database must be partitioned. Existing data was left intact."
-    return 1
-  fi
-  success "Partitioned user-data database ${db_name} is ready."
-  info "Set DB_USERDATA_DATABASE=${db_name} and a dedicated USER_DATA_ID_SECRET in api/.env."
-  info "Generate the secret once with 'openssl rand -hex 32'; back it up and never rotate it."
+  LUMINARY_COUCHDB_USER="$LUMINARY_COUCHDB_USER" \
+  LUMINARY_COUCHDB_PASSWORD="$LUMINARY_COUCHDB_PASSWORD" \
+    node "$LUMINARY_ROOT/scripts/setup-user-data.mjs" "$db_name"
 }
 
 # Start MinIO via Docker container.

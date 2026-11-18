@@ -33,6 +33,10 @@ Provision the database before enabling the source. For local development, run fr
 
 It creates or verifies the partitioned database and preserves existing data. The full setup
 wizard also provisions it when `DB_USERDATA_DATABASE` is configured in `api/.env`.
+The command uses `DB_CONNECTION_STRING` from the shell environment first, then `api/.env`,
+including its host, port and credentials. If neither is configured, it falls back to the
+local Docker/default credentials. The configured account needs permission to create databases;
+HTTP 401/403 means its credentials or admin permissions need checking. Passwords are not logged.
 For staging/production, ops performs the equivalent request:
 
 ```sh
