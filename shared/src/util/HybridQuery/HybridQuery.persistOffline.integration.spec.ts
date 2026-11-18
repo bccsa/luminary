@@ -24,7 +24,11 @@ const below1 = CUTOFF - 1000;
 const below2 = CUTOFF - 2000;
 const above = CUTOFF + 5000;
 
-const content = (_id: string, publishDate: number, over: Partial<ContentDto> = {}): BaseDocumentDto =>
+const content = (
+    _id: string,
+    publishDate: number,
+    over: Partial<ContentDto> = {},
+): BaseDocumentDto =>
     ({
         _id,
         type: DocType.Content,
@@ -57,7 +61,12 @@ describe("HybridQuery persistOffline — real Dexie integration", () => {
         // isSyncableDoc derives from sync's syncList: a content:post column makes
         // Post content syncable (all languages), while Tag content stays non-syncable.
         syncList.value = [
-            { chunkType: `${DocType.Content}:${DocType.Post}`, memberOf: ["g1"], blockStart: 1, blockEnd: 0 },
+            {
+                chunkType: `${DocType.Content}:${DocType.Post}`,
+                memberOf: ["g1"],
+                blockStart: 1,
+                blockEnd: 0,
+            },
         ];
     });
 

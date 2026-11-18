@@ -6,9 +6,11 @@ import { type ContentDto, type HighlightColor, type HighlightRange } from "lumin
 import HighlightCard from "./HighlightCard.vue";
 import ActivitySection from "./ActivitySection.vue";
 import { groupByActivityDate } from "./activityGroups";
-import { useContentQuery } from "@/composables/useContentQuery";
-import { useUserActivity } from "@/userActivity/useUserActivity";
+import { useContentQueryWithState } from "@/composables/useContentQuery";
+import { useUserActivityWithState } from "@/userActivity/useUserActivity";
+import { hasAnswered, useShownOnceLoaded } from "./useShownOnceLoaded";
 import { openHighlight } from "@/util/openHighlight";
+import { highlightExcerpts } from "@/util/highlightExcerpt";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -17,31 +19,40 @@ const props = defineProps<{ colour?: HighlightColor }>();
 
 // A highlight belongs to one translation, so its card shows that translation rather than the
 // post: two languages of the same post are two separate entries here.
-const highlighted = useUserActivity("highlighted");
+const { rows: highlighted, loaded } = useUserActivityWithState("highlighted");
 const contentIds = computed(() => highlighted.value.map((row) => row.contentId as string));
 
-const content = useContentQuery(() => [{ _id: { $in: contentIds.value } }], {
+const contentQuery = useContentQueryWithState(() => [{ _id: { $in: contentIds.value } }], {
     includeScheduled: false,
     // The user read this translation to highlight it, so it belongs here whether or not its
     // language is still among the ones they display.
     languageFilter: false,
     keepPreviousResult: true,
 });
+const content = contentQuery.output;
+const shown = useShownOnceLoaded(() => loaded.value && hasAnswered(contentQuery));
 
-type Entry = { content: ContentDto; range: HighlightRange; updatedTimeUtc: number };
+type Entry = {
+    content: ContentDto;
+    range: HighlightRange;
+    excerpt: string;
+    updatedTimeUtc: number;
+};
 
 /** One entry per saved passage, so each can be filtered by colour and opened on its own. */
 const entries = computed<Entry[]>(() =>
     highlighted.value
         .flatMap((row) => {
             const translation = content.value.find((c) => c._id === row.contentId);
-            return translation
-                ? (row.payload?.ranges ?? []).map((range) => ({
-                      content: translation,
-                      range,
-                      updatedTimeUtc: row.updatedTimeUtc,
-                  }))
-                : [];
+            if (!translation) return [];
+            const ranges = row.payload?.ranges ?? [];
+            const excerpts = highlightExcerpts(translation.text, ranges);
+            return ranges.map((range, i) => ({
+                content: translation,
+                range,
+                excerpt: excerpts[i],
+                updatedTimeUtc: row.updatedTimeUtc,
+            }));
         })
         .filter((entry) => !props.colour || entry.range.color === props.colour),
 );
@@ -51,26 +62,26 @@ const sections = computed(() => groupByActivityDate(entries.value, (e) => e.upda
 
 <template>
     <div data-test="activity-highlighted">
-        <ActivitySection
-            v-for="section in sections"
-            :key="section.group"
-            :group="section.group"
-        >
-            <div class="flex flex-col gap-3">
-                <HighlightCard
-                    v-for="entry in section.items"
-                    :key="`${entry.content._id}-${entry.range.start}`"
-                    :content="entry.content"
-                    :range="entry.range"
-                    @open="openHighlight(router, entry.content.slug, entry.range)"
-                />
+        <template v-if="shown">
+            <ActivitySection
+                v-for="section in sections"
+                :key="section.group"
+                :group="section.group"
+            >
+                <div class="flex flex-col gap-3">
+                    <HighlightCard
+                        v-for="entry in section.items"
+                        :key="`${entry.content._id}-${entry.range.start}`"
+                        :content="entry.content"
+                        :range="entry.range"
+                        :excerpt="entry.excerpt"
+                        @open="openHighlight(router, entry.content.slug, entry.range)"
+                    />
+                </div>
+            </ActivitySection>
+            <div v-if="!entries.length" class="text-zinc-500 dark:text-slate-200">
+                {{ t("activity.highlighted.empty_page") }}
             </div>
-        </ActivitySection>
-        <div
-            v-if="!entries.length"
-            class="text-zinc-500 dark:text-slate-200"
-        >
-            {{ t("activity.highlighted.empty_page") }}
-        </div>
+        </template>
     </div>
 </template>

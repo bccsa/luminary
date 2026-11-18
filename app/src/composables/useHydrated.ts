@@ -2,7 +2,7 @@ import { computed, onMounted, ref } from "vue";
 
 /**
  * True immediately in the normal SPA and after the first client mount in the
- * SSG build. Use it for client-only UI that must not participate in SSR
+ * SSG build. Use it for client-only UI that must not participate in the prerender
  * hydration.
  */
 export function useHydrated() {

@@ -1,14 +1,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as shared from "luminary-shared";
-import {
-    db,
-    DocType,
-    PublishStatus,
-    TagType,
-    type ContentDto,
-    type Uuid,
-} from "luminary-shared";
+import { db, DocType, PublishStatus, TagType, type ContentDto, type Uuid } from "luminary-shared";
 import { filterTopicTagIds } from "./topicTags";
 
 function makeTagContent(parentId: Uuid, parentTagType: TagType): ContentDto {

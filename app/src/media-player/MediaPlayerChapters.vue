@@ -5,12 +5,15 @@ import { chapterIndexAt } from "@luminary-media-converter/player-web";
 import type { Chapter, ThumbnailSpriteCue } from "@luminary-media-converter/player-web";
 import ChapterRow from "./ChapterRow.vue";
 import { chapterProgress } from "./chapterProgress";
+import { chapterFrameTime } from "./player/ui/chapterFrameTime";
 
 const props = defineProps<{
     chapters: Chapter[];
     currentTime: number;
     /** A frame of the video at a time, for the rows to lead with; without it the rows are text. */
     cueAt?: (time: number) => ThumbnailSpriteCue | null;
+    /** Where the last chapter ends, for its picture. */
+    duration?: number;
 }>();
 defineEmits<{ select: [chapter: Chapter] }>();
 
@@ -19,14 +22,12 @@ const current = computed(() => chapterIndexAt(props.chapters, props.currentTime)
 
 <template>
     <ol class="flex-1 space-y-1 overflow-y-auto px-3 pb-8 pt-2">
-        <li
-            v-for="(chapter, index) in chapters"
-            :key="`${chapter.startTime}-${index}`"
-        >
+        <li v-for="(chapter, index) in chapters" :key="`${chapter.startTime}-${index}`">
             <ChapterRow
                 :chapter="chapter"
+                :index="index"
                 :current="index === current"
-                :cue="cueAt?.(chapter.startTime) ?? null"
+                :cue="cueAt?.(chapterFrameTime(chapters, index, duration)) ?? null"
                 :progress="chapterProgress(chapter, currentTime)"
                 @click="$emit('select', chapter)"
             />

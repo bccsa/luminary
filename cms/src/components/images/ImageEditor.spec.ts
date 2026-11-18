@@ -181,7 +181,13 @@ describe("ImageEditor", () => {
         const origBuckets = [...mockImageBuckets.value];
         mockImageBuckets.value = [
             ...origBuckets,
-            { _id: "bucket-2", name: "Second", publicUrl: "http://test2.com", storageType: "image", mimeTypes: ["image/*"] },
+            {
+                _id: "bucket-2",
+                name: "Second",
+                publicUrl: "http://test2.com",
+                storageType: "image",
+                mimeTypes: ["image/*"],
+            },
         ];
 
         const parent: ContentParentDto = {
@@ -195,12 +201,42 @@ describe("ImageEditor", () => {
 
         const component = wrapper.vm as any;
         const mockFile = new File(["img"], "test.jpg", { type: "image/jpeg" });
-        const fileList = { 0: mockFile, length: 1, item: (i: number) => (i === 0 ? mockFile : null) };
+        const fileList = {
+            0: mockFile,
+            length: 1,
+            item: (i: number) => (i === 0 ? mockFile : null),
+        };
 
         component.handleFiles(fileList);
         await wrapper.vm.$nextTick();
 
-        expect(wrapper.text()).toContain("Please select a storage bucket");
+        // Same notice and wording as the Media section's bucket select (#2391)
+        const notice = wrapper.find('[data-test="bucket-problem"]');
+        expect(notice.text()).toBe("Choose a storage bucket before uploading images.");
+        expect(notice.classes()).toContain("bg-yellow-50");
+        expect(parent.imageData?.uploadData ?? []).toHaveLength(0);
+
+        mockImageBuckets.value = origBuckets;
+    });
+
+    it("labels the bucket select the same way as the Media section", () => {
+        const origBuckets = [...mockImageBuckets.value];
+        mockImageBuckets.value = [
+            ...origBuckets,
+            {
+                _id: "bucket-2",
+                name: "Second",
+                publicUrl: "http://test2.com",
+                storageType: "image",
+            },
+        ];
+
+        const wrapper = mount(ImageEditor, {
+            props: { parent: { ...mockPostDto, imageBucketId: undefined }, disabled: false },
+        });
+        const select = wrapper.findComponent({ name: "LSelect" });
+        expect(select.props("label")).toBe("Storage bucket");
+        expect(select.props("placeholder")).toBe("Select storage bucket");
 
         mockImageBuckets.value = origBuckets;
     });
@@ -221,7 +257,9 @@ describe("ImageEditor", () => {
 
         await wrapper.vm.$nextTick();
 
-        expect(wrapper.text()).toContain("No storage buckets configured");
+        expect(wrapper.find('[data-test="bucket-problem"]').text()).toContain(
+            "No storage buckets are configured",
+        );
 
         // Restore
         mockImageBuckets.value = origBuckets;
@@ -241,7 +279,11 @@ describe("ImageEditor", () => {
         const mockFile = new File(["image-data"], "test.jpg", { type: "image/jpeg" });
         Object.defineProperty(mockFile, "size", { value: 1024 }); // Small file
 
-        const fileList = { 0: mockFile, length: 1, item: (i: number) => (i === 0 ? mockFile : null) };
+        const fileList = {
+            0: mockFile,
+            length: 1,
+            item: (i: number) => (i === 0 ? mockFile : null),
+        };
 
         const component = wrapper.vm as any;
         component.handleFiles(fileList);
@@ -268,7 +310,11 @@ describe("ImageEditor", () => {
         const mockFile = new File(["x"], "huge.jpg", { type: "image/jpeg" });
         Object.defineProperty(mockFile, "size", { value: largeSize });
 
-        const fileList = { 0: mockFile, length: 1, item: (i: number) => (i === 0 ? mockFile : null) };
+        const fileList = {
+            0: mockFile,
+            length: 1,
+            item: (i: number) => (i === 0 ? mockFile : null),
+        };
 
         const component = wrapper.vm as any;
         component.handleFiles(fileList);
@@ -294,7 +340,11 @@ describe("ImageEditor", () => {
         // An actual upload is a real user edit and should persist the effective bucket.
         const mockFile = new File(["x"], "img.jpg", { type: "image/jpeg" });
         Object.defineProperty(mockFile, "size", { value: 1024 });
-        const fileList = { 0: mockFile, length: 1, item: (i: number) => (i === 0 ? mockFile : null) };
+        const fileList = {
+            0: mockFile,
+            length: 1,
+            item: (i: number) => (i === 0 ? mockFile : null),
+        };
         (wrapper.vm as any).handleFiles(fileList);
         await wrapper.vm.$nextTick();
 

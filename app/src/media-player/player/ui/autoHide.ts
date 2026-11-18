@@ -15,6 +15,7 @@ export const AUTO_HIDE_MS = 3000;
 export interface ControlsStore {
     requestControlsLock(): () => void;
     toggleControls(forceShow?: boolean): boolean;
+    controlsVisible: boolean;
 }
 
 /** Pointer events that count as the viewer being there. */
@@ -56,13 +57,40 @@ export function installAutoHide(
         timer = setTimeout(hide, delayMs);
     };
 
-    for (const type of ACTIVITY) target.addEventListener(type, onActivity, { passive: true });
+    /**
+     * A touch tap is v10's to toggle the controls with, and a held lock keeps them up whatever it decides: so the
+     * lock is not taken on a finger's down, is given back before v10 sees the up, and is taken again only if the
+     * tap left the controls showing. A finger's movement only keeps controls up that are already showing.
+     */
+    let afterTouch: ReturnType<typeof setTimeout> | undefined;
+    const keepIfShowing = (): void => {
+        if (getStore()?.controlsVisible) onActivity();
+    };
+    const onPointer = (event: Event): void => {
+        if ((event as PointerEvent).pointerType !== "touch") onActivity();
+        else if (event.type === "pointermove") keepIfShowing();
+        else if (event.type === "pointerup") {
+            // Taken after v10's own pointerup listeners have toggled the controls.
+            clearTimeout(afterTouch);
+            afterTouch = setTimeout(keepIfShowing);
+        }
+    };
+    const onTouchUpFirst = (event: Event): void => {
+        if ((event as PointerEvent).pointerType !== "touch") return;
+        release?.();
+        release = undefined;
+    };
+
+    for (const type of ACTIVITY) target.addEventListener(type, onPointer, { passive: true });
+    target.addEventListener("pointerup", onTouchUpFirst, { capture: true, passive: true });
 
     return () => {
         if (timer) clearTimeout(timer);
         timer = undefined;
+        clearTimeout(afterTouch);
         release?.();
         release = undefined;
-        for (const type of ACTIVITY) target.removeEventListener(type, onActivity);
+        for (const type of ACTIVITY) target.removeEventListener(type, onPointer);
+        target.removeEventListener("pointerup", onTouchUpFirst, { capture: true });
     };
 }

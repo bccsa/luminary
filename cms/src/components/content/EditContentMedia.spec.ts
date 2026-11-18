@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { ref } from "vue";
 import type { PostDto } from "luminary-shared";
@@ -10,6 +10,7 @@ const encoder = {
     encoderVersion: ref<string | undefined>("0.0.1"),
     busy: ref(false),
     status: ref<string | undefined>(undefined),
+    encoding: ref(false),
     progress: ref<number | undefined>(undefined),
     error: ref<string | undefined>(undefined),
     sessionId: ref<string | undefined>(undefined),
@@ -22,7 +23,16 @@ const encoder = {
     stop: vi.fn(),
 };
 
-vi.mock("@/composables/useMediaEncoder", () => ({ useMediaEncoder: () => encoder }));
+/** What the section asks the encoder composable to acknowledge as stored. */
+const encoderOptions = vi.hoisted(() => ({
+    storedHlsUrl: undefined as (() => string | undefined) | undefined,
+}));
+vi.mock("@/composables/useMediaEncoder", () => ({
+    useMediaEncoder: (options: { storedHlsUrl?: () => string | undefined }) => {
+        encoderOptions.storedHlsUrl = options?.storedHlsUrl;
+        return encoder;
+    },
+}));
 
 vi.mock("@/composables/storageSelection", () => ({
     storageSelection: () => ({
@@ -66,6 +76,7 @@ beforeEach(() => {
     encoder.availability.value = "available";
     encoder.busy.value = false;
     encoder.status.value = undefined;
+    encoder.encoding.value = false;
     encoder.error.value = undefined;
 });
 
@@ -360,6 +371,69 @@ describe("EditContentMedia resume", () => {
     });
 });
 
+describe("EditContentMedia new versions of the saved video", () => {
+    const saved = {
+        ...parent(),
+        mediaBucketId: "bucket-1",
+        media: { hlsUrl: "/abc/master_r2.m3u8", hlsKey: "k" },
+    } as PostDto;
+
+    const resumeWith = (hlsUrl: string) =>
+        encoder.resume.mockImplementation(async ({ documentId, onMediaReady }: any) => {
+            onMediaReady({ hlsUrl, hlsKey: "k" }, documentId);
+            return true;
+        });
+
+    afterEach(() => {
+        encoder.resume.mockResolvedValue(false);
+    });
+
+    it("saves a later version in the same folder on its own", async () => {
+        resumeWith("https://cdn.example.com/media/abc/master_r3.m3u8");
+        const saveMediaOnly = vi.fn().mockResolvedValue(undefined);
+
+        mountSection({ parent: { ...saved }, savedParent: saved, saveMediaOnly });
+        await settle();
+
+        expect(saveMediaOnly).toHaveBeenCalledWith(
+            expect.objectContaining({ hlsUrl: "https://cdn.example.com/media/abc/master_r3.m3u8" }),
+        );
+    });
+
+    it("tells the encoder nothing is stored until the server has answered the save", async () => {
+        // Queued is not stored: the server can still refuse it.
+        resumeWith("https://cdn.example.com/media/abc/master_r3.m3u8");
+        let answer!: () => void;
+        const saveMediaOnly = vi.fn(() => new Promise<void>((resolve) => (answer = resolve)));
+
+        mountSection({ parent: { ...saved }, savedParent: saved, saveMediaOnly });
+        await settle();
+        expect(encoderOptions.storedHlsUrl!()).toBeUndefined();
+
+        answer();
+        await settle();
+        expect(encoderOptions.storedHlsUrl!()).toBe(
+            "https://cdn.example.com/media/abc/master_r2.m3u8",
+        );
+    });
+
+    it.each([
+        ["an older version", "master_r1.m3u8"],
+        ["the first version", "master.m3u8"],
+    ])("leaves the saved video alone when an encoder offers %s", async (_, file) => {
+        // Another machine's encoder resumes on the version it last saved; storing it
+        // would undo the edit saved since.
+        resumeWith(`https://cdn.example.com/media/abc/${file}`);
+        const saveMediaOnly = vi.fn().mockResolvedValue(undefined);
+
+        const wrapper = mountSection({ parent: { ...saved }, savedParent: saved, saveMediaOnly });
+        await settle();
+
+        expect(saveMediaOnly).not.toHaveBeenCalled();
+        expect(wrapper.props("parent")!.media).toEqual(saved.media);
+    });
+});
+
 describe("EditContentMedia status", () => {
     it("puts progress in the body, with the width of the section", async () => {
         encoder.status.value = "encoding";
@@ -393,6 +467,7 @@ describe("EditContentMedia editing the existing video", () => {
         const wrapper = mountSection({ parent: { ...parent(), media: undefined } });
         await settle();
         expect(wrapper.find("[data-test='edit-media-button']").exists()).toBe(false);
+        expect(wrapper.find("[data-test='edit-media-hint']").exists()).toBe(false);
     });
 
     it("opens the video it has, at its absolute address", async () => {
@@ -405,7 +480,21 @@ describe("EditContentMedia editing the existing video", () => {
             title: "Episode 12",
             mediaBucketId: "bucket-1",
             hlsUrl: "https://cdn.example.com/media/posts/p1/s1/master.m3u8",
+            onMediaReady: expect.any(Function),
         });
+    });
+
+    it("waits for a running encode to finish, saying why", async () => {
+        encoder.encoding.value = true;
+        const wrapper = mountSection({ parent: withVideo() });
+        await settle();
+        const button = wrapper.find("[data-test='edit-media-button']");
+
+        expect(button.attributes("disabled")).toBeDefined();
+        expect(button.attributes("title")).toBe("Available once the encode has finished.");
+        expect(wrapper.find("[data-test='edit-media-hint']").text()).toContain(
+            "once the video has finished encoding",
+        );
     });
 
     it("cannot be used without permission to edit the document, or without the encoder", async () => {

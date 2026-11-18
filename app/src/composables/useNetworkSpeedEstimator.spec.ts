@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 const mockProbe = (bytes: number, seconds: number) => {
     vi.spyOn(performance, "now")
@@ -18,7 +18,11 @@ const loadSubject = async () => {
     vi.resetModules();
     const userDataSaverEnabled = ref(false);
     const isDataSaverEnabled = vi.fn(() => false);
-    vi.doMock("@/globalConfig", () => ({ isDataSaverEnabled, userDataSaverEnabled }));
+    vi.doMock("@/globalConfig", () => ({
+        isDataSaverEnabled,
+        userDataSaverEnabled,
+        dataSaverOn: computed(() => userDataSaverEnabled.value || isDataSaverEnabled()),
+    }));
     Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
 
     const subject = await import("./useNetworkSpeedEstimator");
@@ -83,13 +87,17 @@ describe("useNetworkSpeedEstimator", () => {
     });
 
     // vite.config.web.ts's ssgOptions.mock supplies a jsdom `window` during the Node
-    // prerender too, so a bare `typeof window` guard wouldn't exclude SSR — this proves
+    // prerender too, so a bare `typeof window` guard wouldn't exclude the prerender — this proves
     // the `!import.meta.env.SSR` addition actually suppresses the module-level probe.
-    it("does not run the module-level probe or register listeners during SSR", async () => {
+    it("does not run the module-level probe or register listeners during the SSG prerender", async () => {
         vi.resetModules();
         const userDataSaverEnabled = ref(false);
         const isDataSaverEnabled = vi.fn(() => false);
-        vi.doMock("@/globalConfig", () => ({ isDataSaverEnabled, userDataSaverEnabled }));
+        vi.doMock("@/globalConfig", () => ({
+            isDataSaverEnabled,
+            userDataSaverEnabled,
+            dataSaverOn: computed(() => userDataSaverEnabled.value || isDataSaverEnabled()),
+        }));
         Object.defineProperty(navigator, "onLine", { value: true, configurable: true });
         const fetchMock = vi.fn();
         vi.stubGlobal("fetch", fetchMock);

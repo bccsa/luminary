@@ -168,9 +168,9 @@ describe("decideContentApiQuery — older-tail supplement", () => {
 
     it("appends the below-cutoff/always-offline tail to the supplement selector", () => {
         const out = decideContentApiQuery(feed(), []);
-        expect(
-            (out!.selector as { $and: MangoSelector[] }).$and,
-        ).toContainEqual(publishDateTail(1000));
+        expect((out!.selector as { $and: MangoSelector[] }).$and).toContainEqual(
+            publishDateTail(1000),
+        );
     });
 
     it("fetches only the shortfall (limit − local) when the local page is partial", () => {

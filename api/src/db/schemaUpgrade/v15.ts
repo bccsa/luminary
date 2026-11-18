@@ -89,7 +89,9 @@ export default async function (db: DbService) {
         );
 
         await db.setSchemaVersion(15);
-        console.info(`Database schema upgrade from version ${schemaVersion} to 15 completed successfully`);
+        console.info(
+            `Database schema upgrade from version ${schemaVersion} to 15 completed successfully`,
+        );
     } catch (error) {
         console.error("Database schema upgrade to version 15 failed:", error);
         throw error;

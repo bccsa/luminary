@@ -62,7 +62,9 @@ describe("ActivityHighlighted", () => {
         await db.userActivity.clear();
         const wrapper = mount(ActivityHighlighted);
 
-        expect(wrapper.text()).toContain("Posts where you highlight text will show up here.");
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Posts where you highlight text will show up here.");
+        });
     });
 
     it("shows one entry per highlighted translation of the same post", async () => {

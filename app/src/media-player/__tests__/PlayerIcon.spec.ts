@@ -39,7 +39,9 @@ describe("PlayerIcon", () => {
         expect(back.get("text").text()).toBe("10");
         expect(back.findAll("path")[0]!.attributes("d")).toContain("M3.5 12");
 
-        const forward = mount(PlayerIcon, { props: { skip: { seconds: 30, direction: "forward" } } });
+        const forward = mount(PlayerIcon, {
+            props: { skip: { seconds: 30, direction: "forward" } },
+        });
         expect(forward.findAll("path")[0]!.attributes("d")).toContain("M20.5 12");
     });
 });

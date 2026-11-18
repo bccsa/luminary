@@ -1287,7 +1287,10 @@ describe("DbService", () => {
                     slug: "content-prevslugs-delete-current",
                     language: "lang-eng",
                     memberOf: ["group-public-content"],
-                    previousSlugs: ["content-prevslugs-delete-old-a", "content-prevslugs-delete-old-b"],
+                    previousSlugs: [
+                        "content-prevslugs-delete-old-a",
+                        "content-prevslugs-delete-old-b",
+                    ],
                 } as any;
                 await service.upsertDoc(content);
                 await service.upsertDoc({ ...content, deleteReq: 1 });
@@ -1386,8 +1389,7 @@ describe("DbService", () => {
                 const cmds = (
                     (await service.getDocsByType(DocType.DeleteCmd)).docs as DeleteCmdDto[]
                 ).filter(
-                    (c) =>
-                        c.docId === content._id && c.deleteReason === DeleteReason.StatusChange,
+                    (c) => c.docId === content._id && c.deleteReason === DeleteReason.StatusChange,
                 );
                 expect(cmds).toHaveLength(1);
                 expect(cmds[0].slug).toBe("content-prevslugs-unpublish-current");

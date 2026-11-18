@@ -55,6 +55,8 @@ describe("ActivityViewed", () => {
         await db.userActivity.clear();
         const wrapper = mount(ActivityViewed);
 
-        expect(wrapper.text()).toContain("Posts you read or watch will show up here.");
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Posts you read or watch will show up here.");
+        });
     });
 });

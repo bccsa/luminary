@@ -10,6 +10,8 @@ on:
     paths:
       - api/**
       - .github/workflows/api-unit-tests.yml
+      - .prettierrc.json
+      - .prettierignore
   workflow_call:
 
 env:
@@ -84,6 +86,10 @@ jobs:
 
       - name: Lint
         run: npm run lint
+        working-directory: api
+
+      - name: Check Formatting
+        run: npm run format:check
         working-directory: api
 
       - name: Type Check

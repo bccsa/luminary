@@ -14,7 +14,9 @@ const MISSING = "/e2e-page-load-missing-2055";
 async function expectArticle(page: Page) {
     await expect(page).toHaveURL((url) => url.pathname === ARTICLE);
     await expect(page.locator("article h1:visible")).toHaveText("Blog 1");
-    await expect(page.locator("article .prose p").filter({ hasText: "little Lily wept" })).toBeVisible();
+    await expect(
+        page.locator("article .prose p").filter({ hasText: "little Lily wept" }),
+    ).toBeVisible();
     await expectPageReady(page);
     await expect(page.locator('[data-test="login-prompt"]')).toHaveCount(0);
 }
@@ -35,7 +37,9 @@ test.describe("App page-load recovery", () => {
                 serviceWorkers: "block",
             });
 
-            test("renders article text on a cold deep link and preserves query and hash on reload", async ({ page }) => {
+            test("renders article text on a cold deep link and preserves query and hash on reload", async ({
+                page,
+            }) => {
                 const path = `${ARTICLE}?nonotifications#article`;
                 await page.goto(path, { waitUntil: "domcontentloaded" });
                 await expectArticle(page);
@@ -45,7 +49,9 @@ test.describe("App page-load recovery", () => {
                 expect(url.pathname + url.search + url.hash).toBe(path);
             });
 
-            test("shows a missing-slug fallback after an article and restores the article on back", async ({ page }) => {
+            test("shows a missing-slug fallback after an article and restores the article on back", async ({
+                page,
+            }) => {
                 await page.goto(ARTICLE);
                 await expectArticle(page);
                 await page.goto(MISSING);
@@ -56,7 +62,9 @@ test.describe("App page-load recovery", () => {
                 await expectArticle(page);
             });
 
-            test("handles an unmatched nested URL without getting stuck at boot", async ({ page }) => {
+            test("handles an unmatched nested URL without getting stuck at boot", async ({
+                page,
+            }) => {
                 const path = "/e2e-missing/nested/page";
                 await page.goto(path);
                 await expectMissing(page, path);
@@ -64,15 +72,21 @@ test.describe("App page-load recovery", () => {
                 await expectArticle(page);
             });
 
-            test("does not show private article content to a guest after visiting a public article", async ({ page }) => {
+            test("does not show private article content to a guest after visiting a public article", async ({
+                page,
+            }) => {
                 await page.goto(ARTICLE);
                 await expectArticle(page);
                 await page.goto("/blog2-eng");
                 await expectMissing(page, "/blog2-eng");
-                await expect(page.getByRole("heading", { name: "Blog 2", exact: true })).toHaveCount(0);
+                await expect(
+                    page.getByRole("heading", { name: "Blog 2", exact: true }),
+                ).toHaveCount(0);
             });
 
-            test("keeps a previously read article available when API requests fail", async ({ page }) => {
+            test("keeps a previously read article available when API requests fail", async ({
+                page,
+            }) => {
                 await page.goto(ARTICLE);
                 await expectArticle(page);
 
@@ -91,9 +105,13 @@ test.describe("App page-load recovery", () => {
                 await expectArticle(page);
             });
 
-            test("does not let a delayed missing-slug response replace a newer page", async ({ page }) => {
+            test("does not let a delayed missing-slug response replace a newer page", async ({
+                page,
+            }) => {
                 let release!: () => void;
-                const gate = new Promise<void>((resolve) => { release = resolve; });
+                const gate = new Promise<void>((resolve) => {
+                    release = resolve;
+                });
                 let heldRequests = 0;
                 let releasedResponses = 0;
                 await page.route("**/query", async (route) => {

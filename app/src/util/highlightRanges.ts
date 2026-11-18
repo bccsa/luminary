@@ -31,37 +31,6 @@ export function snapToWords(
     return { start, end };
 }
 
-const TERMINATOR = /[.,;:!?…]/;
-const DASH = /[–—]/;
-const CLOSER = /["'”’»)\]]/;
-
-/**
- * Runs a highlight's end on to the next punctuation mark (and any closing quote after it),
- * so it ends where the phrase does rather than wherever the finger lifted. Never passes
- * `limit` (the end of the paragraph), stops short of a dash, and ignores a mark inside a
- * word such as "3.5".
- */
-export function extendToPunctuation(text: string, end: number, limit = text.length): number {
-    const backOffSpace = (i: number) => {
-        while (i > end && SPACE.test(text[i - 1])) i--;
-        return i;
-    };
-    let k = end;
-    while (k > 0 && CLOSER.test(text[k - 1])) k--;
-    if (k > 0 && TERMINATOR.test(text[k - 1])) return end;
-
-    for (let i = end; i < limit; i++) {
-        const c = text[i];
-        if (c === "\n" || DASH.test(c)) return backOffSpace(i);
-        if (TERMINATOR.test(c) && !isWord(text, i + 1)) {
-            let j = i + 1;
-            while (j < limit && CLOSER.test(text[j])) j++;
-            return j;
-        }
-    }
-    return backOffSpace(Math.max(limit, end));
-}
-
 const byStart = (a: HighlightRange, b: HighlightRange) => a.start - b.start;
 
 /**
@@ -200,6 +169,30 @@ export function textOffset(root: Node, node: Node, offset: number): number {
     range.setStart(root, 0);
     range.setEnd(node, offset);
     return range.toString().length;
+}
+
+/** The DOM range covering `root`'s text from `start` to `end`: the reverse of {@link textOffset}. */
+export function rangeAt(root: Node, start: number, end: number): Range {
+    const range = document.createRange();
+    range.setStart(root, 0);
+    range.setEnd(root, root.childNodes.length);
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let offset = 0;
+    let startSet = false;
+    while (walker.nextNode()) {
+        const node = walker.currentNode as Text;
+        if (!startSet && start <= offset + node.length) {
+            range.setStart(node, start - offset);
+            startSet = true;
+        }
+        if (startSet && end <= offset + node.length) {
+            range.setEnd(node, end - offset);
+            break;
+        }
+        offset += node.length;
+    }
+    return range;
 }
 
 const MARK_ATTR = "data-highlight";

@@ -11,6 +11,7 @@ import multipart from "@fastify/multipart";
 import { AllExceptionsFilter } from "./exceptions/allExceptions.filter";
 import { S3Service } from "./s3/s3.service";
 import { warmIndexNameRegistry } from "./db/indexNameRegistry";
+import { addSecurityHeaders } from "./util/securityHeaders";
 import { reconcileLanguageTranslationSeeds } from "./db/languageSeedReconciliation";
 
 export async function bootstrap() {
@@ -23,6 +24,8 @@ export async function bootstrap() {
             bufferLogs: true,
         },
     );
+
+    addSecurityHeaders(app.getHttpAdapter().getInstance());
 
     // Register multipart plugin for file uploads
     await app.register(multipart, {

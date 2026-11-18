@@ -72,6 +72,7 @@ const availablePermissionsPerDocType = {
         AclPermission.Assign,
         AclPermission.CmsView,
     ],
+    [DocType.DefaultAffinity]: [AclPermission.View, AclPermission.Edit, AclPermission.CmsView],
 };
 
 // Derived from the map keys, NOT the DocType enum — so omitting Crypto/Sidecar

@@ -8,6 +8,8 @@ import {
     previewTimes,
     rosterStep,
     rosterFineStep,
+    rosterTileBox,
+    rosterTileWidth,
     rosterTiles,
 } from "../ui/scrubPreview";
 
@@ -136,6 +138,31 @@ describe("rosterTiles", () => {
         expect(Math.max(...tiles.map((t) => t.index))).toBe(2);
     });
 
+    it("stretches the first frame to the left edge without moving its right edge", () => {
+        const [first, second] = rosterTiles(0, 48, 800, 100, 10, 1000);
+        expect(first.index).toBe(0);
+        expect(first.left).toBe(0);
+        expect(first.width).toBe(148);
+        expect(first.left + first.width).toBe(second.left);
+    });
+
+    it("stretches the last frame to the right edge without moving its left edge", () => {
+        const tiles = rosterTiles(999, 400, 800, 100, 10, 1000);
+        const last = tiles[tiles.length - 1];
+        expect(last.index).toBe(99);
+        expect(last.left).toBe(310);
+        expect(last.left + last.width).toBe(800);
+    });
+
+    it("leaves every frame at its normal width where there is no gap to fill", () => {
+        const tiles = rosterTiles(500, 400, 800, 100, 10, 1000);
+        expect(tiles.every((t) => t.width === 100)).toBe(true);
+
+        // The first frame is only stretched while it still has a gap before it.
+        const scrolled = rosterTiles(50, 48, 800, 100, 10, 1000);
+        expect(scrolled.every((t) => t.width === 100)).toBe(true);
+    });
+
     it("gives nothing to draw with no width or no media", () => {
         expect(rosterTiles(0, 0, 0, 100, 10, 100)).toEqual([]);
         expect(rosterTiles(0, 0, 800, 100, 10, 0)).toEqual([]);
@@ -157,5 +184,34 @@ describe("rosterFineStep", () => {
 
     it("never goes finer than the sprite can resolve", () => {
         expect(rosterFineStep(30)).toBe(0.5);
+    });
+});
+
+describe("roster frames line up", () => {
+    // A phone's web view: 2.75 device pixels to a CSS pixel, a 160×90 sprite crop on a 47.5 px strip.
+    const ratio = 2.75;
+    const height = 47.5;
+    const crop = { w: 160, h: 90 };
+
+    it("a frame is the sprite's shape at the strip's height, on whole device pixels, never under 24 px", () => {
+        const width = rosterTileWidth(height, crop.w, crop.h, ratio);
+        expect(width * ratio).toBe(Math.round(width * ratio));
+        expect(Math.abs(width - (height * 16) / 9)).toBeLessThanOrEqual(0.5 / ratio);
+        expect(rosterTileWidth(10, 160, 90, ratio)).toBe(24);
+        expect(rosterTileWidth(90, 0, 0)).toBe(24);
+    });
+
+    it("neighbouring frames meet edge to edge on device pixels, each filling its tile", () => {
+        const tileWidth = rosterTileWidth(height, crop.w, crop.h, ratio);
+        const tiles = rosterTiles(123.4, 187.3, 390, tileWidth, 2, 600);
+        const boxes = tiles.map((tile) => rosterTileBox(tile.left, tileWidth, height, crop, ratio));
+        for (const box of boxes) {
+            expect(box.x * ratio).toBeCloseTo(Math.round(box.x * ratio), 9);
+            expect(crop.w * box.scaleX).toBeCloseTo(tileWidth, 9);
+            expect(crop.h * box.scaleY).toBeCloseTo(height, 9);
+        }
+        for (let i = 1; i < boxes.length; i++) {
+            expect(boxes[i]!.x - boxes[i - 1]!.x).toBeCloseTo(tileWidth, 9);
+        }
     });
 });

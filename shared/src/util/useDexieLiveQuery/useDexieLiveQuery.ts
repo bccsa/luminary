@@ -10,10 +10,7 @@ import {
 
 export type Value<T, I> = I extends undefined ? T | undefined : T | I;
 
-export type UseDexieLiveQueryOptions<
-    I = undefined,
-    Immediate extends Readonly<boolean> = true,
-> = {
+export type UseDexieLiveQueryOptions<I = undefined, Immediate extends Readonly<boolean> = true> = {
     onError?: (error: any) => void;
     initialValue?: I;
     /**
@@ -51,11 +48,7 @@ function tryOnScopeDispose(fn: () => void) {
  * Pass `options.deps` to re-run the query when reactive dependencies change — the querier
  * receives the watched value(s) as arguments. Without `deps` the query runs once.
  */
-export function useDexieLiveQuery<
-    T,
-    I = undefined,
-    Immediate extends Readonly<boolean> = true,
->(
+export function useDexieLiveQuery<T, I = undefined, Immediate extends Readonly<boolean> = true>(
     querier: (...data: any) => T | Promise<T>,
     options: UseDexieLiveQueryOptions<I, Immediate> = {},
 ): ShallowRef<Value<T, I>> {

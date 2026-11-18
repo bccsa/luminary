@@ -187,24 +187,16 @@ describe("FilterOptions", () => {
         expect(wrapper.find("[data-test='extra']").exists()).toBe(true);
     });
 
-    it("replaces the built-in search input with the search slot when provided", () => {
-        const wrapper = mountFilterOptions({
-            slots: { search: "<input data-test='custom-search' />" },
-        });
+    it("keeps typed text clear of the Go and clear buttons in submitSearch mode", async () => {
+        const wrapper = mountFilterOptions({ submitSearch: true });
+        const input = wrapper.find("[data-test='search-input']");
+        expect(input.classes()).not.toContain("pr-[5.5rem]");
 
-        expect(wrapper.find("[data-test='custom-search']").exists()).toBe(true);
-        expect(wrapper.find("[data-test='search-input']").exists()).toBe(false);
-    });
+        await input.setValue("garden");
 
-    it("does not require the search model when a custom search slot owns it instead", () => {
-        // No `search`/`onUpdate:search` wired at all — mirrors a page (like ContentOverview)
-        // that binds its own search state entirely inside the `search` slot.
-        expect(() =>
-            mount(FilterOptions, {
-                props: { groups: mockGroups },
-                slots: { search: "<input data-test='custom-search' />" },
-            }),
-        ).not.toThrow();
+        expect(wrapper.find("[data-test='search-go-button']").exists()).toBe(true);
+        expect(wrapper.find("[data-test='search-clear-button']").exists()).toBe(true);
+        expect(input.classes()).toContain("pr-[5.5rem]");
     });
 
     it("renders page-owned chips via the selected-filters slot", () => {

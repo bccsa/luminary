@@ -11,8 +11,11 @@ import { useI18n } from "vue-i18n";
 import {
     getDeviceInfo,
     isDataSaverEnabled,
-    userDataSaverEnabled,
+    dataSaverLevel,
+    effectiveDataSaverLevel,
+    type DataSaverLevel,
     subtitlesOnVideo,
+    autoplayNext,
     localCacheVersion,
     youtubeAlwaysAllow,
 } from "@/globalConfig";
@@ -23,7 +26,9 @@ import { triggerSync } from "@/sync";
 import { markPageReady } from "@/util/renderState";
 import { clearUserActivity } from "@/userActivity/store";
 
-const { t } = useI18n();
+const { t, te } = useI18n();
+/** A string the language may not have yet: its English shows rather than the bare key. */
+const textOr = (key: string, english: string): string => (te(key) ? t(key) : english);
 
 onMounted(async () => {
     await nextTick();
@@ -37,17 +42,36 @@ const deviceInfo = getDeviceInfo();
 // Live, probe-based connection-speed estimate (refreshes itself on focus / regained connectivity).
 const { connectionSpeed, isSlowConnection } = useNetworkSpeedEstimator();
 const browserDataSaverEnabled = isDataSaverEnabled();
-const dataSaverToggleValue = computed(() => userDataSaverEnabled.value || browserDataSaverEnabled);
+const dataSaverLevels: DataSaverLevel[] = ["off", "light", "strict"];
+const dataSaverEnglish: Record<DataSaverLevel, { name: string; description: string }> = {
+    off: { name: "Off", description: "Videos and images in full quality." },
+    light: {
+        name: "Light",
+        description: "Videos play in their lowest quality, and images are lighter.",
+    },
+    strict: {
+        name: "Strict",
+        description:
+            "As Light, and videos start with the sound only. You can switch to the picture at any time.",
+    },
+};
+const dataSaverName = (level: DataSaverLevel) =>
+    textOr(`settings.data_saver.${level}`, dataSaverEnglish[level].name);
+const dataSaverDescription = (level: DataSaverLevel) =>
+    textOr(`settings.data_saver.${level}_description`, dataSaverEnglish[level].description);
 const dataSaverNote = computed(() => {
-    if (browserDataSaverEnabled) return t("settings.data_saver.browser_note");
-    if (isSlowConnection.value && !userDataSaverEnabled.value) {
+    // The device's own Data Saver stands in until a level is chosen here.
+    if (browserDataSaverEnabled && dataSaverLevel.value === null) {
+        return textOr(
+            "settings.data_saver.browser_note",
+            "Your device's Data Saver is on, so Light is used until you choose a level here.",
+        );
+    }
+    if (isSlowConnection.value && effectiveDataSaverLevel.value === "off") {
         return t("settings.data_saver.slow_connection_note");
     }
     return "";
 });
-const setUserDataSaverEnabled = (enabled: boolean) => {
-    userDataSaverEnabled.value = enabled;
-};
 
 const isClearing = ref(false);
 
@@ -119,10 +143,7 @@ const deleteLocalData = async () => {
                 <div class="mb-4 text-sm text-zinc-600 dark:text-slate-100">
                     {{ t("settings.clear_activity.description") }}
                 </div>
-                <LButton
-                    @click="showClearActivityDialog = true"
-                    data-test="clearUserActivity"
-                >
+                <LButton @click="showClearActivityDialog = true" data-test="clearUserActivity">
                     {{ t("settings.clear_activity.button") }}
                 </LButton>
             </LCard>
@@ -149,16 +170,43 @@ const deleteLocalData = async () => {
                 </div>
             </LCard>
             <LCard :title="t('settings.data_saver.title')">
-                <div class="flex items-center justify-between gap-4">
-                    <div class="text-sm text-zinc-600 dark:text-slate-100">
-                        {{ t("settings.data_saver.description") }}
-                    </div>
-                    <LToggle
-                        :modelValue="dataSaverToggleValue"
-                        :disabled="browserDataSaverEnabled"
-                        @update:modelValue="setUserDataSaverEnabled"
-                        data-test="dataSaverToggle"
-                    />
+                <div class="text-sm text-zinc-600 dark:text-slate-100">
+                    {{
+                        textOr(
+                            "settings.data_saver.description",
+                            "Choose how much data to save. Images also get lighter by themselves on slow connections.",
+                        )
+                    }}
+                </div>
+                <div
+                    class="mt-3 inline-flex rounded-full bg-zinc-100 p-1 dark:bg-slate-700"
+                    role="radiogroup"
+                    :aria-label="t('settings.data_saver.title')"
+                    data-test="dataSaverLevels"
+                >
+                    <button
+                        v-for="level in dataSaverLevels"
+                        :key="level"
+                        type="button"
+                        role="radio"
+                        :aria-checked="effectiveDataSaverLevel === level"
+                        class="min-h-[36px] rounded-full px-4 text-sm font-semibold"
+                        :class="
+                            effectiveDataSaverLevel === level
+                                ? 'bg-white text-zinc-900 shadow dark:bg-slate-500 dark:text-white'
+                                : 'text-zinc-600 dark:text-slate-300'
+                        "
+                        :data-test="`dataSaverLevel-${level}`"
+                        @click="dataSaverLevel = level"
+                    >
+                        {{ dataSaverName(level) }}
+                    </button>
+                </div>
+                <div
+                    class="mt-2 text-sm text-zinc-600 dark:text-slate-100"
+                    data-test="dataSaverLevelDescription"
+                >
+                    {{ dataSaverDescription(effectiveDataSaverLevel) }}
                 </div>
                 <div
                     v-if="dataSaverNote"
@@ -168,15 +216,25 @@ const deleteLocalData = async () => {
                     {{ dataSaverNote }}
                 </div>
             </LCard>
+            <LCard :title="textOr('settings.autoplay.title', 'Autoplay')">
+                <div class="flex items-center justify-between gap-4">
+                    <div class="text-sm text-zinc-600 dark:text-slate-100">
+                        {{
+                            textOr(
+                                "settings.autoplay.description",
+                                "When a video ends, play the next one by itself after a short countdown.",
+                            )
+                        }}
+                    </div>
+                    <LToggle v-model="autoplayNext" data-test="autoplayToggle" />
+                </div>
+            </LCard>
             <LCard :title="t('settings.subtitles.title')">
                 <div class="flex items-center justify-between gap-4">
                     <div class="text-sm text-zinc-600 dark:text-slate-100">
                         {{ t("settings.subtitles.description") }}
                     </div>
-                    <LToggle
-                        v-model="subtitlesOnVideo"
-                        data-test="subtitlesOnVideoToggle"
-                    />
+                    <LToggle v-model="subtitlesOnVideo" data-test="subtitlesOnVideoToggle" />
                 </div>
             </LCard>
             <LCard :title="t('settings.youtube.title')">
@@ -184,10 +242,7 @@ const deleteLocalData = async () => {
                     <div class="text-sm text-zinc-600 dark:text-slate-100">
                         {{ t("settings.youtube.description") }}
                     </div>
-                    <LToggle
-                        v-model="youtubeAlwaysAllow"
-                        data-test="youtubeAllowToggle"
-                    />
+                    <LToggle v-model="youtubeAlwaysAllow" data-test="youtubeAllowToggle" />
                 </div>
             </LCard>
         </div>

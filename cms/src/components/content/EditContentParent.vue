@@ -11,7 +11,7 @@ import {
     type ContentDto,
     PostType,
 } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, watchEffect } from "vue";
 import TagSelector from "./TagSelector.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import { capitaliseFirstLetter } from "@/util/string";
@@ -34,6 +34,10 @@ type Props = {
 };
 const props = defineProps<Props>();
 const parent = defineModel<ContentParentDto>("parent");
+
+const emit = defineEmits<{
+    (e: "updateIsValid", value: boolean): void;
+}>();
 
 // Parent validation
 const parentValidations = ref([] as Validation[]);
@@ -74,6 +78,11 @@ watch(
     },
     { immediate: true, deep: true },
 );
+
+// The editor saves only what this card, and the translations beside it, call valid.
+watchEffect(() => {
+    emit("updateIsValid", overallIsValid.value);
+});
 
 // Convert the pinned property to a boolean for the toggle
 const pinned = computed({
@@ -320,7 +329,9 @@ const confirmLinkDates = () => {
 
             <!-- When linked, saving any translation's publish/expiry date propagates it to every other translation sharing this parent. -->
             <div class="flex items-center justify-between gap-2">
-                <span class="text-sm dark:text-zinc-200">Link publish &amp; expiry dates</span>
+                <span class="text-sm text-zinc-700 dark:text-zinc-200"
+                    >Link publish &amp; expiry dates</span
+                >
                 <LToggle v-model="linkDates" :disabled="disabled || !canManageLinkDates" />
             </div>
         </div>

@@ -24,14 +24,14 @@ const assignedGroups = computed(() =>
         .filter(Boolean),
 );
 
-const displayTitle = computed(() =>
-    props.mapping.description?.trim() || (isGlobal.value ? "Global group access" : "Untitled mapping"),
+const displayTitle = computed(
+    () =>
+        props.mapping.description?.trim() ||
+        (isGlobal.value ? "Global group access" : "Untitled mapping"),
 );
 
 const badgeIcon = computed(() => (isGlobal.value ? GlobeAltIcon : KeyIcon));
-const badgeLabel = computed(() =>
-    isGlobal.value ? "All Users" : (props.providerName || ""),
-);
+const badgeLabel = computed(() => (isGlobal.value ? "All Users" : props.providerName || ""));
 const badgeVariant = computed(() => (isGlobal.value ? "warning" : "default"));
 </script>
 

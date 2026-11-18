@@ -52,13 +52,12 @@ const onClick = (event: MouseEvent) => {
             :show-publish-date="false"
             class="h-full w-full"
         >
-            <template
-                v-if="excerpt"
-                #summary
-            >
-                <p class="line-clamp-3 text-sm leading-7">
+            <!-- Clamped like the summary it replaces, so a highlight card is no taller than any
+                 other card; the Highlighted view shows the whole passage. -->
+            <template v-if="excerpt" #summary>
+                <p class="line-clamp-2 text-sm">
                     <mark
-                        class="bg-transparent box-decoration-clone px-1.5 py-1 pr-3.5 text-zinc-800 dark:text-slate-100"
+                        class="bg-transparent box-decoration-clone px-1.5 py-0.5 pr-3.5 text-zinc-800 dark:text-slate-100"
                         :style="
                             excerptColor ? { backgroundColor: HIGHLIGHT_COLORS[excerptColor] } : {}
                         "

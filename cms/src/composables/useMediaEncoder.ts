@@ -1,12 +1,16 @@
-import { computed, ref, onUnmounted } from "vue";
+import { computed, ref, onUnmounted, watch } from "vue";
 import { fetchHlsKey, getRest, type MediaDto } from "luminary-shared";
 
-/** Called once per encode, as soon as it has a published URL, naming the document it is for. */
+/**
+ * Called for each URL a session publishes, naming the document it is for: once when an
+ * encode starts, and again for every version of the video an edit in the encoder writes.
+ */
 export type MediaReadyHandler = (
     media: Pick<MediaDto, "hlsUrl" | "hlsKey">,
     documentId: string,
 ) => void;
 import {
+    ackEncoderSession,
     browserCanReachEncoder,
     checkEncoderHealth,
     createEncoderSession,
@@ -23,28 +27,36 @@ import {
 } from "@/util/mediaEncoder";
 
 export type EncoderAvailability =
-    | "unknown"
-    | "checking"
-    | "available"
-    | "unavailable"
-    | "browser-unsupported";
+    "unknown" | "checking" | "available" | "unavailable" | "browser-unsupported";
 
-/** Statuses after which no further events arrive. */
+/** Statuses after which nothing more is encoded. */
 const FINISHED_STATUSES = ["completed", "failed"];
 
 const isFinished = (status?: string) => status != undefined && FINISHED_STATUSES.includes(status);
 
+export type UseMediaEncoderOptions = {
+    /**
+     * The video URL the document holds on the server, absolute. The encoder is told
+     * each time it equals the URL the session last published.
+     */
+    storedHlsUrl?: () => string | undefined;
+};
+
 /**
  * Drives one document's encode: check the encoder is there, hand it the bucket, and
- * follow the session until it finishes.
+ * follow the session for as long as the encoder holds it.
  *
  * The media is saved at the *first* `encoding` event, not at completion. The
  * destination key is settled the moment encoding starts, so the encoder publishes
  * `hlsUrl` then — which lets an editor save and move on while a long encode runs.
  * The URL 404s until the first segments land; the app's coming-soon state covers
  * that window.
+ *
+ * A finished session is still followed: every edit of the video in the encoder writes
+ * a new version under a new URL, and the encoder takes no further edit until the
+ * document has stored the last one.
  */
-export function useMediaEncoder() {
+export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
     const availability = ref<EncoderAvailability>("unknown");
     const encoderVersion = ref<string>();
 
@@ -58,9 +70,25 @@ export function useMediaEncoder() {
     const progress = ref<number>();
     const pipelineProgress = ref<EncoderPipelineProgress>();
     const error = ref<string>();
+    /** An encode of this document is running. An edit session opens finished, so it never counts. */
+    const encoding = computed(() => status.value != undefined && !isFinished(status.value));
     const sessionId = ref<string>();
 
     let unsubscribe: (() => void) | undefined;
+    /** The session being followed, and the newest URL it has published. */
+    let followed: EncoderSessionHandle | undefined;
+    let announced: string | undefined;
+    /** The URL the encoder was last told the document holds, on this connection. */
+    let acknowledged: string | undefined;
+    /** Hands over again a URL whose handover failed, while its session is followed. */
+    let retryHandOver: (() => void) | undefined;
+    /**
+     * Whose session to pick up again when its stream drops. The encoder takes no
+     * edit of a video while nobody follows its session, so a stream lost to a
+     * sleeping laptop or a restarted encoder cannot be left lost until a reload.
+     */
+    let lost: { documentId: string; onMediaReady: MediaReadyHandler } | undefined;
+    let pickingUp = false;
 
     // The awaits in start/resume/publish can outlive the component (the encoder's
     // trust prompt, a slow key fetch); nothing after them may touch a dead instance.
@@ -111,8 +139,32 @@ export function useMediaEncoder() {
 
     async function tick() {
         // A hidden tab is nobody waiting for an answer; the next focus asks.
-        if (!document.hidden) await refreshAvailability();
+        if (!document.hidden && (await refreshAvailability())) {
+            await pickUpLostSession();
+            // A handover or acknowledgement that failed is tried again here: an edit
+            // session may send no further event to retry it on.
+            retryHandOver?.();
+            acknowledgeIfStored();
+        }
         if (!disposed) schedule();
+    }
+
+    /**
+     * Follow again a session whose stream dropped, once the encoder answers. Asked on
+     * the same beat as availability, for the same reason: nothing tells this page the
+     * encoder is back. `resume` settles what is left of it: a session the encoder no
+     * longer holds is forgotten, and then there is nothing more to pick up.
+     */
+    async function pickUpLostSession() {
+        const session = lost;
+        if (!session || followed || pickingUp || busy.value || disposed) return;
+        pickingUp = true;
+        try {
+            await resume(session);
+            if (lost === session && !recallEncoderSession(session.documentId)) lost = undefined;
+        } finally {
+            pickingUp = false;
+        }
     }
 
     function schedule() {
@@ -137,7 +189,9 @@ export function useMediaEncoder() {
      */
     const onReturn = () => {
         if (document.hidden) return;
-        void refreshAvailability();
+        void refreshAvailability().then((available) => {
+            if (available) void pickUpLostSession();
+        });
     };
 
     if (typeof document !== "undefined") {
@@ -145,17 +199,54 @@ export function useMediaEncoder() {
         window.addEventListener("focus", onReturn);
     }
 
-    function stop() {
+    /** Let go of the stream, keeping whose it was so it can be picked up again. */
+    function drop() {
         unsubscribe?.();
         unsubscribe = undefined;
+        followed = undefined;
+        announced = undefined;
+        acknowledged = undefined;
+        retryHandOver = undefined;
+    }
+
+    /** Stop following for good: the caller has moved on from this document. */
+    function stop() {
+        drop();
+        lost = undefined;
+    }
+
+    /**
+     * Tell the encoder once the document holds the URL the session last published,
+     * however it came to: saved by the caller, saved by the editor, or there already.
+     */
+    function acknowledgeIfStored() {
+        const handle = followed;
+        const hlsUrl = announced;
+        if (!handle || !hlsUrl || hlsUrl === acknowledged) return;
+        if (hlsUrl !== storedHlsUrl?.()) return;
+
+        acknowledged = hlsUrl;
+        // Sent as the encoder published it, not in the document's stored shape: the
+        // encoder compares the string.
+        void ackEncoderSession(handle.sessionId, handle.readToken, hlsUrl).catch(() => {
+            // Asked again on the session's next event, or the next availability check.
+            if (followed === handle && acknowledged === hlsUrl) acknowledged = undefined;
+        });
+    }
+
+    if (storedHlsUrl) watch(storedHlsUrl, acknowledgeIfStored);
+
+    function announce(hlsUrl: string) {
+        announced = hlsUrl;
+        acknowledgeIfStored();
     }
 
     /**
      * Open an encoder session for this document and follow it.
      *
-     * `onMediaReady` fires once, as soon as the encode has a published URL. The
-     * caller writes it to the document — persistence is the editor's business, not
-     * this composable's.
+     * `onMediaReady` fires as soon as the encode has a published URL, and again for
+     * each version an edit in the encoder writes. The caller writes it to the
+     * document — persistence is the editor's business, not this composable's.
      */
     async function start(options: {
         documentId: string;
@@ -214,8 +305,9 @@ export function useMediaEncoder() {
 
     /**
      * Opens the document's existing video in the encoder, to change its chapters and
-     * its audio tracks' languages and names. Nothing is encoded and nothing comes back
-     * to the document: the video keeps its URL and key, so there is no session to follow.
+     * its audio tracks' languages and names. Nothing is encoded, but each saved edit is
+     * a new version of the video under a new URL, so the session is followed like an
+     * encode's.
      */
     async function edit(options: {
         documentId: string;
@@ -223,6 +315,7 @@ export function useMediaEncoder() {
         mediaBucketId: string;
         /** The video's master playlist, absolute. */
         hlsUrl: string;
+        onMediaReady: MediaReadyHandler;
     }): Promise<void> {
         error.value = undefined;
         busy.value = true;
@@ -242,13 +335,28 @@ export function useMediaEncoder() {
             // The encoder reads the video's playlists with it when they are encrypted;
             // none back is a video that never was.
             const hlsKey = await fetchHlsKey(options.documentId, { cms: true });
-            await createEncoderSession({
+            const session = await createEncoderSession({
                 documentId: options.documentId,
                 title: options.title,
                 ...config,
                 mode: "edit",
                 existingMedia: { hlsUrl: options.hlsUrl, ...(hlsKey ? { hlsKey } : {}) },
             });
+
+            const handle: EncoderSessionHandle = {
+                sessionId: session.sessionId,
+                readToken: session.readToken,
+                eventsUrl: session.eventsUrl,
+                // Every version of an encrypted video is encrypted with its key; the
+                // bucket's current setting says nothing about a video encoded before it.
+                encryptionRequired: Boolean(hlsKey),
+            };
+            rememberEncoderSession(options.documentId, handle);
+
+            if (disposed) return;
+            // The session may have opened a newer version than the document holds,
+            // when an edit was saved that never reached it.
+            await catchUp(handle, options.documentId, session.hlsUrl, options.onMediaReady);
         } catch (err: any) {
             error.value = err?.message ?? String(err);
         } finally {
@@ -264,12 +372,19 @@ export function useMediaEncoder() {
      * Nothing is handed over without the key the collection needs: the document
      * keeps whichever `hlsKey_id` it already had, and that key does not open this
      * collection.
+     *
+     * `stillWanted` is asked once the key is in: a newer version published meanwhile
+     * is handed over instead, and an older one arriving after it must not replace it.
      */
+    /** The error a failed key read left, cleared once a later read succeeds. */
+    let keyError: string | undefined;
+
     async function publish(
         handle: EncoderSessionHandle,
         documentId: string,
         hlsUrl: string,
         onMediaReady: MediaReadyHandler,
+        stillWanted: () => boolean = () => true,
     ): Promise<boolean> {
         let hlsKey: string | undefined;
         try {
@@ -278,13 +393,16 @@ export function useMediaEncoder() {
             hlsKey = await fetchEncoderSessionKey(handle.sessionId, handle.readToken);
         } catch (err: any) {
             if (disposed) return false;
-            error.value = `Could not read the encryption key for this encode: ${
+            error.value = keyError = `Could not read the encryption key for this encode: ${
                 err?.message ?? String(err)
             } The media was not written to the document.`;
             return false;
         }
+        // Read on a later try: the error from the failed one no longer holds.
+        if (keyError && error.value === keyError) error.value = undefined;
+        keyError = undefined;
 
-        if (disposed) return false;
+        if (disposed || !stillWanted()) return false;
 
         if (!hlsKey && handle.encryptionRequired) {
             error.value =
@@ -298,21 +416,42 @@ export function useMediaEncoder() {
     }
 
     /**
-     * Follow a session's events until it ends.
+     * Follow a session's events for as long as the stream stays open, handing over
+     * each URL it publishes.
      *
-     * `alreadyPublished` covers a session whose URL this page has just read for
-     * itself, so resuming does not hand the same value over twice.
+     * `handedOver` covers a URL this page has just handed over for itself, so the
+     * first event does not hand the same value over twice.
      */
     function follow(
         handle: EncoderSessionHandle,
         documentId: string,
         onMediaReady: MediaReadyHandler,
-        alreadyPublished = false,
+        handedOver?: string,
     ): void {
+        drop();
         sessionId.value = handle.sessionId;
+        followed = handle;
+        lost = { documentId, onMediaReady };
 
-        let saved = alreadyPublished;
-        stop();
+        // The URL handed over, or being handed over.
+        let claimed = handedOver;
+
+        const handOver = (hlsUrl: string) => {
+            if (hlsUrl === claimed) return;
+            // Claimed before awaiting so two events in flight cannot both publish, and
+            // released again when the attempt did not write anything.
+            claimed = hlsUrl;
+            retryHandOver = undefined;
+            const stillWanted = () => claimed === hlsUrl;
+            void publish(handle, documentId, hlsUrl, onMediaReady, stillWanted).then(
+                (published) => {
+                    if (published || !stillWanted()) return;
+                    claimed = undefined;
+                    if (followed === handle) retryHandOver = () => handOver(hlsUrl);
+                },
+            );
+        };
+
         unsubscribe = subscribeToEncoderSession(handle.eventsUrl, {
             onEvent: (event: EncoderSessionEvent) => {
                 status.value = event.status;
@@ -320,29 +459,43 @@ export function useMediaEncoder() {
                 pipelineProgress.value = event.pipelineProgress;
                 if (event.error) error.value = event.error;
 
-                // Nothing follows a finished session, so the handle stops being
-                // worth offering to the next page load.
-                if (isFinished(event.status)) forgetEncoderSession(documentId);
-
-                if (saved || !event.hlsUrl) return;
-                // Set before awaiting so two events in flight cannot both publish,
-                // and released again when the attempt did not write anything.
-                saved = true;
-
-                void publish(handle, documentId, event.hlsUrl, onMediaReady).then((published) => {
-                    if (!published) saved = false;
-                });
+                if (!event.hlsUrl) return;
+                announce(event.hlsUrl);
+                handOver(event.hlsUrl);
             },
             onError: () => {
-                // The stream drops when the encoder quits or the session ends.
-                // Anything already saved stands.
-                stop();
+                // The stream drops when the encoder quits, the machine sleeps or the
+                // session ends. Anything already saved stands, and the session is
+                // followed again once the encoder answers, if it still holds it.
+                drop();
             },
         });
     }
 
     /**
-     * Pick up an encode this document already started.
+     * Hand over the URL a session already has, then follow it. An encoder from before
+     * versioned playlists opens its stream with nothing, so a reload would otherwise
+     * lose the URL the encoder is already writing to.
+     */
+    async function catchUp(
+        handle: EncoderSessionHandle,
+        documentId: string,
+        hlsUrl: string | undefined,
+        onMediaReady: MediaReadyHandler,
+    ): Promise<boolean> {
+        const handedOver =
+            hlsUrl && (await publish(handle, documentId, hlsUrl, onMediaReady))
+                ? hlsUrl
+                : undefined;
+        if (disposed) return false;
+
+        follow(handle, documentId, onMediaReady, handedOver);
+        if (hlsUrl) announce(hlsUrl);
+        return true;
+    }
+
+    /**
+     * Pick up an encode, or an edit, this document already started.
      *
      * An encode outlives the page: it runs for minutes in a separate application,
      * and until this ran, a reload left the editor with a document being written to
@@ -379,20 +532,7 @@ export function useMediaEncoder() {
         pipelineProgress.value = session.pipelineProgress;
         error.value = session.error;
 
-        // Written again on resume because a reload before the first event would
-        // otherwise lose the URL the encoder is already writing to.
-        if (session.hlsUrl) {
-            await publish(handle, options.documentId, session.hlsUrl, options.onMediaReady);
-            if (disposed) return false;
-        }
-
-        if (isFinished(session.status)) {
-            forgetEncoderSession(options.documentId);
-            return true;
-        }
-
-        follow(handle, options.documentId, options.onMediaReady, Boolean(session.hlsUrl));
-        return true;
+        return catchUp(handle, options.documentId, session.hlsUrl, options.onMediaReady);
     }
 
     onUnmounted(() => {
@@ -411,6 +551,7 @@ export function useMediaEncoder() {
         outdated,
         busy,
         status,
+        encoding,
         progress,
         pipelineProgress,
         error,

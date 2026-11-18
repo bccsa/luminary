@@ -5,6 +5,7 @@ import { db, DocType, type ContentDto, type HighlightRange } from "luminary-shar
 import {
     migrateLikesToUserActivity,
     migrateHighlightsToUserActivity,
+    migrateSeenToUserActivity,
     migrateToUserActivity,
 } from "../migrate";
 import {
@@ -32,9 +33,61 @@ const contentDoc = (_id: string, parentId: string) =>
 
 describe("migration to userActivity", () => {
     beforeEach(async () => {
+        localStorage.removeItem("seenArticleIds");
         await db.userActivity.clear();
         await db.docs.clear();
         await db.setLuminaryInternals("highlights", undefined);
+    });
+
+    describe("seen ids", () => {
+        const storeSeen = (ids: unknown) =>
+            localStorage.setItem("seenArticleIds", JSON.stringify(ids));
+
+        it("moves seen translations in as one viewed row per post, dated 0", async () => {
+            await db.docs.bulkPut([
+                contentDoc("content-1-eng", "post-1"),
+                contentDoc("content-1-fra", "post-1"),
+                contentDoc("content-2-eng", "post-2"),
+            ]);
+            storeSeen(["content-1-eng", "content-1-fra", "content-2-eng"]);
+
+            expect(await migrateSeenToUserActivity()).toBe(2);
+
+            const rows = await getUserActivity("viewed");
+            expect(rows.map((row) => row.parentId).sort()).toEqual(["post-1", "post-2"]);
+            expect(rows.every((row) => row.updatedTimeUtc === 0)).toBe(true);
+            expect(localStorage.getItem("seenArticleIds")).toBeNull();
+        });
+
+        it("never overwrites a row that is already recorded", async () => {
+            await db.docs.bulkPut([contentDoc("content-1-eng", "post-1")]);
+            await recordUserActivity({ type: "viewed", parentId: "post-1" });
+            const before = await getUserActivity("viewed");
+            storeSeen(["content-1-eng"]);
+
+            expect(await migrateSeenToUserActivity()).toBe(0);
+
+            expect(await getUserActivity("viewed")).toEqual(before);
+        });
+
+        it("drops ids whose document is not local and runs only once", async () => {
+            await db.docs.bulkPut([contentDoc("content-1-eng", "post-1")]);
+            storeSeen(["content-1-eng", "content-missing"]);
+
+            expect(await migrateSeenToUserActivity()).toBe(1);
+            expect(localStorage.getItem("seenArticleIds")).toBeNull();
+
+            await db.docs.bulkPut([contentDoc("content-missing", "post-9")]);
+            expect(await migrateSeenToUserActivity()).toBe(0);
+        });
+
+        it("does nothing when there is no stored list, and drops a corrupt one", async () => {
+            expect(await migrateSeenToUserActivity()).toBe(0);
+
+            localStorage.setItem("seenArticleIds", "{not json");
+            expect(await migrateSeenToUserActivity()).toBe(0);
+            expect(localStorage.getItem("seenArticleIds")).toBeNull();
+        });
     });
 
     describe("likes", () => {

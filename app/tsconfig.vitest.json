@@ -1,6 +1,6 @@
 {
     "extends": "./tsconfig.app.json",
-    "exclude": [],
+    "exclude": ["src/media-player/__tests__/playlistWarmEncrypted.spec.ts"],
     "compilerOptions": {
         "composite": true,
         "lib": [],

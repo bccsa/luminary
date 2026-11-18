@@ -30,8 +30,7 @@ export function createWorkerHost(post: (response: WorkerResponse) => void) {
         // Dispatch is dynamic from here: the registry's precise per-task typing is enforced at
         // the `runInWorker` call site instead.
         const task = workerTasks[request.task as keyof typeof workerTasks] as unknown as
-            | AnyTask
-            | undefined;
+            AnyTask | undefined;
         if (!task)
             return { id: request.id, ok: false, error: `Unknown worker task: ${request.task}` };
         try {

@@ -4,11 +4,7 @@ import { mount } from "@vue/test-utils";
 import { defineComponent } from "vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import {
-    mockLanguageDtoEng,
-    mockLanguageDtoFra,
-    mockLanguageDtoSwa,
-} from "@/tests/mockdata";
+import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
 import { db, type ContentDto, DocType, TagType, PublishStatus } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
@@ -265,7 +261,9 @@ describe("UnpinnedTopics", () => {
         const wrapper = mountWithSuspense();
 
         await waitForExpect(() => {
-            const collections = wrapper.findAllComponents({ name: "HorizontalContentTileCollection" });
+            const collections = wrapper.findAllComponents({
+                name: "HorizontalContentTileCollection",
+            });
             expect(collections.length).toBe(0);
         });
     });

@@ -100,10 +100,7 @@ switch (props.notification.state) {
                             v-if="notification.closable"
                         >
                             <span class="sr-only">Close</span>
-                            <XMarkIcon
-                                class="h-5 w-5"
-                                aria-hidden="true"
-                            />
+                            <XMarkIcon class="h-5 w-5" aria-hidden="true" />
                         </button>
                     </div>
                 </div>

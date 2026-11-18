@@ -50,7 +50,7 @@ let wrapper: VueWrapper | undefined;
 
 async function mountPlayer(
     props: Record<string, unknown>,
-    state: Partial<PlayerState> = { chapters: CHAPTERS, currentTime: 70 },
+    state: Partial<PlayerState> = { chapters: CHAPTERS, currentTime: 70, duration: 200 },
 ) {
     wrapper = mount(LuminaryPlayer, {
         attachTo: document.body,
@@ -288,9 +288,10 @@ const mountPanel = (props: Record<string, unknown> = {}) =>
     });
 
 describe("BrowsePanel — the chapters", () => {
-    it("shows each chapter's preview frame from just after its start, cut out of the sprite sheet", () => {
+    it("shows each chapter's preview frame from its middle, cut out of the sprite sheet", () => {
         const asked: number[] = [];
         const wrapper = mountPanel({
+            duration: 300,
             thumbnailAt: (seconds: number) => {
                 asked.push(seconds);
                 return {
@@ -306,10 +307,19 @@ describe("BrowsePanel — the chapters", () => {
         });
         const frames = wrapper.findAll("[data-test='chapterFrame']");
         expect(frames).toHaveLength(2);
-        expect(asked).toEqual([0.5, 60.5]);
+        // The last chapter runs to the end of the video, not its own end.
+        expect(asked).toEqual([30, 180]);
         const style = frames[0]!.attributes("style");
         expect(style).toContain("s.jpg");
         expect(style).toContain("-160px -90px");
+    });
+
+    it("numbers each chapter's title", () => {
+        const wrapper = mountPanel();
+        expect(wrapper.findAll(".lmpl-chapter .lmpl-upnext-title").map((t) => t.text())).toEqual([
+            "1. Opening",
+            "2. Sermon",
+        ]);
     });
 
     it("keeps the chapter symbol while there are no thumbnails", () => {
@@ -344,5 +354,56 @@ describe("BrowsePanel — up next", () => {
         const wrapper = mountPanel({ upNext, initialTab: "upnext" });
         await wrapper.findAll(".lmpl-upnext-thumb img")[0]!.trigger("error");
         expect(pictures(wrapper)[0]).toBe("/assets/fallback-1.webp");
+    });
+});
+
+describe("LuminaryPlayer chapter skips", () => {
+    const step = (n: -1 | 1) =>
+        document.querySelector<HTMLButtonElement>(`[data-chapter-step="${n}"]`)!;
+
+    it("shows them only with two chapters or more", async () => {
+        const w = await mountPlayer({});
+        expect(w.find(".lmpl-root").classes()).toContain("lmpl-has-chapter-skip");
+        w.unmount();
+        const one = await mountPlayer({}, { chapters: CHAPTERS.slice(0, 1), duration: 200 });
+        expect(one.find(".lmpl-root").classes()).not.toContain("lmpl-has-chapter-skip");
+    });
+
+    it("waits for the length, as the 10 s skips do", async () => {
+        const w = await mountPlayer({}, { chapters: CHAPTERS, currentTime: 70, duration: 0 });
+        expect(w.find(".lmpl-root").classes()).not.toContain("lmpl-has-chapter-skip");
+    });
+
+    it("goes to the next chapter's start", async () => {
+        const w = await mountPlayer({}, { chapters: CHAPTERS, currentTime: 10, duration: 200 });
+        const media = w.find("hlsjs-video").element as unknown as { currentTime: number };
+        expect(step(1).disabled).toBe(false);
+        step(1).click();
+        expect(media.currentTime).toBe(60);
+    });
+
+    it("restarts the chapter when well into it, then steps to the one before on another press", async () => {
+        const w = await mountPlayer({});
+        const media = w.find("hlsjs-video").element as unknown as { currentTime: number };
+        media.currentTime = 70;
+        step(-1).click();
+        expect(media.currentTime).toBe(60);
+        step(-1).click();
+        expect(media.currentTime).toBe(0);
+    });
+
+    it("disables next in the last chapter", async () => {
+        await mountPlayer({});
+        await flushPromises();
+        expect(step(1).disabled).toBe(true);
+        expect(step(-1).disabled).toBe(false);
+    });
+
+    it("names the buttons from the messages", async () => {
+        await mountPlayer({
+            messages: { ...DEFAULT_MESSAGES, previousChapter: "Vorige", nextChapter: "Volgende" },
+        });
+        expect(step(-1).getAttribute("aria-label")).toBe("Vorige");
+        expect(step(1).getAttribute("aria-label")).toBe("Volgende");
     });
 });

@@ -35,7 +35,7 @@ const article = (over: Partial<ContentDto> = {}): BaseDocumentDto =>
         ...over,
     }) as unknown as BaseDocumentDto;
 
-// The doc as the SSR cache write leaves it: `text` omitted, every other field —
+// The doc as the prerender cache write leaves it: `text` omitted, every other field —
 // crucially `_id` and `updatedTimeUtc` — byte-identical to the real doc.
 function textStripped(): BaseDocumentDto {
     const d = { ...(article() as Record<string, unknown>) };

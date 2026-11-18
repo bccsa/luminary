@@ -5,6 +5,8 @@ import { HIGHLIGHT_COLORS } from "@/util/highlightRanges";
 defineProps<{
     content: ContentDto;
     range: HighlightRange;
+    /** The passage as it reads, with the article's line breaks joined. */
+    excerpt: string;
 }>();
 
 defineEmits<{ open: [] }>();
@@ -28,7 +30,7 @@ defineEmits<{ open: [] }>();
                 class="bg-transparent box-decoration-clone px-1.5 py-1 text-zinc-800 dark:text-slate-100"
                 :style="{ backgroundColor: HIGHLIGHT_COLORS[range.color] }"
                 data-test="activity-excerpt"
-                >{{ range.text }}</mark
+                >{{ excerpt }}</mark
             >
         </span>
     </button>

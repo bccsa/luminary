@@ -285,10 +285,7 @@ export class FtsSearchService {
         let rowBudget = 0;
         const keptTrigrams: string[] = [];
         for (const { t, d } of rankedByDf) {
-            if (
-                keptTrigrams.length >= FTS_MIN_TRIGRAMS &&
-                rowBudget + d > FTS_CANDIDATE_ROW_BUDGET
-            )
+            if (keptTrigrams.length >= FTS_MIN_TRIGRAMS && rowBudget + d > FTS_CANDIDATE_ROW_BUDGET)
                 break;
             keptTrigrams.push(t);
             rowBudget += d;
@@ -340,7 +337,10 @@ export class FtsSearchService {
             if (requestedLanguages && !requestedLanguages.has(language)) continue;
             if (cms && req.status && status !== req.status) continue;
             if (requestedTags && !(parentTags || []).some((tg) => requestedTags.has(tg))) continue;
-            if (req.publishedAfter != null && (publishDate == null || publishDate < req.publishedAfter))
+            if (
+                req.publishedAfter != null &&
+                (publishDate == null || publishDate < req.publishedAfter)
+            )
                 continue;
             if (
                 req.publishedBefore != null &&
@@ -349,10 +349,7 @@ export class FtsSearchService {
                 continue;
             if (req.expiresAfter != null && (expiryDate == null || expiryDate < req.expiresAfter))
                 continue;
-            if (
-                req.expiresBefore != null &&
-                (expiryDate == null || expiryDate > req.expiresBefore)
-            )
+            if (req.expiresBefore != null && (expiryDate == null || expiryDate > req.expiresBefore))
                 continue;
 
             // survivor → record tf and accessible df

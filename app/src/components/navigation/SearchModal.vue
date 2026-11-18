@@ -40,7 +40,7 @@ onUnmounted(() => {
     >
         <div
             v-show="isSearchOpen"
-            class="fixed inset-x-0 bottom-0 top-0 z-50 flex flex-col bg-white dark:bg-slate-900 max-lg:bottom-[var(--mobile-menu-h,78px)] md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
+            class="fixed inset-x-0 bottom-0 top-0 z-50 flex flex-col bg-white pt-[env(safe-area-inset-top)] dark:bg-slate-900 max-lg:bottom-[var(--mobile-menu-h,78px)] md:flex-row md:items-start md:justify-center md:bg-black/60 md:px-4 md:pt-24 md:backdrop-blur-sm md:dark:bg-black/60"
             @click.self="closeSearch"
         >
             <div

@@ -2,21 +2,28 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vite
 import { AUTO_HIDE_MS, installAutoHide, type ControlsStore } from "../ui/autoHide";
 
 function fakeStore() {
+    let locks = 0;
     const releases: Mock<[], void>[] = [];
     const calls: string[] = [];
     const store: ControlsStore = {
         requestControlsLock: vi.fn(() => {
             calls.push("lock");
+            locks++;
+            store.controlsVisible = true;
             const release = vi.fn((): void => {
                 calls.push("release");
+                locks--;
             });
             releases.push(release);
             return release;
         }),
         toggleControls: vi.fn((show?: boolean) => {
             calls.push(`toggle(${show})`);
-            return show ?? false;
+            // As v10: a held lock keeps the controls up whatever the toggle asks.
+            store.controlsVisible = locks > 0 || (show ?? !store.controlsVisible);
+            return store.controlsVisible;
         }),
+        controlsVisible: false,
     };
     return { store, releases, calls };
 }
@@ -140,5 +147,53 @@ describe("installAutoHide", () => {
         vi.advanceTimersByTime(3000);
         uninstall();
         expect(releases[0]).toHaveBeenCalledOnce();
+    });
+});
+
+describe("installAutoHide with a finger", () => {
+    const touch = (type: string) => {
+        const event = new Event(type, { bubbles: true });
+        Object.defineProperty(event, "pointerType", { value: "touch" });
+        return event;
+    };
+    /** A tap on the picture: v10 toggles the controls from its own pointerup listener on the container. */
+    function tap(store: ControlsStore, child: HTMLElement) {
+        child.dispatchEvent(touch("pointerdown"));
+        child.dispatchEvent(touch("pointerup"));
+        vi.advanceTimersByTime(0);
+    }
+
+    it("lets a tap on the picture hide controls that are showing", () => {
+        const { store } = fakeStore();
+        const child = target.appendChild(document.createElement("div"));
+        installAutoHide(target, () => store);
+        target.addEventListener("pointerup", () => store.toggleControls());
+        move();
+        expect(store.controlsVisible).toBe(true);
+        tap(store, child);
+        expect(store.controlsVisible).toBe(false);
+        expect(store.requestControlsLock).toHaveBeenCalledOnce();
+    });
+
+    it("keeps controls a tap brought up for three seconds", () => {
+        const { store, calls } = fakeStore();
+        const child = target.appendChild(document.createElement("div"));
+        installAutoHide(target, () => store);
+        target.addEventListener("pointerup", () => store.toggleControls());
+        tap(store, child);
+        expect(store.controlsVisible).toBe(true);
+        expect(store.requestControlsLock).toHaveBeenCalledOnce();
+        vi.advanceTimersByTime(2999);
+        expect(calls).not.toContain("toggle(false)");
+        vi.advanceTimersByTime(1);
+        expect(store.controlsVisible).toBe(false);
+    });
+
+    it("does not bring hidden controls up for a finger's down or movement alone", () => {
+        const { store } = fakeStore();
+        installAutoHide(target, () => store);
+        target.dispatchEvent(touch("pointerdown"));
+        target.dispatchEvent(touch("pointermove"));
+        expect(store.requestControlsLock).not.toHaveBeenCalled();
     });
 });

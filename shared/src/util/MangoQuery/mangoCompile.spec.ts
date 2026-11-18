@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { mangoCompile, clearMangoCache, getMangoCacheStats, warmMangoCompileCache } from "./mangoCompile";
+import {
+    mangoCompile,
+    clearMangoCache,
+    getMangoCacheStats,
+    warmMangoCompileCache,
+} from "./mangoCompile";
 import { clearAllMangoCache, clearPersistedTemplates } from "./queryCache";
 
 describe("mangoCompile", () => {
@@ -461,10 +466,7 @@ describe("mangoCompile", () => {
     describe("complex queries", () => {
         it("CouchDB-style complex query", () => {
             const pred = mangoCompile({
-                $and: [
-                    { year: { $gte: 1900, $lte: 1903 } },
-                    { $not: { year: 1901 } },
-                ],
+                $and: [{ year: { $gte: 1900, $lte: 1903 } }, { $not: { year: 1901 } }],
             });
             expect(pred({ year: 1900 })).toBe(true);
             expect(pred({ year: 1901 })).toBe(false);

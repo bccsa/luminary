@@ -73,13 +73,19 @@ describe("estimateWordsPerPixel", () => {
 
 describe("computeMaxScrollWordsPerSec", () => {
     it("returns WPM/60 × skim multiplier at default WPM", () => {
-        expect(computeMaxScrollWordsPerSec(200)).toBeCloseTo((200 / 60) * READING_SKIM_WPM_MULTIPLIER);
+        expect(computeMaxScrollWordsPerSec(200)).toBeCloseTo(
+            (200 / 60) * READING_SKIM_WPM_MULTIPLIER,
+        );
         expect(computeMaxScrollWordsPerSec()).toBeCloseTo((200 / 60) * READING_SKIM_WPM_MULTIPLIER);
     });
 
     it("scales the skim cap with language reading speed", () => {
-        expect(computeMaxScrollWordsPerSec(300)).toBeCloseTo((300 / 60) * READING_SKIM_WPM_MULTIPLIER);
-        expect(computeMaxScrollWordsPerSec(100)).toBeCloseTo((100 / 60) * READING_SKIM_WPM_MULTIPLIER);
+        expect(computeMaxScrollWordsPerSec(300)).toBeCloseTo(
+            (300 / 60) * READING_SKIM_WPM_MULTIPLIER,
+        );
+        expect(computeMaxScrollWordsPerSec(100)).toBeCloseTo(
+            (100 / 60) * READING_SKIM_WPM_MULTIPLIER,
+        );
     });
 });
 

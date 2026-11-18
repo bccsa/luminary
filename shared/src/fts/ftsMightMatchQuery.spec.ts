@@ -46,10 +46,15 @@ describe("ftsMightMatchQuery", () => {
 
     it("in non-strict content mode accepts any content doc", () => {
         expect(
-            ftsMightMatchQuery("unrelated", DocType.Content, {
-                type: DocType.Content,
-                title: "Hello",
-            }, { strict: false }),
+            ftsMightMatchQuery(
+                "unrelated",
+                DocType.Content,
+                {
+                    type: DocType.Content,
+                    title: "Hello",
+                },
+                { strict: false },
+            ),
         ).toBe(true);
     });
 });

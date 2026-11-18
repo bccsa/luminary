@@ -9,6 +9,23 @@ import ContentTile from "./ContentTile.vue";
 
 vi.mock("vue-router");
 
+const loadMoreCalls = vi.hoisted(() => ({ count: 0 }));
+vi.mock("@vueuse/core", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@vueuse/core")>();
+    return {
+        ...actual,
+        useInfiniteScroll: ((el, onLoadMore, options) =>
+            actual.useInfiniteScroll(
+                el,
+                (state) => {
+                    loadMoreCalls.count++;
+                    return onLoadMore(state);
+                },
+                options,
+            )) as typeof actual.useInfiniteScroll,
+    };
+});
+
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
         t: (key: string) => mockLanguageDtoEng.translations[key] || key,
@@ -318,5 +335,36 @@ describe("HorizontalContentTileCollection", () => {
         // Both spin buttons should be hidden in portrait mode
         // The ArrowLeftCircleIcon and ArrowRightCircleIcon use v-if, so they won't be in the DOM
         expect(wrapper.find(".mt-7.h-10.w-10").exists()).toBe(false);
+    });
+
+    it("stops loading more tiles once every doc is shown", async () => {
+        // A visible row whose tiles all fit used to load another batch every 100 ms, forever
+        vi.useFakeTimers();
+        vi.stubGlobal(
+            "IntersectionObserver",
+            class {
+                constructor(private cb: IntersectionObserverCallback) {}
+                observe(target: Element) {
+                    this.cb(
+                        [{ target, isIntersecting: true, time: 0 } as IntersectionObserverEntry],
+                        this as unknown as IntersectionObserver,
+                    );
+                }
+                unobserve() {}
+                disconnect() {}
+            },
+        );
+        loadMoreCalls.count = 0;
+
+        const wrapper = mount(HorizontalContentTileCollection, {
+            props: { contentDocs: [mockEnglishContentDto] },
+        });
+        await vi.advanceTimersByTimeAsync(2000);
+
+        expect(loadMoreCalls.count).toBe(0);
+
+        wrapper.unmount();
+        vi.unstubAllGlobals();
+        vi.useRealTimers();
     });
 });

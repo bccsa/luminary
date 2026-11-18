@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { decay, type AffinityMap, type ContentDto, type Uuid } from "luminary-shared";
 import { computed, shallowRef, watch } from "vue";
-import { useContentQuery } from "@/composables/useContentQuery";
+import { useContentQueryWithState } from "@/composables/useContentQuery";
+import { isPrerender } from "@/ssg/isPrerender";
 import { rank, affinityScoreScale } from "@/recommendation/ranking";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
-import { getSeenArticleIds } from "@/recommendation/seenStore";
+import { getViewedParentIds } from "@/userActivity/store";
 import { sessionNow } from "@/util/sessionNow";
 import { useI18n } from "vue-i18n";
 import ReadMore from "./ReadMore.vue";
+import ReadMoreGhost from "./ReadMoreGhost.vue";
 
 type Props = {
     tags: ContentDto[];
@@ -25,11 +27,27 @@ const contentIds = computed(() => [
     ...new Set(props.tags.flatMap((tag) => tag.parentTaggedDocs ?? []).filter((id) => id != null)),
 ]);
 
-const contentDocs = useContentQuery(() => [{ parentId: { $in: contentIds.value } }], {
-    includeScheduled: false,
-    sort: [{ publishDate: "desc" }],
-    limit: 50,
-});
+const { output: contentDocs, isFetching } = useContentQueryWithState(
+    () => [{ parentId: { $in: contentIds.value } }],
+    {
+        includeScheduled: false,
+        sort: [{ publishDate: "desc" }],
+        limit: 50,
+        // Paint the last full window on first render instead of the IndexedDB subset followed
+        // by the API tail (two visible list states), and seed SSG hydration. Per-slug so
+        // articles don't share an entry.
+        cache: true,
+        cacheId: `related:${props.selectedContent.slug}`,
+        // The list is re-ranked below, so the API tail would reorder visible cards.
+        waitForRemote: true,
+    },
+);
+
+// Ghosts while nothing is painted yet. Never during prerender, so the static HTML (and the
+// hydration it seeds) always carries the real cards.
+const showGhosts = computed(
+    () => !isPrerender() && isFetching.value && contentDocs.value.length === 0,
+);
 
 // One flat, newest-first list (dedup is inherent — a single query, not one row per tag),
 // with the current article removed. Exclude by `parentId` rather than `_id` so a different
@@ -63,7 +81,7 @@ const scoreScale = affinityScoreScale(affinityConfig.value.eventWeight.completio
 // snapshot per article and rank against that — re-taken only when the reader moves to another
 // article, which is also when a fresh set of recommendations is wanted.
 const rankingAffinity = shallowRef<AffinityMap>({});
-const rankingSeenIds = shallowRef<Set<Uuid>>(new Set());
+const rankingViewedParentIds = shallowRef<Set<Uuid>>(new Set());
 watch(
     () => props.selectedContent.parentId,
     () => {
@@ -72,7 +90,7 @@ watch(
             sessionNow(),
             affinityConfig.value,
         ).affinity;
-        rankingSeenIds.value = new Set(getSeenArticleIds());
+        void getViewedParentIds().then((ids) => (rankingViewedParentIds.value = ids));
     },
     { immediate: true },
 );
@@ -81,7 +99,9 @@ const readMoreItems = computed(() => {
     // The grid shows related articles only — the dedicated topic cards (props.tags) are no
     // longer mixed in, since the section is already topical. Already-seen articles are still
     // excluded (that filter is for read articles, not topic cards).
-    const candidates = relatedContent.value.filter((item) => !rankingSeenIds.value.has(item._id));
+    const candidates = relatedContent.value.filter(
+        (item) => !rankingViewedParentIds.value.has(item.parentId),
+    );
     return rank(candidates, [], rankingAffinity.value, {
         topicTagIds: topicTagIds.value,
         scoreScale,
@@ -95,15 +115,13 @@ const readMoreItems = computed(() => {
 </script>
 
 <template>
-    <section
-        v-if="readMoreItems.length"
-        class="w-full pb-2"
-    >
+    <section v-if="showGhosts || readMoreItems.length" class="w-full pb-2">
         <!-- Horizontal padding mirrors the list/grid inset in ReadMore so the heading
              lines up with the first card at every breakpoint. -->
         <h2 class="px-4 pb-3 text-xl text-zinc-800 dark:text-zinc-200 sm:px-8">
             {{ t("content.read_more") }}
         </h2>
-        <ReadMore :items="readMoreItems" />
+        <ReadMoreGhost v-if="showGhosts" />
+        <ReadMore v-else :items="readMoreItems" />
     </section>
 </template>
