@@ -2502,8 +2502,12 @@
     width: calc(56px * var(--lmpl-s));
     height: calc(56px * var(--lmpl-s));
 }
+/*
+ * Hidden by opacity, not visibility: a mouse press plays on the way down, and the release must still land on the
+ * button, or the picture's tap gesture under it takes the release as a second press and pauses again.
+ */
 .lmpl-root.lmpl-is-busy .lmpl-play {
-    visibility: hidden;
+    opacity: 0;
 }
 
 /* Until a finite video's length is known there is nothing to skip through or scrub, and no speed worth offering. */
