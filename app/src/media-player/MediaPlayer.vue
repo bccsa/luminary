@@ -907,8 +907,15 @@ const rosterEl = ref<HTMLElement | null>(null);
 /** A press anywhere but the bar or the frames puts the pinned frames away. */
 function onPressOutsideRoster(event: Event) {
     const target = event.target as Node | null;
-    if (target && (seekArea.value?.contains(target) || rosterEl.value?.contains(target))) return;
-    if ((target as Element | null)?.closest?.(".lmpl-afs-bar, .lmpl-afs-scrubzone")) return;
+    if (target && rosterEl.value?.contains(target)) return;
+    if (
+        (target && seekArea.value?.contains(target)) ||
+        (target as Element | null)?.closest?.(".lmpl-afs-bar, .lmpl-afs-scrubzone")
+    ) {
+        // The bar takes the video over: a spin left running would seek after it.
+        if (rosterSpin.stop()) rosterDrag.value = null;
+        return;
+    }
     // A press on the picture mid-spin catches the spin there (onPictureDown), as one on the strip does.
     if (rosterSpin.spinning && target && pictureEl.value?.contains(target)) return;
     unpinRoster();

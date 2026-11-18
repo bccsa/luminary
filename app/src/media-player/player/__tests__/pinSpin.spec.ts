@@ -170,6 +170,16 @@ describe("LuminaryPlayer: a flicked strip spins", () => {
         expect(seeks).toHaveLength(0);
     });
 
+    it("drops a spin, without its seek, when the timeline is pressed mid-spin", async () => {
+        const seeks = await openStrip();
+        await drag(16);
+        vi.advanceTimersByTime(100);
+        await touch(container(), "pointerdown", 500, 510);
+        vi.advanceTimersByTime(3000);
+        await flushPromises();
+        expect(seeks).toHaveLength(0);
+    });
+
     it("spins on a moved drag the browser cancels, as the now-playing strip does", async () => {
         const seeks = await openStrip();
         await drag(16, "pointercancel");

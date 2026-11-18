@@ -1098,6 +1098,7 @@ function followTouch(event: PointerEvent): boolean {
         if (isTouch(event) && onBar) {
             const duration = mediaEl.value?.duration ?? NaN;
             if (!Number.isFinite(duration) || duration <= 0) return true;
+            dropPinSpin();
             // The slider never sees it, so it cannot seek on release.
             event.stopPropagation();
             event.preventDefault();
@@ -1215,6 +1216,7 @@ function updateScrub(event: PointerEvent): void {
     const onBar = isOnBar(event.clientX, event.clientY, bar);
     // A press anywhere but the roster and the timeline (the fast way, which the roster is there to refine) closes a pinned roster.
     if (event.type === "pointerdown" && pin.value && !onBar) closePin();
+    if (event.type === "pointerdown" && onBar) dropPinSpin();
     if (event.type === "pointerdown" && onBar) {
         scrubbing = true;
         pauseForScrub();
@@ -1397,6 +1399,11 @@ watch(pinNow, (now) => {
 function closePin(): void {
     resumeFromScrub();
     putAwayPin();
+}
+
+/** A press on the timeline takes the video over: a spin left running would seek after it. */
+function dropPinSpin(): void {
+    if (pinSpin.stop()) pinDrag.value = null;
 }
 
 /** The strip goes, and playback is left as it is. */

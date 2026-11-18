@@ -1381,6 +1381,48 @@ describe("MediaPlayer", () => {
             }
         });
 
+        it("drops a spin, without its seek, when the bar is pressed mid-spin", async () => {
+            engine.thumbnailsReady = true;
+            const wrapper = await playing();
+            screen(wrapper).vm.$emit("scrub", {
+                time: 50,
+                markerX: 120,
+                width: 390,
+                bottom: 200,
+                held: true,
+            });
+            await flushPromises();
+            const roster = () => screen(wrapper).find("[data-test='mediaPlayerNowPlayingRoster']");
+            vi.useFakeTimers({
+                toFake: [
+                    "requestAnimationFrame",
+                    "cancelAnimationFrame",
+                    "performance",
+                    "setTimeout",
+                ],
+            });
+            try {
+                await roster().trigger("pointerdown", { clientX: 300 });
+                for (let x = 280; x >= 200; x -= 20) {
+                    vi.advanceTimersByTime(16);
+                    await roster().trigger("pointermove", { clientX: x });
+                }
+                await roster().trigger("pointerup", { clientX: 200 });
+                vi.advanceTimersByTime(100);
+                // The screen is stubbed here: a bare element carrying the bar's class stands in for it.
+                const bar = document.createElement("div");
+                bar.className = "lmpl-afs-bar";
+                screen(wrapper).element.appendChild(bar);
+                bar.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, clientX: 100 }));
+                vi.advanceTimersByTime(3000);
+                await flushPromises();
+                // The bar has the video now: the spin's own seek would land after the bar's.
+                expect(engine.handle.seek).not.toHaveBeenCalled();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
         it("takes one press on Play to pause after a drag: the press does not first resume the video", async () => {
             engine.thumbnailsReady = true;
             const wrapper = await playing();
