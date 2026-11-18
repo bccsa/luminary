@@ -46,6 +46,14 @@ describe("canProbeLive", () => {
         expect(canProbeLive("https://www.youtube.com/watch?v=dQw4w9WgXcQ")).toBe(false);
         expect(canProbeLive(undefined)).toBe(false);
     });
+
+    it("only probes HLS playlists, never plain media files", () => {
+        expect(canProbeLive("https://cdn.example.com/live/index.M3U8?token=abc")).toBe(true);
+        expect(canProbeLive("https://cdn.example.com/video/talk.mp4")).toBe(false);
+        expect(canProbeLive("https://cdn.example.com/audio/talk.mp3")).toBe(false);
+        expect(canProbeLive("https://cdn.example.com/talk.mp4?name=x.m3u8")).toBe(false);
+    });
+
 });
 
 describe("probeLiveStream", () => {
@@ -143,6 +151,15 @@ describe("useLiveStream", () => {
         const { isLive } = mountWith(() => "/media/abc/master.m3u8");
         await flushPromises();
         await nextTick();
+        expect(isLive()).toBe(false);
+        expect(fetchFn).not.toHaveBeenCalled();
+    });
+
+    it("never fetches an external mp4", async () => {
+        const fetchFn = vi.fn(() => respond(LIVE_MEDIA));
+        vi.stubGlobal("fetch", fetchFn);
+        const { isLive } = mountWith(() => "https://cdn.example.com/video/talk.mp4");
+        await flushPromises();
         expect(isLive()).toBe(false);
         expect(fetchFn).not.toHaveBeenCalled();
     });

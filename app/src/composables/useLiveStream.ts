@@ -24,11 +24,17 @@ export function isLivePlaylist(playlist: string): boolean {
 }
 
 /**
- * Only streams on someone else's CDN can be live: the encoder's own output is stored
- * bucket-relative (`/…`) and is always a recording, and a YouTube link has no playlist to read.
+ * Only HLS streams on someone else's CDN can be live: the encoder's own output is stored
+ * bucket-relative (`/…`) and is always a recording, and a plain mp4/mp3 or YouTube link has no
+ * playlist to read, so fetching it would only download the media.
  */
 export function canProbeLive(src: string | undefined): src is string {
-    return !!src && /^https?:\/\//i.test(src) && !isYouTubeLink(src);
+    if (!src || !/^https?:\/\//i.test(src) || isYouTubeLink(src)) return false;
+    try {
+        return /\.m3u8$/i.test(new URL(src).pathname);
+    } catch {
+        return false;
+    }
 }
 
 function firstVariant(master: string, base: string): string | undefined {
