@@ -118,6 +118,7 @@ describe("useMediaEncoder editing the existing video", () => {
         title: "Episode 1",
         mediaBucketId: "bucket-1",
         hlsUrl: "https://cdn.example.com/media/posts/p1/s1/master.m3u8",
+        onMediaReady: vi.fn(),
     };
 
     it("opens it in the encoder with its key, naming the document so the API checks it may be edited", async () => {
@@ -389,7 +390,9 @@ describe("useMediaEncoder resume", () => {
 });
 
 describe("useMediaEncoder acknowledging a stored version", () => {
-    afterEach(() => vi.useRealTimers());
+    afterEach(() => {
+        vi.useRealTimers();
+    });
 
     const R1 = "https://cdn/master_r1.m3u8";
     const R2 = "https://cdn/master_r2.m3u8";

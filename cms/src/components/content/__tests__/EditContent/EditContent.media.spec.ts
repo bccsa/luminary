@@ -23,7 +23,7 @@ vi.mock("vue-router", async (importOriginal) => {
 window.scrollTo = vi.fn();
 
 import { mount } from "@vue/test-utils";
-import { AckStatus, db, DocType, PostType } from "luminary-shared";
+import { AckStatus, db, DocType, PostType, type ContentDto } from "luminary-shared";
 import EditContent from "../../EditContent.vue";
 import EditContentMedia from "../../EditContentMedia.vue";
 import { useNotificationStore } from "@/stores/notification";
@@ -112,7 +112,9 @@ describe("EditContent - saving a new version of the video", () => {
         );
         const queued = (await db.localChanges.toArray()).map((change) => change.doc?._id);
         expect(queued).toEqual([mockPostDto._id]);
-        expect((await db.get(mockEnglishContentDto._id))?.title).toBe(mockEnglishContentDto.title);
+        expect((await db.get<ContentDto>(mockEnglishContentDto._id))?.title).toBe(
+            mockEnglishContentDto.title,
+        );
         expect((wrapper.find('input[name="title"]').element as HTMLInputElement).value).toBe(
             "A title not saved yet",
         );

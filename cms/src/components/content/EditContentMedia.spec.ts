@@ -384,7 +384,9 @@ describe("EditContentMedia new versions of the saved video", () => {
             return true;
         });
 
-    afterEach(() => encoder.resume.mockResolvedValue(false));
+    afterEach(() => {
+        encoder.resume.mockResolvedValue(false);
+    });
 
     it("saves a later version in the same folder on its own", async () => {
         resumeWith("https://cdn.example.com/media/abc/master_r3.m3u8");
