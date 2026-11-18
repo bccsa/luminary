@@ -1474,7 +1474,9 @@ function onPinUp(event: PointerEvent): void {
     const drag = pinDrag.value;
     const view = pinnedView.value;
     const touch = isTouch(event);
-    if (!drag || !view || event.type !== "pointerup") {
+    // A phone's browser may cancel a drag it takes over: where the strip had got to is still where the viewer went.
+    const lifted = event.type === "pointerup" || (event.type === "pointercancel" && !!drag?.moved);
+    if (!drag || !view || !lifted) {
         pinDrag.value = null;
         return touch ? timelineScrub.dragCancelled() : resumeFromScrub();
     }
