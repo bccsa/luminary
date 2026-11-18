@@ -290,7 +290,7 @@ const navItemClass = computed(() => [
                     <RouterLink
                         v-if="item.visible && !item.children && item.to"
                         :to="item.to"
-                        active-class="bg-zinc-200 text-zinc-900 dark:text-yellow-400 dark:bg-slate-700"
+                        active-class="bg-zinc-200 text-zinc-900 dark:!text-yellow-400 dark:bg-slate-700"
                         :class="navItemClass"
                         :title="item.name"
                         @click="closeDrawer"
@@ -365,7 +365,7 @@ const navItemClass = computed(() => [
 
                 <RouterLink
                     :to="{ name: 'settings' }"
-                    active-class="bg-zinc-200 text-zinc-900 dark:text-yellow-400 dark:bg-slate-700"
+                    active-class="bg-zinc-200 text-zinc-900 dark:!text-yellow-400 dark:bg-slate-700"
                     :class="navItemClass"
                     title="Settings"
                     @click="closeDrawer"
