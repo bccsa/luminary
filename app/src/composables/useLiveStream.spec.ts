@@ -90,6 +90,25 @@ describe("probeLiveStream", () => {
         );
     });
 
+    it("resolves the variant against the master's final URL after a redirect", async () => {
+        const fetchFn = vi.fn((url: string) =>
+            Promise.resolve({
+                ok: true,
+                url: url.endsWith("master.m3u8")
+                    ? "https://edge2.cdn.example.com/abc/live/master.m3u8"
+                    : url,
+                text: () => Promise.resolve(url.endsWith("master.m3u8") ? MASTER : LIVE_MEDIA),
+            } as Response),
+        );
+        expect(await probeLiveStream("https://cdn.example.com/live/master.m3u8", fetchFn)).toBe(
+            "live",
+        );
+        expect(fetchFn).toHaveBeenLastCalledWith(
+            "https://edge2.cdn.example.com/abc/live/low/index.m3u8",
+            expect.anything(),
+        );
+    });
+
     it("reports a finished recording as a recording", async () => {
         const fetchFn = vi.fn(() => respond(VOD_MEDIA));
         expect(await probeLiveStream("https://cdn.example.com/vod/index.m3u8", fetchFn)).toBe(

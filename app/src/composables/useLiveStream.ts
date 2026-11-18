@@ -86,13 +86,15 @@ export async function probeLiveStream(
     const read = async (url: string) => {
         const res = await fetchFn(url, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return readPlaylistBody(res);
+        // A redirected master lists its variants relative to where it was served from.
+        return { body: await readPlaylistBody(res), base: res.url || url };
     };
     try {
-        let playlist = await read(src);
+        const master = await read(src);
+        let playlist = master.body;
         if (!isPlaylist(playlist)) return "none";
-        const variant = firstVariant(playlist, src);
-        if (variant) playlist = await read(variant);
+        const variant = firstVariant(playlist, master.base);
+        if (variant) playlist = (await read(variant)).body;
         if (!isPlaylist(playlist)) return "none";
         return isLivePlaylist(playlist) ? "live" : "recording";
     } catch (e) {
