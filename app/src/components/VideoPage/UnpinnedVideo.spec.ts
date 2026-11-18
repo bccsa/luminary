@@ -9,6 +9,7 @@ import { db, type ContentDto, DocType, PostType, PublishStatus, TagType } from "
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import UnpinnedVideo from "./UnpinnedVideo.vue";
+import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 
 vi.mock("vue-router");
 vi.mock("vue-i18n", () => ({
@@ -246,6 +247,42 @@ describe("UnpinnedVideo", () => {
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain("Media Only Video");
+        });
+    });
+
+    it("moves the category of a newly published video to the top", async () => {
+        await db.docs.bulkPut([
+            mockUnpinnedCategoryContent,
+            mockUnpinnedCategoryContent2,
+            mockVideoContent1,
+            mockVideoContent2,
+        ]);
+        const wrapper = mountWithSuspense();
+        const order = () =>
+            wrapper
+                .findAllComponents(HorizontalContentTileCollection)
+                .map((row) => row.props("title"));
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Category 2");
+            expect(order()).toEqual(["Category 1", "Category 2"]);
+        });
+
+        // Published the way the CMS publishes video: only the parent's encoded media.
+        const newlyPublished: ContentDto = {
+            ...mockVideoContent2,
+            _id: "content-video3-eng",
+            parentId: "post-video3",
+            slug: "video-3",
+            title: "Video Three",
+            publishDate: mockVideoContent1.publishDate! + 60_000,
+            parentMedia: { hlsUrl: "video-3/master.m3u8" },
+        };
+        delete newlyPublished.video;
+        await db.docs.put(newlyPublished);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Video Three");
+            expect(order()).toEqual(["Category 2", "Category 1"]);
         });
     });
 
