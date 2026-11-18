@@ -38,6 +38,7 @@ import {
     mockPostDto,
     mockEnglishContentDto,
     mockFrenchContentDto,
+    mockSwahiliContentDto,
 } from "./EditContent.test-utils";
 
 describe("EditContent - Validation & Error Handling", () => {
@@ -106,6 +107,82 @@ describe("EditContent - Validation & Error Handling", () => {
             const french = await db.get<ContentDto>(mockFrenchContentDto._id);
             expect(french.publishDate).toBe(mockEnglishContentDto.publishDate);
         });
+    });
+
+    const saveTitleChange = async (languageCode: string) => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockPostDto._id,
+                languageCode,
+                tagOrPostType: PostType.Blog,
+            },
+        });
+        await waitForExpect(() => {
+            expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+        });
+        await wrapper.find('input[name="title"]').setValue("New Title");
+        await wrapper.find('[data-test="save-button"]').trigger("click");
+    };
+
+    it("fills a dateless linked translation from the translation being edited", async () => {
+        await db.docs.bulkPut([{ ...mockPostDto, linkDates: true } as PostDto]);
+        await db.docs.bulkPut([
+            // Older than the English date, so it is not simply the first dated translation
+            { ...mockFrenchContentDto, publishDate: 1704000000000, expiryDate: 1704900000000 },
+            { ...mockSwahiliContentDto, publishDate: undefined },
+        ] as ContentDto[]);
+
+        const notificationStore = useNotificationStore();
+        await saveTitleChange("fr");
+
+        await waitForExpect(async () => {
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({ state: "success" }),
+            );
+            const swahili = await db.get<ContentDto>(mockSwahiliContentDto._id);
+            expect(swahili.publishDate).toBe(1704000000000);
+            expect(swahili.expiryDate).toBe(1704900000000);
+        });
+    });
+
+    it("replaces a dateless linked translation's own expiry so it is not saved expired", async () => {
+        await db.docs.bulkPut([{ ...mockPostDto, linkDates: true } as PostDto]);
+        await db.docs.bulkPut([
+            // Expires before the English publish date it is about to receive
+            { ...mockFrenchContentDto, publishDate: undefined, expiryDate: 1700000000000 },
+        ] as ContentDto[]);
+
+        const notificationStore = useNotificationStore();
+        await saveTitleChange("eng");
+
+        await waitForExpect(async () => {
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({ state: "success" }),
+            );
+            const french = await db.get<ContentDto>(mockFrenchContentDto._id);
+            expect(french.publishDate).toBe(mockEnglishContentDto.publishDate);
+            expect(french.expiryDate).toBe(mockEnglishContentDto.expiryDate);
+        });
+    });
+
+    it("blocks the save when dates are not linked and a translation has no publish date", async () => {
+        await db.docs.bulkPut([
+            { ...mockFrenchContentDto, publishDate: undefined },
+        ] as ContentDto[]);
+
+        const notificationStore = useNotificationStore();
+        await saveTitleChange("eng");
+
+        await waitForExpect(async () => {
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({ state: "error" }),
+            );
+        });
+        const english = await db.get<ContentDto>(mockEnglishContentDto._id);
+        const french = await db.get<ContentDto>(mockFrenchContentDto._id);
+        expect(english.title).toBe(mockEnglishContentDto.title);
+        expect(french.publishDate).toBeUndefined();
     });
 
     it("routes back to overview if parent is not found in the database", async () => {
