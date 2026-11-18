@@ -5,6 +5,7 @@ import {
     type MediaDto,
     isBucketRelative,
     toAbsoluteMediaUrl,
+    useHasLocalChanges,
 } from "luminary-shared";
 import {
     FilmIcon,
@@ -49,6 +50,13 @@ type Props = {
      * video as coming soon while the encode runs instead of waiting for a manual save.
      */
     saveEncodedMedia?: (write: () => void) => Promise<void>;
+    /** The document as last saved: the encoder's URLs are compared with its video, and confirmed against it. */
+    savedParent?: ContentParentDto;
+    /**
+     * Saves a new version of the saved video onto the saved document, and nothing else: the
+     * editor's other unsaved changes stay theirs to save.
+     */
+    saveMediaOnly?: (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => Promise<void>;
     /**
      * Takes the video off the document and saves it, once the editor has confirmed here; without
      * it the video only leaves the form, for the editor to save.
@@ -62,6 +70,20 @@ const parent = defineModel<ContentParentDto>("parent");
 const showHelp = ref(false);
 const showSaveFirstModal = ref(false);
 const bucketSelection = storageSelection();
+
+/** The saved document's video, absolute, as the encoder names it. */
+const savedVideoUrl = computed(() => {
+    const saved = props.savedParent;
+    const bucketId = bucketSelection.effectiveMediaBucketId(saved?.mediaBucketId);
+    return toAbsoluteMediaUrl(
+        saved?.media?.hlsUrl,
+        bucketSelection.getBucketById(bucketId ?? null)?.publicUrl,
+    );
+});
+
+const hasLocalChange = useHasLocalChanges();
+/** New versions handed to the editor to save whose server answer has not come. */
+const savingVersions = ref(0);
 
 const {
     availability,
@@ -78,21 +100,67 @@ const {
     edit,
     resume,
     stop,
-} = useMediaEncoder();
+} = useMediaEncoder({
+    // Not while a save is still queued or unanswered: the server can yet refuse it.
+    storedHlsUrl: () => {
+        const saved = props.savedParent;
+        if (!saved || savingVersions.value || hasLocalChange.value(saved._id)) return undefined;
+        return savedVideoUrl.value;
+    },
+});
 
 const effectiveBucketId = computed(() =>
     bucketSelection.effectiveMediaBucketId(parent.value?.mediaBucketId),
 );
 
+/** The folder a playlist URL is in, which holds every file of that video. */
+const folderOf = (url: string) => {
+    const path = url.split(/[?#]/)[0];
+    return path.slice(0, path.lastIndexOf("/") + 1);
+};
+
+/** A playlist's version within its folder: `master.m3u8` is 0, `master_rN.m3u8` is N. */
+const revisionOf = (url: string) => {
+    const name = url.split(/[?#]/)[0].split("/").pop() ?? "";
+    const match = /^master_r(\d+)\.m3u8$/.exec(name);
+    return match ? Number(match[1]) : 0;
+};
+
 /**
  * The encoder publishes its URL when encoding *starts*, so this lands well before
  * the output exists. Saved straight away where the editor allows it, so the app's
  * coming-soon state covers the gap until the output is in the bucket.
+ *
+ * Each edit of the video in the encoder publishes another URL, a new version in the
+ * same folder.
  */
 const handleEncodedMedia = (media: Pick<MediaDto, "hlsUrl" | "hlsKey">, documentId: string) => {
     // The editor may have moved to another document while the encoder was slow to
     // answer; that document must not receive this one's collection.
     if (!parent.value || parent.value._id !== documentId) return;
+
+    // Already saved: there is nothing to write, and the encoder is told so.
+    const saved = savedVideoUrl.value;
+    if (!media.hlsUrl || saved === media.hlsUrl) return;
+
+    // A new version of the saved video is saved on its own, at once: the encoder takes no
+    // further edit until it is stored. Another folder is a new video, and waits for the
+    // editor's Save, because the API deletes the saved video's files when the document
+    // stops naming their folder.
+    const newVersion = !!saved && !!folderOf(saved) && folderOf(saved) === folderOf(media.hlsUrl);
+
+    // An encoder that last saw an older version (another machine's, or one reopened from
+    // its own history) offers it again on resume. Storing it would undo the later edit.
+    if (newVersion && revisionOf(media.hlsUrl) <= revisionOf(saved)) return;
+
+    if (newVersion && props.saveMediaOnly && !props.disabled) {
+        savingVersions.value++;
+        void props
+            .saveMediaOnly(media)
+            .catch(() => undefined)
+            .finally(() => savingVersions.value--);
+        return;
+    }
 
     // A resumed session offers the URL it started with, absolute, while the API
     // stores it relative to the bucket. Writing it back says the same thing in a
@@ -170,6 +238,7 @@ const editVideo = () => {
         title: props.title || "Untitled",
         mediaBucketId: bucketId,
         hlsUrl: existingVideoUrl.value,
+        onMediaReady: handleEncodedMedia,
     });
 };
 

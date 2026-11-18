@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { nextTick, ref } from "vue";
 
 /**
  * One assertion, on the value that was wrong for months.
@@ -18,6 +19,7 @@ const fetchEncoderSessionStatusMock = vi.hoisted(() => vi.fn());
 const fetchEncoderSessionKeyMock = vi.hoisted(() => vi.fn());
 const subscribeMock = vi.hoisted(() => vi.fn(() => vi.fn()));
 const fetchHlsKeyMock = vi.hoisted(() => vi.fn());
+const ackEncoderSessionMock = vi.hoisted(() => vi.fn());
 
 // The handle store is left real: it is the thing a reload depends on, and jsdom
 // gives it the localStorage it needs.
@@ -28,6 +30,7 @@ vi.mock("@/util/mediaEncoder", async (importOriginal) => ({
     fetchEncoderSessionStatus: fetchEncoderSessionStatusMock,
     fetchEncoderSessionKey: fetchEncoderSessionKeyMock,
     subscribeToEncoderSession: subscribeMock,
+    ackEncoderSession: ackEncoderSessionMock,
 }));
 
 vi.mock("luminary-shared", async (importOriginal) => ({
@@ -50,6 +53,7 @@ beforeEach(() => {
     });
     checkEncoderHealthMock.mockResolvedValue({ available: true, apiVersion: "0.0.1" });
     fetchEncoderSessionKeyMock.mockResolvedValue("aabbccddeeff00112233445566778899");
+    ackEncoderSessionMock.mockResolvedValue(undefined);
     // Never resolves further; the assertion is about what was requested.
     createEncoderSessionMock.mockResolvedValue({
         sessionId: "s1",
@@ -114,6 +118,7 @@ describe("useMediaEncoder editing the existing video", () => {
         title: "Episode 1",
         mediaBucketId: "bucket-1",
         hlsUrl: "https://cdn.example.com/media/posts/p1/s1/master.m3u8",
+        onMediaReady: vi.fn(),
     };
 
     it("opens it in the encoder with its key, naming the document so the API checks it may be edited", async () => {
@@ -136,13 +141,13 @@ describe("useMediaEncoder editing the existing video", () => {
         expect(error.value).toBeUndefined();
     });
 
-    it("follows no session and remembers none: nothing comes back to the document", async () => {
+    it("follows the session and remembers it: each saved edit comes back to the document", async () => {
         fetchHlsKeyMock.mockResolvedValue(undefined);
         const { edit } = useMediaEncoder();
-        await edit(options);
+        await edit({ ...options, onMediaReady: vi.fn() });
 
-        expect(subscribeMock).not.toHaveBeenCalled();
-        expect(localStorage.length).toBe(0);
+        expect(subscribeMock).toHaveBeenCalledWith(EVENTS_URL, expect.anything());
+        expect(localStorage.length).toBe(1);
         expect(createEncoderSessionMock.mock.calls[0][0].existingMedia).toEqual({
             hlsUrl: options.hlsUrl,
         });
@@ -235,6 +240,22 @@ describe("useMediaEncoder resume", () => {
             expect(encoder.error.value).toContain("500");
         });
 
+        it("clears the key error once a later try reads the key", async () => {
+            // The editor is otherwise left reading "not written" about a video that was.
+            fetchEncoderSessionKeyMock.mockRejectedValueOnce(new Error("Failed to fetch"));
+            const { encoder, onMediaReady, emit } = await startAndCapture();
+
+            emit({ status: "completed", hlsUrl: "https://cdn/master_r1.m3u8" });
+            await settle();
+            expect(encoder.error.value).toContain("Failed to fetch");
+
+            emit({ status: "completed", hlsUrl: "https://cdn/master_r1.m3u8", progress: 100 });
+            await settle();
+
+            expect(onMediaReady).toHaveBeenCalledTimes(1);
+            expect(encoder.error.value).toBeUndefined();
+        });
+
         it("tries again on the next event rather than losing the encode", async () => {
             fetchEncoderSessionKeyMock.mockRejectedValueOnce(new Error("connection refused"));
             const { onMediaReady, emit } = await startAndCapture();
@@ -320,15 +341,15 @@ describe("useMediaEncoder resume", () => {
         );
     });
 
-    it("does not follow a finished session, having nothing left to send", async () => {
+    it("still follows a finished session: an edit in the encoder writes a new version", async () => {
         remember();
         fetchEncoderSessionStatusMock.mockResolvedValue({ sessionId: "s1", status: "completed" });
 
         expect(
             await useMediaEncoder().resume({ documentId: "post-1", onMediaReady: vi.fn() }),
         ).toBe(true);
-        expect(subscribeMock).not.toHaveBeenCalled();
-        expect(stored()).toBeNull();
+        expect(subscribeMock).toHaveBeenCalledWith(EVENTS_URL, expect.anything());
+        expect(stored()).not.toBeNull();
     });
 
     it("drops a handle the encoder no longer holds", async () => {
@@ -365,6 +386,139 @@ describe("useMediaEncoder resume", () => {
         ).toBe(false);
         // The session may well still be running behind a closed window.
         expect(stored()).not.toBeNull();
+    });
+});
+
+describe("useMediaEncoder acknowledging a stored version", () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    const R1 = "https://cdn/master_r1.m3u8";
+    const R2 = "https://cdn/master_r2.m3u8";
+
+    /** Starts an encode for post-1 and hands back the session's event callback. */
+    const startFollowing = async (storedHlsUrl: () => string | undefined) => {
+        const encoder = useMediaEncoder({ storedHlsUrl });
+        await encoder.start({
+            documentId: "post-1",
+            title: "Episode 1",
+            mediaBucketId: "bucket-1",
+            onMediaReady: vi.fn(),
+        });
+        const handlers = (subscribeMock.mock.calls.at(-1) as any[])[1];
+        return { encoder, emit: handlers.onEvent, drop: handlers.onError };
+    };
+
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    it("waits until the document holds the version, then tells the encoder once", async () => {
+        // Until then the encoder refuses further edits, so no edit builds on a version
+        // the document does not name.
+        const stored = ref<string>();
+        const { emit } = await startFollowing(() => stored.value);
+
+        emit({ status: "completed", hlsUrl: R1 });
+        await settle();
+        expect(ackEncoderSessionMock).not.toHaveBeenCalled();
+
+        stored.value = R1;
+        await nextTick();
+        expect(ackEncoderSessionMock).toHaveBeenCalledWith("s1", "r1", R1);
+
+        emit({ status: "completed", hlsUrl: R1, progress: 100 });
+        await settle();
+        expect(ackEncoderSessionMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("tells the encoder about each new version as it is stored", async () => {
+        const stored = ref(R1);
+        const { emit } = await startFollowing(() => stored.value);
+        emit({ status: "completed", hlsUrl: R1 });
+        await settle();
+
+        emit({ status: "completed", hlsUrl: R2 });
+        await settle();
+        expect(ackEncoderSessionMock).toHaveBeenCalledTimes(1);
+
+        stored.value = R2;
+        await nextTick();
+        expect(ackEncoderSessionMock).toHaveBeenLastCalledWith("s1", "r1", R2);
+        expect(ackEncoderSessionMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("tries a failed handover again on the next availability check", async () => {
+        // After a save the edit session may send nothing more; left to the next event,
+        // the version would reach the document only on a reload.
+        fetchEncoderSessionKeyMock.mockRejectedValueOnce(new Error("Failed to fetch"));
+        const onMediaReady = vi.fn();
+        const encoder = useMediaEncoder({ storedHlsUrl: () => undefined });
+        await encoder.start({
+            documentId: "post-1",
+            title: "Episode 1",
+            mediaBucketId: "bucket-1",
+            onMediaReady,
+        });
+        vi.useFakeTimers();
+        (subscribeMock.mock.calls[0] as any[])[1].onEvent({ status: "completed", hlsUrl: R1 });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(onMediaReady).not.toHaveBeenCalled();
+
+        encoder.watchForEncoder();
+        await vi.advanceTimersByTimeAsync(10000);
+
+        expect(onMediaReady).toHaveBeenCalledWith(
+            { hlsUrl: R1, hlsKey: "aabbccddeeff00112233445566778899" },
+            "post-1",
+        );
+        expect(encoder.error.value).toBeUndefined();
+        encoder.stop();
+    });
+
+    it("follows the session again once the encoder answers after its stream dropped", async () => {
+        // The encoder takes no edit while nobody follows the session, so a stream lost to
+        // a sleeping laptop or a restarted encoder must not stay lost until a reload.
+        fetchEncoderSessionStatusMock.mockResolvedValue({
+            sessionId: "s1",
+            documentId: "post-1",
+            status: "completed",
+            hlsUrl: R1,
+        });
+        const { encoder, drop } = await startFollowing(() => R1);
+        vi.useFakeTimers();
+        drop();
+        expect(subscribeMock).toHaveBeenCalledTimes(1);
+
+        encoder.watchForEncoder();
+        await vi.advanceTimersByTimeAsync(10000);
+
+        expect(subscribeMock).toHaveBeenCalledTimes(2);
+        expect((subscribeMock.mock.calls[1] as unknown[])[0]).toBe(EVENTS_URL);
+        encoder.stop();
+    });
+
+    it("asks again on the next availability check when the encoder failed to record it", async () => {
+        // An edit session can go quiet after a save, leaving no event to retry on.
+        ackEncoderSessionMock.mockRejectedValueOnce(new Error("The encoder answered 500"));
+        const url = "https://cdn/master_r1.m3u8";
+        const encoder = useMediaEncoder({ storedHlsUrl: () => url });
+        await encoder.start({
+            documentId: "post-1",
+            title: "Episode 1",
+            mediaBucketId: "bucket-1",
+            onMediaReady: vi.fn(),
+        });
+        vi.useFakeTimers();
+        (subscribeMock.mock.calls[0] as any[])[1].onEvent({ status: "completed", hlsUrl: url });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(ackEncoderSessionMock).toHaveBeenCalledTimes(1);
+
+        encoder.watchForEncoder();
+        await vi.advanceTimersByTimeAsync(10000);
+
+        expect(ackEncoderSessionMock).toHaveBeenCalledTimes(2);
+        expect(ackEncoderSessionMock).toHaveBeenLastCalledWith("s1", "r1", url);
+        encoder.stop();
     });
 });
 

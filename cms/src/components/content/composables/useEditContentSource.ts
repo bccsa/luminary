@@ -13,6 +13,7 @@ import {
     AckStatus,
     type ContentDto,
     type ContentParentDto,
+    type MediaDto,
     type PostDto,
     type PostType,
     type TagDto,
@@ -69,6 +70,12 @@ export type UseEditContentSource = {
     isLoading: Ref<boolean>;
     /** Persist the parent + edited content children and re-baseline the dirty state. */
     save: () => Promise<void>;
+    /**
+     * Persist `media` onto the parent as last saved, and nothing else: the editor's other
+     * unsaved edits stay unsaved, and the new media reads as saved. Settles with the
+     * server's answer, so it waits while offline; rejects when the server refuses it.
+     */
+    saveMedia: (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => Promise<void>;
     /** Whether anything other than `fields` is unsaved, on the parent or any translation. */
     hasEditsBesides: (fields: (keyof ContentParentDto)[]) => boolean;
     /** Delete the parent document (does not mark content children for deletion). */
@@ -102,6 +109,9 @@ function normaliseParent(item: ContentParentDto): ContentParentDto {
  * Must be called synchronously in a component `setup` so the live subscriptions tear
  * down on unmount.
  */
+/** How often a change still queued after a lost connection is looked at again. */
+export const QUEUED_CHANGE_POLL_MS = 1000;
+
 export function useEditContentSource(options: UseEditContentSourceOptions): UseEditContentSource {
     const { docType, tagOrPostType, onParentNotFound } = options;
 
@@ -371,6 +381,43 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     };
 
     /**
+     * The server's answer to a queued change. A connection lost before it answered also
+     * reads as rejected, but leaves the change queued to be sent again; only once it has
+     * left the queue is the answer the server's own.
+     */
+    const serverAnswer = async (localChangeId: number) => {
+        for (;;) {
+            const ack = await db.waitForLocalChangeAck(localChangeId);
+            if (ack.ack !== AckStatus.Rejected) return ack;
+            if (!(await db.localChanges.get(localChangeId))) {
+                // The queue entry goes just before its answer is recorded: read it again.
+                return db.waitForLocalChangeAck(localChangeId);
+            }
+            await new Promise((resolve) => setTimeout(resolve, QUEUED_CHANGE_POLL_MS));
+        }
+    };
+
+    const saveMedia = async (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => {
+        const saved = existingParent.value;
+        if (!saved) throw new Error("The document has not been saved yet.");
+
+        const doc = _.cloneDeep(toRaw(saved));
+        doc.media = { ...doc.media, ...media };
+        const { localChangeId } = await db.upsert({ doc });
+        // Set rather than left to the live query, so the editor sees it at once: `media` is
+        // back-patched, which moves it into the editable copy and its baseline together.
+        parentSource.value = [doc];
+
+        const ack = await serverAnswer(localChangeId);
+        if (ack.ack !== AckStatus.Rejected) return;
+        // A refusal without the server's copy deletes the local one, which the live query
+        // does not pass on: put back what was saved, so the refused media does not read
+        // as saved.
+        if (!ack.docs?.length) parentSource.value = [saved];
+        throw new Error(ack.message || "The server refused the change.");
+    };
+
+    /**
      * Delete the parent and, when asked, the media files in storage with it.
      *
      * The flag is set on the document rather than passed alongside it because a
@@ -422,6 +469,7 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         isIncomingChange,
         isLoading,
         save,
+        saveMedia,
         hasEditsBesides,
         deleteParent,
         revert,

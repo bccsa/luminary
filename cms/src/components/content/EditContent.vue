@@ -12,6 +12,7 @@ import {
     TagType,
     type ContentDto,
     type LanguageDto,
+    type MediaDto,
     type TagDto,
     type Uuid,
     verifyAccess,
@@ -342,6 +343,29 @@ const saveEncodedMedia = async (write: () => void) => {
         return;
     }
     await saveChanges();
+};
+
+// A new version of the saved video is the encoder's change, not the editor's, so it is
+// saved on its own and the editor's other edits stay theirs to save.
+const saveMediaOnly = async (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => {
+    const otherEdits = source.hasEditsBesides(["media"]);
+    try {
+        await source.saveMedia(media);
+    } catch (err: any) {
+        notify(
+            "error",
+            "Video not saved",
+            `The edited video could not be saved to this ${props.tagOrPostType}: ${err?.message ?? err}`,
+        );
+        return;
+    }
+    notify(
+        "success",
+        "Video saved",
+        otherEdits
+            ? `The edited video was saved to this ${props.tagOrPostType}. Your other changes are not saved yet.`
+            : `The edited video was saved to this ${props.tagOrPostType}.`,
+    );
 };
 
 // The delete saves at once, so other unsaved edits must be the editor's to save first.
@@ -709,6 +733,8 @@ watch(isLgScreen, (isLg) => {
                                                 existingParent && !isDirty ? undefined : saveChanges
                                             "
                                             :saveEncodedMedia="saveEncodedMedia"
+                                            :savedParent="existingParent"
+                                            :saveMediaOnly="saveMediaOnly"
                                             :saveDeletedMedia="saveDeletedMedia"
                                             v-model:parent="editableParent"
                                         />
