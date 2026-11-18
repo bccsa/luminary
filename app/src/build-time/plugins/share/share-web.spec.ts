@@ -57,6 +57,24 @@ describe("WebShareService", () => {
         await expect(new WebShareService().share(payload)).resolves.toBe("dismissed");
     });
 
+    it("treats a tap while the sheet is already open as dismissed and keeps offering it", async () => {
+        setNativeShare(
+            vi.fn().mockRejectedValue(new DOMException("in progress", "InvalidStateError")),
+        );
+        const service = new WebShareService();
+
+        await expect(service.share(payload)).resolves.toBe("dismissed");
+        expect(service.isAvailable()).toBe(true);
+    });
+
+    it("keeps offering the sheet after a payload it could not carry", async () => {
+        setNativeShare(vi.fn().mockRejectedValue(new TypeError("bad payload")));
+        const service = new WebShareService();
+
+        await expect(service.share(payload)).resolves.toBe("unavailable");
+        expect(service.isAvailable()).toBe(true);
+    });
+
     it("stops offering a share sheet that is blocked", async () => {
         setNativeShare(vi.fn().mockRejectedValue(new DOMException("blocked", "NotAllowedError")));
         const service = new WebShareService();

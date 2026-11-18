@@ -11,7 +11,7 @@ import type {
  */
 export class WebShareService implements ShareService {
     // Web Share can be present but blocked (e.g. an iframe without the web-share
-    // permission); once it fails, the curated targets serve the rest of the page view.
+    // permission); once it is refused, the curated targets serve the rest of the session.
     private blocked = false;
 
     isAvailable(): boolean {
@@ -32,8 +32,10 @@ export class WebShareService implements ShareService {
             await navigator.share(payload);
             return "shared";
         } catch (e) {
-            if ((e as DOMException)?.name === "AbortError") return "dismissed";
-            this.blocked = true;
+            const name = (e as DOMException)?.name;
+            // InvalidStateError: a second tap while the sheet is still open.
+            if (name === "AbortError" || name === "InvalidStateError") return "dismissed";
+            if (name === "NotAllowedError") this.blocked = true;
             return "unavailable";
         }
     }
