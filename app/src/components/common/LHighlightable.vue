@@ -19,9 +19,9 @@ import {
     HIGHLIGHT_COLORS,
     addHighlight,
     anchorHighlights,
-    extendToPunctuation,
     overlaps,
     paintHighlights,
+    rangeAt,
     removeHighlights,
     snapToWords,
     textOffset,
@@ -70,6 +70,10 @@ const actionsMenu = ref<HTMLElement | undefined>(undefined);
 const showActions = ref(false);
 const menuPos = ref({ x: 0, y: 0 });
 const menuWidth = ref(0);
+// Until the menu has been drawn once, about one row of buttons.
+const menuHeight = ref(44);
+// Opened under the selection, where the room above it is off screen or under a bar.
+const menuBelow = ref(false);
 // Centred on the selection, but never hanging off either side of the screen.
 const menuLeft = computed(() => {
     const half = menuWidth.value / 2 + 8;
@@ -126,12 +130,38 @@ function updateMenuState() {
     }
 }
 
+/**
+ * Whether a fixed or sticky element (a top bar, the article's title bar) sits at this point of the
+ * screen. A fixed container that holds the article itself is the page's layout, not a cover.
+ */
+function coveredAt(x: number, y: number): boolean {
+    if (typeof document.elementsFromPoint !== "function") return false;
+    for (const el of document.elementsFromPoint(x, y)) {
+        if (actionsMenu.value?.contains(el)) continue;
+        for (
+            let node: Element | null = el;
+            node && node !== document.body;
+            node = node.parentElement
+        ) {
+            const position = getComputedStyle(node).position;
+            if (position === "fixed" || position === "sticky") {
+                return !node.contains(content.value ?? null);
+            }
+        }
+        return false;
+    }
+    return false;
+}
+
 function positionMenu(rect: DOMRect) {
-    // Center menu above the selection
-    menuPos.value = {
-        x: rect.left + rect.width / 2,
-        y: rect.top - 8,
-    };
+    const x = rect.left + rect.width / 2;
+    const top = rect.top - 8 - menuHeight.value;
+    const middle = top + menuHeight.value / 2;
+    const half = menuWidth.value / 2;
+    menuBelow.value =
+        top < 0 || [x - half, x, x + half].some((px) => coveredAt(px, Math.max(middle, 0)));
+    // Centred on the selection: above it, or below it where above is taken.
+    menuPos.value = { x, y: menuBelow.value ? rect.bottom + 8 : rect.top - 8 };
 }
 
 function repositionMenu() {
@@ -154,13 +184,18 @@ function onScroll() {
 // The popup's width changes with what it shows (colours, share targets).
 const menuResizeObserver =
     typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => (menuWidth.value = actionsMenu.value?.offsetWidth ?? 0))
+        ? new ResizeObserver(() => {
+              menuWidth.value = actionsMenu.value?.offsetWidth ?? 0;
+              if (actionsMenu.value?.offsetHeight)
+                  menuHeight.value = actionsMenu.value.offsetHeight;
+          })
         : undefined;
 
 watch(actionsMenu, (el, old) => {
     if (old) menuResizeObserver?.unobserve(old);
     if (!el) return;
     menuWidth.value = el.offsetWidth;
+    if (el.offsetHeight) menuHeight.value = el.offsetHeight;
     menuResizeObserver?.observe(el);
 });
 
@@ -185,26 +220,10 @@ function selectionBounds(): { start: number; end: number; text: string } | undef
     };
 }
 
-const BLOCKS = "p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, td, th, dd, dt, figcaption";
-
-/** What a new highlight would cover: whole words, running on to the end of the phrase. */
+/** What a new highlight would cover: the words the selection touches, widened to whole words. */
 function selectedWords() {
     const bounds = selectionBounds();
-    const snapped = bounds && snapToWords(bounds.text, bounds.start, bounds.end);
-    if (!snapped || !prose.value) return snapped;
-
-    // The phrase can't run past the paragraph the selection ends in.
-    const range = window.getSelection()!.getRangeAt(0);
-    const endEl =
-        range.endContainer instanceof Element
-            ? range.endContainer
-            : range.endContainer.parentElement;
-    const block = endEl?.closest(BLOCKS);
-    const limit =
-        block && prose.value.contains(block)
-            ? textOffset(prose.value, block, block.childNodes.length)
-            : bounds.text.length;
-    return { start: snapped.start, end: extendToPunctuation(bounds.text, snapped.end, limit) };
+    return bounds && snapToWords(bounds.text, bounds.start, bounds.end);
 }
 
 /** Highlights the raw selection touches — unsnapped, so a stray mark on punctuation can still be removed. */
@@ -218,6 +237,30 @@ function selectedHighlights(): { start: number; end: number } | undefined {
 function checkIfHighlighted() {
     isHighlighted.value = !!selectedHighlights();
     canHighlight.value = !!selectedWords();
+}
+
+/**
+ * A tap or click on a highlight selects all of it, which opens the menu as a selection does, so
+ * it can be removed, recoloured, copied or shared without first long-pressing its text. A link
+ * inside the highlight still opens, and a selection the reader is making is left alone.
+ */
+function onProseClick(event: MouseEvent) {
+    const target = event.target as Element | null;
+    if (!prose.value || !target || target.closest("a")) return;
+    const mark = target.closest("mark[data-highlight]");
+    if (!mark || !prose.value.contains(mark)) return;
+
+    const sel = window.getSelection();
+    if (!sel || !sel.isCollapsed) return;
+
+    const at = textOffset(prose.value, mark, 0);
+    const highlight = highlights.find((h) => h.start <= at && at < h.end);
+    if (!highlight) return;
+
+    sel.removeAllRanges();
+    sel.addRange(rangeAt(prose.value, highlight.start, highlight.end));
+    // Not every engine reports a selection set from script; the event, where it comes, only restarts the wait.
+    onSelectionChange();
 }
 
 // Highlighting
@@ -583,10 +626,7 @@ onUnmounted(() => {
         @touchcancel.passive="handleTouchCancel"
     >
         <!-- Content Container -->
-        <div
-            ref="prose"
-            class="prose max-w-none select-text"
-        >
+        <div ref="prose" class="prose max-w-none select-text" @click="onProseClick">
             <slot />
         </div>
 
@@ -595,15 +635,13 @@ onUnmounted(() => {
             <div
                 v-if="showActions"
                 ref="actionsMenu"
-                class="fixed z-50 flex -translate-x-1/2 -translate-y-full flex-col items-center rounded-full bg-white p-1 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
+                class="fixed z-50 flex -translate-x-1/2 flex-col items-center rounded-full bg-white p-1 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
+                :class="{ '-translate-y-full': !menuBelow }"
                 :style="{ left: menuLeft + 'px', top: menuPos.y + 'px' }"
                 @mousedown.stop.prevent
             >
                 <!-- Main Menu -->
-                <div
-                    v-if="!showColorPicker && !showShareMenu"
-                    class="flex flex-col items-center"
-                >
+                <div v-if="!showColorPicker && !showShareMenu" class="flex flex-col items-center">
                     <div class="flex items-center gap-0.5">
                         <!-- Highlight: also offered over an existing highlight, to recolour or extend it -->
                         <button
@@ -652,10 +690,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Color Picker -->
-                <div
-                    v-else-if="showColorPicker"
-                    class="flex items-center gap-2 px-1 py-0.5"
-                >
+                <div v-else-if="showColorPicker" class="flex items-center gap-2 px-1 py-0.5">
                     <button
                         @click="showColorPicker = false"
                         :aria-label="t('singlecontent.back')"
@@ -677,10 +712,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Share Targets -->
-                <div
-                    v-else
-                    class="flex items-center gap-1 px-1 py-0.5"
-                >
+                <div v-else class="flex items-center gap-1 px-1 py-0.5">
                     <button
                         @click="closeShareMenu"
                         :aria-label="t('singlecontent.back')"

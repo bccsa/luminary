@@ -4,6 +4,7 @@ import { mount } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { accessMap, DocType, type AuthProviderDto, type GroupDto } from "luminary-shared";
 import DisplayCard from "./DisplayCard.vue";
+import SharedDisplayCard from "../common/DisplayCard.vue";
 
 const mockProvider: AuthProviderDto = {
     _id: "provider-1",
@@ -158,6 +159,28 @@ describe("DisplayCard.vue", () => {
 
         expect(wrapper.emitted("edit")).toHaveLength(1);
         expect(wrapper.emitted("edit")![0][0]).toMatchObject({ _id: "provider-1" });
+    });
+
+    it("is built on the shared display card", () => {
+        const wrapper = mount(DisplayCard, {
+            props: { provider: mockProvider, groups: [] },
+        });
+        const card = wrapper.findComponent(SharedDisplayCard);
+
+        expect(card.exists()).toBe(true);
+        expect(card.props("title")).toBe("Test Provider");
+        expect(card.props("updatedTimeUtc")).toBe(mockProvider.updatedTimeUtc);
+    });
+
+    it("looks clickable only with edit permission", () => {
+        accessMap.value = authProviderEditAccessMap;
+        const editable = mount(DisplayCard, { props: { provider: mockProvider, groups: [] } });
+        expect(editable.classes()).toContain("cursor-pointer");
+
+        accessMap.value = readOnlyAccessMap;
+        const readOnly = mount(DisplayCard, { props: { provider: mockProvider, groups: [] } });
+        expect(readOnly.findComponent(SharedDisplayCard).props("canNavigate")).toBe(false);
+        expect(readOnly.classes()).not.toContain("cursor-pointer");
     });
 
     it("does not emit 'edit' when user lacks edit permission", async () => {

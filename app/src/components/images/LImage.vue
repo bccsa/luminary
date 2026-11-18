@@ -37,6 +37,7 @@ const { bucketBaseUrl } = useBucketInfo(bucketIdRef);
 const rounding = {
     smallSquare: "rounded-md",
     small: "rounded-md",
+    searchThumbnail: "rounded-md",
     thumbnail: "rounded-lg",
     thumbnailFeatured: "rounded-xl",
     thumbnailCompact: "rounded-lg",
@@ -56,10 +57,7 @@ const rounding = {
         :style="opacity !== 1 ? { opacity } : undefined"
     />
     <!-- Icon mode: simple contained rendering, no aspect ratio or cover cropping -->
-    <div
-        v-else-if="size === 'icon'"
-        class="h-full w-full"
-    >
+    <div v-else-if="size === 'icon'" class="h-full w-full">
         <LImageProvider
             :parent-id="contentParentId!"
             :image="props.image"
@@ -70,10 +68,7 @@ const rounding = {
             :key="props.image ? JSON.stringify(props.image) : 'empty'"
         />
     </div>
-    <div
-        v-else
-        :class="isModal ? '' : sizes[size]"
-    >
+    <div v-else :class="isModal ? '' : sizes[size]">
         <div
             v-if="!isModal"
             :class="[

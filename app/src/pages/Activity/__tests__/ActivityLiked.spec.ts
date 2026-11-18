@@ -67,6 +67,8 @@ describe("ActivityLiked", () => {
         await activityTable.clear();
         const wrapper = mount(ActivityLiked);
 
-        expect(wrapper.text()).toContain("Posts you like will show up here.");
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Posts you like will show up here.");
+        });
     });
 });

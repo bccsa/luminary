@@ -1,4 +1,5 @@
 import type { PlayerControlsOptions } from "../controls";
+import { chapterIcon } from "./chapterSkip";
 
 /**
  * The player's control surface, as markup.
@@ -9,8 +10,8 @@ import type { PlayerControlsOptions } from "../controls";
  * keeps drawing the buttons, icons, menus and sliders; the layout around them is `lmpl-*` and lives in
  * `styles.css`.
  *
- * The layout: pause/play in the middle with the skips either side, and under it the timeline, then one
- * row — volume and the four settings (quality, language, speed, captions) on the left, each its own
+ * The layout: pause/play in the middle with the skips either side and the chapter skips outside those, and under it the timeline, then one
+ * row — volume and the four settings (speed, quality, language, captions, in the now-playing screen's order) on the left, each its own
  * button opening its own card, and casting, picture-in-picture and fullscreen on the right.
  */
 
@@ -75,7 +76,7 @@ const SETTING_ICONS: Record<Setting, string> = {
     quality: "switches",
     audio: "language",
     speed: "speed",
-    captions: "captions-off",
+    captions: "cc-off",
 };
 
 /**
@@ -89,8 +90,8 @@ function setting(kind: Setting, id: string, title: string): string {
         `<button commandfor="${menuId}" class="media-button lmpl-icon-btn lmpl-opt lmpl-opt-${kind}" type="button">` +
         (kind === "captions"
             ? // Outlined while off, filled while a track is on: the player marks which on its root.
-              '<media-icon name="captions-off" class="media-button-icon-base media-settings-menu-trigger-icon lmpl-cc-off"></media-icon>' +
-              '<media-icon name="captions-on" class="media-button-icon-base media-settings-menu-trigger-icon lmpl-cc-on"></media-icon>'
+              '<media-icon name="cc-off" class="media-button-icon-base media-settings-menu-trigger-icon lmpl-cc-off"></media-icon>' +
+              '<media-icon name="cc-on" class="media-button-icon-base media-settings-menu-trigger-icon lmpl-cc-on"></media-icon>'
             : `<media-icon name="${iconName}" class="media-button-icon-base media-settings-menu-trigger-icon"></media-icon>`) +
         // Visually hidden: the button is an icon, and this is its name for a screen reader.
         `<span class="media-settings-menu-trigger-label">${escapeHtml(title)}</span>` +
@@ -163,13 +164,13 @@ function browseButton(id: string, label: string): string {
     );
 }
 
-/** The settings. Language and captions are left out when the host asks; the two always offered are quality and speed. */
+/** The settings, in the now-playing screen's order. Language and captions are left out when the host asks. */
 function settings(options: ControlsHtmlOptions, id: string, labels: ControlsHtmlLabels): string {
     return (
         '<div class="lmpl-group lmpl-options">' +
+        setting("speed", id, labels.speed) +
         setting("quality", id, labels.quality) +
         (options.audioMenu ? setting("audio", id, labels.audio) : "") +
-        setting("speed", id, labels.speed) +
         (options.subtitlesMenu ? setting("captions", id, labels.captions) : "") +
         browseButton(id, labels.browse) +
         "</div>"
@@ -204,10 +205,22 @@ function topLine(heading: { title: string; subtitle?: string }): string {
     );
 }
 
-/** Pause/play in the middle, the skip buttons flanking it. */
-function centreCluster(options: ControlsHtmlOptions): string {
+/**
+ * Goes to the previous (`-1`) or next (`1`) chapter. The component shows the pair only when the video has chapters,
+ * and disables "next" in the last one.
+ */
+function chapterButton(step: -1 | 1, label: string): string {
+    return (
+        `<button type="button" class="media-button lmpl-chapter-skip" data-chapter-step="${step}" ` +
+        `aria-label="${escapeHtml(label)}">${chapterIcon(step === 1)}</button>`
+    );
+}
+
+/** Pause/play in the middle, the skip buttons flanking it, and the chapter buttons outside those. */
+function centreCluster(options: ControlsHtmlOptions, labels: ControlsHtmlLabels): string {
     return (
         '<div class="lmpl-cluster lmpl-cluster-centre">' +
+        chapterButton(-1, labels.previousChapter) +
         skipButton(options.skipBackSeconds, "back") +
         '<media-play-button class="media-button lmpl-play media-play-button">' +
         icon("restart", "media-play-button-restart-icon") +
@@ -215,6 +228,7 @@ function centreCluster(options: ControlsHtmlOptions): string {
         icon("pause", "media-play-button-pause-icon") +
         "</media-play-button>" +
         skipButton(options.skipForwardSeconds, "forward") +
+        chapterButton(1, labels.nextChapter) +
         "</div>"
     );
 }
@@ -265,16 +279,21 @@ export interface ControlsHtmlLabels {
     /** Names of the volume card's plus and minus buttons. */
     volumeUp: string;
     volumeDown: string;
+    /** Names of the previous and next chapter buttons. */
+    previousChapter: string;
+    nextChapter: string;
 }
 
 const DEFAULT_LABELS: ControlsHtmlLabels = {
-    browse: "Chapters and up next",
+    browse: "Chapters and More",
     quality: "Quality",
     audio: "Language",
     speed: "Speed",
     captions: "Captions",
     volumeUp: "Volume up",
     volumeDown: "Volume down",
+    previousChapter: "Previous chapter",
+    nextChapter: "Next chapter",
 };
 
 /** Everything that sits inside `<media-controls>`, ids made unique with `id`. */
@@ -289,7 +308,7 @@ export function buildControlsHtml(
         '<media-controls-backdrop class="video-controls-backdrop"></media-controls-backdrop>' +
         '<media-controls-content class="lmpl-controls-content">' +
         (heading?.title ? topLine(heading) : "") +
-        centreCluster(options) +
+        centreCluster(options, labels) +
         bottomBar(options, id, labels) +
         "</media-controls-content>"
     );

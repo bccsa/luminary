@@ -44,6 +44,31 @@ describe("groupsWithAccess", () => {
         expect(result).toEqual(new Set(["middle", "top"]));
     });
 
+    it("includes groups whose permission on an accessor carries down to that accessor's groups", () => {
+        // Editors hold Storage view on the content group, which can reach the bucket group.
+        const groups = [
+            group("buckets", [{ type: DocType.Post, groupId: "content", permission: View }]),
+            group("content", [{ type: DocType.Storage, groupId: "editors", permission: View }]),
+            group("editors", []),
+        ];
+
+        expect(groupsWithAccess("buckets", DocType.Storage, AclPermission.View, groups)).toEqual(
+            new Set(["editors"]),
+        );
+    });
+
+    it("does not carry a permission down to groups the accessor cannot reach", () => {
+        const groups = [
+            group("buckets", []),
+            group("content", [{ type: DocType.Storage, groupId: "editors", permission: View }]),
+            group("editors", []),
+        ];
+
+        expect(groupsWithAccess("buckets", DocType.Storage, AclPermission.View, groups).size).toBe(
+            0,
+        );
+    });
+
     it("terminates on circular ACLs", () => {
         const groups = [
             group("a", [{ type: DocType.Post, groupId: "b", permission: View }]),

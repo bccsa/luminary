@@ -33,6 +33,7 @@ import { useDexieLiveQuery } from "../useDexieLiveQuery/useDexieLiveQuery";
 import { applySortLimit, mergeById, sameWindow } from "./mergeDocs";
 import { SeedRetention } from "./seedRetention";
 import {
+    contentSyncSettledRef,
     decideContentApiQuery,
     planRemoteContentQueries,
     readType,
@@ -292,6 +293,20 @@ export type HybridQueryOptions = {
      * A provably-empty new query clears `output` either way.
      */
     keepPreviousResult?: boolean;
+
+    /**
+     * When `true`, a Content query that owes an API supplement does **not** publish its
+     * local-only result: `output` keeps what it already shows (empty, a cache seed, or a
+     * window kept by `keepPreviousResult`) until the supplement settles, then publishes
+     * the merged window once. Use it for lists the caller re-ranks, where the supplement
+     * would otherwise reorder visible items rather than append to them. Off by default.
+     *
+     * The hold only covers the first result of each generation. It is released when the
+     * supplement resolves, fails, or is parked offline (offline publishes the local result,
+     * which is all there is). No supplement owed (a full local page, full-corpus sync, or
+     * a non-Content query) means no hold.
+     */
+    waitForRemote?: boolean;
 };
 
 /**
@@ -413,6 +428,11 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     private readonly _live: boolean;
     // See {@link HybridQueryOptions.keepPreviousResult}.
     private readonly _keepPreviousResult: boolean;
+    // See {@link HybridQueryOptions.waitForRemote}.
+    private readonly _waitForRemote: boolean;
+    // True while `_recompute` must not publish: this generation owes a supplement that
+    // hasn't settled yet. Released in `_settleRemote`.
+    private _holding = false;
     // Offline document persistence (opt-in). When true, the supplement's syncable
     // older-tail docs are bulkPut to IndexedDB. See {@link HybridQueryOptions.persistOffline}.
     private readonly _persistOffline: boolean;
@@ -433,6 +453,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     // survives before authoritative reads replace it. The seed-to-live transition
     // table lives in the `SeedRetention` module.
     private readonly _seed: SeedRetention = new SeedRetention();
+    // True for a Content query: its local read is authoritative only once Content sync settles.
+    private _contentQuery = false;
     // The two contributions to `output`, kept separate so live mode can replace
     // the local set wholesale (reflecting deletions) while the one-shot remote
     // supplement persists. `output = applySortLimit(mergeById(_local, _remote))`.
@@ -461,6 +483,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._queryFn = typeof query === "function" ? query : () => query;
         this._live = options.live ?? false;
         this._keepPreviousResult = options.keepPreviousResult ?? false;
+        this._waitForRemote = options.waitForRemote ?? false;
         this._persistOffline = options.persistOffline ?? false;
         this._cache = options.cache ?? false;
         this._cacheId = options.cacheId;
@@ -531,6 +554,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         if (!this._keepPreviousResult && this.output.value.length) this.output.value = [];
         this._seed.reset();
         this._apiDecided = false;
+        this._holding = false;
         this._tombstones.clear();
         // Re-enter loading for the new generation. _generation++ above has already
         // disarmed any stale callback (the gen guard), so these synchronous writes are
@@ -579,6 +603,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     private _settleRemote(gen: number): void {
         if (gen !== this._generation || this._disposed) return;
         this._remotePending.value = false;
+        const wasHolding = this._holding;
+        this._holding = false;
         // The remote leg has settled. If the local read was empty and the seeded local
         // window is still bridging first paint, drop it now so the result reflects the
         // real (empty) local contribution — a genuinely empty result publishes empty.
@@ -586,7 +612,11 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             this._seed.releaseLocal();
             this._local = [];
             this._recompute(true);
+            return;
         }
+        // Publish the merged window the hold kept back. Offline settles before the local
+        // result is applied; `_setLocal` publishes it right after.
+        if (wasHolding && !this._localPending.value) this._recompute(true);
     }
 
     // Non-content branches only. Re-route this generation when `type`'s syncList
@@ -617,6 +647,28 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             },
             { immediate: false },
         );
+        this._generationDisposers.add(stop);
+    }
+
+    // A seeded Content window retained past an empty read (local store still syncing)
+    // must settle once sync does: re-read local so a genuinely empty feed publishes
+    // empty instead of keeping the seed forever.
+    private _watchContentSyncSettled(gen: number): void {
+        const stop = watch(contentSyncSettledRef(), (settled) => {
+            if (!settled) return;
+            stop();
+            this._generationDisposers.delete(stop);
+            if (gen !== this._generation || this._disposed) return;
+            runInWorker("mangoQuery", this._query).then(
+                (docs) => {
+                    // A live emission may have replaced the seed in the meantime.
+                    if (gen !== this._generation || this._disposed) return;
+                    if (!this._seed.holdsLocalSeed()) return;
+                    this._setLocal(docs as T[]);
+                },
+                (err) => this._reportError("local-read", err),
+            );
+        });
         this._generationDisposers.add(stop);
     }
 
@@ -681,8 +733,12 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             }
 
             const type = readType(this._query);
+            this._contentQuery = type === DocType.Content;
 
             if (type === DocType.Content) {
+                if (this._seed.holdsLocalSeed() && !contentSyncSettledRef().value) {
+                    this._watchContentSyncSettled(gen);
+                }
                 // Local read merges instantly; the FIRST local result also drives
                 // the (one-shot) API-supplement decision. Later live emissions
                 // update `_local` only — the `_apiDecided` gate keeps the API
@@ -706,6 +762,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                                 // (or offline-defers). _postAndMerge / _runApiWhenOnline own
                                 // clearing _remotePending.
                                 this._remotePending.value = true;
+                                // Set before the POST starts: offline parks it and settles
+                                // (releasing the hold) synchronously inside this call.
+                                if (this._waitForRemote) this._holding = true;
                                 void this._runApiWhenOnline([api], gen);
                                 // Live mode: keep the supplement live off the socket changefeed,
                                 // filtered by the supplement query.
@@ -899,8 +958,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             );
             if (fulfilled.length < settled.length) {
                 const firstErr = settled.find((s) => s.status === "rejected") as
-                    | PromiseRejectedResult
-                    | undefined;
+                    PromiseRejectedResult | undefined;
                 this._reportError("remote-query", firstErr?.reason, {
                     failed: settled.length - fulfilled.length,
                     total: settled.length,
@@ -1065,11 +1123,17 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             });
             release.forEach((id) => this._tombstones.delete(id));
         }
-        // Retain a cache-seeded window while the remote leg is still in flight: a cold-start
-        // empty local read must not collapse the seeded first paint before the supplement
-        // lands. A non-empty read still replaces wholesale (deletions propagate); once the
-        // remote settles the flag is cleared and a genuine empty publishes as usual.
-        if (this._seed.shouldRetainLocal(local.length, this._remotePending.value)) {
+        // Retain a cache-seeded window while the remote leg is still in flight or the local
+        // store hasn't finished syncing: a cold-start empty local read must not collapse the
+        // seeded first paint. A non-empty read still replaces wholesale (deletions propagate).
+        const localAuthoritative = !this._contentQuery || contentSyncSettledRef().value;
+        if (
+            this._seed.shouldRetainLocal(
+                local.length,
+                this._remotePending.value,
+                localAuthoritative,
+            )
+        ) {
             this._recompute();
             return;
         }
@@ -1144,6 +1208,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             }
             if (stampIds.length) touchRetention(stampIds);
         }
+        // `waitForRemote`: keep the current window until the supplement settles.
+        if (this._holding) return;
         // UNION (not replace) across sources — the remote query may fetch only the
         // older tail (publishDate <= cutoff), so fresh local docs above the cutoff
         // must be retained alongside it. Argument order is load-bearing: `_local`

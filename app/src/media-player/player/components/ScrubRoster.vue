@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { ThumbnailSpriteCue } from "@luminary-media-converter/player-web";
+import { rosterTileBox } from "../ui/scrubPreview";
 
 /**
  * The strip of frames shown under the timeline while it is held: the stretch of the video around the
  * playhead, sliding past a marker that stays under the pointer.
  *
- * Each frame is a crop of a sprite sheet, drawn the way `ScrubThumbnail` draws one: a window the size of
- * the crop, scaled to the roster's height. A tile without a cue yet stays dark rather than leaving a hole.
+ * Each frame is a crop of a sprite sheet: a window the size of the crop, stretched over its whole tile as the
+ * native strips draw one, so the frames meet edge to edge. A tile without a cue yet stays dark rather than leaving a hole.
  */
 const props = defineProps<{
-    tiles: { key: string; left: number; cue: ThumbnailSpriteCue | null }[];
+    tiles: { key: string; left: number; width?: number; cue: ThumbnailSpriteCue | null }[];
     /** Each frame's width and the roster's height, in px. */
     tileWidth: number;
     height: number;
@@ -22,16 +23,20 @@ const props = defineProps<{
     interactive?: boolean;
 }>();
 
+const pixelRatio = () => (typeof window === "undefined" ? 1 : window.devicePixelRatio || 1);
+
 /** Slid into place rather than laid out: the strip moves every frame while the video plays under it. */
-function tileStyle(tile: { left: number }) {
+function tileStyle(tile: { left: number; width?: number }) {
+    const width = tile.width ?? props.tileWidth;
+    const { x } = rosterTileBox(tile.left, width, props.height, { w: 0, h: 0 }, pixelRatio());
     return {
-        transform: `translate3d(${Math.round(tile.left)}px, 0, 0)`,
-        width: `${props.tileWidth}px`,
+        transform: `translate3d(${x}px, 0, 0)`,
+        width: `${width}px`,
         height: `${props.height}px`,
     };
 }
 
-function frameStyle(cue: ThumbnailSpriteCue) {
+function frameStyle(cue: ThumbnailSpriteCue, tileWidth: number) {
     if (!cue.w || !cue.h) {
         return {
             width: "100%",
@@ -41,13 +46,20 @@ function frameStyle(cue: ThumbnailSpriteCue) {
             backgroundPosition: "center",
         };
     }
+    // A stretched end frame is scaled up to cover its wider tile and cropped top and bottom, not squashed.
+    const stretched = tileWidth > props.tileWidth;
+    const cover = Math.max(props.height / cue.h, tileWidth / cue.w);
+    const { scaleX, scaleY } = stretched
+        ? { scaleX: cover, scaleY: cover }
+        : rosterTileBox(0, props.tileWidth, props.height, cue);
+    const lift = stretched ? `translateY(${-(cue.h * cover - props.height) / 2}px) ` : "";
     return {
         width: `${cue.w}px`,
         height: `${cue.h}px`,
         backgroundImage: `url("${cue.spriteUrl}")`,
         backgroundPosition: `-${cue.x}px -${cue.y}px`,
         backgroundRepeat: "no-repeat",
-        transform: `scale(${props.height / cue.h})`,
+        transform: `${lift}scale(${scaleX}, ${scaleY})`,
         transformOrigin: "top left",
     };
 }
@@ -55,7 +67,6 @@ function frameStyle(cue: ThumbnailSpriteCue) {
 const rosterStyle = computed(() => ({
     bottom: `${props.bottom}px`,
     height: `${props.height}px`,
-    "--lmpl-marker": `${props.markerX}px`,
 }));
 
 const markerStyle = computed(() => ({ left: `${props.markerX}px` }));
@@ -77,13 +88,10 @@ const markerStyle = computed(() => ({ left: `${props.markerX}px` }));
             <div
                 v-if="tile.cue"
                 class="lmpl-roster-frame"
-                :style="frameStyle(tile.cue)"
+                :style="frameStyle(tile.cue, tile.width ?? tileWidth)"
             ></div>
         </div>
         <div class="lmpl-roster-vignette"></div>
-        <div
-            class="lmpl-roster-marker"
-            :style="markerStyle"
-        ></div>
+        <div class="lmpl-roster-marker" :style="markerStyle"></div>
     </div>
 </template>

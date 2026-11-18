@@ -2,7 +2,7 @@ import { useRouter } from "vue-router";
 
 /**
  * Shared "back" button logic. The button is a real `<a href>` via RouterLink's `custom` slot,
- * pointing home, so it works with JS disabled and during SSR/pre-hydration. Once hydrated, the
+ * pointing home, so it works with JS disabled and during the prerender/pre-hydration. Once hydrated, the
  * click prefers real history back, unless the current entry is the first one the router has
  * seen (deep link, external/WhatsApp link, direct open) — then it goes home instead.
  */

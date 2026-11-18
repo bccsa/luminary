@@ -58,9 +58,12 @@ describe("ActivityAll", () => {
     it("displays a message when there is no activity", async () => {
         const wrapper = mount(ActivityAll);
 
-        expect(wrapper.text()).toContain(
-            "Everything you read, like or highlight will show up here.",
-        );
+        // Only once the stored activity has been read: before that, nothing is not yet known.
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(
+                "Everything you read, like or highlight will show up here.",
+            );
+        });
     });
 
     it("shows one card per activity, so a post read and liked appears twice", async () => {
@@ -176,6 +179,37 @@ describe("ActivityAll", () => {
             expect(wrapper.text()).toContain("the passage they kept");
         });
         expect(wrapper.text()).not.toContain(mockEnglishContentDto.summary);
+    });
+
+    it("clamps the passage to the lines a summary takes, so the card keeps its size", async () => {
+        await recordUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId });
+        await recordUserActivity(
+            {
+                type: "highlighted",
+                contentId: mockEnglishContentDto._id,
+                parentId: mockEnglishContentDto.parentId,
+                range: range("a long passage ".repeat(40)),
+            },
+            { range: range("a long passage ".repeat(40)) },
+        );
+
+        const wrapper = mount(ActivityAll);
+
+        await waitForExpect(() => {
+            expect(wrapper.find("[data-test=activity-excerpt]").exists()).toBe(true);
+            expect(wrapper.text()).toContain(mockEnglishContentDto.summary);
+        });
+        const sizing = (classes: string) =>
+            classes
+                .split(/\s+/)
+                .filter((c) => /^(line-clamp|leading|text-(xs|sm|base|lg))/.test(c))
+                .sort();
+        const summary = wrapper
+            .findAll("[data-card-text] p")
+            .find((p) => p.text() === mockEnglishContentDto.summary)!;
+        const excerpt = wrapper.find("[data-test=activity-excerpt]").element.parentElement!;
+
+        expect(sizing(excerpt.className)).toEqual(sizing(summary.classes().join(" ")));
     });
 
     it("paints the passage in the colour it was highlighted in", async () => {

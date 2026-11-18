@@ -213,11 +213,7 @@ describe("processChangeRequest", () => {
 
         const slugChangeCmds = (
             (await db.getDocsByType(DocType.DeleteCmd)).docs as DeleteCmdDto[]
-        ).filter(
-            (c) =>
-                c.deleteReason === DeleteReason.SlugChange &&
-                c.docId === prevDoc._id,
-        );
+        ).filter((c) => c.deleteReason === DeleteReason.SlugChange && c.docId === prevDoc._id);
         expect(slugChangeCmds).toHaveLength(0);
     });
 });

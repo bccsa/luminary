@@ -2127,7 +2127,7 @@ describe("HybridQuery", () => {
             it("replaces a stripped seeded local doc with the full doc on the first live emission", async () => {
                 // Live mode (SingleContent's actual query mode): seed the local side with a
                 // stripped doc — same id/updatedTimeUtc as the doc the live Dexie read
-                // returns, differing only by the field the SSR cache write omitted.
+                // returns, differing only by the field the prerender cache write omitted.
                 const Lstripped = {
                     _id: "L1",
                     updatedTimeUtc: 5,
@@ -2197,7 +2197,7 @@ describe("HybridQuery", () => {
             });
 
             it("replaces a stripped seeded doc with the full doc once the POST answers", async () => {
-                // Remote-only branch (no Dexie leg), stripped seed as an SSR cache write
+                // Remote-only branch (no Dexie leg), stripped seed as a prerender cache write
                 // would leave it: `body` omitted, same `_id`/`updatedTimeUtc` as the real doc.
                 const r1 = { _id: "r1", updatedTimeUtc: 1, type: "redirect" };
                 writeResponseCache(
@@ -2716,6 +2716,116 @@ describe("HybridQuery", () => {
             await flush();
 
             expect((q.output.value as any[])[0]).toHaveProperty("text", "keep");
+        });
+    });
+
+    describe("waitForRemote", () => {
+        const doc = (id: string, publishDate: number) => ({
+            _id: id,
+            updatedTimeUtc: 1,
+            publishDate,
+            type: "content",
+        });
+        const local = [doc("new1", 3000), doc("new2", 2000)];
+        const tail = [doc("old1", 900), doc("old2", 800)];
+        const query = () => ({
+            selector: { type: "content" },
+            $sort: [{ publishDate: "desc" as const }],
+            $limit: 10,
+        });
+        const record = (q: HybridQuery<any>) => {
+            const emissions: string[][] = [];
+            watch(q.output, (v) => emissions.push(v.map((d: any) => d._id)), { flush: "sync" });
+            return emissions;
+        };
+
+        it("without it, a supplement publishes the local subset first, then the merged list", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            postHttpMock.mockResolvedValueOnce({ docs: tail });
+            const q = new HybridQuery(query());
+            const emissions = record(q);
+            await flush();
+
+            expect(emissions).toEqual([
+                ["new1", "new2"],
+                ["new1", "new2", "old1", "old2"],
+            ]);
+        });
+
+        it("publishes the merged list once, after the supplement settles", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            let resolvePost!: (v: unknown) => void;
+            postHttpMock.mockReturnValueOnce(new Promise((r) => (resolvePost = r)));
+            const q = new HybridQuery(query(), { waitForRemote: true });
+            const emissions = record(q);
+            await flush();
+
+            // Local landed, supplement in flight: nothing published, still fetching.
+            expect(q.output.value).toEqual([]);
+            expect(q.isFetching.value).toBe(true);
+
+            resolvePost({ docs: tail });
+            await flush();
+
+            expect(emissions).toEqual([["new1", "new2", "old1", "old2"]]);
+            expect(q.isFetching.value).toBe(false);
+        });
+
+        it("publishes the local result when the supplement fails", async () => {
+            vi.spyOn(console, "error").mockImplementation(() => {});
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            postHttpMock.mockRejectedValueOnce(new Error("boom"));
+            const q = new HybridQuery(query(), { waitForRemote: true });
+            const emissions = record(q);
+            await flush();
+
+            expect(emissions).toEqual([["new1", "new2"]]);
+        });
+
+        it("publishes the local result straight away when offline", async () => {
+            mocks.isConnected.value = false;
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            const q = new HybridQuery(query(), { waitForRemote: true });
+            const emissions = record(q);
+            await flush();
+
+            expect(postHttpMock).not.toHaveBeenCalled();
+            expect(emissions).toEqual([["new1", "new2"]]);
+        });
+
+        it("does not hold when no supplement is owed (full-corpus sync)", async () => {
+            mocks.cutoff = OPEN_MIN;
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            const q = new HybridQuery(query(), { waitForRemote: true });
+            const emissions = record(q);
+            await flush();
+
+            expect(postHttpMock).not.toHaveBeenCalled();
+            expect(emissions).toEqual([["new1", "new2"]]);
+        });
+
+        it("keeps a cache seed on screen until the merged list replaces it", async () => {
+            const opts = { cache: true, cacheId: "wait-seed", waitForRemote: true };
+            writeResponseCache(
+                structuralCacheKey(query(), "wait-seed"),
+                { local: [doc("seed1", 2500)], remote: [] },
+                10,
+            );
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            let resolvePost!: (v: unknown) => void;
+            postHttpMock.mockReturnValueOnce(new Promise((r) => (resolvePost = r)));
+            const q = new HybridQuery(query(), opts);
+            expect(q.output.value.map((d) => d._id)).toEqual(["seed1"]);
+            const emissions = record(q);
+            await flush();
+
+            // The local read must not replace the seed with the local-only subset.
+            expect(q.output.value.map((d) => d._id)).toEqual(["seed1"]);
+
+            resolvePost({ docs: tail });
+            await flush();
+
+            expect(emissions).toEqual([["new1", "new2", "old1", "old2"]]);
         });
     });
 

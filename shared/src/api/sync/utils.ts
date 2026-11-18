@@ -111,8 +111,8 @@ export function getPublishDateRanges(options: {
     const seen = new Set<string>();
     const ranges: DateRange[] = [];
 
-    syncListOf(options.source).value
-        .filter((entry) => entry.chunkType === chunkType)
+    syncListOf(options.source)
+        .value.filter((entry) => entry.chunkType === chunkType)
         .forEach((entry) => {
             const r = resolveRange(entry.publishDateMin, entry.publishDateMax);
             const key = `${r.min}|${r.max}`;
@@ -140,8 +140,8 @@ export function calcChunk(options: {
     blockStart: number;
     blockEnd: number;
 } {
-    const list = syncListOf(options.source).value
-        .filter(filterByTypeMemberOf(options))
+    const list = syncListOf(options.source)
+        .value.filter(filterByTypeMemberOf(options))
         .sort((a, b) => a.blockStart - b.blockStart);
     let blockStart: number;
     let blockEnd: number;
@@ -167,8 +167,8 @@ export function getGroups(options: {
     const chunkType = getChunkTypeString(options.type, options.subType);
     const groups = new Set<string>();
 
-    syncListOf(options.source).value
-        .filter((entry) => entry.chunkType === chunkType)
+    syncListOf(options.source)
+        .value.filter((entry) => entry.chunkType === chunkType)
         .forEach((entry) => {
             entry.memberOf.forEach((group) => groups.add(group));
         });
@@ -190,8 +190,8 @@ export function getLanguageSets(options: {
     const chunkType = getChunkTypeString(options.type, options.subType);
     const languageSets = new Set<string>();
 
-    syncListOf(options.source).value
-        .filter((entry) => entry.chunkType === chunkType)
+    syncListOf(options.source)
+        .value.filter((entry) => entry.chunkType === chunkType)
         .forEach((entry) => {
             if (!entry.languages || !Array.isArray(entry.languages)) return;
 
@@ -216,8 +216,8 @@ export function getGroupSets(options: {
     const chunkType = getChunkTypeString(options.type, options.subType);
     const groupSets = new Set<string>();
 
-    syncListOf(options.source).value
-        .filter((entry) => entry.chunkType === chunkType)
+    syncListOf(options.source)
+        .value.filter((entry) => entry.chunkType === chunkType)
         .forEach((entry) => {
             if (entry.memberOf.every((group) => options.memberOf.includes(group))) {
                 // If all groups in entry are in the options.memberOf, use the entry's memberOf
@@ -233,8 +233,8 @@ export function getGroupSets(options: {
  */
 export function getLanguages(source?: SyncSource): string[] {
     const languages = new Set<string>();
-    syncListOf(source).value
-        .filter(
+    syncListOf(source)
+        .value.filter(
             (entry) =>
                 entry.chunkType === getChunkTypeString(DocType.Content, DocType.Post) ||
                 entry.chunkType === getChunkTypeString(DocType.Content, DocType.Tag),
@@ -253,9 +253,7 @@ export function getLanguages(source?: SyncSource): string[] {
  * to different publishDate windows are treated as separate columns.
  */
 export const filterByTypeMemberOf = (options: SyncBaseOptions) => (entry: SyncListEntry) => {
-    const { type, subType, alwaysOffline: entryOffline } = splitChunkTypeString(
-        entry.chunkType,
-    );
+    const { type, subType, alwaysOffline: entryOffline } = splitChunkTypeString(entry.chunkType);
     if ((entryOffline ?? false) !== (options.alwaysOffline ?? false)) return false;
 
     if (type !== options.type) return false;

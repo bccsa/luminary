@@ -82,7 +82,8 @@ export async function initUserActivitySource(): Promise<void> {
         initPromise = (async () => {
             await getUserActivitySource();
             const { userPreferencesAsRef } = await import("@/globalConfig");
-            const { migrateUserActivityOnStartup } = await import("./migrate");
+            const { migrateUserActivityOnStartup, migrateSeenToUserActivity } =
+                await import("./migrate");
             await migrateUserActivityOnStartup(userPreferencesAsRef.value.likes);
             delete userPreferencesAsRef.value.likes;
 
@@ -93,6 +94,7 @@ export async function initUserActivitySource(): Promise<void> {
             valid.sort((a, b) => Number(a.type === "viewed") - Number(b.type === "viewed"));
             await addMissingUserActivity(valid);
             await db.userActivity.clear();
+            await migrateSeenToUserActivity();
             // The marker lives with the data, so clearing a source clears its owner too.
             localStorage.removeItem(OWNER_KEY);
             notifyUserActivityChanged();

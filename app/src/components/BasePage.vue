@@ -10,6 +10,7 @@ import type { ContentDto } from "luminary-shared";
 import { ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { useBackNavigation } from "@/composables/useBackNavigation";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
+import { useScrollMemory } from "@/composables/useScrollMemory";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
@@ -26,11 +27,14 @@ const props = defineProps<{
     desktopTopBar?: boolean;
     /** The centre slot is occupied before any scrolling; keep the row below the chrome clear for it. */
     reserveTopBarCenter?: boolean;
+    /** Lines the desktop banner up with the article column instead of the full page width. */
+    articleWidthBanner?: boolean;
 }>();
 
 const { onBackClick } = useBackNavigation();
 
 const main = ref<HTMLElement | undefined>(undefined);
+useScrollMemory(main);
 
 // The mobile chrome overlays the scroller and steps aside via transform —
 // a layout animation would resize the page mid-scroll and read as the text
@@ -134,10 +138,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div
-        ref="pageRoot"
-        class="flex h-full w-full scrollbar-hide"
-    >
+    <div ref="pageRoot" class="flex h-full w-full scrollbar-hide">
         <!-- Desktop left sidebar — prerendered on the SSG build too (public nav /
              logo; the auth/Dexie bits self-defer inside the component). -->
         <DesktopSidebar />
@@ -160,10 +161,7 @@ onUnmounted(() => {
                 </TopBar>
             </div>
 
-            <Teleport
-                v-if="notificationsReady"
-                to="body"
-            >
+            <Teleport v-if="notificationsReady" to="body">
                 <NotificationToastManager v-if="showNotifications" />
             </Teleport>
 
@@ -264,10 +262,7 @@ onUnmounted(() => {
 
                     <!-- Spacer that keeps in-flow content (banners, the page title) out from under a
                      centre-slot control that is showing before the page has scrolled. -->
-                    <div
-                        v-if="desktopTopBar && reserveTopBarCenter"
-                        class="h-11"
-                    />
+                    <div v-if="desktopTopBar && reserveTopBarCenter" class="h-11" />
 
                     <!-- Leading controls fill the pinned row edge to edge, so the page starts below it. -->
                     <div
@@ -277,10 +272,7 @@ onUnmounted(() => {
 
                     <!-- Desktop notification: normal flow below the pinned chrome; pushes article down when present.
                      [&>div]:mb-2 trims the banner's default mb-4 so the gap above the title matches the page-top gap. -->
-                    <div
-                        v-if="desktopTopBar"
-                        class="hidden justify-center lg:flex"
-                    >
+                    <div v-if="articleWidthBanner" class="hidden justify-center lg:flex">
                         <div class="w-full lg:w-3/4 lg:max-w-3xl">
                             <NotificationBannerManager
                                 v-if="showNotifications && notificationsReady"
@@ -289,10 +281,10 @@ onUnmounted(() => {
                         </div>
                     </div>
 
-                    <!-- Notification for mobile (desktopTopBar pages) and all non-desktopTopBar pages. -->
+                    <!-- Notification for mobile (article pages) and all other pages. -->
                     <NotificationBannerManager
                         v-if="showNotifications && notificationsReady"
-                        :class="desktopTopBar ? 'lg:hidden' : 'px-2'"
+                        :class="articleWidthBanner ? 'lg:hidden' : 'px-2'"
                     />
 
                     <slot />

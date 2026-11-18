@@ -43,6 +43,8 @@ import { computeEstimatedReadingMinutes } from "@/util/readingTime";
 import { ref, computed } from "vue";
 import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
+import BasePage from "@/components/BasePage.vue";
+import ArticleOutline from "../ArticleOutline.vue";
 import RelatedContent from "@/components/content/RelatedContent.vue";
 import ReadMore from "@/components/content/ReadMore.vue";
 import * as auth from "@/auth";
@@ -53,6 +55,7 @@ import { articleJsonLd, languageCodeForContent } from "@/seo/contentHead";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import ShareMenu from "@/components/content/ShareMenu.vue";
 import { highlightVersion } from "@/recommendation/highlightStore";
+import { bumpSessionNow } from "@/util/sessionNow";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 const mockIsExternalNavigation = vi.hoisted(() => vi.fn());
@@ -66,6 +69,17 @@ type ReadingTrackerOptions = Parameters<
 const readingTrackerOptions = vi.hoisted(() => ({
     current: undefined as ReadingTrackerOptions | undefined,
 }));
+const queryRemoteMock = vi.hoisted(() => vi.fn());
+vi.mock("luminary-shared", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("luminary-shared")>();
+    // A proxy, not a spread, so live bindings such as `db` (assigned at init) stay live.
+    return new Proxy(actual, {
+        get: (target, key) =>
+            key === "queryRemote"
+                ? (...args: unknown[]) => queryRemoteMock(...args)
+                : target[key as keyof typeof target],
+    });
+});
 
 vi.mock("@/recommendation/affinityStore", () => ({
     affinityProfile: affinityProfileMock,
@@ -298,7 +312,7 @@ describe("SingleContent", () => {
         });
     });
 
-    it("does not render the SSR article-text marker on the hydrated client", async () => {
+    it("does not render the SSG article-text marker on the hydrated client", async () => {
         // The marker is prerender-only (import.meta.env.SSR): the hydrated client must
         // omit it so the recovered text doesn't carry a stale attribute into the vdom.
         wrapper = mount(SingleContent, {
@@ -311,7 +325,7 @@ describe("SingleContent", () => {
             expect(wrapper!.find("article").exists()).toBe(true);
         });
 
-        expect(wrapper!.find("[data-ssr-article-text]").exists()).toBe(false);
+        expect(wrapper!.find("[data-ssg-article-text]").exists()).toBe(false);
     });
 
     it("displays the publish date", async () => {
@@ -783,6 +797,26 @@ describe("SingleContent", () => {
         });
     });
 
+    it("offers translations in languages that are not downloaded", async () => {
+        await db.docs.delete(mockFrenchContentDto._id);
+        cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
+        queryRemoteMock.mockResolvedValue([mockEnglishContentDto, mockFrenchContentDto]);
+        isConnected.value = true;
+
+        wrapper = mount(SingleContent, { props: { slug: mockEnglishContentDto.slug } });
+
+        await waitForExpect(() => {
+            expect(wrapper!.find("[data-test='translationSelector']").exists()).toBe(true);
+        });
+        expect(queryRemoteMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                selector: {
+                    $and: [{ type: "content" }, { parentId: mockEnglishContentDto.parentId }],
+                },
+            }),
+        );
+    });
+
     it("shows the notification when the content is available in the preferred language", async () => {
         await initLanguage();
 
@@ -1100,6 +1134,19 @@ describe("SingleContent", () => {
         expect(getReadingProgress(mockEnglishContentDto._id)).toBe(60);
     });
 
+    it("lets the resume pill overlay a hero image instead of pushing it down", async () => {
+        setReadingProgress(mockEnglishContentDto._id, 60);
+
+        wrapper = mount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.findComponent(ArticleOutline).props("offerResume")).toBe(true);
+        });
+        expect(wrapper!.findComponent(BasePage).props("reserveTopBarCenter")).toBe(false);
+    });
+
     it("records affinity exactly once when a reading session ends", async () => {
         const wrapper = shallowMount(SingleContent, {
             props: { slug: mockEnglishContentDto.slug },
@@ -1262,5 +1309,46 @@ describe("SingleContent", () => {
         );
         wrapper.unmount();
         setTimeoutSpy.mockRestore();
+    });
+
+    describe("resume offer when a live publish briefly drops the article", () => {
+        async function mountAndLiveRebuild(beforeRebuild: () => void | Promise<void>) {
+            wrapper = mount(SingleContent, { props: { slug: mockEnglishContentDto.slug } });
+            await waitForExpect(() => {
+                expect(wrapper!.findComponent(ArticleOutline).exists()).toBe(true);
+            });
+            await beforeRebuild();
+
+            // Newly published content re-keys the content query, which clears and refills it.
+            bumpSessionNow(Date.now() + 1000);
+            await flushPromises();
+            await waitForExpect(() => {
+                expect(wrapper!.findComponent(ArticleOutline).exists()).toBe(true);
+            });
+            await nextTick();
+            return wrapper!.findComponent(ArticleOutline);
+        }
+
+        it("does not offer to resume progress the reader made on this visit", async () => {
+            const outline = await mountAndLiveRebuild(() => {
+                expect(wrapper!.findComponent(ArticleOutline).props("offerResume")).toBe(false);
+                setReadingProgress(mockEnglishContentDto._id, 27);
+            });
+
+            expect(outline.props("offerResume")).toBe(false);
+        });
+
+        it("keeps a dismissed resume offer dismissed", async () => {
+            setReadingProgress(mockEnglishContentDto._id, 40);
+            const outline = await mountAndLiveRebuild(async () => {
+                const offered = wrapper!.findComponent(ArticleOutline);
+                expect(offered.props("offerResume")).toBe(true);
+                offered.vm.$emit("dismiss");
+                await nextTick();
+                expect(offered.props("offerResume")).toBe(false);
+            });
+
+            expect(outline.props("offerResume")).toBe(false);
+        });
     });
 });

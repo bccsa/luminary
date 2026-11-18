@@ -85,8 +85,44 @@ export interface RosterTile {
     index: number;
     /** Left edge in px from the roster's left. */
     left: number;
+    /** Width in px: the roster's tile width, stretched for the first and last frame to reach the roster's edges. */
+    width: number;
     /** The time the frame is looked up at: the middle of the slot it covers. */
     time: number;
+}
+
+/**
+ * A roster frame's width in px: the sprite's shape at the strip's `height`, on whole device pixels (`pixelRatio` to a
+ * px), never under 24 px. A width between device pixels would put every frame's edge on a different fraction of one.
+ */
+export function rosterTileWidth(
+    height: number,
+    spriteW: number,
+    spriteH: number,
+    pixelRatio = 1,
+): number {
+    const ratio = pixelRatio > 0 ? pixelRatio : 1;
+    const width = spriteW > 0 && spriteH > 0 ? (height * spriteW) / spriteH : 0;
+    return Math.max(24, Math.round(width * ratio) / ratio);
+}
+
+/**
+ * Where a roster frame is drawn: its left edge on a whole device pixel, and the scale that stretches its sprite crop
+ * (`w` × `h`) over the whole tile, so neighbours meet edge to edge with no seam, no overlap and no dark sliver.
+ */
+export function rosterTileBox(
+    left: number,
+    tileWidth: number,
+    height: number,
+    crop: { w: number; h: number },
+    pixelRatio = 1,
+): { x: number; scaleX: number; scaleY: number } {
+    const ratio = pixelRatio > 0 ? pixelRatio : 1;
+    return {
+        x: Math.round(left * ratio) / ratio,
+        scaleX: crop.w > 0 ? tileWidth / crop.w : 1,
+        scaleY: crop.h > 0 ? height / crop.h : 1,
+    };
 }
 
 /**
@@ -115,13 +151,23 @@ export function rosterTiles(
     const pxPerSecond = tileWidth / step;
     const first = Math.floor((time - markerX / pxPerSecond) / step);
     const last = Math.ceil((time + (width - markerX) / pxPerSecond) / step);
+    const lastIndex = Math.ceil(duration / step) - 1;
     const tiles: RosterTile[] = [];
     for (let index = first; index <= last; index++) {
         const start = index * step;
         if (start >= duration || start + step <= 0) continue;
+        let left = markerX + (start - time) * pxPerSecond;
+        let tileWidthPx = tileWidth;
+        // The first and last frames stretch to the roster's edges rather than leaving an empty gap beyond the video.
+        if (index === 0 && left > 0) {
+            tileWidthPx += left;
+            left = 0;
+        }
+        if (index === lastIndex && left + tileWidthPx < width) tileWidthPx = width - left;
         tiles.push({
             index,
-            left: markerX + (start - time) * pxPerSecond,
+            left,
+            width: tileWidthPx,
             time: Math.min(Math.max(0, start + step / 2), Math.max(0, duration - 0.001)),
         });
     }

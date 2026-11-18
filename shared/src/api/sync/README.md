@@ -36,7 +36,7 @@ Each sync operation creates entries in the `syncList` array with the following s
 `Content` and its sibling `DeleteCmd` entries — other chunk types have no `publishDate`
 field and leave them undefined (treated as an open range).
 
-**Language keep (Content).** `languages` is the language *set* a Content column applies to. The
+**Language keep (Content).** `languages` is the language _set_ a Content column applies to. The
 Content sync query does not filter by exact membership: it uses a **set-based priority-fallback
 keep** — keep a doc if its `language` is in the set, OR (fallback) none of the set's languages has a
 published translation of that document (so the doc's own translation is the last-resort fallback).
@@ -92,7 +92,7 @@ Start an autonomous sync runner for a specific document type.
   the column. Only meaningful for `Content` (and its `DeleteCmd` sibling); leave undefined for
   other types — an undefined bound is treated as an open range.
 - `source` (`SyncSource`, optional): Source-scoped sync state/storage target. When provided,
-    `sync()` uses source mode (single-column `syncBatch` path) and does not add DeleteCmd companions.
+  `sync()` uses source mode (single-column `syncBatch` path) and does not add DeleteCmd companions.
 
 > The `type`/`subType` examples below use illustrative type names (e.g. `"content:post"`) as
 > shorthand for the resulting `chunkType`. In real calls `type` and `subType` are `DocType`

@@ -51,7 +51,9 @@ function isEndpointUnavailableError(error: unknown): boolean {
     }
 
     const message = typeof e?.message === "string" ? e.message : "";
-    return message.includes("getaddrinfo") || message.includes("JWKS") || message.includes("network");
+    return (
+        message.includes("getaddrinfo") || message.includes("JWKS") || message.includes("network")
+    );
 }
 
 @Injectable()

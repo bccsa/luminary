@@ -59,10 +59,7 @@ export function computeEstimatedReadingMinutes(
  * Milliseconds the active block must remain eligible before it is confirmed.
  * Scales with word count and language WPM; clamped to min/max bounds.
  */
-export function computeBlockDwellMs(
-    wordCount: number,
-    wordsPerMinute?: number | null,
-): number {
+export function computeBlockDwellMs(wordCount: number, wordsPerMinute?: number | null): number {
     if (wordCount <= 0) return READING_MIN_DWELL_MS;
     const wpm = resolveReadingSpeedWpm(wordsPerMinute);
     const ms = Math.round((wordCount / wpm) * 60_000);

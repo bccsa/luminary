@@ -23,12 +23,10 @@ import { groupLabel } from "@/util/groups";
  * everything but search behind an "Adjustments" button opening a modal — driven by isSmallScreen
  * rather than separate Mobile/Desktop components, since the two layouts share all their state.
  *
- * Pages with a search interaction or filter dimensions too specific to generalize (e.g.
- * ContentOverview's Enter/Esc-driven min-length search, or filters beyond a single group set)
- * can still reuse just the responsive shell: override the `search` slot with their own input and
- * put every filter control — including a page-owned group filter — in `extra-filters` /
- * `extra-filters-mobile`, with their own chip list in `selected-filters`. In that mode the
- * `search` model and the built-in group filter are simply unused.
+ * Every overview uses this search box, so search looks and behaves the same across the CMS.
+ * Pages with filter dimensions beyond a single group set (e.g. ContentOverview) put every filter
+ * control — including a page-owned group filter — in `extra-filters` / `extra-filters-mobile`,
+ * with their own chip list in `selected-filters`; the built-in group filter is then unused.
  */
 
 type FilterOptionsProps = {
@@ -61,7 +59,6 @@ const props = withDefaults(defineProps<FilterOptionsProps>(), {
 
 const emit = defineEmits<{ reset: [] }>();
 
-// Optional — unused when a page supplies its own `#search` slot content instead.
 const search = defineModel<string>("search", { default: "" });
 const selectedGroups = defineModel<string[]>("selectedGroups", { default: () => [] });
 
@@ -95,6 +92,13 @@ const canSubmitSearch = computed(
 const showClearSearch = computed(
     () => props.submitSearch && (searchInput.value.length >= SEARCH_MIN_CHARS || !!search.value),
 );
+// Keeps typed text clear of the Go and clear buttons.
+const trailingPaddingClass = computed(() => {
+    if (canSubmitSearch.value && showClearSearch.value) return "pr-[5.5rem]";
+    if (canSubmitSearch.value) return "pr-14";
+    if (showClearSearch.value) return "pr-10";
+    return undefined;
+});
 
 function commitSearch() {
     if (canSubmitSearch.value) search.value = searchInput.value;
@@ -125,43 +129,43 @@ function handleReset() {
 <template>
     <div class="relative z-20 flex flex-col gap-1 overflow-visible">
         <div class="flex h-10 w-full items-center gap-1">
-            <slot name="search" :is-small-screen="isSmallScreen">
-                <LInput
-                    type="text"
-                    :icon="MagnifyingGlassIcon"
-                    class="h-full min-w-0 flex-grow"
-                    name="search"
-                    :placeholder="searchPlaceholder"
-                    data-test="search-input"
-                    v-model="searchInput"
-                    :full-height="true"
-                    @keydown.enter="commitSearch"
-                    @keydown.esc="clearSearch"
-                >
-                    <template v-if="submitSearch" #searchButton>
-                        <div class="flex items-center gap-1">
-                            <button
-                                v-if="canSubmitSearch"
-                                type="button"
-                                class="rounded-md bg-white px-2 py-1 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50"
-                                data-test="search-go-button"
-                                @click="commitSearch"
-                            >
-                                Go
-                            </button>
-                            <button
-                                v-if="showClearSearch"
-                                type="button"
-                                aria-label="Clear search"
-                                data-test="search-clear-button"
-                                @click="clearSearch"
-                            >
-                                <XMarkIcon class="h-5 w-5 cursor-pointer text-zinc-500" />
-                            </button>
-                        </div>
-                    </template>
-                </LInput>
-            </slot>
+            <LInput
+                type="text"
+                :icon="MagnifyingGlassIcon"
+                class="h-full min-w-0 flex-grow"
+                name="search"
+                :placeholder="searchPlaceholder"
+                autocomplete="off"
+                data-test="search-input"
+                v-model="searchInput"
+                :full-height="true"
+                :trailing-padding-class="trailingPaddingClass"
+                @keydown.enter="commitSearch"
+                @keydown.esc="clearSearch"
+            >
+                <template v-if="submitSearch" #searchButton>
+                    <div class="flex items-center gap-1">
+                        <button
+                            v-if="canSubmitSearch"
+                            type="button"
+                            class="rounded-md bg-white px-2 py-1 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50"
+                            data-test="search-go-button"
+                            @click="commitSearch"
+                        >
+                            Go
+                        </button>
+                        <button
+                            v-if="showClearSearch"
+                            type="button"
+                            aria-label="Clear search"
+                            data-test="search-clear-button"
+                            @click="clearSearch"
+                        >
+                            <XMarkIcon class="h-5 w-5 cursor-pointer text-zinc-500" />
+                        </button>
+                    </div>
+                </template>
+            </LInput>
 
             <template v-if="!isSmallScreen">
                 <div class="relative flex h-full items-center gap-1">

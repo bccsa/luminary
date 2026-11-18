@@ -99,6 +99,7 @@ import {
     isAuthPluginInstalled,
     loginWithProvider,
     openProviderModal,
+    PENDING_PROVIDER_KEY,
     persistActiveProvider,
     providerModalReturnTo,
     readPersistedProvider,
@@ -297,13 +298,15 @@ describe("auth", () => {
     });
 
     describe("loginWithProvider", () => {
-        it("persists the provider and starts a PKCE redirect with a generic OIDC manager", async () => {
+        it("records the sign-in as pending and starts a PKCE redirect with a generic OIDC manager", async () => {
             mockClearStaleState.mockResolvedValue(undefined);
             mockSigninRedirect.mockResolvedValue(undefined);
 
             await loginWithProvider(providerB, { prompt: "login" });
 
-            expect(readPersistedProvider()?._id).toBe(providerB._id);
+            // Only a completed callback makes it the active provider.
+            expect(readPersistedProvider()).toBeNull();
+            expect(JSON.parse(localStorage.getItem(PENDING_PROVIDER_KEY)!)._id).toBe(providerB._id);
             expect(activeProviderId.value).toBe(providerB._id);
             expect(isAuthPluginInstalled.value).toBe(true);
             expect(mockUserManager).toHaveBeenCalledWith(
@@ -968,11 +971,106 @@ describe("auth", () => {
 
             expect(location.pathname + location.search).toBe("/dashboard?tab=posts");
         });
+
+        describe("a login the user backed out of", () => {
+            beforeEach(() => {
+                mockClearStaleState.mockResolvedValue(undefined);
+                mockSigninRedirect.mockResolvedValue(undefined);
+                mockGetUser.mockResolvedValue(null);
+                mockSigninSilent.mockRejectedValue(new Error("login_required"));
+            });
+
+            it("does not tie the next boot to the abandoned provider", async () => {
+                await loginWithProvider(providerA);
+                // Back from the provider's login page: a fresh boot without a callback.
+                await setupAuth(appStub, routerStub);
+
+                expect(isAuthPluginInstalled.value).toBe(false);
+                expect(activeProviderId.value).toBeNull();
+                expect(readPersistedProvider()).toBeNull();
+                expect(hasPersistedSession()).toBe(false);
+                expect(localStorage.getItem(PENDING_PROVIDER_KEY)).toBeNull();
+            });
+
+            it("lets the user finish signing in with a different provider", async () => {
+                await loginWithProvider(providerA);
+                await setupAuth(appStub, routerStub);
+
+                await loginWithProvider(providerB);
+                history.replaceState(null, "", "/?code=abc&state=xyz");
+                mockSigninRedirectCallback.mockResolvedValue(user);
+                mockGetUser.mockResolvedValue(user);
+                await setupAuth(appStub, routerStub);
+
+                expect(mockUserManager).toHaveBeenLastCalledWith(
+                    expect.objectContaining({ client_id: providerB.clientId }),
+                );
+                expect(activeProviderId.value).toBe(providerB._id);
+                expect(readPersistedProvider()?._id).toBe(providerB._id);
+                expect(localStorage.getItem(PENDING_PROVIDER_KEY)).toBeNull();
+            });
+
+            it("falls back to provider selection when a lapsed session's re-login is abandoned", async () => {
+                persistActiveProvider(providerA);
+                await setupAuth(appStub, routerStub);
+                await useAuth().loginWithRedirect();
+
+                await setupAuth(appStub, routerStub);
+
+                expect(isAuthPluginInstalled.value).toBe(false);
+                expect(readPersistedProvider()).toBeNull();
+            });
+
+            it("drops a failed callback's provider instead of keeping it as the session", async () => {
+                await loginWithProvider(providerA);
+                history.replaceState(null, "", "/?code=abc&state=xyz");
+                mockSigninRedirectCallback.mockRejectedValue(new Error("access_denied"));
+
+                await setupAuth(appStub, routerStub);
+
+                expect(isAuthPluginInstalled.value).toBe(false);
+                expect(readPersistedProvider()).toBeNull();
+            });
+
+            it("keeps a shared-device forced re-authentication for the next attempt", async () => {
+                localStorage.setItem("forceReauthOnNextLogin", "true");
+                await loginWithProvider(providerA);
+                await setupAuth(appStub, routerStub);
+
+                await loginWithProvider(providerB);
+
+                expect(mockSigninRedirect).toHaveBeenLastCalledWith(
+                    expect.objectContaining({ prompt: "login" }),
+                );
+            });
+
+            it("releases the provider when the browser restores the page from the back-forward cache", async () => {
+                await loginWithProvider(providerA);
+
+                const pageshow = new Event("pageshow");
+                Object.defineProperty(pageshow, "persisted", { value: true });
+                window.dispatchEvent(pageshow);
+
+                expect(isAuthPluginInstalled.value).toBe(false);
+                expect(readPersistedProvider()).toBeNull();
+                expect(localStorage.getItem(PENDING_PROVIDER_KEY)).toBeNull();
+            });
+        });
     });
 
     describe("useAuth", () => {
+        const restoreSession = async () => {
+            persistActiveProvider(providerA);
+            mockGetUser.mockResolvedValue({
+                access_token: "session-token",
+                expired: false,
+                profile: { sub: "user-1" },
+            });
+            await setupAuth({} as App<Element>, {} as Router);
+        };
+
         it("refuses offline logout inside the auth function without changing credentials or activity", async () => {
-            await loginWithProvider(providerA);
+            await restoreSession();
             isConnected.value = false;
             expect(await useAuth().logout()).toBe(false);
             expect(mockFlushActivity).not.toHaveBeenCalled();
@@ -985,7 +1083,7 @@ describe("auth", () => {
         });
 
         it("keeps the session and data when the unsent warning is cancelled", async () => {
-            await loginWithProvider(providerA);
+            await restoreSession();
             mockFlushActivity.mockResolvedValue(false);
             const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
             expect(await useAuth().logout()).toBe(false);
@@ -997,7 +1095,7 @@ describe("auth", () => {
         });
 
         it("clears activity before credentials only after the unsent warning is accepted", async () => {
-            await loginWithProvider(providerA);
+            await restoreSession();
             mockFlushActivity.mockResolvedValue(false);
             const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
             mockClearActivity.mockImplementation(async () => {
@@ -1012,7 +1110,7 @@ describe("auth", () => {
         });
 
         it("retains activity if connectivity is lost while flushing", async () => {
-            await loginWithProvider(providerA);
+            await restoreSession();
             mockFlushActivity.mockImplementation(async () => {
                 isConnected.value = false;
                 return false;

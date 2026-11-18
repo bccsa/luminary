@@ -2,6 +2,8 @@
 import { computed, nextTick, onMounted, ref } from "vue";
 import type { Chapter, ThumbnailSpriteCue } from "@luminary-media-converter/player-web";
 import type { PlayerMessages } from "../messages";
+import { numberedChapter } from "../ui/chapterBar";
+import { chapterFrameTime } from "../ui/chapterFrameTime";
 import { formatClock } from "../ui/scrubPreview";
 import { withSectionHeadings, type PlayerUpNextItem } from "../upNext";
 import NextUpThumb from "./NextUpThumb.vue";
@@ -24,8 +26,10 @@ const props = defineProps<{
     idPrefix: string;
     /** The tab to open on, when it has anything to show. */
     initialTab?: "chapters" | "upnext";
-    /** The scrub preview's frame at a time, once its thumbnails are in: each chapter shows the one near its start. */
+    /** The scrub preview's frame at a time, once its thumbnails are in: each chapter shows the one at its middle. */
     thumbnailAt?: (seconds: number) => ThumbnailSpriteCue | null;
+    /** Where the last chapter ends, for its picture. */
+    duration?: number;
 }>();
 
 const emit = defineEmits<{
@@ -57,13 +61,14 @@ const tabId = (tab: Tab): string => `${baseId}-tab-${tab}`;
 const haveHours = computed(() => props.chapters.some((chapter) => chapter.startTime >= 3600));
 
 /**
- * A chapter's picture: the preview frame just after its start (the very start can be the frame before the cut), cut
+ * A chapter's picture: the preview frame at its middle, which says more of what it is about than its first frame, cut
  * out of its sprite sheet and scaled to the tile. A sheet's whole size is not in a cue, so the crop is drawn at its
  * own size and the whole scaled, as the scrub preview does.
  */
 const chapterFrames = computed(() =>
-    props.chapters.map((chapter) => {
-        const cue = props.thumbnailAt?.(chapter.startTime + 0.5) ?? null;
+    props.chapters.map((_, index) => {
+        const cue =
+            props.thumbnailAt?.(chapterFrameTime(props.chapters, index, props.duration)) ?? null;
         if (!cue) return null;
         if (!cue.w || !cue.h) {
             return {
@@ -157,11 +162,7 @@ defineExpose({ hasFocus });
         @click.stop
     >
         <div class="lmpl-browse-head">
-            <div
-                class="lmpl-browse-tabs"
-                role="tablist"
-                :aria-label="messages.browse"
-            >
+            <div class="lmpl-browse-tabs" role="tablist" :aria-label="messages.browse">
                 <button
                     v-for="tab in tabs"
                     :id="tabId(tab.id)"
@@ -205,24 +206,15 @@ defineExpose({ hasFocus });
             role="tabpanel"
             :aria-labelledby="tabId(active)"
         >
-            <ol
-                v-if="active === 'chapters'"
-                class="lmpl-browse-list"
-            >
-                <li
-                    v-for="(chapter, index) in chapters"
-                    :key="`${chapter.startTime}-${index}`"
-                >
+            <ol v-if="active === 'chapters'" class="lmpl-browse-list">
+                <li v-for="(chapter, index) in chapters" :key="`${chapter.startTime}-${index}`">
                     <button
                         type="button"
                         class="lmpl-browse-row lmpl-chapter"
                         :aria-current="index === currentChapter ? 'true' : undefined"
                         @click="emit('pick-chapter', chapter)"
                     >
-                        <span
-                            class="lmpl-upnext-thumb lmpl-chapter-tile"
-                            aria-hidden="true"
-                        >
+                        <span class="lmpl-upnext-thumb lmpl-chapter-tile" aria-hidden="true">
                             <span
                                 v-if="chapterFrames[index]"
                                 class="lmpl-chapter-frame"
@@ -241,13 +233,7 @@ defineExpose({ hasFocus });
                                 stroke-linejoin="round"
                             >
                                 <path d="M10 6h10M10 12h10M10 18h10" />
-                                <rect
-                                    x="3.5"
-                                    y="4.5"
-                                    width="3"
-                                    height="3"
-                                    rx="0.8"
-                                />
+                                <rect x="3.5" y="4.5" width="3" height="3" rx="0.8" />
                                 <rect
                                     x="3.5"
                                     y="10.5"
@@ -256,17 +242,13 @@ defineExpose({ hasFocus });
                                     rx="0.8"
                                     fill="currentColor"
                                 />
-                                <rect
-                                    x="3.5"
-                                    y="16.5"
-                                    width="3"
-                                    height="3"
-                                    rx="0.8"
-                                />
+                                <rect x="3.5" y="16.5" width="3" height="3" rx="0.8" />
                             </svg>
                         </span>
                         <span class="lmpl-upnext-text">
-                            <span class="lmpl-upnext-title">{{ chapter.title }}</span>
+                            <span class="lmpl-upnext-title">{{
+                                numberedChapter(index, chapter.title)
+                            }}</span>
                             <span class="lmpl-upnext-subtitle lmpl-chapter-time">{{
                                 formatClock(chapter.startTime, haveHours)
                             }}</span>
@@ -274,19 +256,9 @@ defineExpose({ hasFocus });
                     </button>
                 </li>
             </ol>
-            <ul
-                v-else
-                class="lmpl-browse-list"
-            >
-                <template
-                    v-for="row in upNextRows"
-                    :key="row.item.id"
-                >
-                    <li
-                        v-if="row.heading"
-                        class="lmpl-browse-heading"
-                        role="presentation"
-                    >
+            <ul v-else class="lmpl-browse-list">
+                <template v-for="row in upNextRows" :key="row.item.id">
+                    <li v-if="row.heading" class="lmpl-browse-heading" role="presentation">
                         {{ row.heading }}
                     </li>
                     <li>
@@ -302,11 +274,9 @@ defineExpose({ hasFocus });
                             </span>
                             <span class="lmpl-upnext-text">
                                 <span class="lmpl-upnext-title">{{ row.item.title }}</span>
-                                <span
-                                    v-if="row.item.subtitle"
-                                    class="lmpl-upnext-subtitle"
-                                    >{{ row.item.subtitle }}</span
-                                >
+                                <span v-if="row.item.subtitle" class="lmpl-upnext-subtitle">{{
+                                    row.item.subtitle
+                                }}</span>
                             </span>
                         </button>
                     </li>

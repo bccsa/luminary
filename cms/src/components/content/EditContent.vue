@@ -12,6 +12,7 @@ import {
     TagType,
     type ContentDto,
     type LanguageDto,
+    type MediaDto,
     type TagDto,
     type Uuid,
     verifyAccess,
@@ -254,7 +255,11 @@ const createTranslation = (language: LanguageDto) => {
     });
 };
 
-const isValid = ref(true);
+// Valid only when both the parent (group membership) and the translations are. Saving gates the
+// encode too, so a post with no group can never be saved, or encoded, into a document nobody can read.
+const parentIsValid = ref(true);
+const translationsAreValid = ref(true);
+const isValid = computed(() => parentIsValid.value && translationsAreValid.value);
 
 // Guards against a rapid second save re-entering while the first is still queuing changes.
 const isSaving = ref(false);
@@ -313,7 +318,7 @@ const saveChanges = async (options?: {
 const persistChanges = async (notice?: { title: string; description: string }) => {
     isSaving.value = true;
     try {
-        await source.save();
+        await source.save(selectedLanguage.value?._id);
         notify(
             "success",
             notice?.title ?? `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
@@ -338,6 +343,29 @@ const saveEncodedMedia = async (write: () => void) => {
         return;
     }
     await saveChanges();
+};
+
+// A new version of the saved video is the encoder's change, not the editor's, so it is
+// saved on its own and the editor's other edits stay theirs to save.
+const saveMediaOnly = async (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => {
+    const otherEdits = source.hasEditsBesides(["media"]);
+    try {
+        await source.saveMedia(media);
+    } catch (err: any) {
+        notify(
+            "error",
+            "Video not saved",
+            `The edited video could not be saved to this ${props.tagOrPostType}: ${err?.message ?? err}`,
+        );
+        return;
+    }
+    notify(
+        "success",
+        "Video saved",
+        otherEdits
+            ? `The edited video was saved to this ${props.tagOrPostType}. Your other changes are not saved yet.`
+            : `The edited video was saved to this ${props.tagOrPostType}.`,
+    );
 };
 
 // The delete saves at once, so other unsaved edits must be the editor's to save first.
@@ -497,13 +525,13 @@ const contentActions = computed(() => {
             name: "Preview",
             action: () => window.open(liveUrl.value, "_blank"),
             icon: ArrowTopRightOnSquareIcon,
-            iconClass: "h-5 w-5 flex-shrink-0 dark:text-zinc-100",
+            iconClass: "h-5 w-5 flex-shrink-0 dark:text-zinc-100 text-zinc-500",
         },
         {
             name: "Duplicate",
             action: () => (showDuplicateModal.value = true),
             icon: DocumentDuplicateIcon,
-            iconClass: "h-5 w-5 flex-shrink-0 dark:text-zinc-100",
+            iconClass: "h-5 w-5 flex-shrink-0 dark:text-zinc-100 text-zinc-500",
         },
     ];
     if (canDelete.value) {
@@ -671,7 +699,9 @@ watch(isLgScreen, (isLg) => {
                             :disabled="!canEditParent"
                             :newDocument="newDocument"
                             :content="editableContent"
+                            class="border-zinc-200"
                             v-model:parent="editableParent"
+                            @updateIsValid="(val) => (parentIsValid = val)"
                         >
                             <template #supplementary>
                                 <!-- Image, media + video live inside the settings card. -->
@@ -684,6 +714,7 @@ watch(isLgScreen, (isLg) => {
                                             :tagOrPostType="props.tagOrPostType"
                                             :disabled="!canEditParent"
                                             :newDocument="newDocument"
+                                            class="border-zinc-200"
                                             v-model:parent="editableParent"
                                         />
 
@@ -702,6 +733,8 @@ watch(isLgScreen, (isLg) => {
                                                 existingParent && !isDirty ? undefined : saveChanges
                                             "
                                             :saveEncodedMedia="saveEncodedMedia"
+                                            :savedParent="existingParent"
+                                            :saveMediaOnly="saveMediaOnly"
                                             :saveDeletedMedia="saveDeletedMedia"
                                             v-model:parent="editableParent"
                                         />
@@ -727,8 +760,9 @@ watch(isLgScreen, (isLg) => {
                                 :languages="cmsLanguages"
                                 :untranslatedLanguages="untranslatedLanguages"
                                 :isContentItemDirty="isContentItemDirty"
+                                class="border-zinc-200"
                                 :existingContent="existingContent"
-                                @updateIsValid="(val) => (isValid = val)"
+                                @updateIsValid="(val) => (translationsAreValid = val)"
                                 @create-translation="(language) => createTranslation(language)"
                             />
 
@@ -755,7 +789,7 @@ watch(isLgScreen, (isLg) => {
                 class="flex w-full min-w-0 flex-1 flex-col lg:h-full lg:min-h-0 lg:overflow-hidden"
             >
                 <div
-                    class="flex w-full flex-1 flex-col bg-white dark:border-slate-700 dark:bg-slate-800/30 lg:min-h-0 lg:overflow-hidden lg:border-l lg:border-zinc-200 lg:pr-8"
+                    class="flex w-full flex-1 flex-col bg-white dark:border-slate-700 dark:bg-slate-800/30 lg:min-h-0 lg:overflow-hidden lg:border-l lg:border-zinc-200"
                 >
                     <EmptyState
                         v-if="!selectedContent"

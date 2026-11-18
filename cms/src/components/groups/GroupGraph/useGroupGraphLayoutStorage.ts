@@ -121,9 +121,7 @@ export function useGroupGraphLayoutStorage(allGroups: () => GroupDto[]) {
         if (
             movedNodes.every((movedNode) => {
                 const position = manualNodePositions.value[movedNode.id];
-                return (
-                    position?.x === movedNode.position.x && position?.y === movedNode.position.y
-                );
+                return position?.x === movedNode.position.x && position?.y === movedNode.position.y;
             })
         )
             return;

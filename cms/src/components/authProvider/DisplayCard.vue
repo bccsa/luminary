@@ -7,10 +7,9 @@ import {
     DocType,
 } from "luminary-shared";
 import { computed } from "vue";
+import DisplayCard from "../common/DisplayCard.vue";
 import LBadge from "../common/LBadge.vue";
-import { DateTime } from "luxon";
-import { ClockIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
-import { isSmallScreen } from "@/globalConfig";
+import { UserGroupIcon } from "@heroicons/vue/24/outline";
 import { capitaliseFirstLetter } from "@/util/string";
 
 type Props = {
@@ -30,89 +29,60 @@ const providerGroups = computed(() =>
     props.groups.filter((group) => props.provider.memberOf?.includes(group._id)),
 );
 
-const renderDate = (size: "default" | "small", timestampRelevance: string, timestamp: number) =>
-    size == "default"
-        ? timestamp
-            ? DateTime.fromMillis(timestamp).toLocaleString(DateTime.DATETIME_SHORT)
-            : `${timestampRelevance} not set`
-        : DateTime.fromMillis(timestamp).toLocaleString();
+const title = computed(
+    () =>
+        capitaliseFirstLetter(props.provider.displayName || props.provider.label) ||
+        props.provider.domain ||
+        "Auth provider",
+);
 
 const canEdit = computed(() =>
     verifyAccess(props.provider.memberOf ?? [], DocType.AuthProvider, AclPermission.Edit),
 );
-
-const handleEdit = () => {
-    if (canEdit.value) {
-        emit("edit", props.provider);
-    }
-};
 </script>
 
 <template>
-    <div
-        class="w-full divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 transition-all duration-200 dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:shadow-lg dark:hover:divide-slate-800/80 sm:rounded-md sm:border"
-        :class="[
-            {
-                'cursor-pointer hover:bg-zinc-50 dark:hover:bg-slate-800/50 dark:hover:shadow-none':
-                    canEdit,
-                'select-none divide-zinc-200 border-gray-200 bg-zinc-50/50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-zinc-600':
-                    !canEdit,
-            },
-        ]"
-        @click="handleEdit"
+    <DisplayCard
+        :title="title"
+        :updated-time-utc="provider.updatedTimeUtc"
+        :navigate-to="() => emit('edit', provider)"
+        :can-navigate="canEdit"
     >
-        <div class="relative flex items-center justify-between py-1">
-            <div
-                class="w-full"
-                :class="{
-                    'flex justify-between': isSmallScreen,
-                }"
-            >
-                <div
-                    class="mr-1 max-w-full truncate text-wrap text-sm font-medium dark:text-zinc-100"
-                >
-                    {{
-                        capitaliseFirstLetter(provider.displayName || provider.label) ||
-                        provider.domain ||
-                        "Auth provider"
-                    }}
+        <template #content>
+            <div class="flex w-full items-center gap-2 py-1 text-xs">
+                <div class="flex flex-nowrap gap-1 dark:text-zinc-100">
+                    <LBadge
+                        v-if="provider.domain && provider.clientId"
+                        type="default"
+                        variant="success"
+                        class="gap-1 whitespace-nowrap text-xs font-semibold"
+                    >
+                        Credentials Configured
+                    </LBadge>
+                    <LBadge
+                        v-else
+                        type="default"
+                        variant="warning"
+                        class="gap-1 whitespace-nowrap text-xs font-semibold"
+                    >
+                        No Credentials
+                    </LBadge>
+                    <LBadge
+                        v-if="isModified"
+                        type="default"
+                        variant="warning"
+                        class="gap-1 whitespace-nowrap text-xs font-semibold"
+                    >
+                        Incoming edit
+                    </LBadge>
                 </div>
             </div>
-        </div>
+        </template>
 
-        <div class="flex w-full items-center gap-2 py-1 text-xs">
-            <div class="flex flex-nowrap gap-1 dark:text-zinc-100">
-                <LBadge
-                    v-if="provider.domain && provider.clientId"
-                    type="default"
-                    variant="success"
-                    class="gap-1 whitespace-nowrap text-xs font-semibold"
-                >
-                    Credentials Configured
-                </LBadge>
-                <LBadge
-                    v-else
-                    type="default"
-                    variant="warning"
-                    class="gap-1 whitespace-nowrap text-xs font-semibold"
-                >
-                    No Credentials
-                </LBadge>
-                <LBadge
-                    v-if="isModified"
-                    type="default"
-                    variant="warning"
-                    class="gap-1 whitespace-nowrap text-xs font-semibold"
-                >
-                    Incoming edit
-                </LBadge>
-            </div>
-        </div>
-
-        <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
+        <template #mobileFooter>
             <div class="flex flex-1 items-center gap-1">
                 <div>
-                    <UserGroupIcon class="h-4 w-4 dark:text-zinc-100" />
+                    <UserGroupIcon class="h-4 w-4 text-zinc-400" />
                 </div>
                 <div class="flex flex-wrap gap-1">
                     <LBadge
@@ -120,29 +90,17 @@ const handleEdit = () => {
                         :key="group._id"
                         type="default"
                         variant="blue"
-                        class="text-xs"
                     >
                         {{ group.name }}
                     </LBadge>
-                    <LBadge
-                        v-if="providerGroups.length === 0"
-                        type="default"
-                        variant="default"
-                        class="text-xs"
-                    >
+                    <LBadge v-if="providerGroups.length === 0" type="default" variant="default">
                         No groups
                     </LBadge>
                 </div>
             </div>
-            <div class="flex w-max items-start text-xs dark:text-zinc-100">
-                <ClockIcon class="mr-[1px] h-3.5 w-3.5 dark:text-zinc-100" />
-                <span title="Last Updated" class="text-[11px]">{{
-                    renderDate("small", "Last Updated", provider.updatedTimeUtc)
-                }}</span>
-            </div>
-        </div>
+        </template>
 
-        <div v-if="!isSmallScreen" class="flex items-center justify-between pt-1 text-xs sm:gap-4">
+        <template #desktopFooter>
             <div class="flex w-full flex-1 flex-wrap items-center gap-1">
                 <UserGroupIcon class="h-4 w-4 text-zinc-400" />
                 <LBadge
@@ -150,25 +108,13 @@ const handleEdit = () => {
                     :key="group._id"
                     type="default"
                     variant="blue"
-                    class="text-xs"
                 >
                     {{ group.name }}
                 </LBadge>
-                <LBadge
-                    v-if="providerGroups.length === 0"
-                    type="default"
-                    variant="default"
-                    class="text-xs"
-                >
+                <LBadge v-if="providerGroups.length === 0" type="default" variant="default">
                     No groups
                 </LBadge>
             </div>
-            <div class="flex items-center justify-end text-zinc-400">
-                <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400" />
-                <span title="Last Updated" class="text-[11px]">{{
-                    renderDate("default", "Last updated", provider.updatedTimeUtc)
-                }}</span>
-            </div>
-        </div>
-    </div>
+        </template>
+    </DisplayCard>
 </template>

@@ -35,7 +35,7 @@ const article = (over: Partial<ContentDto> = {}): BaseDocumentDto =>
         ...over,
     }) as unknown as BaseDocumentDto;
 
-// The doc as the SSR cache write leaves it: `text` omitted, every other field —
+// The doc as the prerender cache write leaves it: `text` omitted, every other field —
 // crucially `_id` and `updatedTimeUtc` — byte-identical to the real doc.
 function textStripped(): BaseDocumentDto {
     const d = { ...(article() as Record<string, unknown>) };
@@ -111,5 +111,78 @@ describe("HybridQuery — a text-stripped cache seed must not shadow the full do
         await vi.waitFor(() => {
             expect(q.output.value[0]?.text).toBe("<p>The full article body</p>");
         });
+    });
+});
+
+describe("HybridQuery — a seeded window survives an empty read until Content sync settles", () => {
+    const instances: HybridQuery<ContentDto>[] = [];
+    const query = { selector: { type: DocType.Content }, $limit: 10 };
+    const contentColumn = (eof: boolean) => ({
+        chunkType: `${DocType.Content}:${DocType.Post}`,
+        memberOf: ["g1"],
+        blockStart: 1,
+        blockEnd: 0,
+        eof,
+    });
+
+    function seededQuery(live = false): HybridQuery<ContentDto> {
+        writeResponseCache(structuralCacheKey(query as any), {
+            local: [article() as any],
+            remote: [],
+        });
+        const q = new HybridQuery<ContentDto>(query as any, { cache: true, stripFields: [], live });
+        instances.push(q);
+        return q;
+    }
+
+    beforeEach(async () => {
+        resetRetentionBuffer();
+        await db.docs.clear();
+        localStorage.clear();
+        config.cms = false;
+        // No cutoff: no API supplement is owed, so only sync state can hold the seed.
+        config.contentPublishDateCutoff = undefined;
+        isConnected.value = true;
+        initHybridQuery({ post: vi.fn().mockResolvedValue({ docs: [] }) } as any);
+        syncList.value = [contentColumn(false)];
+    });
+
+    afterEach(() => {
+        instances.splice(0).forEach((q) => q.dispose());
+        resetRetentionBuffer();
+        localStorage.clear();
+        syncList.value = [];
+    });
+
+    it("keeps the seed when the store has not synced and the local read is empty", async () => {
+        const q = seededQuery();
+        await vi.waitFor(() => expect(q.isFetching.value).toBe(false));
+        await new Promise((r) => setTimeout(r, 20));
+        expect(q.output.value.map((d) => d._id)).toEqual(["article-1"]);
+    });
+
+    it("replaces the seed with a later non-empty live emission", async () => {
+        const q = seededQuery(true);
+        await vi.waitFor(() => expect(q.isFetching.value).toBe(false));
+        expect(q.output.value.map((d) => d._id)).toEqual(["article-1"]);
+
+        await db.docs.bulkPut([article({ _id: "article-2", slug: "article-2" } as any)]);
+        await vi.waitFor(() => expect(q.output.value.map((d) => d._id)).toEqual(["article-2"]));
+    });
+
+    it("publishes empty once sync settles with the local store still empty", async () => {
+        const q = seededQuery();
+        await vi.waitFor(() => expect(q.isFetching.value).toBe(false));
+        expect(q.output.value).toHaveLength(1);
+
+        syncList.value = [contentColumn(true)];
+        await vi.waitFor(() => expect(q.output.value).toEqual([]));
+    });
+
+    it("publishes empty straight away when the store has already synced", async () => {
+        syncList.value = [contentColumn(true)];
+        const q = seededQuery();
+        await vi.waitFor(() => expect(q.isFetching.value).toBe(false));
+        await vi.waitFor(() => expect(q.output.value).toEqual([]));
     });
 });

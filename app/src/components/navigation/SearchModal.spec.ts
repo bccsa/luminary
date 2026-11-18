@@ -762,8 +762,18 @@ describe("SearchButton", () => {
 
     describe("Keyboard navigation", () => {
         const twoResults: FtsSearchResult[] = [
-            { docId: mockEnglishContentDto._id, score: 2, wordMatchScore: 1, doc: searchMockDoc as any },
-            { docId: mockEnglishContentDto._id, score: 1, wordMatchScore: 1, doc: searchMockDoc as any },
+            {
+                docId: mockEnglishContentDto._id,
+                score: 2,
+                wordMatchScore: 1,
+                doc: searchMockDoc as any,
+            },
+            {
+                docId: mockEnglishContentDto._id,
+                score: 1,
+                wordMatchScore: 1,
+                doc: searchMockDoc as any,
+            },
         ];
 
         async function setupWithTwoResults() {

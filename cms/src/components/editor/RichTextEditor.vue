@@ -347,8 +347,12 @@ defineExpose({
     margin-bottom: 0 !important;
     border-radius: 0 !important;
     padding: 0 !important;
-    background-color: transparent;
+    background-color: #fff;
     box-shadow: none !important;
+}
+
+:root.dark :deep(.rte-editor-content) {
+    background-color: transparent;
 }
 
 :deep(.rte-editor-content .tiptap) {

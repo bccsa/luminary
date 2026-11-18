@@ -734,7 +734,9 @@ describe("PermissionService", () => {
             ).toBe(true);
 
             // Removing an already-removed (or never-registered) group is a no-op, not an error
-            expect(() => PermissionSystem.removeGroups(["group-test-remove-target-a"])).not.toThrow();
+            expect(() =>
+                PermissionSystem.removeGroups(["group-test-remove-target-a"]),
+            ).not.toThrow();
             expect(() => PermissionSystem.removeGroups(["group-test-never-existed"])).not.toThrow();
 
             PermissionSystem.removeGroups([

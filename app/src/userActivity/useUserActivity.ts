@@ -1,9 +1,10 @@
 import { ref, watch, type Ref } from "vue";
-import type { UserActivityType } from "luminary-shared";
+import type { UserActivityType, Uuid } from "luminary-shared";
 import {
     type ActivityEntry,
     getAllUserActivity,
     getUserActivity,
+    getViewedParentIds,
     userActivityVersion,
 } from "./store";
 
@@ -13,7 +14,19 @@ import {
  * is written.
  */
 export function useUserActivity(type: UserActivityType | "all"): Ref<ActivityEntry[]> {
+    return useUserActivityWithState(type).rows;
+}
+
+/**
+ * Like {@link useUserActivity}, plus `loaded`: false until the first read returns, so a
+ * page can tell "not read yet" from "nothing stored".
+ */
+export function useUserActivityWithState(type: UserActivityType | "all"): {
+    rows: Ref<ActivityEntry[]>;
+    loaded: Ref<boolean>;
+} {
     const rows = ref<ActivityEntry[]>([]);
+    const loaded = ref(false);
 
     let generation = 0;
     watch(
@@ -22,10 +35,28 @@ export function useUserActivity(type: UserActivityType | "all"): Ref<ActivityEnt
             const current = ++generation;
             const result =
                 type === "all" ? await getAllUserActivity() : await getUserActivity(type);
-            if (current === generation) rows.value = result;
+            if (current === generation) {
+                rows.value = result;
+                loaded.value = true;
+            }
         },
         { immediate: true },
     );
 
-    return rows;
+    return { rows, loaded };
+}
+
+/** The posts the user has viewed, re-read whenever an activity is written. */
+export function useViewedParentIds(): Ref<Set<Uuid>> {
+    const ids = ref<Set<Uuid>>(new Set());
+
+    watch(
+        userActivityVersion,
+        async () => {
+            ids.value = await getViewedParentIds();
+        },
+        { immediate: true },
+    );
+
+    return ids;
 }

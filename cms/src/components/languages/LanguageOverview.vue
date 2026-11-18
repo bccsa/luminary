@@ -57,14 +57,17 @@ const createNew = () => {
             <LButton
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
                 variant="primary"
+                class="max-lg:gap-x-0"
                 :icon="PlusIcon"
+                icon-class="max-lg:ml-0"
                 @click="createNew"
                 name="createLanguageBtn"
+                aria-label="Create language"
             >
-                Create language
+                <span class="hidden lg:inline">Create language</span>
             </LButton>
         </template>
-        <div class="flex flex-col gap-[8px]">
+        <div class="flex flex-col gap-[4px]">
             <EmptyState
                 v-if="!isLoading && !hasAnyContent"
                 title="No languages yet"

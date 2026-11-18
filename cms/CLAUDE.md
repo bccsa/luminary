@@ -17,7 +17,7 @@ Run from `cms/`:
 - `npm run type-check` — `vue-tsc --build --force`
 - `npm run test` / `npm run test:unit` — Vitest (jsdom). Subset: `npm run test -- src/pages/Foo.spec.ts -t "name"`.
 - `npm run lint` / `npm run lint:fix`
-- `npm run format` — Prettier on `src/`
+- `npm run format` / `npm run format:check` — Prettier on `src/` (the check runs in CI)
 
 ## Architecture
 

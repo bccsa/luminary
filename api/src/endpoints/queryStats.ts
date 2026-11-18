@@ -39,7 +39,8 @@ export function classifyQueryCost(
 ): CostVerdict {
     const docsExamined =
         stats && typeof stats.total_docs_examined === "number" ? stats.total_docs_examined : 0;
-    const returned = typeof resultsReturned === "number" && resultsReturned > 0 ? resultsReturned : 1;
+    const returned =
+        typeof resultsReturned === "number" && resultsReturned > 0 ? resultsReturned : 1;
     const ratio = docsExamined / returned;
 
     if (docsExamined > thresholds.docsExamined) {

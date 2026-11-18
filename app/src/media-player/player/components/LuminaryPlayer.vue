@@ -35,15 +35,24 @@ import { mergeMessages, type PlayerMessages } from "../messages";
 import { mergeControls, type PlayerControlsOptions } from "../controls";
 import { createKeepAlive, SILENT_AUDIO_DATA_URI, type KeepAlive } from "../ui/keepAlive";
 import { buildControlsHtml } from "../ui/controlsHtml";
+import { capQualityCard } from "../ui/qualityCap";
 import { installAutoHide, type ControlsStore } from "../ui/autoHide";
 import { attachPressActivation } from "../ui/pressActivate";
 import { stepVolume } from "../ui/volume";
+import {
+    SPRITE_WARM_KEPT,
+    SpriteWarmer,
+    spriteSheetsByDistance,
+    spriteWarmLimit,
+} from "../ui/spriteWarm";
 import { liftCues, liftLine, type LiftableCue } from "../ui/cueLift";
 import { cuesToLyrics, type LyricCue } from "../ui/lyrics";
-import { chapterMask, formatChapterOf } from "../ui/chapterBar";
+import { chapterMask, formatChapterOf, numberedChapter } from "../ui/chapterBar";
+import { hasChapterSkip, nextChapterTime, previousChapterTime } from "../ui/chapterSkip";
 import {
     attachControlTooltips,
     clampTooltipLeft,
+    tooltipFits,
     showOnTop,
     type Tooltip,
 } from "../ui/controlTooltip";
@@ -56,6 +65,7 @@ import {
     previewTimes,
     rosterFineStep,
     rosterStep,
+    rosterTileWidth,
     rosterTiles,
 } from "../ui/scrubPreview";
 import { TimelineScrub } from "../ui/timelineScrub";
@@ -64,6 +74,7 @@ import ScrubRoster from "./ScrubRoster.vue";
 import ScrubPicture from "./ScrubPicture.vue";
 import NextUpThumb from "./NextUpThumb.vue";
 import AudioFullscreen from "./AudioFullscreen.vue";
+import { languageBadge } from "../ui/audioFullscreen";
 import BrowsePanel from "./BrowsePanel.vue";
 import { imageAttempts, toPlayerImage, type PlayerImageInput } from "../image";
 import { isYouTubeUrl } from "@luminary-media-converter/player-web";
@@ -111,6 +122,8 @@ interface Props {
     appearance?: "light" | "dark";
     /** Audio language to select automatically; a viewer's own choice outranks it. */
     preferredLanguage?: string;
+    /** Saves data on scrub sprite sheets: only the playhead's own is fetched ahead, once playback is under way; the rest as the pointer reaches them. */
+    lazyThumbnails?: boolean;
     /** Options handed to the default `PlayerController`. */
     controllerOptions?: Partial<PlayerControllerOptions>;
     /** @internal Test seam — substitutes controller construction. */
@@ -172,6 +185,8 @@ const controlsHtml = computed(() =>
             captions: msg.value.captionsLabel,
             volumeUp: msg.value.volumeUp,
             volumeDown: msg.value.volumeDown,
+            previousChapter: msg.value.previousChapter,
+            nextChapter: msg.value.nextChapter,
         },
         props.nowPlaying?.title
             ? { title: props.nowPlaying.title, subtitle: props.nowPlaying.subtitle }
@@ -325,6 +340,109 @@ function onEngineTextTrackChange(): void {
 // --- lifecycle ------------------------------------------------------------
 
 const mediaListeners: [string, EventListener][] = [];
+
+/**
+ * Volume and mute carry over to every item and across restarts, where there is a mouse to set them with: a touch
+ * screen's volume is the device's, and a page that remembered mute there could open silent with no way to tell why.
+ */
+const VOLUME_KEY = "playerVolume";
+const remembersVolume = () =>
+    typeof window.matchMedia === "function" && window.matchMedia("(pointer: fine)").matches;
+function restoreVolume(media: { volume: number; muted: boolean }): void {
+    if (!remembersVolume()) return;
+    try {
+        const stored = JSON.parse(localStorage.getItem(VOLUME_KEY) ?? "null");
+        if (typeof stored?.volume === "number")
+            media.volume = Math.min(1, Math.max(0, stored.volume));
+        if (typeof stored?.muted === "boolean") media.muted = stored.muted;
+    } catch {
+        // An unreadable value is no setting.
+    }
+}
+function saveVolume(media: { volume: number; muted: boolean }): void {
+    if (!remembersVolume()) return;
+    try {
+        localStorage.setItem(
+            VOLUME_KEY,
+            JSON.stringify({ volume: media.volume, muted: media.muted }),
+        );
+    } catch {
+        // Storage refused: the setting lasts for this session only.
+    }
+}
+
+/** The height of the picture playing now; 0 before one has drawn and with sound alone. */
+const playingHeight = ref(0);
+function readPlayingHeight(): void {
+    const media = mediaEl.value as unknown as { videoHeight?: number } | null;
+    playingHeight.value = media?.videoHeight || innerVideo()?.videoHeight || 0;
+}
+
+/**
+ * The bitrate of the sound playing now, with sound alone (levels without a picture); 0 before it is known and with a
+ * picture, whose quality is its height.
+ */
+const playingBandwidth = ref(0);
+function readPlayingBandwidth(): void {
+    const engine = (
+        mediaEl.value as unknown as {
+            engine?: {
+                levels?: { bitrate?: number; height?: number }[];
+                currentLevel?: number;
+            } | null;
+        } | null
+    )?.engine;
+    const level = engine?.levels?.[engine.currentLevel ?? -1];
+    playingBandwidth.value = level && !level.height ? (level.bitrate ?? 0) : 0;
+}
+
+/**
+ * The subtitles button carries the language on show as a badge. The bar is markup the skin owns, so the badge text
+ * goes on the button as an attribute its CSS draws. Quality and sound language are left to their menus (#2565).
+ */
+const barBadges = computed(() => ({
+    captions: languageBadge(
+        state.value.subtitleTracks.find((track) => track.id === state.value.activeSubtitleTrackId)
+            ?.lang,
+    ),
+}));
+function applyBarBadges(): void {
+    const root = containerEl.value;
+    if (!root) return;
+    for (const [kind, text] of Object.entries(barBadges.value)) {
+        const button = root.querySelector<HTMLElement>(`.lmpl-opt-${kind}`);
+        if (!button) continue;
+        if (text) button.dataset.badge = text;
+        else delete button.dataset.badge;
+    }
+}
+watch(barBadges, applyBarBadges, { flush: "post" });
+onMounted(applyBarBadges);
+
+/** The heights the player offers (fewer under a Data Saver cap); the bar's quality card shows only these. */
+const offeredHeights = computed(
+    () =>
+        new Set(
+            state.value.qualities
+                .map((quality) => quality.height ?? 0)
+                .filter((height) => height > 0),
+        ),
+);
+function applyQualityCap(): void {
+    const root = containerEl.value;
+    if (root) capQualityCard(root, offeredHeights.value);
+}
+watch(offeredHeights, applyQualityCap, { flush: "post" });
+// The skin rebuilds the card's rows as the engine's levels change, so each rebuild is marked again.
+let qualityCardObserver: MutationObserver | null = null;
+onMounted(() => {
+    const root = containerEl.value;
+    if (!root || typeof MutationObserver === "undefined") return;
+    qualityCardObserver = new MutationObserver(applyQualityCap);
+    qualityCardObserver.observe(root, { childList: true, subtree: true });
+    applyQualityCap();
+});
+onBeforeUnmount(() => qualityCardObserver?.disconnect());
 let audioTrackList: EventTarget | undefined;
 let textTrackList: EventTarget | undefined;
 
@@ -365,7 +483,12 @@ watch(
         showOnTop(el);
         const frame = container.getBoundingClientRect();
         el.style.left = `${frame.left + clampTooltipLeft(tip.centre, el.offsetWidth, container.clientWidth)}px`;
-        el.style.bottom = `${document.documentElement.clientHeight - frame.bottom + tip.bottom}px`;
+        const below = tooltipFits(tip, el.offsetHeight, container.clientHeight) === "below";
+        el.classList.toggle("lmpl-tooltip-below", below);
+        el.style.top = below ? `${frame.top + tip.top}px` : "auto";
+        el.style.bottom = below
+            ? "auto"
+            : `${document.documentElement.clientHeight - frame.bottom + tip.bottom}px`;
     },
     { flush: "post" },
 );
@@ -386,12 +509,15 @@ onMounted(() => {
         media.addEventListener(type, handler);
         mediaListeners.push([type, handler]);
     };
+    restoreVolume(media);
+    on("volumechange", () => saveVolume(media));
     on("play", () => {
         keepAlive?.sync(true);
         // Played some other way (a key, the lock screen): the scrub has nothing left to hold still.
-        if (timelineScrub.isOpen) timelineScrub.reset();
+        if (timelineScrub.isOpen && !scrubResuming) timelineScrub.reset();
     });
     on("playing", () => {
+        scrubResuming = false;
         keepAlive?.sync(true);
         mediaWaiting.value = false;
     });
@@ -404,10 +530,21 @@ onMounted(() => {
         if (props.nextUp?.length && isFullscreen.value && !nextUpClosed.value) selectNextUp();
         emit("ended");
     });
-    on("timeupdate", () => emit("timeupdate", media.currentTime || 0, media.duration || 0));
+    on("timeupdate", () => {
+        // hls.js says nothing on the element when it moves between bitrates: read with the time, a few times a second.
+        readPlayingBandwidth();
+        emit("timeupdate", media.currentTime || 0, media.duration || 0);
+    });
     on("loadedmetadata", () => {
         readPictureInPicture();
+        readPlayingHeight();
         emit("loadedmetadata");
+    });
+    // A rendition switch changes the picture's size.
+    on("resize", readPlayingHeight);
+    on("emptied", () => {
+        readPlayingHeight();
+        readPlayingBandwidth();
     });
     on("loadeddata", applyPreferredLanguage);
 
@@ -418,7 +555,8 @@ onMounted(() => {
     applyFit();
     on("loadstart", applyFit);
 
-    const frame = playerEl.value;
+    // The container, not the player around it: full screen lifts the container out, and the player keeps its size in the page.
+    const frame = containerEl.value;
     if (frame && typeof ResizeObserver !== "undefined") {
         frameObserver = new ResizeObserver(([entry]) => {
             if (entry) frameWidth.value = entry.contentRect.width;
@@ -605,6 +743,14 @@ function onControlsClick(event: MouseEvent): void {
         toggleBrowse();
         return;
     }
+    const chapterStep =
+        event.target instanceof Element
+            ? event.target.closest<HTMLButtonElement>("[data-chapter-step]")
+            : null;
+    if (chapterStep) {
+        if (!chapterStep.disabled) skipChapter(chapterStep.dataset.chapterStep === "1" ? 1 : -1);
+        return;
+    }
     const target =
         event.target instanceof Element
             ? event.target.closest<HTMLElement>("[data-volume-step]")
@@ -663,10 +809,32 @@ function seek(seconds: number): void {
     mediaEl.value.currentTime = seconds;
 }
 
-/** Starts playback and reports whether the browser allowed it; a refusal is expected, not an error. */
+/** Undoes the wait {@link play} arms for a seek still under way; null when none is armed. */
+let cancelPlayOnSeeked: (() => void) | null = null;
+
+function disarmPlayOnSeeked(): void {
+    cancelPlayOnSeeked?.();
+    cancelPlayOnSeeked = null;
+}
+
+/**
+ * Starts playback and reports whether the browser allowed it; a refusal is expected, not an error.
+ * Asked for mid-seek (a scrub letting go), it is asked for again once the seek lands: a seek into media
+ * not yet buffered can leave the element paused, and a scrub must hand back the state it found.
+ */
 async function play(): Promise<boolean> {
+    const media = mediaEl.value;
+    disarmPlayOnSeeked();
+    if (media?.seeking) {
+        const onSeeked = (): void => {
+            cancelPlayOnSeeked = null;
+            if (media.paused) void media.play()?.catch(() => undefined);
+        };
+        media.addEventListener("seeked", onSeeked, { once: true });
+        cancelPlayOnSeeked = () => media.removeEventListener("seeked", onSeeked);
+    }
     try {
-        await mediaEl.value?.play();
+        await media?.play();
         return true;
     } catch {
         return false;
@@ -674,6 +842,7 @@ async function play(): Promise<boolean> {
 }
 
 function pause(): void {
+    disarmPlayOnSeeked();
     mediaEl.value?.pause();
 }
 
@@ -708,7 +877,7 @@ interface ScrubState {
     chapter: string;
     /** While the press is held, the strip of frames around the playhead that replaces the single frame. */
     roster: {
-        tiles: { key: string; left: number; cue: ThumbnailSpriteCue | null }[];
+        tiles: { key: string; left: number; width: number; cue: ThumbnailSpriteCue | null }[];
         /** Where the marker sits, in px from the roster's left. */
         markerX: number;
         tileWidth: number;
@@ -725,11 +894,11 @@ interface ScrubState {
 
 const scrub = shallowRef<ScrubState | null>(null);
 
-/** The title of the chapter a moment is in, or nothing when the video has no chapters or the moment is before the first. */
+/** The numbered chapter a moment is in, or nothing when the video has no chapters or the moment is before the first. */
 function chapterTitleAt(time: number): string {
     const chapters = state.value.chapters;
     const index = chapterIndexAt(chapters, time);
-    return index < 0 ? "" : (chapters[index]?.title ?? "");
+    return index < 0 ? "" : numberedChapter(index, chapters[index]?.title ?? "");
 }
 
 /** The timeline cut at the chapter starts; one plain bar when there are fewer than two chapters. */
@@ -807,13 +976,13 @@ function pauseForScrub(): void {
     const media = mediaEl.value;
     if (!media || media.paused || resumeAfterScrub) return;
     resumeAfterScrub = true;
-    media.pause();
+    pause();
 }
 
 function resumeFromScrub(): void {
     if (!resumeAfterScrub) return;
     resumeAfterScrub = false;
-    void mediaEl.value?.play();
+    void play();
 }
 
 /** The press ended, or was taken from us: nothing is being scrubbed any more. */
@@ -845,22 +1014,24 @@ function endScrub(event?: PointerEvent): void {
  * would seek on release, and decided here. A mouse keeps the slider's click-to-seek.
  */
 const timelineScrub = new TimelineScrub((effect) => {
-    const media = mediaEl.value;
     switch (effect.kind) {
         case "open":
             if (effect.mode === "strip") openPinAtPlayhead();
             else barScrub.value = true;
             break;
         case "close":
+            scrubResuming = false;
             putAwayPin();
             barScrub.value = false;
             barDragAt.value = null;
             break;
         case "pause":
-            media?.pause();
+            scrubResuming = false;
+            pause();
             break;
         case "play":
-            void media?.play();
+            scrubResuming = true;
+            void play();
             break;
         case "seek":
             pinAnchor.value = effect.time;
@@ -869,7 +1040,12 @@ const timelineScrub = new TimelineScrub((effect) => {
             break;
     }
 });
-onBeforeUnmount(() => timelineScrub.reset());
+onBeforeUnmount(() => {
+    timelineScrub.reset();
+    disarmPlayOnSeeked();
+});
+/** The scrub asked for play itself, after a drag: the strip stays up for its idle time, not put away as by a key. */
+let scrubResuming = false;
 
 /** Opened without frames: the bar thickens and carries a handle. */
 const barScrub = ref(false);
@@ -952,15 +1128,15 @@ function followTouch(event: PointerEvent): boolean {
         Math.hypot(event.clientX - touchPress.x, event.clientY - touchPress.y) > TOUCH_DRAG_SLOP_PX
     ) {
         touchPress.dragging = true;
-        timelineScrub.dragBegan(framesReady(), isPlaying());
+        // A drag is the thick bar with the dragged frame over the picture, never the strip: an open strip goes.
+        if (timelineScrub.mode === "strip") timelineScrub.reset();
+        timelineScrub.dragBegan(false, isPlaying());
         scrubbing = true;
     }
     if (!touchPress.dragging) return true;
-    if (timelineScrub.mode === "bar") {
-        barDragAt.value = pointerRatio(event.clientX, slider.getBoundingClientRect());
-        return true;
-    }
-    return false;
+    barDragAt.value = pointerRatio(event.clientX, slider.getBoundingClientRect());
+    // With frames, the scrub preview runs on to show the one under the finger.
+    return !state.value.thumbnailsReady;
 }
 
 /** The finger lifted, or was taken away: a drag lands, a tap only opens. True when it was a finger on the timeline. */
@@ -977,9 +1153,6 @@ function endTouch(event: PointerEvent): boolean {
     scrubbing = false;
     heldGap = null;
     const ratio = slider ? pointerRatio(event.clientX, slider.getBoundingClientRect()) : null;
-    // The strip stays where the finger lifted, centred on where the video is going.
-    const roster = scrub.value?.roster;
-    if (roster && pin.value) pin.value = { ...pin.value, markerX: roster.markerX };
     hideScrub();
     barDragAt.value = null;
     if (event.type === "pointerup" && ratio !== null && Number.isFinite(duration) && duration > 0) {
@@ -987,6 +1160,7 @@ function endTouch(event: PointerEvent): boolean {
     } else {
         timelineScrub.dragCancelled();
     }
+    timelineScrub.reset();
     return true;
 }
 
@@ -1063,7 +1237,8 @@ function updateScrub(event: PointerEvent): void {
     if (!held) heldGap = null;
     else heldGap ??= frame.bottom - restBarBottom;
     const roster =
-        held && mergedControls.value.scrubRoster
+        // A finger's drag (the thick bar) shows its one frame over the picture, not the strip.
+        held && mergedControls.value.scrubRoster && !barScrub.value
             ? buildRoster(
                   instance,
                   time,
@@ -1135,7 +1310,7 @@ function buildRoster(
     step: number,
     gap: number,
 ): {
-    tiles: { key: string; left: number; cue: ThumbnailSpriteCue | null }[];
+    tiles: { key: string; left: number; width: number; cue: ThumbnailSpriteCue | null }[];
     markerX: number;
     tileWidth: number;
     height: number;
@@ -1145,12 +1320,13 @@ function buildRoster(
     if (!sample || !sample.w || !sample.h) return null;
     // The roster rises from the bottom edge over the controls, and its frames fill all of that.
     const height = rosterHeight.value + gap;
-    const tileWidth = Math.max(24, Math.round((height * sample.w) / sample.h));
+    const tileWidth = rosterTileWidth(height, sample.w, sample.h, window.devicePixelRatio);
     const markerX = Math.min(width, Math.max(0, pointerX));
     const tiles = rosterTiles(time, markerX, width, tileWidth, step, duration).map((tile) => ({
         // A different step makes the same index a different slot, so the step is part of the identity.
         key: `${step}:${tile.index}`,
         left: tile.left,
+        width: tile.width,
         cue: instance.thumbnailAt(tile.time),
     }));
     return { tiles, markerX, tileWidth, height, step };
@@ -1309,17 +1485,66 @@ function onPinUp(event: PointerEvent): void {
 }
 
 /**
- * Fetches the first sprite sheet the moment there is one, so the first hover is not a blank frame
- * waiting on an image. Later sheets load as the pointer reaches them.
+ * Fetches the sprite sheets ahead of a scrub, nearest the playhead first, once playback is under way
+ * (`spriteWarmLimit`). A sheet fetched only when the pointer reaches it queues behind the segment downloads,
+ * and the scrub shows blank frames. Saving data, or with only sound playing, only the playhead's sheet is.
  */
+const spriteWarm = shallowRef<SpriteWarmer>();
+const warmStarted = ref(false);
 watch(
-    () => state.value.thumbnailsReady,
-    (ready) => {
-        if (!ready) return;
-        const first = controller.value?.thumbnailAt(0);
-        if (first) new Image().src = first.spriteUrl;
+    () => props.source.masterUrl,
+    () => (warmStarted.value = false),
+);
+watch(
+    () => state.value.playing,
+    (playing) => {
+        if (playing) warmStarted.value = true;
     },
 );
+watch(
+    () => (state.value.thumbnailsReady && state.value.duration > 0 ? props.source.masterUrl : null),
+    (ready) => {
+        spriteWarm.value?.stop();
+        spriteWarm.value = ready ? new SpriteWarmer() : undefined;
+    },
+);
+/** A moment a host's own strip or preview shows, set through `focusThumbnails`. */
+const hostFocus = ref<number | null>(null);
+/**
+ * The moment frames are on screen for, away from the playhead: a strip or a scrub preview. Its sheets are wanted
+ * now, so the warm turns to them and fetches them whatever playback is doing.
+ */
+const thumbnailFocus = computed(
+    () => hostFocus.value ?? scrub.value?.time ?? pinnedView.value?.time ?? null,
+);
+const warmCentre = computed(() => thumbnailFocus.value ?? state.value.currentTime);
+const centreSheet = computed(() =>
+    state.value.thumbnailsReady
+        ? controller.value?.thumbnailAt(warmCentre.value)?.spriteUrl
+        : undefined,
+);
+watch([spriteWarm, centreSheet], ([warm]) => {
+    const instance = controller.value;
+    if (!warm || !instance) return;
+    warm.setSheets(
+        spriteSheetsByDistance(
+            (t) => instance.thumbnailAt(t),
+            state.value.duration,
+            warmCentre.value,
+        ),
+    );
+});
+const spriteLimit = computed(() => {
+    const limit = spriteWarmLimit({ ...state.value, started: warmStarted.value });
+    const capped = props.lazyThumbnails || isAudioOnly.value ? Math.min(limit, 1) : limit;
+    return thumbnailFocus.value === null ? capped : Math.max(capped, SPRITE_WARM_KEPT);
+});
+/** A host showing frames of its own (its strip) names the moment, so their sheets come first; null when it is gone. */
+function focusThumbnails(time: number | null): void {
+    hostFocus.value = time;
+}
+watch([spriteWarm, spriteLimit], ([warm, limit]) => warm?.setLimit(limit));
+onBeforeUnmount(() => spriteWarm.value?.stop());
 
 watch(
     () => props.source,
@@ -1362,6 +1587,37 @@ function toggleBrowse(): void {
     if (browseOpen.value) closeBrowse();
     else void openBrowse();
 }
+
+/**
+ * Shown with a chapter boundary to skip to, as the 10 s skips: not on live, and not until the length is known.
+ */
+const chapterSkipShown = computed(
+    () => hasChapterSkip(chapters.value) && !state.value.live && state.value.duration > 0,
+);
+/** In the last chapter "next" has nowhere to go. */
+const nextChapterDisabled = computed(
+    () => nextChapterTime(chapters.value, state.value.currentTime) === null,
+);
+
+/** Read from the element, which has the seek at once: presses in a row step chapter by chapter. */
+function skipChapter(step: -1 | 1): void {
+    const now = mediaEl.value?.currentTime ?? state.value.currentTime;
+    const target =
+        step === 1
+            ? nextChapterTime(chapters.value, now)
+            : previousChapterTime(chapters.value, now);
+    if (target !== null) seek(target);
+}
+
+/** The controls are markup the component does not render, so "next" is disabled by hand. */
+watch(
+    [nextChapterDisabled, controlsHtml, chapterSkipShown, containerEl],
+    ([disabled]) => {
+        const next = containerEl.value?.querySelector<HTMLButtonElement>('[data-chapter-step="1"]');
+        if (next) next.disabled = disabled;
+    },
+    { flush: "post", immediate: true },
+);
 
 function pickChapter(chapter: Chapter): void {
     seek(chapter.startTime);
@@ -1494,6 +1750,11 @@ function startPictureInPicture(): void {
 function readControlsShown(): void {
     controlsShown.value = containerEl.value?.hasAttribute(CONTROLS_VISIBLE_ATTR) ?? false;
 }
+
+// A cursor resting on the timeline sends no more pointer events, so the hover preview would outlive the controls it belongs to.
+watch(controlsShown, (shown) => {
+    if (!shown && !scrub.value?.held) hideScrub();
+});
 
 /** Dismissed or already chosen: either way the card has done its job for this video. */
 const nextUpClosed = ref(false);
@@ -1790,11 +2051,18 @@ defineExpose({
     showCastPicker,
     canPictureInPicture,
     startPictureInPicture,
+    focusThumbnails,
     get muted() {
         return mediaEl.value?.muted ?? false;
     },
     get volume() {
         return mediaEl.value?.volume ?? 1;
+    },
+    get playingHeight() {
+        return playingHeight.value || undefined;
+    },
+    get playingBandwidth() {
+        return playingBandwidth.value || undefined;
     },
     setMuted,
     setVolume,
@@ -1817,6 +2085,7 @@ defineExpose({
             'lmpl-captions-on': !!state.activeSubtitleTrackId,
             'lmpl-has-thumbs': state.thumbnailsReady,
             'lmpl-has-browse': hasBrowse,
+            'lmpl-has-chapter-skip': chapterSkipShown,
             'lmpl-has-heading': !!nowPlaying?.title,
             'lmpl-audio-fs': audioFullscreen,
             'lmpl-scrubbing': rosterShown,
@@ -1832,11 +2101,7 @@ defineExpose({
             '--lmpl-scrub-at': barScrub ? String(scrubAt) : undefined,
         }"
     >
-        <video-player
-            ref="playerEl"
-            class="lmpl-video-player"
-            :lang="lang"
-        >
+        <video-player ref="playerEl" class="lmpl-video-player" :lang="lang">
             <media-container
                 ref="containerEl"
                 class="media-skin media-container lmpl-container"
@@ -1905,10 +2170,7 @@ defineExpose({
                     pointer="touch"
                 ></media-gesture>
 
-                <media-controls
-                    class="lmpl-controls"
-                    v-html="controlsHtml"
-                ></media-controls>
+                <media-controls class="lmpl-controls" v-html="controlsHtml"></media-controls>
 
                 <!-- Inside the container, so it goes fullscreen with the picture, in the play button's place. -->
                 <div
@@ -1956,6 +2218,8 @@ defineExpose({
                     :messages="msg"
                     @exit="exitFullscreen"
                     @toggle-play="state.playing ? pause() : play()"
+                    @play="play()"
+                    @pause="pause()"
                     @seek="seek"
                     @open-browse="openBrowse"
                     @seek-chapter="(chapter: Chapter) => seek(chapter.startTime)"
@@ -1992,14 +2256,10 @@ defineExpose({
                 </AudioFullscreen>
 
                 <!-- While held, the frame being scrubbed over the picture: a fast-forward, VHS style. -->
-                <ScrubPicture
-                    v-if="pictureCue"
-                    :cue="pictureCue"
-                    aria-hidden="true"
-                />
+                <ScrubPicture v-if="pictureCue" :cue="pictureCue" aria-hidden="true" />
 
                 <div
-                    v-if="scrub && !scrub.roster"
+                    v-if="scrub && !scrub.roster && !barScrub"
                     class="lmpl-scrub-preview"
                     :style="{ left: `${scrub.left}px`, bottom: `${scrub.bottom}px` }"
                 >
@@ -2033,11 +2293,9 @@ defineExpose({
                     >
                         <span class="lmpl-thumb-time"
                             >{{ pinnedView.label
-                            }}<span
-                                v-if="pinnedView.chapter"
-                                class="lmpl-thumb-chapter"
-                                >{{ pinnedView.chapter }}</span
-                            ></span
+                            }}<span v-if="pinnedView.chapter" class="lmpl-thumb-chapter">{{
+                                pinnedView.chapter
+                            }}</span></span
                         >
                     </div>
                 </template>
@@ -2058,11 +2316,9 @@ defineExpose({
                     >
                         <span class="lmpl-thumb-time"
                             >{{ scrub.label
-                            }}<span
-                                v-if="scrub.chapter"
-                                class="lmpl-thumb-chapter"
-                                >{{ scrub.chapter }}</span
-                            ></span
+                            }}<span v-if="scrub.chapter" class="lmpl-thumb-chapter">{{
+                                scrub.chapter
+                            }}</span></span
                         >
                     </div>
                 </template>
@@ -2087,6 +2343,7 @@ defineExpose({
                     :messages="msg"
                     :id-prefix="instanceId"
                     :thumbnail-at="state.thumbnailsReady ? chapterThumbnailAt : undefined"
+                    :duration="state.duration"
                     @close="closeBrowse"
                     @pick-chapter="pickChapter"
                     @pick-upnext="pickUpNext"
@@ -2135,15 +2392,8 @@ defineExpose({
                             </svg>
                         </button>
                     </div>
-                    <ul
-                        class="lmpl-nextup-strip"
-                        @wheel="onNextUpWheel"
-                    >
-                        <li
-                            v-for="item in nextUpItems"
-                            :key="item.id"
-                            class="lmpl-nextup-item"
-                        >
+                    <ul class="lmpl-nextup-strip" @wheel="onNextUpWheel">
+                        <li v-for="item in nextUpItems" :key="item.id" class="lmpl-nextup-item">
                             <button
                                 type="button"
                                 class="lmpl-nextup-card"
@@ -2152,11 +2402,9 @@ defineExpose({
                                 <span class="lmpl-nextup-thumb">
                                     <NextUpThumb :item="item" />
                                 </span>
-                                <span
-                                    v-if="item.section"
-                                    class="lmpl-nextup-section"
-                                    >{{ item.section }}</span
-                                >
+                                <span v-if="item.section" class="lmpl-nextup-section">{{
+                                    item.section
+                                }}</span>
                                 <span class="lmpl-nextup-title">{{ item.title }}</span>
                             </button>
                         </li>
@@ -2176,17 +2424,11 @@ defineExpose({
         ></audio>
 
         <div class="lmpl-slot">
-            <slot
-                :state="state"
-                :controller="controller"
-            ></slot>
+            <slot :state="state" :controller="controller"></slot>
         </div>
 
         <template v-if="state.lifecycle === 'waiting-for-master'">
-            <slot
-                name="coming-soon"
-                :state="state"
-            >
+            <slot name="coming-soon" :state="state">
                 <div class="lmpl-panel lmpl-coming-soon">
                     <p class="lmpl-panel-text">{{ msg.comingSoon }}</p>
                 </div>
@@ -2194,19 +2436,10 @@ defineExpose({
         </template>
 
         <template v-else-if="state.lifecycle === 'error' || sourceError">
-            <slot
-                name="error"
-                :state="state"
-                :error="displayedError"
-                :retry="retry"
-            >
+            <slot name="error" :state="state" :error="displayedError" :retry="retry">
                 <div class="lmpl-panel lmpl-error">
                     <p class="lmpl-panel-text">{{ errorText }}</p>
-                    <button
-                        type="button"
-                        class="lmpl-btn lmpl-retry"
-                        @click="retry"
-                    >
+                    <button type="button" class="lmpl-btn lmpl-retry" @click="retry">
                         {{ msg.retry }}
                     </button>
                 </div>

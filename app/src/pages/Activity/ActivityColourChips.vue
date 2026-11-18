@@ -43,10 +43,7 @@ const chipClass = (selected: boolean) =>
             :data-test="`highlight-colour-${c}`"
             @click="$emit('select', c)"
         >
-            <span
-                class="h-3 w-3 rounded-full"
-                :style="{ backgroundColor: HIGHLIGHT_COLORS[c] }"
-            />
+            <span class="h-3 w-3 rounded-full" :style="{ backgroundColor: HIGHLIGHT_COLORS[c] }" />
         </button>
     </div>
 </template>

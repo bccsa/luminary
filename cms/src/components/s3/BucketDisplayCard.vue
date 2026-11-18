@@ -2,19 +2,16 @@
 import {
     type GroupDto,
     type StorageDto,
+    type StorageStatus,
     AclPermission,
     verifyAccess,
     DocType,
 } from "luminary-shared";
 import { computed } from "vue";
+import DisplayCard from "../common/DisplayCard.vue";
 import LBadge from "../common/LBadge.vue";
-import { DateTime } from "luxon";
-import { ClockIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import { UserGroupIcon } from "@heroicons/vue/24/outline";
 import { SignalIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
-import { isSmallScreen } from "@/globalConfig";
-
-// Import StorageStatus type for props typing
-import type { StorageStatus } from "luminary-shared";
 import { capitaliseFirstLetter } from "@/util/string";
 
 type Props = {
@@ -63,76 +60,48 @@ const statusText = computed(() => {
     }
 });
 
-const renderDate = (size: "default" | "small", timestampRelevance: string, timestamp: number) =>
-    size == "default"
-        ? timestamp
-            ? DateTime.fromMillis(timestamp).toLocaleString(DateTime.DATETIME_SHORT)
-            : `${timestampRelevance} not set`
-        : DateTime.fromMillis(timestamp).toLocaleString();
-
 const canEdit = computed(() =>
     verifyAccess(props.bucket.memberOf, DocType.Storage, AclPermission.Edit),
 );
-
-const handleEdit = () => {
-    if (canEdit.value) {
-        emit("edit", props.bucket);
-    }
-};
 </script>
 
 <template>
-    <div
-        class="w-full cursor-pointer divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-3 py-2 transition-all duration-200 dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:shadow-lg dark:hover:divide-slate-800/80 sm:rounded-md sm:border"
-        :class="[
-            {
-                'cursor-pointer hover:bg-zinc-50 dark:hover:bg-slate-800/50 dark:hover:shadow-none':
-                    canEdit,
-                'select-none divide-zinc-200 border-gray-200 bg-zinc-50/50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-zinc-600':
-                    !canEdit,
-            },
-        ]"
-        @click="handleEdit"
+    <DisplayCard
+        :title="capitaliseFirstLetter(bucket.name)"
+        :updated-time-utc="bucket.updatedTimeUtc"
+        :navigate-to="() => emit('edit', bucket)"
+        :can-navigate="canEdit"
     >
-        <div class="relative flex cursor-pointer items-center justify-between pb-1.5">
-            <div
-                class="w-full"
-                :class="{
-                    'flex justify-between': isSmallScreen,
-                }"
-            >
-                <div
-                    class="mr-1 max-w-full truncate text-wrap text-base font-medium dark:text-zinc-100"
-                >
-                    {{ capitaliseFirstLetter(bucket.name) }}
+        <template #content>
+            <div class="flex w-full min-w-0 items-center gap-2 py-1 text-xs">
+                <div class="flex w-full min-w-0 items-center gap-1.5">
+                    <span class="text-xs text-zinc-500 dark:text-zinc-400">Path:</span>
+                    <code
+                        class="truncate rounded bg-zinc-100 px-1.5 py-0.5 text-xs dark:bg-slate-900/60 dark:text-zinc-200"
+                        >{{ bucket.publicUrl }}</code
+                    >
+                </div>
+                <div class="flex flex-nowrap gap-1">
+                    <LBadge
+                        type="default"
+                        :variant="statusVariant"
+                        class="gap-1 whitespace-nowrap text-xs font-semibold"
+                    >
+                        <component
+                            :is="statusIcon"
+                            class="h-4 w-4"
+                            :class="`text-${statusVariant}`"
+                        />
+                        {{ statusText }}
+                    </LBadge>
                 </div>
             </div>
-        </div>
+        </template>
 
-        <div class="flex w-full min-w-0 items-center gap-2 py-1.5 text-xs">
-            <div class="flex w-full min-w-0 items-center gap-1.5">
-                <span class="text-xs text-zinc-500 dark:text-zinc-400">Path:</span>
-                <code
-                    class="truncate rounded bg-zinc-100 px-1.5 py-0.5 text-xs dark:bg-slate-900/60 dark:text-zinc-200"
-                    >{{ bucket.publicUrl }}</code
-                >
-            </div>
-            <div class="flex flex-nowrap gap-1">
-                <LBadge
-                    type="default"
-                    :variant="statusVariant"
-                    class="gap-1 whitespace-nowrap text-xs font-semibold"
-                >
-                    <component :is="statusIcon" class="h-4 w-4" :class="`text-${statusVariant}`" />
-                    {{ statusText }}
-                </LBadge>
-            </div>
-        </div>
-
-        <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1.5">
+        <template #mobileFooter>
             <div class="flex flex-1 items-center gap-1">
                 <div>
-                    <UserGroupIcon class="h-4 w-4 text-zinc-400 dark:text-zinc-100" />
+                    <UserGroupIcon class="h-4 w-4 text-zinc-400" />
                 </div>
                 <div class="flex flex-wrap gap-1">
                     <LBadge
@@ -140,58 +109,31 @@ const handleEdit = () => {
                         :key="group._id"
                         type="default"
                         variant="blue"
-                        class="text-xs"
                     >
                         {{ group.name }}
                     </LBadge>
-                    <LBadge
-                        v-if="bucketGroups.length === 0"
-                        type="default"
-                        variant="default"
-                        class="text-xs"
-                    >
+                    <LBadge v-if="bucketGroups.length === 0" type="default" variant="default">
                         No groups
                     </LBadge>
                 </div>
             </div>
-            <div class="flex w-max items-start text-xs text-zinc-400 dark:text-zinc-100">
-                <ClockIcon class="mr-[1px] h-3.5 w-3.5 text-zinc-400 dark:text-zinc-100" />
-                <span title="Last Updated" class="text-[11px]">{{
-                    renderDate("small", "Last Updated", bucket.updatedTimeUtc)
-                }}</span>
-            </div>
-        </div>
+        </template>
 
-        <div
-            v-if="!isSmallScreen"
-            class="flex items-center justify-between pt-1.5 text-xs sm:gap-4"
-        >
+        <template #desktopFooter>
             <div class="flex w-full flex-1 flex-wrap items-center gap-1">
-                <UserGroupIcon class="h-4 w-4 text-zinc-400 dark:text-zinc-100" />
+                <UserGroupIcon class="h-4 w-4 text-zinc-400" />
                 <LBadge
                     v-for="group in bucketGroups"
                     :key="group._id"
                     type="default"
                     variant="blue"
-                    class="text-xs"
                 >
                     {{ group.name }}
                 </LBadge>
-                <LBadge
-                    v-if="bucketGroups.length === 0"
-                    type="default"
-                    variant="default"
-                    class="text-xs"
-                >
+                <LBadge v-if="bucketGroups.length === 0" type="default" variant="default">
                     No groups
                 </LBadge>
             </div>
-            <div class="flex items-center justify-end text-zinc-400 dark:text-zinc-100">
-                <ClockIcon class="text-zinc-340 mr-[1px] h-3.5 w-3.5 dark:text-zinc-100" />
-                <span title="Last Updated" class="text-[11px]">{{
-                    renderDate("default", "Last updated", bucket.updatedTimeUtc)
-                }}</span>
-            </div>
-        </div>
-    </div>
+        </template>
+    </DisplayCard>
 </template>

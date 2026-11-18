@@ -31,9 +31,9 @@ describe("EncodeStatus progress", () => {
             });
 
             expect(wrapper.find('[data-test="encoder-status"]').text()).toContain("Uploading 53%");
-            expect(wrapper.find('[data-test="encoder-progress-bar"]').attributes("style")).toContain(
-                "53%",
-            );
+            expect(
+                wrapper.find('[data-test="encoder-progress-bar"]').attributes("style"),
+            ).toContain("53%");
         });
 
         it("still says Encoding while the two are running together", () => {

@@ -167,7 +167,10 @@ describe("VideoPreview", () => {
             props: { parent: parent({ hlsUrl: "/abc/master.m3u8", hlsKey_id: "sidecar-1" }) },
         });
         await wrapper.setProps({
-            parent: { ...parent({ hlsUrl: "/def/master.m3u8", hlsKey_id: "sidecar-2" }), _id: "post-2" },
+            parent: {
+                ...parent({ hlsUrl: "/def/master.m3u8", hlsKey_id: "sidecar-2" }),
+                _id: "post-2",
+            },
         });
         await new Promise((resolve) => setTimeout(resolve, 0));
         resolveFirst("a".repeat(32));

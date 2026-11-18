@@ -39,7 +39,10 @@ describe("selectorFingerprint", () => {
     });
 
     it("includes use_index but not limit (limit is a value, not shape)", () => {
-        const withIdx = selectorFingerprint({ selector: { type: "post" }, use_index: "sync-post-index" });
+        const withIdx = selectorFingerprint({
+            selector: { type: "post" },
+            use_index: "sync-post-index",
+        });
         const without = selectorFingerprint({ selector: { type: "post" } });
         expect(withIdx).toContain("sync-post-index");
         expect(withIdx).not.toBe(without);

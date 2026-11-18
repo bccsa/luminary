@@ -138,6 +138,20 @@ export async function hasUserActivity(activity: ActivityRef): Promise<boolean> {
     return !!doc && !doc.deleted;
 }
 
+/** Keep an existing activity's time stable when a view only needs to ensure it exists. */
+export async function ensureUserActivity(activity: ActivityRef): Promise<void> {
+    if (!(await hasUserActivity(activity))) await recordUserActivity(activity);
+}
+
+/** Viewed posts used by recommendations; no local history exists during prerender. */
+export async function getViewedParentIds(): Promise<Set<Uuid>> {
+    try {
+        return new Set((await getUserActivity("viewed")).map((row) => row.parentId));
+    } catch {
+        return new Set();
+    }
+}
+
 async function trimViewed(): Promise<void> {
     const viewed = (await listSourceUserActivityDocs())
         .filter((doc) => doc.activityType === "viewed" && !doc.deleted)

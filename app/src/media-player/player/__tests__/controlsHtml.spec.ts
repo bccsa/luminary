@@ -126,11 +126,33 @@ describe("buildControlsHtml", () => {
         ]);
     });
 
-    it("centres play between the skip buttons, back first", () => {
-        const kids = [...render().querySelector(".lmpl-cluster-centre")!.children].map(
-            (e) => e.localName,
+    it("centres play between the skip buttons, back first, with the chapter buttons outermost", () => {
+        const kids = [...render().querySelector(".lmpl-cluster-centre")!.children].map((e) =>
+            e.classList.contains("lmpl-chapter-skip")
+                ? e.getAttribute("data-chapter-step")
+                : e.localName,
         );
-        expect(kids).toEqual(["media-seek-button", "media-play-button", "media-seek-button"]);
+        expect(kids).toEqual([
+            "-1",
+            "media-seek-button",
+            "media-play-button",
+            "media-seek-button",
+            "1",
+        ]);
+    });
+
+    it("names the chapter buttons from the labels it is given, and draws their glyphs", () => {
+        const doc = document.implementation.createHTMLDocument("");
+        doc.body.innerHTML = buildControlsHtml(ALL, "p1", {
+            previousChapter: "Vorige <hoofstuk>",
+            nextChapter: "Volgende hoofstuk",
+        });
+        const previous = doc.querySelector('[data-chapter-step="-1"]')!;
+        const next = doc.querySelector('[data-chapter-step="1"]')!;
+        expect(previous.getAttribute("aria-label")).toBe("Vorige <hoofstuk>");
+        expect(next.getAttribute("aria-label")).toBe("Volgende hoofstuk");
+        expect(previous.getAttribute("type")).toBe("button");
+        expect(previous.querySelector("svg.lmpl-chapter-icon")).not.toBeNull();
     });
 
     it("seeks backwards and forwards by the configured interval, and writes it in the icon", () => {
@@ -236,8 +258,8 @@ describe("buildControlsHtml", () => {
     it("points every menu trigger at a menu that exists, and no two players share an id", () => {
         const ids = (id: string) => {
             const doc = render({}, id);
-            const targets = [...doc.querySelectorAll("[commandfor]")].map(
-                (e) => e.getAttribute("commandfor")!,
+            const targets = [...doc.querySelectorAll("[commandfor]")].map((e) =>
+                e.getAttribute("commandfor")!,
             );
             for (const target of targets) expect(doc.getElementById(target), target).not.toBeNull();
             return [...doc.querySelectorAll("[id]")].map((e) => e.id);
@@ -249,6 +271,19 @@ describe("buildControlsHtml", () => {
         expect(a.filter((id) => b.includes(id))).toEqual([]);
         expect(new Set(a).size).toBe(a.length);
     });
+
+    it("orders the settings as the now-playing screen's tools: speed, quality, language, captions, browse", () => {
+        const order = [...render().querySelectorAll(".lmpl-options > button")].map((b) =>
+            [...b.classList].find((c) => c.startsWith("lmpl-opt-")),
+        );
+        expect(order).toEqual([
+            "lmpl-opt-speed",
+            "lmpl-opt-quality",
+            "lmpl-opt-audio",
+            "lmpl-opt-captions",
+            "lmpl-opt-browse",
+        ]);
+    });
 });
 
 describe("browse button", () => {
@@ -258,7 +293,7 @@ describe("browse button", () => {
         expect(button.getAttribute("aria-expanded")).toBe("false");
         expect(button.getAttribute("aria-haspopup")).toBe("dialog");
         expect(button.getAttribute("aria-controls")).toBe("p1-browse");
-        expect(button.textContent).toBe("Chapters and up next");
+        expect(button.textContent).toBe("Chapters and More");
     });
 
     it("takes its name from the labels given, escaped", () => {
@@ -267,5 +302,18 @@ describe("browse button", () => {
         expect(doc.querySelector("[data-browse-toggle]")!.textContent).toBe(
             "Kapittels <&> volgende",
         );
+    });
+});
+
+describe("menu card size", () => {
+    it("keeps a phone's menus at their upright size when the controls scale up on its side", async () => {
+        const { readFileSync } = await import("node:fs");
+        const css = readFileSync(`${process.cwd()}/src/media-player/player/styles.css`, "utf8");
+        const phone = css.match(
+            /@media \(max-width: 599px\), \(max-height: 599px\) {\s*\.lmpl-root \.lmpl-card,\s*\.lmpl-root \.lmpl-volume-card {([^}]*)}/,
+        );
+        expect(phone).not.toBeNull();
+        expect(phone![1]).toMatch(/--lmpl-s:\s*1;/);
+        expect(phone![1]).toMatch(/--media-spacing:\s*4px;/);
     });
 });

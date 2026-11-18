@@ -15,7 +15,7 @@ import {
     shareImageUrl,
 } from "@/composables/useSocialShare";
 import { useBucketInfo } from "@/composables/useBucketInfo";
-import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import { dataSaverOn } from "@/globalConfig";
 import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
 import { publicUrl } from "@/seo/publicSite";
 import TelegramIcon from "@/components/icons/TelegramIcon.vue";
@@ -77,8 +77,7 @@ async function prepareShareImage(url: string) {
 
 // A reader who has asked for less data (or is on a slow link) gets the text-only share the
 // curated targets already send; the link preview still carries the image.
-const mayPrefetchImage = () =>
-    !isSlowConnection.value && !userDataSaverEnabled.value && !isDataSaverEnabled();
+const mayPrefetchImage = () => !isSlowConnection.value && !dataSaverOn.value;
 
 watch(
     () =>
@@ -183,7 +182,7 @@ async function shareToInstagram() {
         v-else
         v-model:open="open"
         placement="top-start"
-        panel-class="w-60 rounded-lg bg-white p-1.5 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
+        panel-class="w-60 rounded-lg bg-white p-1.5 shadow-xl ring-1 ring-zinc-200 dark:bg-menu-dark dark:ring-slate-500"
     >
         <template #trigger>
             <span
@@ -215,12 +214,7 @@ async function shareToInstagram() {
                     <WhatsAppIcon class="size-4 flex-shrink-0" />
                     <span class="min-w-0 truncate">{{ t("singlecontent.shareWhatsApp") }}</span>
                 </button>
-                <button
-                    type="button"
-                    @click="shareToX"
-                    data-test="shareX"
-                    :class="itemClass"
-                >
+                <button type="button" @click="shareToX" data-test="shareX" :class="itemClass">
                     <XIcon class="size-4 flex-shrink-0" />
                     <span class="min-w-0 truncate">{{ t("singlecontent.shareX") }}</span>
                 </button>
@@ -248,7 +242,7 @@ async function shareToInstagram() {
                  trigger rather than the panel edge, so it still points at the share button
                  when the panel has been clamped to the viewport. -->
             <div
-                class="absolute h-3 w-3 -rotate-45 border-zinc-200 bg-white dark:border-slate-500 dark:bg-slate-700"
+                class="absolute h-3 w-3 -rotate-45 border-zinc-200 bg-white dark:border-slate-500 dark:bg-menu-dark"
                 :class="above ? '-bottom-1.5 border-b border-l' : '-top-1.5 border-r border-t'"
                 :style="{ left: `${triggerOffsetX - 6}px` }"
             ></div>

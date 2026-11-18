@@ -61,10 +61,7 @@ function normaliseLogoutRedirectOrigins(origins: readonly string[]): string[] {
  * one of the configured origins so the local fixture cannot become an open
  * redirect; this also mirrors providers that register post-logout callbacks.
  */
-function allowedLogoutRedirect(
-    returnTo: string | null,
-    allowedOrigins: readonly string[],
-): string {
+function allowedLogoutRedirect(returnTo: string | null, allowedOrigins: readonly string[]): string {
     if (!returnTo) return "/";
 
     try {

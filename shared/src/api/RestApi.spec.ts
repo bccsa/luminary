@@ -81,7 +81,10 @@ describe("RestApi", () => {
         setValidConfig();
         const rest = getRest({ reset: true });
         await rest.changeRequest({ id: 1, doc: {} });
-        expect(mockPost).toHaveBeenCalledWith("changerequest", expect.objectContaining({ apiVersion: "0.0.0" }));
+        expect(mockPost).toHaveBeenCalledWith(
+            "changerequest",
+            expect.objectContaining({ apiVersion: "0.0.0" }),
+        );
     });
 
     it("getStorageStatus delegates to http.getWithQueryParams", async () => {

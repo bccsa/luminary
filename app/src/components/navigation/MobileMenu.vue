@@ -78,7 +78,7 @@ onUnmounted(() => {
     <div
         ref="rootRef"
         v-show="!keyboardOpen"
-        class="flex flex-row justify-center gap-3 bg-zinc-100 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.625rem),calc(var(--native-inset-bottom,0px)+0.5rem))] pt-3 dark:bg-slate-800"
+        class="flex flex-row bg-zinc-100 px-1 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.625rem),calc(var(--native-inset-bottom,0px)+0.5rem))] pt-3 dark:bg-slate-800"
     >
         <!-- Older Android WebViews report a 0 bottom env() inset under 3-button navigation; the
              Android build publishes the opaque bar's height as --native-inset-bottom. -->
@@ -88,7 +88,7 @@ onUnmounted(() => {
             :key="item.name"
             :to="item.to"
             v-slot="{ isActive }"
-            class="flex cursor-pointer flex-col items-center rounded-md px-2 py-1"
+            class="flex min-w-0 flex-1 basis-0 cursor-pointer flex-col items-center gap-0.5 rounded-md px-0.5 py-1"
             @click="closeSearch"
         >
             <component
@@ -101,7 +101,7 @@ onUnmounted(() => {
             />
             <span
                 :class="[
-                    'text-sm font-medium',
+                    'max-w-full truncate text-xs font-medium tracking-tight',
                     { 'text-zinc-600 dark:text-slate-100': !isNavItemActive(isActive) },
                     { 'text-yellow-700 dark:text-yellow-400': isNavItemActive(isActive) },
                 ]"
@@ -112,7 +112,7 @@ onUnmounted(() => {
 
         <!-- Search item - opens overlay (last item) -->
         <div
-            class="flex cursor-pointer flex-col items-center rounded-md px-2 py-1"
+            class="flex min-w-0 flex-1 basis-0 cursor-pointer flex-col items-center gap-0.5 rounded-md px-0.5 py-1"
             @click="handleSearchClick"
         >
             <component
@@ -129,7 +129,7 @@ onUnmounted(() => {
             />
             <span
                 :class="[
-                    'text-sm font-medium',
+                    'max-w-full truncate text-xs font-medium tracking-tight',
                     { 'text-zinc-600 dark:text-slate-100': !isSearchActive },
                     { 'text-yellow-700 dark:text-yellow-400': isSearchActive },
                 ]"

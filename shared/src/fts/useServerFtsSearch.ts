@@ -184,7 +184,11 @@ export function useServerFtsSearch(
     // Sort/filter changes re-run immediately regardless of query debounce mode. The JSON
     // snapshot keeps the watch robust against object-identity churn and detects deep changes.
     watch(
-        () => JSON.stringify({ sort: read(options.sort) ?? null, filters: read(options.filters) ?? null }),
+        () =>
+            JSON.stringify({
+                sort: read(options.sort) ?? null,
+                filters: read(options.filters) ?? null,
+            }),
         () => {
             isStale.value = false;
             if (debounceTimer) clearTimeout(debounceTimer);

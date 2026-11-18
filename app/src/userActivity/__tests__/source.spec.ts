@@ -24,6 +24,7 @@ import {
     userActivityVersion,
 } from "../store";
 import { loadHighlightQueriesFor } from "@/recommendation/highlightStore";
+import { mockEnglishContentDto } from "@/tests/mockdata";
 
 type MockProfile = { iss: string; sub: string };
 const authState = vi.hoisted(() => ({
@@ -77,6 +78,7 @@ describe("activity source lifecycle", () => {
         isConnected.value = false;
         dataSources.value = [];
         localStorage.removeItem("userActivityPassagesMigrated");
+        localStorage.removeItem("seenArticleIds");
         await db.userActivity.clear();
         await db.luminaryInternals.delete("highlights");
         await clearLocalUserActivity();
@@ -126,6 +128,24 @@ describe("activity source lifecycle", () => {
         expect(await owner()).toBeUndefined();
         expect(await getUserActivity("viewed")).toHaveLength(1);
         expect(requests).not.toHaveBeenCalled();
+    });
+
+    it("migrates recommendation history into the source during startup", async () => {
+        await db.docs.put(mockEnglishContentDto);
+        localStorage.setItem("seenArticleIds", JSON.stringify([mockEnglishContentDto._id]));
+        await initUserActivitySource();
+
+        expect(await getUserActivity("viewed")).toEqual([
+            expect.objectContaining({
+                _id: `viewed:${mockEnglishContentDto.parentId}`,
+                parentId: mockEnglishContentDto.parentId,
+                activityTimeUtc: 0,
+            }),
+        ]);
+        expect(await queued()).toHaveLength(1);
+        expect(localStorage.getItem("seenArticleIds")).toBeNull();
+        expect(requests).not.toHaveBeenCalled();
+        await db.docs.delete(mockEnglishContentDto._id);
     });
 
     it("adopts signed-out activity before enabling uploads for the first owner", async () => {

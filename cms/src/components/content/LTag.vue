@@ -18,7 +18,7 @@ const emit = defineEmits(["remove"]);
 <template>
     <div
         :class="[
-            'mt-0.5 flex gap-2 rounded-md border py-1 pl-2 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-700 dark:text-zinc-100',
+            'mt-0.5 flex gap-2 rounded-md border border-zinc-200 bg-zinc-50 py-1 pl-2 text-sm text-zinc-900 shadow-sm dark:border-slate-700 dark:bg-slate-700 dark:text-zinc-100',
             disabled ? 'pr-2' : 'pr-1',
         ]"
     >
@@ -36,6 +36,7 @@ const emit = defineEmits(["remove"]);
             <slot />
             <button
                 @click.stop="emit('remove')"
+                class="text-zinc-400"
                 data-test="removeTag"
                 v-if="!disabled"
                 type="button"

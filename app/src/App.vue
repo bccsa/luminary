@@ -26,6 +26,7 @@ import { useI18n } from "vue-i18n";
 import { useAppUpdate } from "@/composables/useAppUpdate";
 import { useCanPrompt } from "@/composables/useCanPrompt";
 import { useHydrated } from "@/composables/useHydrated";
+import { useBackgroundProgress } from "@/media-player/useBackgroundProgress";
 
 const { t } = useI18n();
 const { available: availableUpdate, applyUpdate } = useAppUpdate();
@@ -33,6 +34,7 @@ const canPrompt = useCanPrompt();
 const mobileChrome = useMobileChromeAutoHide();
 useDismissKeyboardOnTouch();
 useKeyboardOpen();
+useBackgroundProgress();
 
 const router = useRouter();
 
@@ -222,10 +224,7 @@ onErrorCaptured((err) => {
                     :key="localCacheVersion"
                     include="HomePage,ExplorePage,VideoPage,SearchPage"
                 >
-                    <component
-                        :is="Component"
-                        :key="routeKey"
-                    />
+                    <component :is="Component" :key="routeKey" />
                 </KeepAlive>
             </RouterView>
         </div>
