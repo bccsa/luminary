@@ -25,6 +25,12 @@ describe("isLivePlaylist", () => {
         expect(isLivePlaylist(LIVE_MEDIA)).toBe(true);
     });
 
+    it("is not live when the body is empty or not a playlist", () => {
+        expect(isLivePlaylist("")).toBe(false);
+        expect(isLivePlaylist("<!doctype html><html></html>")).toBe(false);
+        expect(isLivePlaylist("ID3\u0004\u0000binary-mp3")).toBe(false);
+    });
+
     it("is not live with an end tag or a VOD playlist type", () => {
         expect(isLivePlaylist(VOD_MEDIA)).toBe(false);
         expect(
@@ -62,6 +68,17 @@ describe("probeLiveStream", () => {
         const fetchFn = vi.fn(() => respond(VOD_MEDIA));
         expect(await probeLiveStream("https://cdn.example.com/vod/index.m3u8", fetchFn)).toBe(
             "recording",
+        );
+    });
+
+    it("reports a body that is not a playlist as none", async () => {
+        const html = vi.fn(() => respond("<!doctype html><title>Not found</title>"));
+        expect(await probeLiveStream("https://cdn.example.com/live/master.m3u8", html)).toBe(
+            "none",
+        );
+        const empty = vi.fn(() => respond(""));
+        expect(await probeLiveStream("https://cdn.example.com/live/master.m3u8", empty)).toBe(
+            "none",
         );
     });
 
@@ -136,6 +153,16 @@ describe("useLiveStream", () => {
         mountWith(() => "https://cdn.example.com/vod/index.m3u8");
         await flushPromises();
         await vi.advanceTimersByTimeAsync(5 * 61_000);
+        expect(fetchFn).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not ask again about a source that is not a playlist", async () => {
+        const fetchFn = vi.fn(() => respond("<!doctype html>"));
+        vi.stubGlobal("fetch", fetchFn);
+        const { isLive } = mountWith(() => "https://cdn.example.com/live/index.m3u8");
+        await flushPromises();
+        await vi.advanceTimersByTimeAsync(5 * 61_000);
+        expect(isLive()).toBe(false);
         expect(fetchFn).toHaveBeenCalledTimes(1);
     });
 });

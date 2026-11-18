@@ -1,14 +1,26 @@
 import { onBeforeUnmount, onMounted, ref, watch, type Ref } from "vue";
 import { isYouTubeLink } from "@/util/youtube";
 
-/** "recording" never changes; "live" and "offline" can, so those are asked about again. */
-export type LiveStreamState = "live" | "recording" | "offline";
+/**
+ * "recording" and "none" (not an HLS playlist at all) never change; "live" and "offline" can,
+ * so those are asked about again.
+ */
+export type LiveStreamState = "live" | "recording" | "offline" | "none";
 
 const RECHECK_MS = 60_000;
 
+/** Every HLS playlist starts with this tag (RFC 8216 §4.3.1.1). */
+export function isPlaylist(body: string): boolean {
+    return /^\uFEFF?#EXTM3U/.test(body);
+}
+
 /** A media playlist with no end is a live one, the same test the player's HLS engine uses. */
 export function isLivePlaylist(playlist: string): boolean {
-    return !/#EXT-X-ENDLIST/.test(playlist) && !/#EXT-X-PLAYLIST-TYPE:VOD/.test(playlist);
+    return (
+        isPlaylist(playlist) &&
+        !/#EXT-X-ENDLIST/.test(playlist) &&
+        !/#EXT-X-PLAYLIST-TYPE:VOD/.test(playlist)
+    );
 }
 
 /**
@@ -41,26 +53,27 @@ export async function probeLiveStream(
     };
     try {
         let playlist = await read(src);
+        if (!isPlaylist(playlist)) return "none";
         const variant = firstVariant(playlist, src);
         if (variant) playlist = await read(variant);
+        if (!isPlaylist(playlist)) return "none";
         return isLivePlaylist(playlist) ? "live" : "recording";
     } catch {
         return "offline";
     }
 }
 
-/** One answer per stream, shared by every tile showing it. A recording's answer is kept for good. */
-const cache = new Map<
-    string,
-    { at: number; recording: boolean; state: Promise<LiveStreamState> }
->();
+/** One answer per stream, shared by every tile showing it. A final answer is kept for good. */
+const cache = new Map<string, { at: number; final: boolean; state: Promise<LiveStreamState> }>();
+
+const isFinal = (s: LiveStreamState) => s === "recording" || s === "none";
 
 function liveStateOf(src: string): Promise<LiveStreamState> {
     const hit = cache.get(src);
-    if (hit && (hit.recording || Date.now() - hit.at < RECHECK_MS)) return hit.state;
-    const entry = { at: Date.now(), recording: false, state: probeLiveStream(src) };
+    if (hit && (hit.final || Date.now() - hit.at < RECHECK_MS)) return hit.state;
+    const entry = { at: Date.now(), final: false, state: probeLiveStream(src) };
     cache.set(src, entry);
-    void entry.state.then((s) => (entry.recording = s === "recording"));
+    void entry.state.then((s) => (entry.final = isFinal(s)));
     return entry.state;
 }
 
@@ -86,7 +99,7 @@ export function useLiveStream(src: () => string | undefined): Ref<boolean> {
         const state = await liveStateOf(url);
         if (unmounted || url !== src()) return;
         isLive.value = state === "live";
-        if (state === "recording") stop();
+        if (isFinal(state)) stop();
         else timer ??= setInterval(check, RECHECK_MS);
     };
     const stop = () => {
