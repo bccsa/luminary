@@ -92,7 +92,8 @@ export const createApp = ViteSSG(
                 keep.has(l._id) ? l : { ...l, translations: {} },
             );
         } else {
-            installChunkReload(router, __APP_BUILD_ID__);
+            // The entry chunk's hashed URL identifies the build; the web build has no build-id define.
+            installChunkReload(router, import.meta.url);
 
             // Snapshot the prerendered article body before `app.mount` clears #app; the
             // hydration patch in SingleContent recovers `text` (stripped from the cache
