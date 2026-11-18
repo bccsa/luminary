@@ -139,7 +139,6 @@ const permissionOptions = [...new Set(Object.values(availablePermissionsPerDocTy
     (p) => ({ id: p, label: label(p), value: p }),
 );
 
-/** Groups with ACLs narrowed to the doc type/permission filter; drives the graph's edges. */
 const aclFilteredGroups = computed(() => filterGroupAcl(editable.value, aclFilter.value));
 
 const filteredGroups = computed(() => {
@@ -182,6 +181,19 @@ const filteredGroups = computed(() => {
 
     return result;
 });
+const isFiltering = computed(
+    () =>
+        !!queryOptions.value.search ||
+        queryOptions.value.filterGroupIds.length > 0 ||
+        isAclFilterActive(aclFilter.value),
+);
+
+/** The list's groups with their ACLs narrowed to the doc type/permission filter; drives the graph. */
+const graphShownGroups = computed(() => {
+    const shown = new Set(filteredGroups.value.map((group) => group._id));
+    return aclFilteredGroups.value.filter((group) => shown.has(group._id));
+});
+
 const newGroupId = ref("");
 const createGroup = async () => {
     const newGroup = {
@@ -369,7 +381,7 @@ const hasAnyContent = computed(() => editable.value.length > 0);
                     v-if="currentTab === 'graph'"
                     class="h-full w-full"
                     :all-groups="editable"
-                    :edge-groups="isAclFilterActive(aclFilter) ? aclFilteredGroups : undefined"
+                    :shown-groups="isFiltering ? graphShownGroups : undefined"
                     @open="handleGraphSelect"
                 />
             </KeepAlive>

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { effectScope, ref } from "vue";
 import type { GroupDto } from "luminary-shared";
-import { chartLaneKey, useGroupAccessGraph } from "../useGroupAccessGraph";
+import {
+    chartLaneKey,
+    graphGroupsToLayOut,
+    restrictAclToShown,
+    useGroupAccessGraph,
+} from "../useGroupAccessGraph";
 
 /**
  * Builds a minimal GroupDto. `accessibleBy` lists the groupIds that hold a
@@ -192,5 +197,40 @@ describe("useGroupAccessGraph edge source", () => {
         const sel = ref<string | null>(null);
         expect(inScope(() => useGroupAccessGraph(() => groups, sel)).edges.value).toHaveLength(1);
         expect(inScope(() => useGroupAccessGraph(() => filtered, sel)).edges.value).toHaveLength(0);
+    });
+});
+
+describe("restrictAclToShown / graphGroupsToLayOut", () => {
+    const groups = [
+        mkGroup("admins", "Admins"),
+        mkGroup("editors", "Editors", [{ groupId: "admins" }]),
+        mkGroup("users", "Users", [{ groupId: "editors" }]),
+        mkGroup("lonely", "Lonely"),
+    ];
+    const sel = ref<string | null>(null);
+
+    it("keeps only the shown groups' ACL entries as edges", () => {
+        const edgeSource = restrictAclToShown(groups, [groups[1]]);
+        const { edges } = inScope(() => useGroupAccessGraph(() => edgeSource, sel));
+        expect(edges.value.map((e) => e.id)).toEqual(["e-admins__editors"]);
+    });
+
+    it("uses the shown groups' narrowed ACLs, not the full ones", () => {
+        const edgeSource = restrictAclToShown(groups, [{ ...groups[1], acl: [] }]);
+        const { edges } = inScope(() => useGroupAccessGraph(() => edgeSource, sel));
+        expect(edges.value).toHaveLength(0);
+    });
+
+    it("lays out shown groups and the groups they connect to", () => {
+        const edgeSource = restrictAclToShown(groups, [groups[1], groups[3]]);
+        const { edges } = inScope(() => useGroupAccessGraph(() => edgeSource, sel));
+        const ids = graphGroupsToLayOut(groups, [groups[1], groups[3]], edges.value).map(
+            (g) => g._id,
+        );
+        expect(ids).toEqual(["admins", "editors", "lonely"]);
+    });
+
+    it("lays out nothing when no group is shown", () => {
+        expect(graphGroupsToLayOut(groups, [], [])).toEqual([]);
     });
 });

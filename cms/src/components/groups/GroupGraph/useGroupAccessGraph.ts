@@ -12,6 +12,23 @@ export function chartLaneKey(group: GroupDto) {
     return "other";
 }
 
+/** Keeps ACL entries (and so edges) only on the shown groups, using their possibly narrowed ACLs. */
+export function restrictAclToShown(allGroups: GroupDto[], shownGroups: GroupDto[]): GroupDto[] {
+    const shownAcl = new Map(shownGroups.map((group) => [group._id, group.acl]));
+    return allGroups.map((group) => ({ ...group, acl: shownAcl.get(group._id) ?? [] }));
+}
+
+/** The shown groups plus every group an edge connects them to. */
+export function graphGroupsToLayOut(
+    allGroups: GroupDto[],
+    shownGroups: GroupDto[],
+    edges: FlowEdge[],
+): GroupDto[] {
+    const visible = new Set(shownGroups.map((group) => group._id));
+    edges.forEach((edge) => visible.add(edge.source).add(edge.target));
+    return allGroups.filter((group) => visible.has(group._id));
+}
+
 /**
  * Derives the permission/access graph from group ACLs: the directed edges, the
  * downstream reach of every group, and the up/downstream access sets for the

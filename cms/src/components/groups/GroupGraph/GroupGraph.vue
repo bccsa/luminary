@@ -17,7 +17,11 @@ import {
 } from "@heroicons/vue/24/outline";
 import type { GroupDto } from "luminary-shared";
 import { GRID_SIZE, TREE_MAX_COLUMNS, TREE_MIN_COLUMNS } from "./types";
-import { useGroupAccessGraph } from "./useGroupAccessGraph";
+import {
+    graphGroupsToLayOut,
+    restrictAclToShown,
+    useGroupAccessGraph,
+} from "./useGroupAccessGraph";
 import { useGroupGraphLayout } from "./useGroupGraphLayout";
 import { useGroupGraphLayoutStorage } from "./useGroupGraphLayoutStorage";
 import { useGroupGraphInteraction } from "./useGroupGraphInteraction";
@@ -25,13 +29,14 @@ import GraphNode from "./GraphNode.vue";
 import GraphLegend from "./GraphLegend.vue";
 import GraphSettingsMenu from "./GraphSettingsMenu.vue";
 import GraphSearch from "./GraphSearch.vue";
+import EmptyState from "@/components/EmptyState.vue";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 
 const props = defineProps<{
     allGroups: GroupDto[];
-    /** When set (an ACL filter is active), edges come from these groups and unconnected groups are hidden. */
-    edgeGroups?: GroupDto[];
+    /** When set (a filter is active), only these groups' ACL entries become edges and only they and their neighbours are shown. */
+    shownGroups?: GroupDto[];
 }>();
 
 const emit = defineEmits<{
@@ -69,15 +74,17 @@ const sourceHandlePosition = computed(() =>
     isTopToBottom.value ? Position.Bottom : Position.Right,
 );
 
-const accessGraph = useGroupAccessGraph(() => props.edgeGroups ?? props.allGroups, selectedGroupId);
+const edgeSourceGroups = computed(() =>
+    props.shownGroups ? restrictAclToShown(props.allGroups, props.shownGroups) : props.allGroups,
+);
+const accessGraph = useGroupAccessGraph(() => edgeSourceGroups.value, selectedGroupId);
 
-// With an ACL filter active, groups without a matching edge would each become a lone cluster
-// and stretch the layout far to the right, so only connected groups are laid out.
-const layoutGroups = computed(() => {
-    if (!props.edgeGroups) return props.allGroups;
-    const connected = new Set(accessGraph.edges.value.flatMap((e) => [e.source, e.target]));
-    return props.allGroups.filter((group) => connected.has(group._id));
-});
+// Filtered-out groups would each become a lone cluster and stretch the layout, so they are left out.
+const layoutGroups = computed(() =>
+    props.shownGroups
+        ? graphGroupsToLayOut(props.allGroups, props.shownGroups, accessGraph.edges.value)
+        : props.allGroups,
+);
 
 const { chartNodes, chartEdges } = useGroupGraphLayout(() => layoutGroups.value, accessGraph, {
     selectedGroupId,
@@ -424,6 +431,17 @@ watch(isFullscreen, () => {
                     :icon="XMarkIcon"
                     class="pointer-events-auto mr-4 h-9 w-9 shrink-0"
                     @click="isFullscreen = false"
+                />
+            </div>
+
+            <div
+                v-if="shownGroups && layoutGroups.length === 0"
+                class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
+            >
+                <EmptyState
+                    title="No groups found"
+                    description="No groups match your search criteria."
+                    data-test="graph-empty-state"
                 />
             </div>
 
