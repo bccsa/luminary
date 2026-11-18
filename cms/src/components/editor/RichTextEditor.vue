@@ -351,10 +351,6 @@ defineExpose({
     box-shadow: none !important;
 }
 
-:root.dark :deep(.rte-editor-content) {
-    background-color: transparent;
-}
-
 :deep(.rte-editor-content .tiptap) {
     display: flex;
     flex-direction: column;
@@ -422,10 +418,6 @@ defineExpose({
         scrollbar-color: #d4d4d8 transparent;
     }
 
-    :root.dark :deep(.rte-editor-content .ProseMirror) {
-        scrollbar-color: #3f3f46 transparent;
-    }
-
     /* WebKit/Blink: 8px thumb, pill-shaped, inset 2px so it reads as ~4px. */
     :deep(.rte-editor-content .ProseMirror::-webkit-scrollbar) {
         width: 8px;
@@ -442,15 +434,29 @@ defineExpose({
         background-color: #d4d4d8;
     }
 
-    :root.dark :deep(.rte-editor-content .ProseMirror::-webkit-scrollbar-thumb) {
-        background-color: #3f3f46;
-    }
-
     :deep(.rte-editor-content .ProseMirror:hover::-webkit-scrollbar-thumb) {
         background-color: #a1a1aa;
     }
+}
+</style>
 
-    :root.dark :deep(.rte-editor-content .ProseMirror:hover::-webkit-scrollbar-thumb) {
+<style>
+/* Unscoped on purpose: in a scoped block `:root.dark :deep(...)` is compiled to
+   `:root.dark[data-v-xxx] ...`, which never matches because the scope id lands on <html>. */
+:root.dark .rte-editor-content {
+    background-color: transparent;
+}
+
+@media (min-width: 1024px) {
+    :root.dark .rte-editor-content .ProseMirror {
+        scrollbar-color: #3f3f46 transparent;
+    }
+
+    :root.dark .rte-editor-content .ProseMirror::-webkit-scrollbar-thumb {
+        background-color: #3f3f46;
+    }
+
+    :root.dark .rte-editor-content .ProseMirror:hover::-webkit-scrollbar-thumb {
         background-color: #52525b;
     }
 }

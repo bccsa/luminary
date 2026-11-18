@@ -101,6 +101,56 @@ describe("DisplayCard", () => {
         expect(navigateFn).not.toHaveBeenCalled();
     });
 
+    it("does not navigate when disable is true", async () => {
+        const navigateFn = vi.fn();
+        const wrapper = mount(DisplayCard, {
+            props: {
+                title: "Title",
+                updatedTimeUtc: 1000,
+                navigateTo: navigateFn,
+                disable: true,
+            },
+        });
+
+        await wrapper.find('[data-test="display-card"]').trigger("click");
+        expect(navigateFn).not.toHaveBeenCalled();
+    });
+
+    describe("pointer and hover styling", () => {
+        const card = (props: Record<string, unknown>) =>
+            mount(DisplayCard, {
+                props: { title: "Title", updatedTimeUtc: 1000, ...props },
+            }).find('[data-test="display-card"]');
+
+        it("is a pointer with a dark hover background by default", () => {
+            const classes = card({}).classes();
+
+            expect(classes).toContain("cursor-pointer");
+            expect(classes).toContain("dark:hover:bg-slate-700/60");
+        });
+
+        it("has no pointer or hover background when canNavigate is false", () => {
+            const classes = card({ canNavigate: false }).classes();
+
+            expect(classes).not.toContain("cursor-pointer");
+            expect(classes).not.toContain("dark:hover:bg-slate-700/60");
+        });
+
+        it("has no pointer or hover background when disable is true", () => {
+            const classes = card({ disable: true }).classes();
+
+            expect(classes).not.toContain("cursor-pointer");
+            expect(classes).not.toContain("dark:hover:bg-slate-700/60");
+            expect(classes).toContain("select-none");
+        });
+
+        it("has no pointer when disable is true even if canNavigate is true", () => {
+            const classes = card({ disable: true, canNavigate: true }).classes();
+
+            expect(classes).not.toContain("cursor-pointer");
+        });
+    });
+
     it("shows 'Offline changes' badge when isLocalChange is true on desktop", () => {
         const wrapper = mount(DisplayCard, {
             props: {

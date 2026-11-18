@@ -157,7 +157,7 @@ const deleteTranslation = () => {
             :class="[
                 'rounded-md p-1.5',
                 {
-                    'mb-0 cursor-default bg-yellow-100/40 dark:bg-slate-700':
+                    'mb-0 cursor-default bg-yellow-100/40 dark:bg-yellow-400/15':
                         isActive && !isCardCollapsed,
                     'cursor-default bg-white shadow dark:bg-slate-700': isActive && isCardCollapsed,
                     'bg-white/80 hover:bg-white/100 dark:bg-slate-800 dark:hover:bg-slate-800':
@@ -167,10 +167,10 @@ const deleteTranslation = () => {
         >
             <div class="flex flex-col">
                 <span
-                    class="mb-0 flex cursor-default items-center justify-between rounded-md px-2 text-sm text-zinc-900 dark:text-zinc-100"
+                    class="mb-0 flex items-center justify-between rounded-md px-2 text-sm text-zinc-900 dark:text-zinc-100"
                     :class="
                         isActive
-                            ? 'shadow-sm dark:bg-slate-700 dark:shadow'
+                            ? 'shadow-sm dark:bg-transparent'
                             : 'shadow dark:bg-slate-900 dark:hover:bg-slate-700'
                     "
                 >
@@ -186,7 +186,7 @@ const deleteTranslation = () => {
                             >
                                 {{ statusBadge(existingContent).title }}
                             </LBadge>
-                            <ArrowRightIcon class="h-4 w-4 text-zinc-700" />
+                            <ArrowRightIcon class="h-4 w-4 text-zinc-700 dark:text-zinc-300" />
                         </template>
 
                         <LBadge withIcon :variant="statusBadge(editableContent).variant">
@@ -199,7 +199,7 @@ const deleteTranslation = () => {
                         v-if="props.canDelete"
                     >
                         <TrashIconSolid
-                            class="ml-2 h-4 min-h-4 w-4 min-w-4 cursor-pointer text-slate-400 hover:text-red-500"
+                            class="ml-2 h-4 min-h-4 w-4 min-w-4 cursor-pointer text-slate-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
                         />
                     </div>
                 </span>
@@ -208,9 +208,11 @@ const deleteTranslation = () => {
             <div v-if="!isValid || dirty" class="mt-2 flex flex-col gap-0.5">
                 <div class="flex items-center gap-2">
                     <p>
-                        <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />
+                        <ExclamationCircleIcon
+                            class="h-4 w-4 text-yellow-400 dark:text-yellow-500"
+                        />
                     </p>
-                    <p class="text-xs text-zinc-700">Unsaved changes</p>
+                    <p class="text-xs text-zinc-700 dark:text-zinc-300">Unsaved changes</p>
                 </div>
                 <div
                     v-for="validation in validations.filter((v) => !v.isValid)"
@@ -218,9 +220,9 @@ const deleteTranslation = () => {
                     class="flex items-center gap-2"
                 >
                     <p>
-                        <XCircleIcon class="h-4 w-4 text-red-400" />
+                        <XCircleIcon class="h-4 w-4 text-red-400 dark:text-red-500" />
                     </p>
-                    <p class="text-xs text-zinc-700">{{ validation.message }}</p>
+                    <p class="text-xs text-zinc-700 dark:text-zinc-300">{{ validation.message }}</p>
                 </div>
             </div>
         </div>

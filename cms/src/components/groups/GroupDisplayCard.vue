@@ -62,8 +62,8 @@ const accessGroupNames = computed(() => {
             <div v-if="unsavedChanges" class="pr-4">
                 <LBadge variant="warning" class="flex whitespace-nowrap"> Unsaved changes </LBadge>
             </div>
-            <div class="flex items-center justify-end text-xs text-zinc-400">
-                <ClockIcon class="mr-[2px] h-4 w-4 text-zinc-400" />
+            <div class="flex items-center justify-end text-xs text-zinc-400 dark:text-zinc-500">
+                <ClockIcon class="mr-[2px] h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                 <span title="Last Updated" class="whitespace-nowrap">
                     {{
                         db

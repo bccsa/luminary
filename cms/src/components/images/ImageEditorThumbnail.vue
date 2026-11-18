@@ -91,7 +91,7 @@ watch(
 <template>
     <div :class="$attrs.class">
         <div
-            class="group relative bg-zinc-100"
+            class="group relative bg-zinc-100 dark:bg-slate-800"
             @mouseover="hover = true"
             @mouseleave="hover = false"
         >
@@ -104,7 +104,7 @@ watch(
             />
             <img v-else class="h-16 rounded-sm shadow" :src="fallbackImage" />
             <TrashIcon
-                class="absolute -right-2 -top-2 h-5 w-5 cursor-pointer text-red-500"
+                class="absolute -right-2 -top-2 h-5 w-5 cursor-pointer text-red-500 dark:text-red-400"
                 v-show="hover && disabled"
                 title="Delete file version"
                 @click="showModal = true"

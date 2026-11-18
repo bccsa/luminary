@@ -55,7 +55,7 @@ const filteredEntries = computed(() => {
             <div v-if="isSmallScreen" class="flex gap-2">
                 <PlusIcon
                     v-if="canEdit && hasAnyContent"
-                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700 dark:bg-slate-700 dark:text-zinc-300 dark:hover:bg-slate-600 dark:hover:text-zinc-100"
                     @click="showAddModal = true"
                     data-test="openAddStartingInterestModal"
                 />
@@ -74,7 +74,10 @@ const filteredEntries = computed(() => {
                 class="flex flex-col gap-[8px]"
                 :class="canEdit ? 'lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1' : ''"
             >
-                <p v-if="hasAnyContent" class="mb-2 px-2 py-1 text-sm text-zinc-500">
+                <p
+                    v-if="hasAnyContent"
+                    class="mb-2 px-2 py-1 text-sm text-zinc-500 dark:text-zinc-400"
+                >
                     Topics new visitors are shown an interest in, before they've built up any
                     interests of their own.
                 </p>

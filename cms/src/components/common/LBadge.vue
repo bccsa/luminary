@@ -1,7 +1,7 @@
 <script lang="ts">
 export const variants = {
     default: `bg-zinc-100 text-zinc-600 ring-zinc-200 
-              dark:bg-blue-900/30 dark:text-zinc-300 dark:ring-zinc-700`,
+              dark:bg-blue-500/20 dark:text-zinc-300 dark:ring-blue-400/30`,
 
     blue: `bg-blue-50 text-zinc-600 ring-zinc-200 
            dark:bg-blue-900/30 dark:text-blue-200 dark:ring-blue-800`,

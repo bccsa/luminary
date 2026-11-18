@@ -197,7 +197,9 @@ const expiresBeforeString = dateRangeField("expiresBefore");
                             class="flex justify-stretch"
                             data-test="ascending-sort-toggle"
                             :class="
-                                queryOptions.orderDirection == 'asc' ? 'bg-zinc-100' : 'bg-white'
+                                queryOptions.orderDirection == 'asc'
+                                    ? 'bg-zinc-100 dark:bg-slate-600'
+                                    : 'bg-white dark:bg-slate-700'
                             "
                             :icon="ArrowUpIcon"
                             @click="queryOptions.orderDirection = 'asc'"
@@ -207,7 +209,9 @@ const expiresBeforeString = dateRangeField("expiresBefore");
                             class="flex justify-stretch"
                             data-test="descending-sort-toggle"
                             :class="
-                                queryOptions.orderDirection == 'desc' ? 'bg-zinc-100' : 'bg-white'
+                                queryOptions.orderDirection == 'desc'
+                                    ? 'bg-zinc-100 dark:bg-slate-600'
+                                    : 'bg-white dark:bg-slate-700'
                             "
                             variant="secondary"
                             :icon="ArrowDownIcon"
@@ -234,7 +238,9 @@ const expiresBeforeString = dateRangeField("expiresBefore");
 
                 <div class="flex w-64 flex-col gap-3">
                     <div>
-                        <p class="mb-1 text-sm font-medium text-zinc-700">Published between</p>
+                        <p class="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                            Published between
+                        </p>
                         <div class="flex flex-col gap-1">
                             <LInput
                                 name="publishedAfter"
@@ -253,7 +259,9 @@ const expiresBeforeString = dateRangeField("expiresBefore");
                         </div>
                     </div>
                     <div>
-                        <p class="mb-1 text-sm font-medium text-zinc-700">Expires between</p>
+                        <p class="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                            Expires between
+                        </p>
                         <div class="flex flex-col gap-1">
                             <LInput
                                 name="expiresAfter"
@@ -320,7 +328,9 @@ const expiresBeforeString = dateRangeField("expiresBefore");
             />
             <div class="flex flex-col gap-3 py-4">
                 <div class="flex flex-col gap-2">
-                    <p class="text-sm font-medium text-zinc-700">Published between</p>
+                    <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        Published between
+                    </p>
                     <LInput
                         name="publishedAfter"
                         type="datetime-local"
@@ -337,7 +347,9 @@ const expiresBeforeString = dateRangeField("expiresBefore");
                     />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <p class="text-sm font-medium text-zinc-700">Expires between</p>
+                    <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        Expires between
+                    </p>
                     <LInput
                         name="expiresAfter"
                         type="datetime-local"

@@ -43,16 +43,16 @@ const isLocalChanges = computed(() => props.hasLocalChanges(props.languagesDoc._
                         </span>
                     </div>
                     <div class="flex">
-                        <span class="font-medium text-zinc-900">
+                        <span class="font-medium text-zinc-900 dark:text-zinc-100">
                             <LBadge v-if="isLocalChanges" variant="warning" class="mr-3">
                                 Offline changes
                             </LBadge></span
                         >
                         <div
-                            class="flex items-center justify-end text-sm text-zinc-500 dark:text-zinc-100"
+                            class="flex items-center justify-end text-sm text-zinc-500 dark:text-zinc-400"
                         >
                             <ClockIcon
-                                class="mr-[3px] h-4 w-4 text-zinc-400 dark:text-zinc-100 max-lg:h-4 max-lg:w-4"
+                                class="mr-[3px] h-4 w-4 text-zinc-400 max-lg:h-4 max-lg:w-4"
                             />
                             <span title="Last Updated">{{
                                 db

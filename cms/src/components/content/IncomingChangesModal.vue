@@ -101,14 +101,20 @@ const sections = computed<Section[]>(() => {
         data-test="incoming-changes-modal"
     >
         <div class="mt-3 flex flex-col gap-4">
-            <p v-if="!sections.length" class="text-sm text-zinc-500">
+            <p v-if="!sections.length" class="text-sm text-zinc-500 dark:text-zinc-400">
                 The remote version no longer differs from yours.
             </p>
             <div v-for="section in sections" :key="section.label" class="flex flex-col gap-1">
-                <h3 class="text-sm font-semibold text-zinc-700">{{ section.label }}</h3>
-                <div class="overflow-x-auto rounded-md border border-zinc-200">
+                <h3 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                    {{ section.label }}
+                </h3>
+                <div
+                    class="overflow-x-auto rounded-md border border-zinc-200 dark:border-slate-700"
+                >
                     <table class="w-full text-left text-sm">
-                        <thead class="bg-zinc-50 text-xs text-zinc-500">
+                        <thead
+                            class="bg-zinc-50 text-xs text-zinc-500 dark:bg-slate-700 dark:text-zinc-400"
+                        >
                             <tr>
                                 <th class="px-3 py-2 font-medium">Field</th>
                                 <th class="px-3 py-2 font-medium">Remote</th>
@@ -119,13 +125,19 @@ const sections = computed<Section[]>(() => {
                             <tr
                                 v-for="row in section.rows"
                                 :key="row.field"
-                                class="border-t border-zinc-100 align-top"
+                                class="border-t border-zinc-100 align-top dark:border-slate-700"
                             >
-                                <td class="px-3 py-2 font-medium text-zinc-600">{{ row.field }}</td>
-                                <td class="whitespace-pre-wrap break-words px-3 py-2 text-zinc-800">
+                                <td class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-300">
+                                    {{ row.field }}
+                                </td>
+                                <td
+                                    class="whitespace-pre-wrap break-words px-3 py-2 text-zinc-800 dark:text-zinc-100"
+                                >
                                     {{ row.server }}
                                 </td>
-                                <td class="whitespace-pre-wrap break-words px-3 py-2 text-zinc-800">
+                                <td
+                                    class="whitespace-pre-wrap break-words px-3 py-2 text-zinc-800 dark:text-zinc-100"
+                                >
                                     {{ row.mine }}
                                 </td>
                             </tr>

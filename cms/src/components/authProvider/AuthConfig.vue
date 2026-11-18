@@ -47,7 +47,7 @@ function normalizeDomainString(value: string | undefined): string {
                     class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-100"
                 >
                     Domain
-                    <span v-if="!isEditing" class="text-red-500">*</span>
+                    <span v-if="!isEditing" class="text-red-500 dark:text-red-400">*</span>
                 </label>
                 <LInput
                     id="domain"
@@ -68,7 +68,7 @@ function normalizeDomainString(value: string | undefined): string {
                     class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-100"
                 >
                     Client ID
-                    <span v-if="!isEditing" class="text-red-500">*</span>
+                    <span v-if="!isEditing" class="text-red-500 dark:text-red-400">*</span>
                 </label>
                 <LInput
                     id="clientId"
@@ -88,7 +88,7 @@ function normalizeDomainString(value: string | undefined): string {
                     class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-100"
                 >
                     Audience
-                    <span v-if="!isEditing" class="text-red-500">*</span>
+                    <span v-if="!isEditing" class="text-red-500 dark:text-red-400">*</span>
                 </label>
                 <LInput
                     id="audience"
@@ -100,7 +100,7 @@ function normalizeDomainString(value: string | undefined): string {
                     :required="!isEditing"
                     @update:model-value="provider.audience = $event"
                 />
-                <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-100">
+                <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
                     The API identifier/audience configured in your auth provider
                 </p>
             </div>
