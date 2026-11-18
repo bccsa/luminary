@@ -824,6 +824,24 @@ describe("MediaPlayer", () => {
                     expect(engine.handle.setVideoOff).toHaveBeenLastCalledWith(true);
                 }));
 
+            it("keeps the picture off when expanded if Data Saver went to Strict meanwhile, and asks first", async () =>
+                narrow(async () => {
+                    dataSaverLevel.value = "off";
+                    const wrapper = await playing();
+                    await minimisedFor(MINI_AUDIO_DELAY_MS);
+                    dataSaverLevel.value = "strict";
+                    await flushPromises();
+                    expandMediaPlayer();
+                    await flushPromises();
+                    expect(engine.handle.setVideoOff).toHaveBeenCalledTimes(1);
+                    expect(engine.handle.setVideoOff).toHaveBeenLastCalledWith(true);
+
+                    await find(wrapper, "mediaPlayerVideo").trigger("click");
+                    await flushPromises();
+                    expect(wrapper.findComponent(LDialog).props("open")).toBe(true);
+                    expect(engine.handle.setVideoOff).toHaveBeenCalledTimes(1);
+                }));
+
             it("keeps the picture where the platform cannot turn it off in place", async () =>
                 narrow(async () => {
                     engine.canTurnVideoOff = false;

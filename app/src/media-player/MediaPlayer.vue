@@ -1123,7 +1123,8 @@ watch(expanded, (open) => {
     }
     if (!videoOffWhileMini) return;
     videoOffWhileMini = false;
-    if (!videoOffByChoice.value) return;
+    // Strict, set while minimised, keeps the picture off: it only comes back through Strict's confirm.
+    if (!videoOffByChoice.value || effectiveDataSaverLevel.value === "strict") return;
     videoOffByChoice.value = false;
     handle.value?.setVideoOff?.(false);
 });
