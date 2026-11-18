@@ -20,6 +20,25 @@ function respond(body: string, ok = true) {
     return Promise.resolve({ ok, text: () => Promise.resolve(body) } as Response);
 }
 
+/** A streamed response that hands out `chunks` one read at a time and records how far it got. */
+function streamed(chunks: string[]) {
+    const enc = new TextEncoder();
+    let i = 0;
+    const stats = { pulled: 0, cancelled: false };
+    const body = new ReadableStream<Uint8Array>({
+        pull(c) {
+            if (i >= chunks.length) return c.close();
+            stats.pulled++;
+            c.enqueue(enc.encode(chunks[i++]));
+        },
+        cancel() {
+            stats.cancelled = true;
+        },
+    });
+    const text = vi.fn(() => Promise.reject(new Error("must not read the whole body")));
+    return { res: { ok: true, body, text } as unknown as Response, stats };
+}
+
 describe("isLivePlaylist", () => {
     it("is live without an end tag", () => {
         expect(isLivePlaylist(LIVE_MEDIA)).toBe(true);
@@ -53,7 +72,6 @@ describe("canProbeLive", () => {
         expect(canProbeLive("https://cdn.example.com/audio/talk.mp3")).toBe(false);
         expect(canProbeLive("https://cdn.example.com/talk.mp4?name=x.m3u8")).toBe(false);
     });
-
 });
 
 describe("probeLiveStream", () => {
@@ -88,6 +106,43 @@ describe("probeLiveStream", () => {
         expect(await probeLiveStream("https://cdn.example.com/live/master.m3u8", empty)).toBe(
             "none",
         );
+    });
+
+    it("reads a streamed playlist split across chunks", async () => {
+        const { res } = streamed([
+            "#EX",
+            "TM3U\n#EXT-X-TARGETDURATION:6\n",
+            "#EXTINF:6,\nseg1.ts\n",
+        ]);
+        expect(
+            await probeLiveStream("https://cdn.example.com/live/index.m3u8", () =>
+                Promise.resolve(res),
+            ),
+        ).toBe("live");
+    });
+
+    it("stops reading a body that is not a playlist after its first bytes", async () => {
+        const junk = "x".repeat(64 * 1024);
+        const { res, stats } = streamed(["<!doctype html>", ...Array(32).fill(junk)]);
+        expect(
+            await probeLiveStream("https://cdn.example.com/live/index.m3u8", () =>
+                Promise.resolve(res),
+            ),
+        ).toBe("none");
+        expect(stats.cancelled).toBe(true);
+        expect(stats.pulled).toBeLessThanOrEqual(2);
+    });
+
+    it("stops reading an oversized playlist and calls it a recording", async () => {
+        const seg = "#EXTINF:6,\nseg.ts\n".repeat(4096);
+        const { res, stats } = streamed(["#EXTM3U\n", ...Array(64).fill(seg)]);
+        expect(
+            await probeLiveStream("https://cdn.example.com/vod/index.m3u8", () =>
+                Promise.resolve(res),
+            ),
+        ).toBe("recording");
+        expect(stats.cancelled).toBe(true);
+        expect(stats.pulled).toBeLessThan(64);
     });
 
     it("reports an unreachable stream as offline", async () => {

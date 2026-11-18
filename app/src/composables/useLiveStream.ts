@@ -47,6 +47,37 @@ function firstVariant(master: string, base: string): string | undefined {
 
 type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 
+/** Far above any live window; a playlist this big is a long recording, never live. */
+const MAX_PLAYLIST_BYTES = 512 * 1024;
+
+class PlaylistTooLarge extends Error {}
+
+/**
+ * Reads the body only as far as needed: stops after the first bytes when it is not a playlist
+ * and at MAX_PLAYLIST_BYTES otherwise, so a wrong source is never downloaded in full.
+ */
+async function readPlaylistBody(res: Response): Promise<string> {
+    if (!res.body) return res.text();
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let body = "";
+    let bytes = 0;
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) return body + decoder.decode();
+        bytes += value.byteLength;
+        body += decoder.decode(value, { stream: true });
+        if (body.replace(/^\uFEFF/, "").length >= "#EXTM3U".length && !isPlaylist(body)) {
+            void reader.cancel();
+            return body;
+        }
+        if (bytes > MAX_PLAYLIST_BYTES) {
+            void reader.cancel();
+            throw new PlaylistTooLarge();
+        }
+    }
+}
+
 /** Reads the playlist (and, for a master, its first variant) to tell whether it is on air now. */
 export async function probeLiveStream(
     src: string,
@@ -55,7 +86,7 @@ export async function probeLiveStream(
     const read = async (url: string) => {
         const res = await fetchFn(url, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.text();
+        return readPlaylistBody(res);
     };
     try {
         let playlist = await read(src);
@@ -64,8 +95,8 @@ export async function probeLiveStream(
         if (variant) playlist = await read(variant);
         if (!isPlaylist(playlist)) return "none";
         return isLivePlaylist(playlist) ? "live" : "recording";
-    } catch {
-        return "offline";
+    } catch (e) {
+        return e instanceof PlaylistTooLarge ? "recording" : "offline";
     }
 }
 
