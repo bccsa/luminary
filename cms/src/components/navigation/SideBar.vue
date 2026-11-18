@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RouterLink } from "vue-router";
+import { RouterLink, useRouter } from "vue-router";
 import {
     DocumentDuplicateIcon,
     TagIcon,
@@ -225,6 +225,25 @@ const confirmLogout = () => {
     forceReauthOnNextLogin.value = false;
 };
 
+const { currentRoute } = useRouter();
+
+const activeClass = "bg-zinc-200 text-zinc-900 dark:!text-yellow-400 dark:bg-slate-700";
+
+// Detail pages are sibling routes of their section's list route, so RouterLink never marks the section active on them.
+const sectionRouteByDetailRoute: Record<string, string> = {
+    edit: "overview",
+    language: "languages",
+    user: "users",
+};
+
+const isDetailRouteOf = (to?: NavigationEntry["to"]) => {
+    const route = currentRoute.value;
+    if (!to || typeof route.name !== "string") return false;
+    if (sectionRouteByDetailRoute[route.name] !== to.name) return false;
+    // `edit` shares `docType`/`tagOrPostType` with its `overview`, so a post doesn't highlight the tags section.
+    return Object.entries(to.params ?? {}).every(([k, v]) => String(route.params[k]) === String(v));
+};
+
 const navIconClass = "h-5 w-5 shrink-0";
 // When collapsed (desktop only) nav rows center their icon and drop the label gap/padding.
 const navItemClass = computed(() => [
@@ -290,8 +309,8 @@ const navItemClass = computed(() => [
                     <RouterLink
                         v-if="item.visible && !item.children && item.to"
                         :to="item.to"
-                        active-class="bg-zinc-200 text-zinc-900 dark:!text-yellow-400 dark:bg-slate-700"
-                        :class="navItemClass"
+                        :active-class="activeClass"
+                        :class="[navItemClass, isDetailRouteOf(item.to) && activeClass]"
                         :title="item.name"
                         @click="closeDrawer"
                     >
@@ -325,7 +344,8 @@ const navItemClass = computed(() => [
                             <li v-for="subItem in item.children" :key="subItem.name">
                                 <RouterLink
                                     :to="subItem.to"
-                                    active-class="bg-zinc-200 dark:bg-slate-700 dark:!text-yellow-400 text-zinc-900"
+                                    :active-class="activeClass"
+                                    :class="isDetailRouteOf(subItem.to) && activeClass"
                                     class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-slate-700"
                                     @click="closeDrawer"
                                 >
@@ -365,7 +385,7 @@ const navItemClass = computed(() => [
 
                 <RouterLink
                     :to="{ name: 'settings' }"
-                    active-class="bg-zinc-200 text-zinc-900 dark:!text-yellow-400 dark:bg-slate-700"
+                    :active-class="activeClass"
                     :class="navItemClass"
                     title="Settings"
                     @click="closeDrawer"
