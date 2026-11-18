@@ -638,7 +638,8 @@
     pointer-events: none;
 }
 
-.lmpl-opt-quality:not(.lmpl-has-quality-choice *),
+.lmpl-opt-quality:not(.lmpl-has-quality-choice *):not(.lmpl-has-data-saver *),
+.lmpl-card-quality media-quality-radio-group:not(.lmpl-has-quality-choice *),
 .lmpl-opt-audio:not(.lmpl-has-audio-choice *),
 .lmpl-opt-captions:not(.lmpl-has-subtitles *) {
     display: none !important;
@@ -735,6 +736,55 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: rgb(255 255 255 / 0.6);
+}
+
+/* The quality card's Data Saver switch, under the qualities like the now-playing screen's. */
+.lmpl-card-toggle {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    padding: calc(8px * var(--lmpl-s)) calc(10px * var(--lmpl-s));
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+}
+
+.lmpl-card-toggle[hidden] {
+    display: none;
+}
+
+.lmpl-card-toggle:hover,
+.lmpl-card-toggle:focus-visible {
+    background: rgb(255 255 255 / 0.1);
+}
+
+media-quality-radio-group + .lmpl-card-toggle {
+    margin-top: 4px;
+    border-top: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: 0 0 6px 6px;
+}
+
+.lmpl-card-toggle-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.lmpl-card-toggle-sub {
+    font-size: 0.85em;
+    opacity: 0.7;
+}
+
+.lmpl-card-toggle[aria-checked="true"] .lmpl-afs-switch {
+    background: #eab308;
+}
+
+.lmpl-card-toggle[aria-checked="true"] .lmpl-afs-switch::after {
+    translate: 14px 0;
 }
 
 /* Volume needs a pointer to be worth its space; a touch screen has the device's own. */
@@ -3128,6 +3178,18 @@
     margin-top: 4px;
     border-top: 1px solid rgb(255 255 255 / 0.1);
     border-radius: 0 0 8px 8px;
+}
+
+.lmpl-afs-menutext {
+    display: flex;
+    flex-direction: column;
+    text-align: start;
+}
+
+.lmpl-afs-menusub {
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.7;
 }
 
 .lmpl-afs-menuitem.lmpl-afs-menutoggle[aria-checked]::after {

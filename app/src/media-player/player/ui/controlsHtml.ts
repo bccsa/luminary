@@ -72,6 +72,16 @@ const GROUPS = {
 
 type Setting = keyof typeof GROUPS;
 
+/**
+ * The quality card's Data Saver switch, under the qualities. Hidden until the host gives a level; the component
+ * writes its state and words, which follow the host's settings rather than the markup.
+ */
+const DATA_SAVER_TOGGLE =
+    '<button type="button" role="menuitemcheckbox" aria-checked="false" class="lmpl-card-toggle" data-data-saver hidden>' +
+    '<span class="lmpl-card-toggle-text"><span data-part="label"></span><span class="lmpl-card-toggle-sub" data-part="default"></span></span>' +
+    '<span class="lmpl-afs-switch" aria-hidden="true"></span>' +
+    "</button>";
+
 const SETTING_ICONS: Record<Setting, string> = {
     quality: "switches",
     audio: "language",
@@ -100,6 +110,7 @@ function setting(kind: Setting, id: string, title: string): string {
         '<media-menu-content class="media-menu-content">' +
         `<span class="lmpl-card-title">${escapeHtml(title)}</span>` +
         GROUPS[kind] +
+        (kind === "quality" ? DATA_SAVER_TOGGLE : "") +
         "</media-menu-content></media-menu>"
     );
 }

@@ -287,10 +287,33 @@ describe("MediaPlayerWrapper", () => {
                 userDataSaverEnabled.value = false;
                 await flushPromises();
                 expect(controllerMock.setMaxHeight).toHaveBeenLastCalledWith(null);
-                expect(wrapper.vm.liftDataSaverCap()).toBe(false);
+                expect(wrapper.vm.syncDataSaverCap()).toBe(false);
                 userDataSaverEnabled.value = true;
                 await flushPromises();
                 expect(controllerMock.setMaxHeight).toHaveBeenLastCalledWith(360);
+            });
+
+            it("where the engine cannot cap in place, reloads in place to set or lift the cap", async () => {
+                controllerMock.canCapInPlace = false;
+                try {
+                    userDataSaverEnabled.value = false;
+                    const wrapper = await mountPlayer();
+                    expect(stub(wrapper).props("source").maxHeight).toBeUndefined();
+                    userDataSaverEnabled.value = true;
+                    expect(wrapper.vm.syncDataSaverCap()).toBe(true);
+                    await flushPromises();
+                    expect(stub(wrapper).props("source")).toMatchObject({
+                        maxHeight: 360,
+                        preservePosition: true,
+                    });
+                    expect(wrapper.vm.syncDataSaverCap()).toBe(false);
+                    userDataSaverEnabled.value = false;
+                    expect(wrapper.vm.syncDataSaverCap()).toBe(true);
+                    await flushPromises();
+                    expect(stub(wrapper).props("source").maxHeight).toBeUndefined();
+                } finally {
+                    controllerMock.canCapInPlace = true;
+                }
             });
 
             it("turns background chunk warming off under Data Saver, and leaves it on otherwise", async () => {

@@ -46,7 +46,7 @@ export type VideoNowPlayingScreen = {
     /** The tags up next can be narrowed to (chips show from two), and the one it is narrowed to. */
     upNextTags?: { id: string; title: string; series?: boolean }[];
     upNextTag?: string | null;
-    /** The Data Saver level in force, for the screen's gear menu. */
+    /** The Data Saver level playback follows (Settings', or the quality menu's override), for the screen's menus. */
     dataSaver?: "off" | "light" | "strict";
     /** Whether the end counts down to the next item and plays it, for the gear menu and the end panel. */
     autoplay?: boolean;
@@ -104,6 +104,7 @@ export type VideoNowPlayingTexts = Partial<
         | "filterByTag"
         | "playbackSettings"
         | "dataSaver"
+        | "dataSaverDefault"
         | "dataSaverOff"
         | "dataSaverLight"
         | "dataSaverStrict"

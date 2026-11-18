@@ -131,6 +131,8 @@ export interface PlayerMessages {
     sleepOff: string;
     /** The Data Saver switch at the foot of the quality menu. */
     dataSaver: string;
+    /** Under the Data Saver switch: the level Settings gives, which the switch overrides for this playback only. */
+    dataSaverDefault: string;
     /** Name of the autoplay switch beside the picture tools. */
     autoplay: string;
     /** Name of the camera button and its menu. */
@@ -210,6 +212,7 @@ export const DEFAULT_MESSAGES: PlayerMessages = {
     sleepTimer: "Sleep timer",
     sleepOff: "Off",
     dataSaver: "Data saver",
+    dataSaverDefault: "Default from Settings",
     autoplay: "Autoplay",
     cameraLabel: "View",
     sleepMinutes: "{minutes} minutes",

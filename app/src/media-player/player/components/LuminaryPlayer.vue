@@ -122,6 +122,11 @@ interface Props {
     appearance?: "light" | "dark";
     /** Audio language to select automatically; a viewer's own choice outranks it. */
     preferredLanguage?: string;
+    /**
+     * The Data Saver level playback follows; given, the quality card ends with a switch for it, and a flip raises
+     * `nowplayingaction` (`dataSaver`, `light` or `off`), as the native now-playing screen's does.
+     */
+    dataSaver?: "off" | "light" | "strict";
     /** Saves data on scrub sprite sheets: only the playhead's own is fetched ahead, once playback is under way; the rest as the pointer reaches them. */
     lazyThumbnails?: boolean;
     /** Options handed to the default `PlayerController`. */
@@ -143,6 +148,8 @@ const emit = defineEmits<{
     nextupselect: [id: string];
     /** The viewer closed the card, so nothing follows this video. */
     nextupdismiss: [];
+    /** The quality card's Data Saver switch was flipped: `dataSaver` with `light` or `off`. */
+    nowplayingaction: [action: "dataSaver", value: "light" | "off"];
 }>();
 
 /**
@@ -739,6 +746,10 @@ function onFullscreenChange(): void {
  * Raising the volume of a muted player unmutes it, which is what pressing plus means.
  */
 function onControlsClick(event: MouseEvent): void {
+    if (event.target instanceof Element && event.target.closest("[data-data-saver]")) {
+        emit("nowplayingaction", "dataSaver", props.dataSaver === "off" ? "light" : "off");
+        return;
+    }
     if (event.target instanceof Element && event.target.closest("[data-browse-toggle]")) {
         toggleBrowse();
         return;
@@ -1619,6 +1630,22 @@ watch(
     { flush: "post", immediate: true },
 );
 
+/** The quality card's Data Saver switch is markup too: its state and words are written by hand. */
+watch(
+    [() => props.dataSaver, msg, controlsHtml, containerEl],
+    () => {
+        const toggle = containerEl.value?.querySelector<HTMLElement>("[data-data-saver]");
+        if (!toggle) return;
+        toggle.hidden = props.dataSaver === undefined;
+        toggle.setAttribute("aria-checked", String(!!props.dataSaver && props.dataSaver !== "off"));
+        const label = toggle.querySelector('[data-part="label"]');
+        if (label) label.textContent = msg.value.dataSaver;
+        const sub = toggle.querySelector('[data-part="default"]');
+        if (sub) sub.textContent = msg.value.dataSaverDefault;
+    },
+    { flush: "post", immediate: true },
+);
+
 function pickChapter(chapter: Chapter): void {
     seek(chapter.startTime);
     closeBrowse();
@@ -2080,6 +2107,7 @@ defineExpose({
             'lmpl-windowed-bare': !mergedControls.windowedControls,
             'lmpl-is-fullscreen': isFullscreen,
             'lmpl-has-quality-choice': state.qualities.length > 1,
+            'lmpl-has-data-saver': dataSaver !== undefined,
             'lmpl-has-audio-choice': state.audioTracks.length > 1,
             'lmpl-has-subtitles': state.subtitleTracks.length > 0,
             'lmpl-captions-on': !!state.activeSubtitleTrackId,
@@ -2226,6 +2254,11 @@ defineExpose({
                     @rate="setRate"
                     @audio-track="setAudioTrack"
                     @sleep="setSleep"
+                    :data-saver="dataSaver"
+                    @data-saver="
+                        (level: string) =>
+                            emit('nowplayingaction', 'dataSaver', level === 'off' ? 'off' : 'light')
+                    "
                 >
                     <template #cast>
                         <media-cast-button

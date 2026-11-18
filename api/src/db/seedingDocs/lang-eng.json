@@ -244,6 +244,7 @@
         "media_player.sleep_timer": "Sleep timer",
         "media_player.playback_settings": "Playback settings",
         "media_player.data_saver": "Data saver",
+        "media_player.data_saver_default": "Default from Settings: {level}",
         "media_player.autoplay": "Autoplay",
         "media_player.autoplay_on": "On",
         "media_player.autoplay_off": "Off",
