@@ -32,7 +32,7 @@ defineProps<Props>();
 
 // Only Save is yellow in dark mode; Revert and the chevron use the secondary button colours.
 const neutralSegmentDark =
-    "dark:bg-slate-600 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-500 dark:active:bg-slate-500 dark:active:text-zinc-100";
+    "dark:bg-slate-700 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-600 dark:active:bg-slate-500 dark:active:text-zinc-100";
 
 const showContentActionsMenuDesktop = ref(false);
 const showContentActionsMenuMobile = ref(false);
@@ -60,7 +60,7 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
             dropdown-anchor
             :main-dynamic-css="
                 !isDirty || isSaving
-                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none dark:!bg-zinc-400 dark:!text-zinc-900 dark:!ring-zinc-600'
+                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none dark:!bg-slate-700 dark:!text-zinc-500 dark:!ring-slate-600'
                     : ''
             "
             :left-dynamic-css="neutralSegmentDark"
@@ -138,7 +138,7 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
             dropdown-anchor
             :main-dynamic-css="
                 !isDirty || isSaving
-                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none dark:!bg-zinc-400 dark:!text-zinc-900 dark:!ring-zinc-600'
+                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none dark:!bg-slate-700 dark:!text-zinc-500 dark:!ring-slate-600'
                     : ''
             "
             :left-dynamic-css="neutralSegmentDark"
@@ -152,7 +152,10 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
             </template>
 
             <span data-test="save-button" class="flex items-center gap-1">
-                <CloudArrowUpIcon class="size-5 dark:text-zinc-800" />
+                <CloudArrowUpIcon
+                    class="size-5"
+                    :class="{ 'dark:text-zinc-800': isDirty && !isSaving }"
+                />
                 Save
             </span>
 
