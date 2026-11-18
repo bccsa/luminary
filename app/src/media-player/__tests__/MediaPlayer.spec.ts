@@ -43,6 +43,8 @@ const engine = vi.hoisted(() => ({
     thumbnailsReady: false,
     /** The packaged app's native player: it draws its own now-playing screen and turns the picture off in place. */
     native: false as boolean | null,
+    /** Whether the native player can turn the picture off in place, rather than reload an audio-only master. */
+    canTurnVideoOff: true,
 }));
 
 vi.mock("@luminary-media-converter/player-web", async () => {
@@ -292,7 +294,7 @@ vi.mock("@/media-player/MediaPlayerWrapper.vue", async () => {
                               showMiniPlayer: vi.fn(),
                               setMiniPlayerFrame: vi.fn(),
                               hideMiniPlayer: vi.fn(),
-                              canTurnVideoOff: true,
+                              canTurnVideoOff: engine.canTurnVideoOff,
                               setVideoOff: vi.fn(),
                           }
                         : { nativeNowPlaying: engine.native === false ? false : null }),
@@ -404,6 +406,7 @@ beforeEach(() => {
     engine.airPlayActive = false;
     engine.thumbnailsReady = false;
     engine.native = false;
+    engine.canTurnVideoOff = true;
     document.documentElement.classList.remove("lmc-inline-video");
     document.documentElement.classList.remove("lmc-player-dragging");
     closeMediaPlayer();
@@ -823,9 +826,10 @@ describe("MediaPlayer", () => {
 
             it("keeps the picture where the platform cannot turn it off in place", async () =>
                 narrow(async () => {
-                    engine.native = false;
+                    engine.canTurnVideoOff = false;
                     await playing();
                     await minimisedFor(MINI_AUDIO_DELAY_MS);
+                    expect(engine.handle.setVideoOff).not.toHaveBeenCalled();
                     expect(engine.controller.setAngle).not.toHaveBeenCalled();
                 }));
 
