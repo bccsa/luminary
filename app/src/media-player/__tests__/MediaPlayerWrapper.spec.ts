@@ -9,6 +9,7 @@ import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import { shareImageUrl } from "@/composables/useSocialShare";
 import { userDataSaverEnabled, youtubeAlwaysAllow } from "@/globalConfig";
 import { fallbackArtworkDataUrl } from "@/util/fallbackArtwork";
+import { mediaSourceFor } from "@/util/mediaSource";
 import {
     connectionSpeed,
     hasMeasuredConnectionSpeed,
@@ -107,6 +108,8 @@ vi.mock("@/contentProgress", () => ({
     setMediaProgress: setMediaProgressMock,
     getMediaProgress: getMediaProgressMock,
     isMediaFinished: isMediaFinishedMock,
+    MIN_MEDIA_PROGRESS_SECONDS: 60,
+    mediaProgressKey: (mediaId: string, contentId: string) => `${mediaId}|${contentId}`,
 }));
 
 const recordAffinityMock = vi.hoisted(() => vi.fn());
@@ -721,13 +724,14 @@ describe("MediaPlayerWrapper", () => {
             expect(exitFullscreenMock).toHaveBeenCalled();
         });
 
-        it("hands a player that takes it the title and the post's image for the lock screen", async () => {
+        it("hands a player that takes it the title, the post's image and the progress key for the lock screen", async () => {
             const wrapper = await mountWithService(true);
 
             expect(wrapper.findComponent(NativeStub).props("nowPlaying")).toEqual({
                 title: mockEnglishContentDto.title,
                 subtitle: mockEnglishContentDto.author,
                 artworkUrl: shareImageUrl(content(), "https://bucket.example.com"),
+                progressKey: `${mediaSourceFor(content())}|${content()._id}`,
             });
         });
 
@@ -741,6 +745,7 @@ describe("MediaPlayerWrapper", () => {
                 subtitle: mockEnglishContentDto.author,
                 artworkUrl: shareImageUrl(content(), "https://bucket.example.com"),
                 fallbackArtworkUrl: "data:image/jpeg;base64,AAAA",
+                progressKey: `${mediaSourceFor(content())}|${content()._id}`,
             });
         });
 
