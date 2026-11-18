@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch } from "vue";
+import { computed, nextTick, ref, onMounted, onUnmounted, watch } from "vue";
 import {
     DocumentDuplicateIcon,
     PencilSquareIcon,
@@ -160,6 +160,13 @@ function positionMenu(rect: DOMRect) {
 function repositionMenu() {
     const rect = getSelectionRect();
     if (rect) positionMenu(rect);
+}
+
+// The share list is several times the pill's height, so above-or-below is decided again for it.
+async function remeasureMenu() {
+    await nextTick();
+    if (actionsMenu.value?.offsetHeight) menuHeight.value = actionsMenu.value.offsetHeight;
+    repositionMenu();
 }
 
 let scrollFrame: number | undefined;
@@ -337,10 +344,12 @@ async function openShareMenu() {
         return;
     }
     showShareMenu.value = true;
+    await remeasureMenu();
 }
 
 function closeShareMenu() {
     showShareMenu.value = false;
+    void remeasureMenu();
 }
 
 function finalizeShare() {

@@ -783,6 +783,28 @@ describe("LHighlightable", () => {
                 wrapper.unmount();
             });
 
+            it("moves the menu below the highlight when the taller share list would not fit above", async () => {
+                rect = { left: 100, top: 200, bottom: 220, width: 100, height: 20 };
+                // The pill fits above; the share list is about 230 px and would not.
+                vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+                    this: HTMLElement,
+                ) {
+                    return this.querySelector("[data-test='shareTelegram']") ? 230 : 44;
+                });
+                const wrapper = await tapHighlight();
+                expect(menu().classList).toContain("-translate-y-full");
+
+                document.body
+                    .querySelector<HTMLElement>("[data-test='highlightShareTrigger']")!
+                    .click();
+                await settle();
+
+                expect(document.body.querySelector("[data-test='shareTelegram']")).toBeTruthy();
+                expect(menu().style.top).toBe("228px");
+                expect(menu().classList).not.toContain("-translate-y-full");
+                wrapper.unmount();
+            });
+
             it("selects the whole highlight and opens its menu", async () => {
                 const wrapper = await mountWith({
                     ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],
