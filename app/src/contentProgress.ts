@@ -347,29 +347,27 @@ export const mediaProgressKey = (mediaId: string, contentId: Uuid): string =>
 
 /**
  * Applies a position a platform kept while the page could not save, unless the page saved one since: a record
- * older than the entry would put the viewer back.
+ * older than the entry would put the viewer back. Returns where the media was before and after, when applied.
  */
 export function applyBackgroundMediaProgress(record: {
     key: string;
     position: number;
     duration: number;
     savedAt: number;
-}): void {
+}): { contentId: Uuid; from: number; to: number; duration: number } | undefined {
     let mediaId: unknown;
     let contentId: unknown;
     try {
         ({ mediaId, contentId } = JSON.parse(record.key));
     } catch {
-        return;
+        return undefined;
     }
-    if (typeof mediaId !== "string" || typeof contentId !== "string") return;
-    if (record.position < MIN_MEDIA_PROGRESS_SECONDS || !(record.duration > 0)) return;
+    if (typeof mediaId !== "string" || typeof contentId !== "string") return undefined;
+    if (record.position < MIN_MEDIA_PROGRESS_SECONDS || !(record.duration > 0)) return undefined;
     const entry = findContentProgressEntry(contentId);
-    if (entry && entry.updatedAt >= record.savedAt) return;
-    setMediaProgress(
-        mediaId,
-        contentId,
-        Math.min(record.position, record.duration),
-        record.duration,
-    );
+    if (entry && entry.updatedAt >= record.savedAt) return undefined;
+    const from = getMediaProgress(mediaId, contentId);
+    const to = Math.min(record.position, record.duration);
+    setMediaProgress(mediaId, contentId, to, record.duration);
+    return { contentId, from, to, duration: record.duration };
 }

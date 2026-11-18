@@ -120,9 +120,15 @@ describe("contentProgress.ts", () => {
             setMediaProgress("mediaId", "contentId", 124, 600);
             const savedAt = contentProgressAsRef.value[0].updatedAt + 1;
 
-            applyBackgroundMediaProgress({ key, position: 289, duration: 600, savedAt });
+            const applied = applyBackgroundMediaProgress({
+                key,
+                position: 289,
+                duration: 600,
+                savedAt,
+            });
 
             expect(getMediaProgress("mediaId", "contentId")).toBe(289);
+            expect(applied).toEqual({ contentId: "contentId", from: 124, to: 289, duration: 600 });
         });
 
         it("applies one for media the page never saved", () => {
@@ -134,9 +140,15 @@ describe("contentProgress.ts", () => {
             setMediaProgress("mediaId", "contentId", 300, 600);
             const savedAt = contentProgressAsRef.value[0].updatedAt - 1;
 
-            applyBackgroundMediaProgress({ key, position: 289, duration: 600, savedAt });
+            const applied = applyBackgroundMediaProgress({
+                key,
+                position: 289,
+                duration: 600,
+                savedAt,
+            });
 
             expect(getMediaProgress("mediaId", "contentId")).toBe(300);
+            expect(applied).toBeUndefined();
         });
 
         it("marks media that played to its end as finished", () => {

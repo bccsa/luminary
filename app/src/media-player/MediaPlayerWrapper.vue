@@ -43,9 +43,8 @@ import {
     mediaProgressKey,
     setMediaProgress,
 } from "@/contentProgress";
-import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
-import { ensureUserActivity } from "@/userActivity/store";
+import { recordMediaCompletion } from "./mediaCompletion";
 import { fallbackArtworkDataUrl } from "@/util/fallbackArtwork";
 import { deviceOnline, offlineArtworkDataUrl } from "./cachedArtwork";
 import { audioLanguageFor, audioLanguagePreference } from "./audioLanguage";
@@ -568,12 +567,7 @@ const watchTracker = createMediaWatchTracker();
 
 /** Both call sites claim the completion from the tracker before scoring it. */
 function applyCompletion() {
-    // Finishing a video is a strong engagement signal — weighted above a plain open.
-    recordAffinity(props.content.parentTags, affinityConfig.value.eventWeight.completion);
-
-    // mediaProgress is a 10-slot ring buffer used only to resume playback, not a
-    // history — record completion in the activity history instead.
-    void ensureUserActivity({ type: "viewed", parentId: props.content.parentId });
+    recordMediaCompletion(props.content);
 }
 
 /** Each save rewrites localStorage and re-renders every progress tile, so `timeupdate`'s rate is too often. */

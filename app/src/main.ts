@@ -1,6 +1,6 @@
 import "./polyfills";
 import "./assets/main.css";
-import { createApp, nextTick, watch } from "vue";
+import { createApp, inject, nextTick, watch } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
@@ -27,6 +27,8 @@ import { markAppReady, markAppError } from "@/util/renderState";
 import { notifyUiReady } from "virtual:app-lifecycle";
 import { initLivePublishClock } from "@/util/livePublishClock";
 import { BOOT_SPLASH_ID } from "./bootSplash";
+import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
+import { applyBackgroundProgress } from "@/media-player/useBackgroundProgress";
 
 export const app = createApp(App);
 
@@ -94,6 +96,12 @@ async function Startup() {
     // platform auth-flow strategy from the app.
     app.use(appPluginsManager);
 
+    // Before mount: a player opening on the video would otherwise resume from, and save over, the older position.
+    const backgroundProgress = applyBackgroundProgress(
+        app.runWithContext(() => inject(VideoPlayerKey, undefined))?.takeBackgroundProgress,
+        { scoreCompletion: true },
+    );
+
     await setupAuth(app, router);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
@@ -132,6 +140,7 @@ async function Startup() {
 
     app.use(router);
     app.use(i18n);
+    await backgroundProgress;
     app.mount("#app");
     // The web loading UI is rendering from here on — the build target may have
     // launch chrome of its own to hand over from.
