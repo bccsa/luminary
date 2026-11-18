@@ -805,6 +805,34 @@ describe("LHighlightable", () => {
                 wrapper.unmount();
             });
 
+            it("moves the share list below the highlight when only its top would sit under a bar", async () => {
+                // A 64 px title bar; the 260 px list would start 32 px down, its middle clear of the bar.
+                const bar = document.createElement("div");
+                bar.style.position = "sticky";
+                document.body.appendChild(bar);
+                (document as { elementsFromPoint?: unknown }).elementsFromPoint = (
+                    _x: number,
+                    y: number,
+                ) => (y < 64 ? [bar] : []);
+                vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+                    this: HTMLElement,
+                ) {
+                    return this.querySelector("[data-test='shareTelegram']") ? 260 : 44;
+                });
+                const wrapper = await tapHighlight();
+                expect(menu().classList).toContain("-translate-y-full");
+
+                document.body
+                    .querySelector<HTMLElement>("[data-test='highlightShareTrigger']")!
+                    .click();
+                await settle();
+
+                expect(menu().style.top).toBe("328px");
+                expect(menu().classList).not.toContain("-translate-y-full");
+                wrapper.unmount();
+                bar.remove();
+            });
+
             it("selects the whole highlight and opens its menu", async () => {
                 const wrapper = await mountWith({
                     ranges: [{ start: 5, end: 16, color: "blue", text: "highlighted" }],

@@ -151,8 +151,10 @@ function positionMenu(rect: DOMRect) {
     const top = rect.top - 8 - menuHeight.value;
     const middle = top + menuHeight.value / 2;
     const half = menuWidth.value / 2;
+    // The top edge too: a tall share list can clear a bar at its middle yet start under it.
     menuBelow.value =
-        top < 0 || [x - half, x, x + half].some((px) => coveredAt(px, Math.max(middle, 0)));
+        top < 0 ||
+        [x - half, x, x + half].some((px) => coveredAt(px, top) || coveredAt(px, middle));
     // Centred on the selection: above it, or below it where above is taken.
     menuPos.value = { x, y: menuBelow.value ? rect.bottom + 8 : rect.top - 8 };
 }
