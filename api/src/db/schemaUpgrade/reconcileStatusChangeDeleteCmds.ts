@@ -1,15 +1,18 @@
 import { DbService } from "../db.service";
 import { DeleteReason, DocType, PublishStatus } from "../../enums";
 
+type StatusChangeCmd = { _id: string; updatedTimeUtc: number };
+
 /**
  * Reconciles `StatusChange` deleteCmd documents with their target Content documents:
  *
- *   - Deletes orphan `StatusChange` deleteCmds whose target content is Published
- *     (republished without the deleteCmd being cleaned up) or has been hard-deleted.
- *   - Backfills `statusChangeDeleteCmdId` on Draft content docs so the republish path
- *     can delete the deleteCmd by primary key.
- *   - Deletes duplicate `StatusChange` deleteCmds for the same content doc: the content
- *     tracks one ID, so any extras are stale.
+ *   - Deletes the `StatusChange` deleteCmds of content that is Published (republished
+ *     without the deleteCmd being cleaned up) or has been hard-deleted.
+ *   - Keeps one deleteCmd per Draft content doc, the newest, and deletes the others: the
+ *     content tracks one ID, and a client that synced past an older deleteCmd only drops
+ *     the unpublished content when it receives the newest one.
+ *   - Points `statusChangeDeleteCmdId` on each Draft at the deleteCmd kept, so the
+ *     republish path can delete it by primary key.
  *
  * A point-in-time reconciliation, safe to run more than once.
  */
@@ -17,42 +20,50 @@ export async function reconcileStatusChangeDeleteCmds(db: DbService): Promise<vo
     let deletedOrphans = 0;
     let backfilled = 0;
     let alreadyTracked = 0;
-    // Per content doc: the deleteCmd `_id` kept or backfilled so far.
-    const trackedByContentId = new Map<string, string>();
 
+    // Collected first, so the newest of each content doc's deleteCmds is known before any
+    // is deleted, and nothing is deleted while the paged scan is still running.
+    const cmdsByContentId = new Map<string, StatusChangeCmd[]>();
     await db.processAllDocs([DocType.DeleteCmd], async (cmd: any) => {
         if (!cmd || cmd.deleteReason !== DeleteReason.StatusChange) return;
+        const cmds = cmdsByContentId.get(cmd.docId) ?? [];
+        cmds.push({ _id: cmd._id, updatedTimeUtc: cmd.updatedTimeUtc ?? 0 });
+        cmdsByContentId.set(cmd.docId, cmds);
+    });
 
-        const contentRes = await db.getDoc(cmd.docId);
+    for (const [contentId, cmds] of cmdsByContentId) {
+        const contentRes = await db.getDoc(contentId);
         const content = contentRes.docs[0];
 
         if (!content || content.status === PublishStatus.Published) {
-            await db.deleteDoc(cmd._id);
-            deletedOrphans++;
-            return;
+            for (const cmd of cmds) await db.deleteDoc(cmd._id);
+            deletedOrphans += cmds.length;
+            continue;
         }
 
-        // Target content is Draft: keep exactly one deleteCmd per content doc.
-        const trackedOnContent: string | undefined = content.statusChangeDeleteCmdId;
-        const trackedThisRun = trackedByContentId.get(content._id);
+        // On a tie the one the content already tracks is kept, so no needless rewrite.
+        const tracked: string | undefined = content.statusChangeDeleteCmdId;
+        const keep = cmds.reduce((best, cmd) =>
+            cmd.updatedTimeUtc > best.updatedTimeUtc ||
+            (cmd.updatedTimeUtc === best.updatedTimeUtc && cmd._id === tracked)
+                ? cmd
+                : best,
+        );
 
-        if (trackedOnContent === cmd._id || trackedThisRun === cmd._id) {
+        for (const cmd of cmds) {
+            if (cmd._id === keep._id) continue;
+            await db.deleteDoc(cmd._id);
+            deletedOrphans++;
+        }
+
+        if (tracked === keep._id) {
             alreadyTracked++;
-            trackedByContentId.set(content._id, cmd._id);
-            return;
+            continue;
         }
-
-        if (trackedOnContent || trackedThisRun) {
-            await db.deleteDoc(cmd._id);
-            deletedOrphans++;
-            return;
-        }
-
-        content.statusChangeDeleteCmdId = cmd._id;
+        content.statusChangeDeleteCmdId = keep._id;
         await db.insertDoc(content);
-        trackedByContentId.set(content._id, cmd._id);
         backfilled++;
-    });
+    }
 
     console.info(
         `StatusChange deleteCmd reconciliation: ${deletedOrphans} orphan(s) deleted, ${backfilled} backfilled on draft docs, ${alreadyTracked} already-tracked`,

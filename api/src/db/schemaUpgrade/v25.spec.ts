@@ -22,11 +22,12 @@ describe("v25 — StatusChange deleteCmd reconciliation", () => {
         return { db, deleted, inserted };
     }
 
-    const cmd = (id: string, docId: string) => ({
+    const cmd = (id: string, docId: string, updatedTimeUtc = 1000) => ({
         _id: id,
         type: DocType.DeleteCmd,
         docId,
         deleteReason: DeleteReason.StatusChange,
+        updatedTimeUtc,
     });
     const content = (id: string, status: PublishStatus, statusChangeDeleteCmdId?: string) => ({
         _id: id,
@@ -71,6 +72,50 @@ describe("v25 — StatusChange deleteCmd reconciliation", () => {
         await v25(db);
 
         expect(deleted).toEqual([]);
+        expect(inserted).toEqual([]);
+    });
+
+    it("keeps the newest of a draft's duplicate deleteCmds, not the first in _id order", async () => {
+        // Unpublished (cmd-a), republished, unpublished again (cmd-b). The scan meets the
+        // older cmd-a first, but a client that synced past it only drops the content on cmd-b.
+        const { db, deleted, inserted } = mockDb(24, [
+            content("post-1-eng", PublishStatus.Draft),
+            cmd("cmd-a", "post-1-eng", 1000),
+            cmd("cmd-b", "post-1-eng", 2000),
+        ]);
+
+        await v25(db);
+
+        expect(deleted).toEqual(["cmd-a"]);
+        expect(inserted.map((d) => [d._id, d.statusChangeDeleteCmdId])).toEqual([
+            ["post-1-eng", "cmd-b"],
+        ]);
+    });
+
+    it("moves a draft tracking an older deleteCmd to the newest one", async () => {
+        const { db, deleted, inserted } = mockDb(24, [
+            content("post-1-eng", PublishStatus.Draft, "cmd-old"),
+            cmd("cmd-new", "post-1-eng", 2000),
+            cmd("cmd-old", "post-1-eng", 1000),
+        ]);
+
+        await v25(db);
+
+        expect(deleted).toEqual(["cmd-old"]);
+        expect(inserted.map((d) => [d._id, d.statusChangeDeleteCmdId])).toEqual([
+            ["post-1-eng", "cmd-new"],
+        ]);
+    });
+
+    it("deletes every deleteCmd of content that no longer exists", async () => {
+        const { db, deleted, inserted } = mockDb(24, [
+            cmd("cmd-1", "post-gone-eng", 1000),
+            cmd("cmd-2", "post-gone-eng", 2000),
+        ]);
+
+        await v25(db);
+
+        expect(deleted.sort()).toEqual(["cmd-1", "cmd-2"]);
         expect(inserted).toEqual([]);
     });
 
