@@ -146,7 +146,7 @@ describe("LuminaryPlayer scrub preview and auto-hide", () => {
         const strip = () => document.querySelector(".lmpl-roster-interactive");
 
         // Only the timeouts: the open strip follows the playhead on animation frames, which must not be run here.
-        vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+        vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
         try {
             await touch(container(), "pointerdown", 500, 510);
             await touch(container(), "pointerup", 500, 510);
@@ -155,7 +155,9 @@ describe("LuminaryPlayer scrub preview and auto-hide", () => {
             await touch(strip()!, "pointerdown", 500, 400);
             await touch(strip()!, "pointermove", 460, 400);
             expect(paused).toBe(true);
-            await touch(strip()!, "pointerup", 420, 400);
+            // The finger rests before it lifts, so the strip stops there rather than spinning on.
+            vi.advanceTimersByTime(200);
+            await touch(strip()!, "pointerup", 460, 400);
             expect(paused).toBe(false);
             expect(strip()).not.toBeNull();
 

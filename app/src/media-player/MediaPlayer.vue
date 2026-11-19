@@ -50,6 +50,7 @@ import {
     rosterTiles,
     type ScrubPosition,
 } from "@/media-player/player";
+import { StripSpin } from "@/media-player/player/ui/stripSpin";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
 import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";
@@ -794,6 +795,9 @@ interface RosterDrag {
 }
 /** The pinned frames being dragged: the slow, precise way through the video. */
 const rosterDrag = ref<RosterDrag | null>(null);
+/** A flick carries the frames on after the finger lifts; the video goes where they stop. */
+const rosterSpin = new StripSpin();
+onBeforeUnmount(() => rosterSpin.stop());
 /** How far a finger may wander and still be tapping a frame rather than dragging the strip. */
 const TAP_SLOP_PX = 10;
 
@@ -904,12 +908,22 @@ const rosterEl = ref<HTMLElement | null>(null);
 /** A press anywhere but the bar or the frames puts the pinned frames away. */
 function onPressOutsideRoster(event: Event) {
     const target = event.target as Node | null;
-    if (target && (seekArea.value?.contains(target) || rosterEl.value?.contains(target))) return;
-    if ((target as Element | null)?.closest?.(".lmpl-afs-bar, .lmpl-afs-scrubzone")) return;
+    if (target && rosterEl.value?.contains(target)) return;
+    if (
+        (target && seekArea.value?.contains(target)) ||
+        (target as Element | null)?.closest?.(".lmpl-afs-bar, .lmpl-afs-scrubzone")
+    ) {
+        // The bar takes the video over: a spin left running would seek after it.
+        if (rosterSpin.stop()) rosterDrag.value = null;
+        return;
+    }
+    // A press on the picture mid-spin catches the spin there (onPictureDown), as one on the strip does.
+    if (rosterSpin.spinning && target && pictureEl.value?.contains(target)) return;
     unpinRoster();
     resumeFromScrub();
 }
 function unpinRoster() {
+    rosterSpin.stop();
     rosterPinned.value = false;
     nowPlayingPin.value = null;
     rosterDrag.value = null;
@@ -1159,17 +1173,20 @@ function onRosterDown(event: PointerEvent) {
     if (!roster) return;
     (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
     pauseForScrub();
+    // A press that catches a spin carries on its drag rather than tapping a frame.
+    const caught = rosterSpin.press(event.clientX);
     rosterDrag.value = {
         startX: event.clientX,
         lastX: event.clientX,
         time: pinnedTime.value,
-        moved: false,
+        moved: caught,
     };
 }
 function onRosterMove(event: PointerEvent) {
     const drag = rosterDrag.value;
     const roster = dragRoster.value;
     if (!drag || !roster) return;
+    rosterSpin.move(event.clientX);
     // The strip follows the finger one-to-one, at a scale that does not change during the drag.
     const time = drag.time - (event.clientX - drag.lastX) / (roster.tileWidth / roster.step);
     rosterDrag.value = {
@@ -1186,6 +1203,11 @@ function onRosterMove(event: PointerEvent) {
 let pictureGesture: { x: number; y: number } | null = null;
 function onPictureDown(event: PointerEvent) {
     pictureGesture = null;
+    const drag = rosterDrag.value;
+    if (drag && rosterSpin.press(event.clientX)) {
+        rosterDrag.value = { ...drag, startX: event.clientX, lastX: event.clientX, moved: true };
+        return;
+    }
     if (audioMode.value || !state.value?.thumbnailsReady || !(duration.value > 0) || live.value)
         return;
     if ((event.target as Element | null)?.closest?.("button, a, input, select, textarea")) return;
@@ -1203,6 +1225,7 @@ function onPictureMove(event: PointerEvent) {
     pauseForScrub();
     rosterOpened = true;
     rosterPinned.value = true;
+    rosterSpin.press(event.clientX);
     rosterDrag.value = {
         startX: event.clientX,
         lastX: event.clientX,
@@ -1218,9 +1241,17 @@ function onPictureUp(event: PointerEvent) {
 function onRosterUp(event: PointerEvent) {
     const drag = rosterDrag.value;
     const roster = dragRoster.value;
-    rosterDrag.value = null;
     // A phone's browser may cancel a drag it takes over: where the strip had got to is still where the viewer went.
     const lifted = event.type === "pointerup" || (event.type === "pointercancel" && !!drag?.moved);
+    if (
+        drag &&
+        roster &&
+        lifted &&
+        drag.moved &&
+        spinRoster(drag.time, roster.tileWidth / roster.step)
+    )
+        return;
+    rosterDrag.value = null;
     if (!drag || !roster || !lifted) return resumeFromScrub();
     let target = drag.time;
     if (!drag.moved) {
@@ -1231,6 +1262,29 @@ function onRosterUp(event: PointerEvent) {
             (event.clientX - (box?.left ?? 0) - roster.markerX) / (roster.tileWidth / roster.step);
         target = Math.min(Math.max(0, target), Math.max(0, duration.value - 0.001));
     }
+    commitRoster(target);
+}
+
+/** Flicked frames run on from `from` and the video goes where they stop; false when they were not flicked. */
+function spinRoster(from: number, pxPerSecond: number): boolean {
+    const last = Math.max(0, duration.value - 0.001);
+    return rosterSpin.release(
+        (offset) => {
+            const drag = rosterDrag.value;
+            if (!drag) return false;
+            const time = Math.min(Math.max(0, from - offset / pxPerSecond), last);
+            rosterDrag.value = { ...drag, time };
+            return time > 0 && time < last;
+        },
+        () => {
+            const drag = rosterDrag.value;
+            rosterDrag.value = null;
+            if (drag) commitRoster(drag.time);
+        },
+    );
+}
+
+function commitRoster(target: number) {
     handle.value?.seek(target);
     anchorPin(target);
     holdScrubAt(target);
@@ -2584,6 +2638,7 @@ function onKeydown(event: KeyboardEvent) {
             <div
                 v-if="!screen"
                 ref="pictureEl"
+                data-test="mediaPlayerPicture"
                 class="relative w-full flex-none touch-pan-y"
                 :class="
                     audioMode

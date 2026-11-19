@@ -1108,6 +1108,55 @@ describe("MediaPlayer", () => {
         });
     });
 
+    describe("the picture in the corner", () => {
+        it("stops a flicked strip under a second press on the picture, and goes where it stopped", async () => {
+            engine.thumbnailsReady = true;
+            const wrapper = await playing();
+            minimiseMediaPlayer();
+            await flushPromises();
+            const picture = find(wrapper, "mediaPlayerPicture");
+            vi.spyOn(picture.element, "getBoundingClientRect").mockReturnValue({
+                width: 400,
+                height: 225,
+                left: 0,
+                top: 0,
+                right: 400,
+                bottom: 225,
+                x: 0,
+                y: 0,
+                toJSON: () => ({}),
+            });
+            vi.useFakeTimers({
+                toFake: [
+                    "requestAnimationFrame",
+                    "cancelAnimationFrame",
+                    "performance",
+                    "setTimeout",
+                ],
+            });
+            try {
+                await picture.trigger("pointerdown", { clientX: 300, clientY: 100 });
+                for (let x = 280; x >= 200; x -= 20) {
+                    vi.advanceTimersByTime(16);
+                    await picture.trigger("pointermove", { clientX: x, clientY: 100 });
+                }
+                await picture.trigger("pointerup", { clientX: 200, clientY: 100 });
+                vi.advanceTimersByTime(100);
+                await flushPromises();
+                expect(engine.handle.seek).not.toHaveBeenCalled();
+
+                await picture.trigger("pointerdown", { clientX: 200, clientY: 100 });
+                await picture.trigger("pointerup", { clientX: 200, clientY: 100 });
+                vi.advanceTimersByTime(3000);
+                await flushPromises();
+                expect(engine.handle.seek).toHaveBeenCalledTimes(1);
+                expect(engine.handle.seek.mock.calls[0][0]).toBeGreaterThan(0);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+    });
+
     describe("on a phone: the now-playing screen", () => {
         beforeEach(() => {
             screenWide = false;
@@ -1295,6 +1344,96 @@ describe("MediaPlayer", () => {
             expect(roster().exists()).toBe(false);
             expect(engine.handle.pause).not.toHaveBeenCalled();
             expect(engine.handle.play).not.toHaveBeenCalled();
+        });
+
+        it("spins the frames on after a flick, and goes where they stop", async () => {
+            engine.thumbnailsReady = true;
+            const wrapper = await playing();
+            screen(wrapper).vm.$emit("scrub", {
+                time: 50,
+                markerX: 120,
+                width: 390,
+                bottom: 200,
+                held: true,
+            });
+            await flushPromises();
+            const roster = () => screen(wrapper).find("[data-test='mediaPlayerNowPlayingRoster']");
+            vi.useFakeTimers({
+                toFake: [
+                    "requestAnimationFrame",
+                    "cancelAnimationFrame",
+                    "performance",
+                    "setTimeout",
+                ],
+            });
+            try {
+                // The same 100 px leftwards, slowly and then flicked.
+                const drag = async (msPerMove: number) => {
+                    await roster().trigger("pointerdown", { clientX: 300 });
+                    for (let x = 280; x >= 200; x -= 20) {
+                        vi.advanceTimersByTime(msPerMove);
+                        await roster().trigger("pointermove", { clientX: x });
+                    }
+                    await roster().trigger("pointerup", { clientX: 200 });
+                };
+                await drag(200);
+                const slow = engine.handle.seek.mock.calls.at(-1)![0] as number;
+                expect(slow).toBeGreaterThan(50);
+
+                engine.handle.seek.mockClear();
+                await drag(16);
+                // Still spinning: the video has not moved yet.
+                expect(engine.handle.seek).not.toHaveBeenCalled();
+                vi.advanceTimersByTime(3000);
+                await flushPromises();
+                expect(engine.handle.seek).toHaveBeenCalledTimes(1);
+                const flicked = engine.handle.seek.mock.calls[0][0] as number;
+                expect(flicked - slow).toBeGreaterThan(2 * (slow - 50));
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it("drops a spin, without its seek, when the bar is pressed mid-spin", async () => {
+            engine.thumbnailsReady = true;
+            const wrapper = await playing();
+            screen(wrapper).vm.$emit("scrub", {
+                time: 50,
+                markerX: 120,
+                width: 390,
+                bottom: 200,
+                held: true,
+            });
+            await flushPromises();
+            const roster = () => screen(wrapper).find("[data-test='mediaPlayerNowPlayingRoster']");
+            vi.useFakeTimers({
+                toFake: [
+                    "requestAnimationFrame",
+                    "cancelAnimationFrame",
+                    "performance",
+                    "setTimeout",
+                ],
+            });
+            try {
+                await roster().trigger("pointerdown", { clientX: 300 });
+                for (let x = 280; x >= 200; x -= 20) {
+                    vi.advanceTimersByTime(16);
+                    await roster().trigger("pointermove", { clientX: x });
+                }
+                await roster().trigger("pointerup", { clientX: 200 });
+                vi.advanceTimersByTime(100);
+                // The screen is stubbed here: a bare element carrying the bar's class stands in for it.
+                const bar = document.createElement("div");
+                bar.className = "lmpl-afs-bar";
+                screen(wrapper).element.appendChild(bar);
+                bar.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, clientX: 100 }));
+                vi.advanceTimersByTime(3000);
+                await flushPromises();
+                // The bar has the video now: the spin's own seek would land after the bar's.
+                expect(engine.handle.seek).not.toHaveBeenCalled();
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it("takes one press on Play to pause after a drag: the press does not first resume the video", async () => {
