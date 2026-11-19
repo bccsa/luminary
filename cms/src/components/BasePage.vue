@@ -62,9 +62,15 @@ const topBarInsetClasses = computed(() => {
     return chromeInsetClasses.value;
 });
 
+const goBackOrFallback = (fallback: RouteLocationRaw) => {
+    // vue-router sets history.state.back to the previous in-app route; it is null on a direct link
+    if (window.history.state?.back) router.back();
+    else router.push(fallback);
+};
+
 const handleMobileSidebarToggle = () => {
-    if (isEditContentPage.value) router.push({ name: "overview" });
-    else if (isEditLanguagePage.value) router.push({ name: "languages" });
+    if (isEditContentPage.value) goBackOrFallback({ name: "overview" });
+    else if (isEditLanguagePage.value) goBackOrFallback({ name: "languages" });
     else props.onOpenMobileSidebar?.();
 };
 </script>
