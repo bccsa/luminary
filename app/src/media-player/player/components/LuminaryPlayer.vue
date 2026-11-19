@@ -2234,6 +2234,7 @@ defineExpose({
                     :duration="state.duration"
                     :buffered-end="state.bufferedEnd"
                     :playing="state.playing"
+                    :live="state.live"
                     :chapter-index="audioChapterIndex"
                     :playback-rate="state.playbackRate"
                     :audio-tracks="state.audioTracks"
