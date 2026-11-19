@@ -233,7 +233,6 @@ const activeClass = "bg-zinc-200 text-zinc-900 dark:!text-yellow-400 dark:bg-sla
 const sectionRouteByDetailRoute: Record<string, string> = {
     edit: "overview",
     language: "languages",
-    user: "users",
 };
 
 const isDetailRouteOf = (to?: NavigationEntry["to"]) => {
