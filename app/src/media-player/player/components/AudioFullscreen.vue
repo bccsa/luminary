@@ -599,6 +599,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
             {
                 'lmpl-afs-video': isVideo,
                 'lmpl-afs-live': isLive,
+                'lmpl-afs-hide-timeline': isLive || (isVideo && !knownDuration),
                 'lmpl-afs-fill': fill && isVideo,
                 'lmpl-afs-hole': isVideo && stageHole,
                 'lmpl-afs-captions': isVideo && captionBand,
@@ -895,7 +896,10 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                 </div>
 
                 <div class="lmpl-afs-controls">
-                    <div class="lmpl-afs-timeline">
+                    <div
+                        v-if="!isLive || isVideo"
+                        class="lmpl-afs-timeline"
+                    >
                         <span
                             class="lmpl-time"
                             :style="{ minWidth: timeWidth }"
@@ -903,6 +907,7 @@ const washSrc = computed(() => props.wash || cover.value?.src);
                             >{{ clock(shownTime, timeGuide) }}</span
                         >
                         <div
+                            v-if="!isLive"
                             ref="barEl"
                             class="lmpl-afs-bar"
                             :style="{ '--lmpl-afs-at': pct(shownTime) }"
