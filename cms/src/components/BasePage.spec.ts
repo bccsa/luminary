@@ -5,6 +5,7 @@ import { ref } from "vue";
 
 const mockCurrentRoute = ref({ name: "edit" });
 const mockRouterPush = vi.fn();
+const mockRouterBack = vi.fn();
 const mockSmaller = vi.fn(() => false);
 
 vi.mock("vue-router", async (importOriginal) => {
@@ -13,6 +14,7 @@ vi.mock("vue-router", async (importOriginal) => {
         ...(actual as any),
         useRouter: () => ({
             push: mockRouterPush,
+            back: mockRouterBack,
             currentRoute: mockCurrentRoute,
         }),
     };
@@ -27,6 +29,8 @@ vi.mock("@vueuse/core", () => ({
 
 beforeEach(() => {
     mockRouterPush.mockClear();
+    mockRouterBack.mockClear();
+    window.history.replaceState(null, "");
     mockCurrentRoute.value = { name: "edit" };
     mockSmaller.mockReturnValue(false);
 });
@@ -115,7 +119,7 @@ describe("BasePage", () => {
     });
 
     describe("handleMobileSidebarToggle", () => {
-        it("Pushes the overview route when on edit content page", async () => {
+        it("Pushes the overview route when on edit content page with no previous page", async () => {
             mockCurrentRoute.value = { name: "edit" };
 
             const wrapper = mount(BasePage);
@@ -124,9 +128,23 @@ describe("BasePage", () => {
             await button.trigger("click");
 
             expect(mockRouterPush).toHaveBeenCalledWith({ name: "overview" });
+            expect(mockRouterBack).not.toHaveBeenCalled();
         });
 
-        it("Pushes the languages route when on language page", async () => {
+        it("Goes back to the previous page when on edit content page", async () => {
+            mockCurrentRoute.value = { name: "edit" };
+            window.history.replaceState({ back: "/" }, "");
+
+            const wrapper = mount(BasePage);
+
+            const button = wrapper.find('[data-test="chevron-icon"]');
+            await button.trigger("click");
+
+            expect(mockRouterBack).toHaveBeenCalled();
+            expect(mockRouterPush).not.toHaveBeenCalled();
+        });
+
+        it("Pushes the languages route when on language page with no previous page", async () => {
             mockCurrentRoute.value = { name: "language" };
 
             const wrapper = mount(BasePage);
@@ -135,6 +153,20 @@ describe("BasePage", () => {
             await button.trigger("click");
 
             expect(mockRouterPush).toHaveBeenCalledWith({ name: "languages" });
+            expect(mockRouterBack).not.toHaveBeenCalled();
+        });
+
+        it("Goes back to the previous page when on language page", async () => {
+            mockCurrentRoute.value = { name: "language" };
+            window.history.replaceState({ back: "/" }, "");
+
+            const wrapper = mount(BasePage);
+
+            const button = wrapper.find('[data-test="chevron-icon"]');
+            await button.trigger("click");
+
+            expect(mockRouterBack).toHaveBeenCalled();
+            expect(mockRouterPush).not.toHaveBeenCalled();
         });
 
         it("Opens the mobile sidebar when not on edit content or language page", async () => {
