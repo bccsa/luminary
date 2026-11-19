@@ -14,8 +14,11 @@ vi.mock("@/globalConfig", () => ({
     apiUrl: "http://localhost:12345",
     appLanguageIdsAsRef: { value: [] },
     initLanguage: vi.fn(),
+    initUserActivity: vi.fn(),
 }));
 
+vi.mock("@/authFailure", () => ({ registerAuthFailureHandler: vi.fn() }));
+vi.mock("@/userActivity/source", () => ({ initUserActivitySource: vi.fn(async () => {}) }));
 vi.mock("@/docsIndex", () => ({
     APP_DOCS_INDEX: "mock-docs-index",
 }));
@@ -30,12 +33,15 @@ const { getSocket, init, warmMangoCaches } = await import("luminary-shared");
 const { apiUrl, appLanguageIdsAsRef, initLanguage } = await import("@/globalConfig");
 const { APP_DOCS_INDEX } = await import("@/docsIndex");
 const { initAuthLangSync, initSync } = await import("@/sync");
+const { initUserActivitySource } = await import("@/userActivity/source");
+const { initUserActivity } = await import("@/globalConfig");
 
 describe("clientRuntime.initSsgClient", () => {
     const connect = vi.fn();
 
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
+        vi.mocked(initUserActivitySource).mockResolvedValue(undefined);
         vi.mocked(getSocket).mockReturnValue({
             connect,
         } as unknown as ReturnType<typeof getSocket>);
@@ -55,6 +61,19 @@ describe("clientRuntime.initSsgClient", () => {
         await initSsgClient();
 
         expect(order).toEqual(["warmMangoCaches", "init"]);
+    });
+
+    it("opens activity storage and starts its migration/mirror before connecting", async () => {
+        const order: string[] = [];
+        vi.mocked(initUserActivitySource).mockImplementation(async () => {
+            order.push("activitySource");
+        });
+        vi.mocked(initUserActivity).mockImplementation(() => {
+            order.push("activityStartup");
+        });
+        connect.mockImplementation(() => order.push("connect"));
+        await initSsgClient();
+        expect(order).toEqual(["activitySource", "activityStartup", "connect"]);
     });
 
     it("passes the app's shared config (docsIndex/apiUrl/appLanguageIdsAsRef) to init()", async () => {
@@ -79,7 +98,7 @@ describe("clientRuntime.initSsgClient", () => {
 
         await initSsgClient();
 
-        expect(order).toEqual(["init", "connect", "initAuthLangSync", "initSync"]);
+        expect(order).toEqual(["init", "initAuthLangSync", "connect", "initSync"]);
     });
 
     it("resolves without waiting on initLanguage() so hydration is never network-blocked", async () => {

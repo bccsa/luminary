@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { mount } from "@vue/test-utils";
+import { mount, flushPromises } from "@vue/test-utils";
 import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
@@ -8,6 +8,7 @@ import { userPreferencesAsRef, appLanguageIdsAsRef } from "@/globalConfig";
 import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
 import * as auth from "@/auth";
+import * as contentQuery from "@/composables/useContentQuery";
 import { ref } from "vue";
 import { hasPendingLogin } from "@/composables/useAuthWithPrivacyPolicy";
 import waitForExpect from "wait-for-expect";
@@ -33,6 +34,7 @@ vi.mock("vue-router", () => ({
 describe("PrivacyPolicyModal.vue", () => {
     beforeEach(async () => {
         setActivePinia(createTestingPinia());
+        userPreferencesAsRef.value.privacyPolicy = undefined;
 
         await db.docs.bulkPut([mockEnglishContentDto]);
 
@@ -45,9 +47,77 @@ describe("PrivacyPolicyModal.vue", () => {
     });
     afterEach(() => {
         vi.clearAllMocks();
+        vi.restoreAllMocks();
         vi.unstubAllEnvs();
         db.docs.clear();
         isAuthPluginInstalled.value = false;
+    });
+
+    it.each(["modal", "banner"])(
+        "preserves accepted consent when %s logout is refused",
+        async (entry) => {
+            const querySpy = vi
+                .spyOn(contentQuery, "useContentQuery")
+                .mockReturnValue(ref([{ ...mockEnglishContentDto, publishDate: 2000 }]) as any);
+            userPreferencesAsRef.value.privacyPolicy = { status: "accepted", ts: 1000 };
+            const logout = vi.fn(async () => false);
+            vi.mocked(auth.useAuth).mockReturnValue({ isAuthenticated: ref(true), logout } as any);
+            if (entry === "banner") vi.useFakeTimers();
+            const wrapper = mount(PrivacyPolicyModal, { props: { show: true } });
+            if (entry === "modal") {
+                const label =
+                    mockLanguageDtoEng.translations["privacy_policy.modal.button_logOut"] ||
+                    "privacy_policy.modal.button_logOut";
+                await wrapper
+                    .findAll("button")
+                    .find((button) => button.text() === label)!
+                    .trigger("click");
+                await flushPromises();
+            } else {
+                await vi.advanceTimersByTimeAsync(2100);
+                const notification = vi
+                    .mocked(useNotificationStore().addNotification)
+                    .mock.calls.map(([value]) => value)
+                    .find((value) => value.id === "privacy-policy-banner")!;
+                const actions = (notification.actions as Function)();
+                await actions.children
+                    .find((child: any) => child?.props?.name === "deny")
+                    .props.onClick();
+            }
+            expect(logout).toHaveBeenCalledTimes(1);
+            expect(userPreferencesAsRef.value.privacyPolicy).toEqual({
+                status: "accepted",
+                ts: 1000,
+            });
+            expect(useNotificationStore().removeNotification).not.toHaveBeenCalledWith(
+                "privacy-policy-banner",
+            );
+            querySpy.mockRestore();
+            vi.useRealTimers();
+        },
+    );
+
+    it("revokes consent only after logout authorizes the signout", async () => {
+        const querySpy = vi
+            .spyOn(contentQuery, "useContentQuery")
+            .mockReturnValue(ref([{ ...mockEnglishContentDto, publishDate: 2000 }]) as any);
+        userPreferencesAsRef.value.privacyPolicy = { status: "accepted", ts: 1000 };
+        const logout = vi.fn(async (options) => {
+            options.onBeforeSignout();
+            return true;
+        });
+        vi.mocked(auth.useAuth).mockReturnValue({ isAuthenticated: ref(true), logout } as any);
+        const wrapper = mount(PrivacyPolicyModal, { props: { show: true } });
+        const label =
+            mockLanguageDtoEng.translations["privacy_policy.modal.button_logOut"] ||
+            "privacy_policy.modal.button_logOut";
+        await wrapper
+            .findAll("button")
+            .find((button) => button.text() === label)!
+            .trigger("click");
+        await flushPromises();
+        expect(userPreferencesAsRef.value.privacyPolicy).toBeUndefined();
+        querySpy.mockRestore();
     });
 
     it("shows the privacy notification", async () => {

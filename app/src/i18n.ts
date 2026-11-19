@@ -2,6 +2,7 @@ import { nextTick, watch, type WatchHandle } from "vue";
 import { createI18n, type I18n } from "vue-i18n";
 import { appLanguageAsRef, appName, cmsDefaultLanguage, cmsLanguages } from "./globalConfig";
 import router from "./router";
+import { setTranslator } from "@/util/translate";
 import { isPrerender } from "@/ssg/isPrerender";
 
 type LanguageLike = {
@@ -49,6 +50,7 @@ function messagesFor(language: LanguageLike, defaultLang: LanguageLike): Record<
  */
 export const initI18n = (renderLanguageId?: string): I18n<{}, {}, {}, string, false> => {
     const i18n = createI18n({ legacy: false });
+    if (!isPrerender()) setTranslator((key) => i18n.global.t(key));
 
     const applyLanguage = (
         language: LanguageLike | undefined,

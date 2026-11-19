@@ -33,6 +33,10 @@ Several strings are only shown under specific UI conditions. When translating th
 
 | Key | Shown when |
 |-----|-----------|
+| `logout.unsent_activity_warning` | Signing out with queued activity that could not be flushed |
+| `settings.clear_activity.description_account` | Settings while signed in |
+| `settings.clear_activity.modal.description_account` | Confirming clear activity while signed in |
+| `settings.clear_activity.notification.description_account` | After clearing account activity locally and queueing its removals |
 | `search.hint` | The search overlay is open and the query is **empty** |
 | `search.minCharsShort` | The search overlay is open and the query is **empty** (compact hint, displayed alongside `search.shortcut`) |
 | `search.shortcut` | The search overlay is open, query is empty, **and** the screen is `sm` width or wider (hidden on small/mobile screens) |

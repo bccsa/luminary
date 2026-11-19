@@ -1,8 +1,8 @@
-import { ref } from "vue";
-import { db, type HighlightRange, type Uuid } from "luminary-shared";
+import { type HighlightRange, type Uuid } from "luminary-shared";
+import { getUserActivity } from "@/userActivity/store";
+export { highlightVersion, notifyHighlightsChanged } from "@/userActivity/state";
 import { parseSavedRanges } from "@/util/highlightRanges";
 
-const HIGHLIGHTS_STORAGE_KEY = "highlights";
 /** Bound local FTS work when a long-lived install has many saved highlights. */
 export const MAX_HIGHLIGHT_QUERIES = 4;
 /** A very long selection is usually several ideas; keep each FTS query focused and bounded. */
@@ -23,16 +23,6 @@ export type HighlightQuery = {
     query: string;
     updatedAt: number;
 };
-
-/**
- * IndexedDB has no Vue reactivity. SingleContent bumps this only after LHighlightable
- * successfully saves, so mounted recommendation feeds reload their local text signals.
- */
-export const highlightVersion = ref(0);
-
-export function notifyHighlightsChanged() {
-    highlightVersion.value++;
-}
 
 /** The saved ranges, when the entry is in the current (range) shape. */
 export function getHighlightRanges(value: unknown): HighlightRange[] | undefined {
@@ -111,7 +101,19 @@ export function extractHighlightQueries(data: unknown): HighlightQuery[] {
 /** Best-effort local read: unavailable/corrupt highlight storage must not break tags. */
 export async function loadHighlightQueries(): Promise<HighlightQuery[]> {
     try {
-        return extractHighlightQueries(await db.getLuminaryInternals(HIGHLIGHTS_STORAGE_KEY));
+        const rows = await getUserActivity("highlighted");
+
+        const data: Record<string, SavedHighlight> = {};
+        for (const row of rows) {
+            const range = row.payload?.range;
+            if (!range) continue;
+            data[row._id] = {
+                ranges: [range],
+                updatedAt: row.activityTimeUtc,
+            };
+        }
+
+        return extractHighlightQueries(data);
     } catch {
         return [];
     }
@@ -124,10 +126,23 @@ export async function loadHighlightQueries(): Promise<HighlightQuery[]> {
  */
 export async function loadHighlightQueriesFor(contentId: string): Promise<HighlightQuery[]> {
     try {
-        const all = await db.getLuminaryInternals(HIGHLIGHTS_STORAGE_KEY);
-        if (!all || typeof all !== "object") return [];
-        if (!(contentId in all)) return [];
-        return extractHighlightQueries({ [contentId]: all[contentId] });
+        const rows = (await getUserActivity("highlighted")).filter(
+            (row) => row.contentId === contentId,
+        );
+
+        if (!rows.length) return [];
+
+        const data: Record<string, SavedHighlight> = {};
+        for (const row of rows) {
+            const range = row.payload?.range;
+            if (!range) continue;
+            data[row._id] = {
+                ranges: [range],
+                updatedAt: row.activityTimeUtc,
+            };
+        }
+
+        return extractHighlightQueries(data);
     } catch {
         return [];
     }

@@ -9,9 +9,7 @@ export function useHighlightColours() {
 
     return computed(() =>
         (Object.keys(HIGHLIGHT_COLORS) as HighlightColor[]).filter((c) =>
-            highlighted.value.some((row) =>
-                row.payload?.ranges?.some((range) => range.color === c),
-            ),
+            highlighted.value.some((row) => row.payload?.range?.color === c),
         ),
     );
 }

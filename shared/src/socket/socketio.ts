@@ -11,6 +11,7 @@ import { reportBreadcrumb } from "../diagnostics";
 type ClientConfig = {
     maxUploadFileSize: number;
     accessMap: AccessMap;
+    dataSources?: string[];
 };
 
 /**
@@ -22,6 +23,11 @@ export const isConnected = ref(false);
  * Maximum file size for uploads in bytes as a Vue ref
  */
 export const maxUploadFileSize = useLocalStorage("maxUploadFileSize", 0);
+
+/**
+ * Data sources advertised by the API for this session.
+ */
+export const dataSources = ref<string[]>([]);
 
 class SocketIO {
     private socket: Socket;
@@ -87,6 +93,7 @@ class SocketIO {
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
             if (c.accessMap) accessMap.value = c.accessMap;
+            dataSources.value = Array.isArray(c.dataSources) ? c.dataSources : [];
             reportBreadcrumb("Socket connected and configured", { area: "socket", op: "connect" });
             isConnected.value = true; // Only set isConnected after configuration has been received from the API
             this.stopForegroundReconnect();

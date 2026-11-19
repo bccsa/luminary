@@ -2,7 +2,7 @@ import { db } from "../../db/database";
 import { BaseDocumentDto, DocType } from "../../types";
 import { contentLanguageKeepSelector } from "./keepSelector";
 import { merge } from "./merge";
-import { syncList, syncTolerance } from "./state";
+import { syncListOf, syncTolerance } from "./state";
 import { cancelSync } from "./sync";
 import { SyncOptions } from "./types";
 import { reportBreadcrumb } from "../../diagnostics";
@@ -22,7 +22,7 @@ import {
  * ever merging horizontally. Marking the stored frontier chunk lets the column merge.
  */
 function markColumnEof(options: SyncOptions) {
-    const entries = syncList.value.filter(filterByTypeMemberOf(options));
+    const entries = syncListOf(options.source).value.filter(filterByTypeMemberOf(options));
     if (!entries.length) return;
     const frontier = entries.reduce((a, b) => (a.blockStart >= b.blockStart ? a : b));
     frontier.eof = true;
@@ -33,8 +33,9 @@ function markColumnEof(options: SyncOptions) {
  * Finally perform horizontal merge if end of file is reached.
  */
 export async function syncBatch(options: SyncOptions) {
+    const listRef = syncListOf(options.source);
     // Check if sync has been cancelled before proceeding
-    if (cancelSync) {
+    if (cancelSync || options.source?.isCancelled?.()) {
         return;
     }
     const chunk = calcChunk(options);
@@ -56,6 +57,7 @@ export async function syncBatch(options: SyncOptions) {
         const mergeResult = merge(options);
         mergeResult.eof = true;
         markColumnEof(options);
+        await options.source?.setSyncList();
         return { ...mergeResult, firstSync };
     }
 
@@ -63,9 +65,6 @@ export async function syncBatch(options: SyncOptions) {
         selector: {
             type: options.type,
             updatedTimeUtc: { $lte: chunk.blockStart, $gte: chunk.blockEnd }, // We are overlapping chunks by 1 entry to be able to merge chunks properly
-            memberOf: {
-                $elemMatch: { $in: options.memberOf },
-            },
         },
         limit: options.limit,
         sort: [{ updatedTimeUtc: "desc" }],
@@ -81,6 +80,14 @@ export async function syncBatch(options: SyncOptions) {
         cms: options.cms,
         identifier: "sync", // Identifier for the API query validation template
     };
+
+    if (options.source) {
+        mangoQuery.dataSource = options.source.name;
+    } else {
+        mangoQuery.selector.memberOf = {
+            $elemMatch: { $in: options.memberOf },
+        };
+    }
 
     if (options.type === DocType.Content && !options.cms && !firstSync) {
         mangoQuery.includeExpired = true;
@@ -136,14 +143,14 @@ export async function syncBatch(options: SyncOptions) {
     }
 
     // Check if sync has been cancelled before making API request
-    if (cancelSync) {
+    if (cancelSync || options.source?.isCancelled?.()) {
         return;
     }
 
     const res = await options.httpService.post("query", mangoQuery);
 
     // Check if sync was cancelled during the API call
-    if (cancelSync) {
+    if (cancelSync || options.source?.isCancelled?.()) {
         return;
     }
 
@@ -193,7 +200,9 @@ export async function syncBatch(options: SyncOptions) {
 
     // Upsert to IndexedDB
     if (fetchedDocs.length) {
-        await db.bulkPut(fetchedDocs);
+        if (options.source) await options.source.put(fetchedDocs);
+        else await db.bulkPut(fetchedDocs);
+        if (options.source?.isCancelled?.()) return;
         // publishDate is a Content-only sync dimension. For non-Content types (Language,
         // Redirect, Storage, AuthProvider, Group, …) the docs have no publishDate field and
         // every comparison path against these bounds wraps in `if (type === Content)`, so
@@ -204,7 +213,7 @@ export async function syncBatch(options: SyncOptions) {
             ? resolveRange(options.publishDateMin, options.publishDateMax)
             : { min: undefined, max: undefined };
         // Push chunk to chunk list
-        syncList.value.push({
+        listRef.value.push({
             chunkType: getChunkTypeString(options.type, options.subType, options.alwaysOffline),
             memberOf: options.memberOf,
             languages: options.languages,
@@ -231,14 +240,19 @@ export async function syncBatch(options: SyncOptions) {
         if (nextChunk.blockStart === chunk.blockStart && nextChunk.blockEnd === chunk.blockEnd) {
             mergeResult.eof = true;
             markColumnEof(options);
+            await options.source?.setSyncList();
             return { ...mergeResult, firstSync };
         }
 
+        // Commit each page before requesting the next one, including interrupted pulls.
+        await options.source?.setSyncList();
         mergeResult =
             (await syncBatch({
                 ...options,
                 initialSync: false,
             })) || mergeResult;
+    } else {
+        await options.source?.setSyncList();
     }
 
     return { ...mergeResult, firstSync };

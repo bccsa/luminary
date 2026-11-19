@@ -27,6 +27,8 @@ import { markAppReady, markAppError } from "@/util/renderState";
 import { notifyUiReady } from "virtual:app-lifecycle";
 import { initLivePublishClock } from "@/util/livePublishClock";
 import { BOOT_SPLASH_ID } from "./bootSplash";
+import { setBootStage } from "./bootDiagnostics";
+import { initUserActivitySource, setupUserActivitySync } from "@/userActivity/source";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import { applyBackgroundProgress } from "@/media-player/useBackgroundProgress";
 
@@ -48,6 +50,7 @@ initSentry(app);
 const BROWSER_CONTENT_SYNC_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // ~1 month
 
 async function Startup() {
+    setBootStage("Preparing local query caches");
     // Pre-warm Mango query caches from localStorage before any queries run.
     // On the first visit this is a no-op; on subsequent loads it eliminates
     // cold-start compilation latency for IndexedDB queries.
@@ -57,6 +60,7 @@ async function Startup() {
     // rolling ~1 month window (older content is fetched on demand by HybridQuery).
     const installedStandalone = isInstalledStandalone();
 
+    setBootStage("Opening local content storage and sync state");
     await init({
         cms: false,
         docsIndex: APP_DOCS_INDEX,
@@ -71,6 +75,10 @@ async function Startup() {
         diagnostics: sentryDiagnostics,
         deleteExpiredIntervalMs,
     });
+
+    setBootStage("Opening and migrating local activity storage");
+    await initUserActivitySource();
+    initUserActivity();
 
     // Keep the CMS-managed default-affinity baseline/config in sync with the local
     // copy of the singleton doc, now that it's synced like any other doc type.
@@ -102,7 +110,10 @@ async function Startup() {
         { scoreCompletion: true },
     );
 
+    setBootStage("Restoring sign-in");
     await setupAuth(app, router);
+    setBootStage("Reconciling activity ownership");
+    await setupUserActivitySync();
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
     // Install all plugins before mounting — components rendered during the
@@ -141,15 +152,16 @@ async function Startup() {
     app.use(router);
     app.use(i18n);
     await backgroundProgress;
+    setBootStage("Mounting the interface");
     app.mount("#app");
     // The web loading UI is rendering from here on — the build target may have
     // launch chrome of its own to hand over from.
     notifyUiReady();
 
+    setBootStage("Loading languages");
     await initLanguage();
+    setBootStage("Starting content sync");
     initSync();
-
-    initUserActivity();
 
     isAppLoading.value = false;
 
@@ -160,6 +172,7 @@ async function Startup() {
     await nextTick();
     document.getElementById(BOOT_SPLASH_ID)?.remove();
 
+    setBootStage("Initializing the page title and analytics");
     initAppTitle(i18n);
     initAnalytics();
     markAppReady();

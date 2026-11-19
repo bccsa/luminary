@@ -1,5 +1,5 @@
 import { DocType } from "../../types";
-import { syncList } from "./state";
+import { syncListOf } from "./state";
 import {
     filterByTypeMemberOf,
     getChunkTypeString,
@@ -14,8 +14,9 @@ import type { SyncBaseOptions } from "./types";
  * This combines consecutive time-based chunks that share the same filtering criteria.
  */
 export function mergeVertical(options: SyncBaseOptions) {
+    const listRef = syncListOf(options.source);
     // Filter chunks by type, memberOf, and languages (if provided)
-    const filteredList = syncList.value.filter(filterByTypeMemberOf(options));
+    const filteredList = listRef.value.filter(filterByTypeMemberOf(options));
 
     // Sort in reverse order (newest first)
     filteredList.sort((a, b) => b.blockStart - a.blockStart);
@@ -47,9 +48,9 @@ export function mergeVertical(options: SyncBaseOptions) {
             current.eof = next.eof;
 
             // Remove next chunk from syncList
-            const index = syncList.value.indexOf(next);
+            const index = listRef.value.indexOf(next);
             if (index !== -1) {
-                syncList.value.splice(index, 1);
+                listRef.value.splice(index, 1);
 
                 // Remove merged chunk from local list
                 filteredList.splice(i + 1, 1);
@@ -76,8 +77,13 @@ export function mergeVertical(options: SyncBaseOptions) {
  * Only chunks that have reached EOF can be merged horizontally.
  * This combines different memberOf groups and languages that have complete data for overlapping time ranges.
  */
-export function mergeHorizontal(options: { type: DocType; subType?: DocType }) {
-    const list = syncList.value.filter(
+export function mergeHorizontal(options: {
+    type: DocType;
+    subType?: DocType;
+    source?: SyncBaseOptions["source"];
+}) {
+    const listRef = syncListOf(options.source);
+    const list = listRef.value.filter(
         (chunk) =>
             chunk.chunkType === getChunkTypeString(options.type, options.subType) && chunk.eof,
     );
@@ -130,9 +136,9 @@ export function mergeHorizontal(options: { type: DocType; subType?: DocType }) {
             base.blockEnd = Math.min(base.blockEnd, compare.blockEnd);
 
             // Remove compare chunk
-            const index = syncList.value.indexOf(compare);
+            const index = listRef.value.indexOf(compare);
             if (index !== -1) {
-                syncList.value.splice(index, 1);
+                listRef.value.splice(index, 1);
 
                 // Remove merged chunk from local list
                 list.splice(j, 1);

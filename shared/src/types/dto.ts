@@ -385,6 +385,20 @@ export type UserActivityEntry = {
     contentId?: Uuid;
     updatedTimeUtc: number;
     deleted?: boolean;
-    /** The passages a `highlighted` entry saved. Other types carry no payload. */
-    payload?: { ranges: HighlightRange[] };
+    /** The saved passage of a `highlighted` entry. Other types carry no payload. */
+    payload?: { range: HighlightRange };
+};
+
+/**
+ * Server-synced user-activity document (DocType.UserActivity). Distinct from
+ * {@link UserActivityEntry}, which is the legacy local side-table row shape.
+ */
+export type UserActivityDto = BaseDocumentDto & {
+    type: DocType.UserActivity;
+    activityType: UserActivityType;
+    parentId: Uuid;
+    contentId?: Uuid;
+    activityTimeUtc: number;
+    deleted?: boolean;
+    payload?: { range: HighlightRange };
 };

@@ -89,6 +89,7 @@ const ALLOWED_TOP_LEVEL_KEYS = new Set([
     "use_index",
     "cms",
     "includeExpired",
+    "dataSource",
 ]);
 
 /**
@@ -137,6 +138,10 @@ export function validateQuery(query: any, options: ValidateQueryOptions = {}): V
     }
 
     // identifier — optional observability label.
+    if (query.dataSource !== undefined && query.dataSource !== "user") {
+        return fail("Unknown dataSource");
+    }
+
     if (query.identifier !== undefined && typeof query.identifier !== "string") {
         return fail("'identifier' must be a string");
     }

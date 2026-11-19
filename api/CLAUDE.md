@@ -34,6 +34,7 @@ Node 22 (`.node-version`). `tsconfig.json` has `strictNullChecks: false` and `no
 Order-sensitive — read `main.ts` before reordering anything:
 
 1. `upsertDesignDocs(dbService)` — pushes CouchDB views/indexes from `src/db/designDocs/*.json`. New indexes go here. Immediately after, `warmIndexNameRegistry()` (`db/indexNameRegistry.ts`) loads the set of valid `use_index` names from those same JSON files; `/query` validation rejects any `use_index` not in that registry.
+   `UserDataDbService.initialize()` separately checks the optional partitioned database and installs its own design documents. Failure leaves that source disabled and does not block shared-dataset startup.
 2. If invoked with `seed` arg: `upsertSeedingDocs`, then `process.exit(0)` — the rest of bootstrap is skipped.
 3. `PermissionSystem.init(dbService)` — builds the in-memory permission graph from Group docs and subscribes to `groupUpdate` events.
 4. `S3Service.initializeChangeListener(dbService)` — wires the singleton S3 client cache to DB change events and disconnects.
@@ -52,6 +53,19 @@ Events you must observe in any cache or in-memory state:
 - `disconnect` / `reconnect` — emitted only on a real connected→disconnected transition (not on initial connect). **In-memory caches built from DTOs must clear on `disconnect` and rehydrate on `reconnect`** — otherwise changes during the outage are lost. Examples: `QueryService.languages`, `AuthIdentityService.providerCache` / `autoGroupMappingsCache` / `jwksClients`, `S3Service.clearCache()`.
 
 Writes go through `upsertDoc(doc)` which auto-generates `DeleteCmd` docs when `memberOf` changes or `deleteReq` is set. `insertDoc` retries on `Document update conflict` with jittered backoff. `executeFindQuery` is the only path that calls `nano`'s `db.find` directly — all permission/expiry/status filtering happens upstream of it.
+
+### Owner-scoped activity (`src/userData/`)
+
+`UserDataDbService` is independent of `DbService`: it has no change feed or database-creation
+loop. It enables only after both `DB_USERDATA_DATABASE` and `USER_DATA_ID_SECRET` are configured,
+the dedicated database is partitioned, and its indexes install. `UserDataService` owns the
+standalone `UserActivityDto` validation and response id conversion; the API `DocType` enum
+does not include `UserActivity`. `ownerKey()` authorizes all user-source paths from verified
+JWT issuer/subject. Every query uses `partitionedFind`; unknown sources never fall back to the
+shared dataset. Writes use activity-time comparison, server-set cursor timestamps and
+conflict retries. Validation rejects are HTTP 200 acks; source/storage failures are retryable
+HTTP errors. Keep owner keys and CouchDB bookmarks out of client responses. See `README.md`
+and ADR 0020 for provisioning and wire contracts.
 
 ### Schema upgrades (`src/db/schemaUpgrade/`)
 
@@ -112,7 +126,7 @@ There is a separate audio-bucket S3 config (`S3_MEDIA_*` or fallback `S3_*` env 
 
 `createTestingModule(testName)` creates a fresh `luminary-test-<testName>` CouchDB DB per test file, seeds it, mocks `AuthIdentityService` to default to anonymous, and provides a real `DbService`, `Socketio`, and `S3Service`. Use this rather than hand-rolling test modules. Tests share the prefix `DB_DATABASE_PREFIX` (default `luminary-test`).
 
-`nest-cli.json` ensures `designDocs/*.json` and `seedingDocs/*.json` are copied into `dist/src/` on build so production startup can find them.
+`nest-cli.json` ensures `designDocs/*.json`, `userDataDesignDocs/*.json` and `seedingDocs/*.json` are copied into `dist/src/` on build so production startup can find them. Owner-source tests use hand-built mocks instead of the CouchDB-backed helper.
 
 ## Conventions
 

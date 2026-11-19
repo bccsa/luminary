@@ -4,7 +4,14 @@ import { AuthFlowKey } from "@/build-time/contracts/auth-flow/token";
 import type { AuthFlowService } from "@/build-time/contracts/auth-flow/contract";
 import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
-import { db, getSocket, removeCustomHeader, reportError, setCustomHeader } from "luminary-shared";
+import {
+    db,
+    isConnected,
+    getSocket,
+    removeCustomHeader,
+    reportError,
+    setCustomHeader,
+} from "luminary-shared";
 import type { AuthProviderDto } from "luminary-shared";
 import {
     ACTIVE_PROVIDER_KEY,
@@ -12,6 +19,9 @@ import {
     OIDC_USER_PREFIX,
     PENDING_PROVIDER_KEY,
 } from "./authStorage";
+
+import { useNotificationStore } from "@/stores/notification";
+import { translateMessage } from "@/util/translate";
 
 export { ACTIVE_PROVIDER_KEY, PENDING_PROVIDER_KEY } from "./authStorage";
 
@@ -37,7 +47,7 @@ export const isAuthPluginInstalled = ref(false);
 type OidcPrompt = "none" | "login" | "consent" | "select_account";
 export type ProviderConfig = Pick<AuthProviderDto, "_id" | "domain" | "clientId" | "audience">;
 type PersistedProvider = ProviderConfig;
-export type LogoutOptions = { forceReauthOnNextLogin?: boolean };
+export type LogoutOptions = { forceReauthOnNextLogin?: boolean; onBeforeSignout?: () => void };
 
 const oidcUser = ref<User | null>(null);
 const isLoading = ref(false);
@@ -670,7 +680,28 @@ export function useAuth() {
         },
         logout: async (opts?: LogoutOptions) => {
             const manager = installedOidc;
-            if (!manager) return;
+            if (!manager) return false;
+            const refuseOffline = () => {
+                useNotificationStore().addNotification({
+                    id: "no-internet-connection-logout",
+                    title: translateMessage("profile_menu.logout.offline_notification_title"),
+                    description: translateMessage("profile_menu.logout.offline_notification"),
+                    type: "toast",
+                    state: "error",
+                });
+                return false;
+            };
+            if (!isConnected.value) return refuseOffline();
+            const { flushUserActivity, suspendUserActivitySync, clearLocalUserActivity } =
+                await import("@/userActivity/source");
+            const flushed = await flushUserActivity(3000);
+            if (!isConnected.value) return refuseOffline();
+            if (!flushed && !window.confirm(translateMessage("logout.unsent_activity_warning"))) {
+                return false;
+            }
+            suspendUserActivitySync();
+            await clearLocalUserActivity();
+            opts?.onBeforeSignout?.();
             // Capture before clearAuthCache() wipes the persisted user, so the
             // signout request can still carry id_token_hint.
             const idTokenHint = oidcUser.value?.id_token;
@@ -702,6 +733,7 @@ export function useAuth() {
                 // by hand (KeepAlive cache, sync watchers, composables, etc).
                 window.location.reload();
             }
+            return true;
         },
     };
 }

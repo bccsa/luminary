@@ -22,6 +22,8 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { classifyQueryCost } from "./queryStats";
 import { selectorFingerprint } from "../util/selectorFingerprint";
 import { QueryRateLimiterService } from "../ratelimit/queryRateLimiter.service";
+import { UserDataService } from "../userData/userData.service";
+import { getUserDataIndexNames } from "../userData/userDataDb.service";
 
 /** Endpoint supporting MongoDB like queries (Mango Query) */
 @Controller("query")
@@ -32,6 +34,7 @@ export class QueryController {
         private readonly rateLimiter: QueryRateLimiterService,
         @Inject(WINSTON_MODULE_PROVIDER)
         private readonly logger: Logger,
+        private readonly userData: UserDataService,
     ) {}
 
     @Post()
@@ -64,8 +67,18 @@ export class QueryController {
         const maxLimit = this.configService.get<number>("query.maxLimit") ?? 500;
         const maxLanguages = this.configService.get<number>("query.maxLanguages") ?? 4;
 
+        if (body?.dataSource !== undefined && body.dataSource !== "user") {
+            throw new BadRequestException("Unknown dataSource");
+        }
+        const isUserData = body?.dataSource === "user";
+
         let validationResult = { valid: true, error: "" };
-        if (!bypassValidation) validationResult = validateQuery(body, { maxLimit, maxLanguages });
+        if (isUserData || !bypassValidation)
+            validationResult = validateQuery(body, {
+                maxLimit,
+                maxLanguages,
+                ...(isUserData ? { indexNames: getUserDataIndexNames() } : {}),
+            });
 
         if (!validationResult.valid) {
             throw new BadRequestException(`Invalid query: ${validationResult.error}`);
@@ -80,7 +93,9 @@ export class QueryController {
                 : "unknown";
         delete body.identifier;
 
-        const result = await this.queryService.query(body as MongoQueryDto, request.user);
+        const result = isUserData
+            ? await this.userData.query(body, request.user)
+            : await this.queryService.query(body as MongoQueryDto, request.user);
 
         // Classify the executed query from CouchDB's execution stats. The cost is only
         // knowable post-hoc, so an expensive query logs once and records a strike

@@ -161,3 +161,48 @@ export function bootSplashReloadScript(): string {
     if (button) button.addEventListener("click", function () { window.location.reload(); });
 })();`;
 }
+
+/** Inline in the dev HTML so even errors loading the module graph can be displayed. */
+export function bootDiagnosticsScript(): string {
+    return `(function () {
+    var panel;
+    var failure = "";
+    var started = Date.now();
+    var root = document.documentElement;
+    function cleanup() {
+        clearInterval(timer);
+        window.removeEventListener("error", onError);
+        window.removeEventListener("unhandledrejection", onRejection);
+        window.removeEventListener("render-state-change", update);
+        if (panel) panel.remove();
+    }
+    function update() {
+        if (root.dataset.renderState === "ready") { cleanup(); return; }
+        if (!document.body) return;
+        if (!failure && root.dataset.renderState !== "error" && Date.now() - started < 8000) return;
+        if (!panel) {
+            panel = document.createElement("pre");
+            panel.id = "boot-diagnostics";
+            panel.setAttribute("role", "status");
+            panel.style.cssText = "position:fixed;bottom:16px;left:16px;right:16px;z-index:10000;margin:0;padding:16px;max-height:40vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#18181b;color:#fff;border-radius:8px;font:14px/1.5 monospace";
+            document.body.appendChild(panel);
+        }
+        var stage = root.dataset.bootStage || "Loading application scripts";
+        panel.textContent = "Development startup details\\nStep: " + stage + "\\n" +
+            (failure ? "Error: " + failure : root.dataset.renderState === "error" ? "Startup failed. See the browser console for details." : "Still waiting (" + Math.floor((Date.now() - started) / 1000) + "s).");
+    }
+    function onError(event) {
+        if (event.message) { failure = event.message; update(); }
+    }
+    function onRejection(event) {
+        var reason = event.reason;
+        failure = reason && reason.message ? reason.message : String(reason);
+        update();
+    }
+    var timer = setInterval(update, 1000);
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    window.addEventListener("render-state-change", update);
+    return cleanup;
+})();`;
+}

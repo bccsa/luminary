@@ -1,5 +1,19 @@
-import { DocType } from "../../types";
+import { BaseDocumentDto, DocType } from "../../types";
 import { HttpReq } from "../http";
+import type { Ref } from "vue";
+
+export type SyncSource = {
+    /** Wire name sent to API (e.g. "user"). */
+    name: string;
+    /** Sync-list state owned by this source. */
+    syncList: Ref<SyncListEntry[]>;
+    /** Persist source sync-list after mutations. */
+    setSyncList: () => Promise<void>;
+    /** Write fetched docs into this source's local store. */
+    put: (docs: BaseDocumentDto[]) => Promise<void>;
+    /** Stop a source pull when its readiness or lifecycle changes. */
+    isCancelled?: () => boolean;
+};
 
 /**
  * Options for sync operations
@@ -41,6 +55,8 @@ export type SyncBaseOptions = {
      * when a content publishDate cutoff is configured. Callers should not set it.
      */
     alwaysOffline?: boolean;
+    /** Optional sync source; when omitted, the default shared source is used. */
+    source?: SyncSource;
 };
 
 /**

@@ -10,9 +10,10 @@ import {
 } from "luminary-shared";
 import { computed, ref, watch, watchEffect, type WatchStopHandle } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
-import { migrateSeenToUserActivity, migrateToUserActivity } from "./userActivity/migrate";
+import { migrateUserActivityOnStartup } from "./userActivity/migrate";
 import { startContentProgressMirror } from "./userActivity/fromContentProgress";
 import { pruneUserActivityTombstones } from "./userActivity/store";
+import { setBootStage } from "./bootDiagnostics";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -472,6 +473,9 @@ export const initLanguage = () => {
         let sawSyncRun = false;
         bootGate.stop = watchEffect(() => {
             if (bootGate.stopped) return bootGate.stop?.();
+            setBootStage(
+                `Loading languages (available: ${cmsLanguages.value.length}; local read: ${localSeedSettled.value ? "done" : "pending"}; query: ${languagesQuery.isFetching.value ? "pending" : "done"}; connected: ${isConnected.value}; sync: ${syncActive.value})`,
+            );
             if (syncActive.value) sawSyncRun = true;
 
             // Still a chance of languages: a read is in flight, or some arrived. The seed
@@ -519,12 +523,13 @@ watch(userPreferencesAsRef.value, (newVal) => {
     localStorage.setItem("userPreferences", JSON.stringify({ ...newVal }));
 });
 
-const USER_ACTIVITY_MIGRATED_KEY = "userActivityMigrated";
-
 /**
- * Starts the user-activity store. Needs the shared database open, so call it after sync has started.
+ * Starts activity maintenance and progress mirroring after the source migration.
  */
+let userActivityStarted = false;
 export const initUserActivity = () => {
+    if (userActivityStarted) return;
+    userActivityStarted = true;
     // Expired tombstones are dropped once per start.
     void pruneUserActivityTombstones().catch((err) =>
         console.error("User activity tombstone prune failed:", err),
@@ -534,21 +539,17 @@ export const initUserActivity = () => {
     // listening before anything can scroll.
     startContentProgressMirror();
 
-    // Outside the one-shot flag below: installs that already migrated still hold seen ids. It
-    // removes its source, so later starts find nothing to do.
-    void migrateSeenToUserActivity().catch((err) =>
-        console.error("Seen ids migration failed:", err),
+    // The source opens before auth connects the socket; retry unresolved legacy content online.
+    watch(
+        isConnected,
+        (connected) => {
+            if (connected)
+                void migrateUserActivityOnStartup().catch((error) =>
+                    console.error("User activity migration retry failed:", error),
+                );
+        },
+        { immediate: true },
     );
-
-    // Delete this block, and `userActivity/migrate.ts` with it, once every install has migrated.
-    if (localStorage.getItem(USER_ACTIVITY_MIGRATED_KEY)) return;
-
-    void migrateToUserActivity(userPreferencesAsRef.value.likes)
-        .then(() => {
-            delete userPreferencesAsRef.value.likes;
-            localStorage.setItem(USER_ACTIVITY_MIGRATED_KEY, "true");
-        })
-        .catch((err) => console.error("User activity migration failed:", err));
 };
 
 /**

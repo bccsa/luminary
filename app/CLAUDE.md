@@ -34,20 +34,30 @@ The boot sequence is order-sensitive — read `main.ts` before reordering anythi
 
 1. Pinia is installed early so watchers registered during startup can resolve stores.
 2. `warmMangoCaches()` hydrates Mango query caches from localStorage before any IDB query.
-3. `init()` from `luminary-shared` sets up IndexedDB and the socket. What gets synced (and which socket rooms are joined) is owned by the sync engine in `src/sync.ts` (`AuthProvider`, `Tag`, `Post`, `Language`, `Redirect`, `Storage`; `contentOnly` docs scoped by language) — not declared in the `init()` config.
+3. `init()` from `luminary-shared` sets up IndexedDB and the socket. Immediately afterwards, await `initUserActivitySource()` and start `initUserActivity()` to migrate local activity and start its maintenance before mounting. What gets synced (and which socket rooms are joined) is owned by the sync engine in `src/sync.ts` (`AuthProvider`, `Tag`, `Post`, `Language`, `Redirect`, `Storage`; `contentOnly` docs scoped by language) — not declared in the `init()` config.
 4. `registerAuthFailureHandler()` (`src/authFailure.ts`) attaches the `connect_error` listener for `auth_failed` **before** `setupAuth()` — otherwise the first failure event is lost and the client loops. Handles `provider_not_found` (clear credentials, open the provider modal, then reconnect anonymously so `AuthProvider` docs can still sync into it) and silent refresh via `refreshTokenSilently({ ignoreCache: true })`. `initAuthLangSync()` runs next, still before `setupAuth()`, so the watcher is listening when the first `isConnected`/`accessMap` transition lands.
-5. i18n is initialised before mount because splash-screen components call `useI18n()` at setup time.
+5. Immediately after `setupAuth()`, await `setupUserActivitySync()` to reconcile the activity owner before enabling transport. i18n is initialised before mount because splash-screen components call `useI18n()` at setup time.
 6. After mount: `initLanguage`, `initSync`, plugin loading, then `markAppReady()`.
 
 ### Web/SSG startup (`src/main.web.ts`)
 
 `main.web.ts` is the web-only ViteSSG entry. The normal SPA keeps using `main.ts`; do not move web boot code into its boot path. The web build uses `vite.config.web.ts`, writes `dist-web/`, has no service worker, and hydrates prerendered public pages by seeding `luminary-shared`'s `hqcache:*` response cache before the ES module boots.
 
-During prerender, `main.web.ts` installs Pinia, initializes i18n from public `Language` docs fetched through anonymous `queryRemote`, adds localized public static routes, and sets the render language from the URL/route map. On the client it restores the serialized language/Pinia state, then dynamically imports `src/ssg/clientRuntime.ts` and `src/auth.ts` before mount so hydration uses the live shared data layer.
+During prerender, `main.web.ts` installs Pinia, initializes i18n from public `Language` docs fetched through anonymous `queryRemote`, adds localized public static routes, and sets the render language from the URL/route map. On the client it restores the serialized language/Pinia state, then dynamically imports `src/ssg/clientRuntime.ts` and `src/auth.ts` before mount so hydration uses the live shared data layer. The client runtime awaits activity initialization and starts its maintenance; after `setupAuth()` it awaits owner reconciliation through `setupUserActivitySync()`.
 
 ### Data layer
 
 There is no Vuex/Pinia-managed document cache. Documents come from `luminary-shared`'s IndexedDB via Mango queries (`db/`, `fts/`). UI code subscribes to live refs returned by those queries. The shared lib also owns the socket and REST clients. Server 5xx errors arrive via the shared `serverError` ref; `main.ts` translates them into a debounced toast (translation is the app's responsibility, not shared's).
+
+### User activity (`src/userActivity/`)
+
+`source.ts` owns `luminary-user-db`, its consent/auth gate, and the `iss|sub` owner marker
+inside that database. The source's wire name is `user`. Components read/write through
+`store.ts`; only migrations touch the legacy `db.userActivity` table. UI grouping uses
+`activityTimeUtc`, independently of the server cursor. `state.ts` supplies invalidation
+signals for source pulls, acknowledgements and local changes. See `README.md` for consent,
+logout, clear activity and progress-backfill behavior. The API source is a separate rollout;
+absence of its advertised capability must keep data local and queued.
 
 ### Auth (`src/auth.ts`)
 

@@ -1,6 +1,6 @@
 import { DocType } from "../../types";
-import { syncList, syncTolerance } from "./state";
-import type { SyncBaseOptions, SyncListEntry } from "./types";
+import { syncListOf, syncTolerance } from "./state";
+import type { SyncBaseOptions, SyncListEntry, SyncSource } from "./types";
 
 /**
  * Sentinel values for "open" / unset publishDate bounds.
@@ -105,13 +105,14 @@ export function getPublishDateRanges(options: {
     type: DocType;
     subType?: DocType;
     alwaysOffline?: boolean;
+    source?: SyncSource;
 }): DateRange[] {
     const chunkType = getChunkTypeString(options.type, options.subType, options.alwaysOffline);
     const seen = new Set<string>();
     const ranges: DateRange[] = [];
 
-    syncList.value
-        .filter((entry) => entry.chunkType === chunkType)
+    syncListOf(options.source)
+        .value.filter((entry) => entry.chunkType === chunkType)
         .forEach((entry) => {
             const r = resolveRange(entry.publishDateMin, entry.publishDateMax);
             const key = `${r.min}|${r.max}`;
@@ -134,12 +135,13 @@ export function calcChunk(options: {
     memberOf: string[];
     initialSync: boolean;
     languages?: string[];
+    source?: SyncSource;
 }): {
     blockStart: number;
     blockEnd: number;
 } {
-    const list = syncList.value
-        .filter(filterByTypeMemberOf(options))
+    const list = syncListOf(options.source)
+        .value.filter(filterByTypeMemberOf(options))
         .sort((a, b) => a.blockStart - b.blockStart);
     let blockStart: number;
     let blockEnd: number;
@@ -157,12 +159,16 @@ export function calcChunk(options: {
 /**
  * Get the list of memberOf groups used in the syncList for a given document type
  */
-export function getGroups(options: { type: DocType; subType?: DocType }): string[] {
+export function getGroups(options: {
+    type: DocType;
+    subType?: DocType;
+    source?: SyncSource;
+}): string[] {
     const chunkType = getChunkTypeString(options.type, options.subType);
     const groups = new Set<string>();
 
-    syncList.value
-        .filter((entry) => entry.chunkType === chunkType)
+    syncListOf(options.source)
+        .value.filter((entry) => entry.chunkType === chunkType)
         .forEach((entry) => {
             entry.memberOf.forEach((group) => groups.add(group));
         });
@@ -176,6 +182,7 @@ export function getLanguageSets(options: {
     type: DocType;
     subType?: DocType;
     languages?: string[];
+    source?: SyncSource;
 }): string[][] {
     if (options.type !== DocType.Content) return [];
     if (!options.subType) return [];
@@ -183,8 +190,8 @@ export function getLanguageSets(options: {
     const chunkType = getChunkTypeString(options.type, options.subType);
     const languageSets = new Set<string>();
 
-    syncList.value
-        .filter((entry) => entry.chunkType === chunkType)
+    syncListOf(options.source)
+        .value.filter((entry) => entry.chunkType === chunkType)
         .forEach((entry) => {
             if (!entry.languages || !Array.isArray(entry.languages)) return;
 
@@ -204,12 +211,13 @@ export function getGroupSets(options: {
     type: DocType;
     subType?: DocType;
     memberOf: string[];
+    source?: SyncSource;
 }): string[][] {
     const chunkType = getChunkTypeString(options.type, options.subType);
     const groupSets = new Set<string>();
 
-    syncList.value
-        .filter((entry) => entry.chunkType === chunkType)
+    syncListOf(options.source)
+        .value.filter((entry) => entry.chunkType === chunkType)
         .forEach((entry) => {
             if (entry.memberOf.every((group) => options.memberOf.includes(group))) {
                 // If all groups in entry are in the options.memberOf, use the entry's memberOf
@@ -223,10 +231,10 @@ export function getGroupSets(options: {
 /**
  * Get the list of languages used in the syncList for content document types
  */
-export function getLanguages(): string[] {
+export function getLanguages(source?: SyncSource): string[] {
     const languages = new Set<string>();
-    syncList.value
-        .filter(
+    syncListOf(source)
+        .value.filter(
             (entry) =>
                 entry.chunkType === getChunkTypeString(DocType.Content, DocType.Post) ||
                 entry.chunkType === getChunkTypeString(DocType.Content, DocType.Tag),

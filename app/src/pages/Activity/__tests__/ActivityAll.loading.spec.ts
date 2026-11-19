@@ -1,14 +1,17 @@
 import "fake-indexeddb/auto";
+import { activityDocs as activityTable, setupActivityTests } from "@/tests/activityStorage";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref, shallowRef } from "vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import waitForExpect from "wait-for-expect";
-import { db, type ContentDto } from "luminary-shared";
+import { type ContentDto } from "luminary-shared";
 import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { recordUserActivity } from "@/userActivity/store";
 import ActivityAll from "../ActivityAll.vue";
+
+setupActivityTests();
 
 vi.mock("vue-router");
 vi.mock("vue-i18n", () => ({
@@ -54,7 +57,7 @@ const EMPTY = "Everything you read, like or highlight will show up here.";
 describe("ActivityAll while its lookups load", () => {
     beforeEach(async () => {
         lookups.length = 0;
-        await db.userActivity.clear();
+        await activityTable.clear();
         setActivePinia(createTestingPinia());
 
         await recordUserActivity(
@@ -62,8 +65,9 @@ describe("ActivityAll while its lookups load", () => {
                 type: "highlighted",
                 contentId: highlightedTranslation._id,
                 parentId: highlightedTranslation.parentId,
+                range: { start: 0, end: 9, color: "yellow", text: "a passage" },
             },
-            { ranges: [{ start: 0, end: 9, color: "yellow", text: "a passage" }] },
+            { range: { start: 0, end: 9, color: "yellow", text: "a passage" } },
         );
         await recordUserActivity({ type: "viewed", parentId: viewedPost.parentId });
     });

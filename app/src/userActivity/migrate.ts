@@ -9,31 +9,59 @@
 
 import {
     db,
+    config,
+    DocType,
+    HttpReq,
+    isConnected,
     type BaseDocumentDto,
     type HighlightRange,
-    type UserActivityEntry,
     type Uuid,
 } from "luminary-shared";
 import { getHighlightRanges, getLegacyHighlightHtml } from "@/recommendation/highlightStore";
 import { rangesFromLegacyHtml } from "@/util/highlightRanges";
-import { userActivityId, userActivityVersion } from "./store";
+import { addMissingUserActivity, userActivityId } from "./store";
+
+function legacyRangesOfPayload(payload: unknown): HighlightRange[] {
+    if (!payload || typeof payload !== "object" || !("ranges" in payload)) return [];
+    const parsed = getHighlightRanges(payload);
+    return parsed ?? [];
+}
 
 /** A like as `userPreferences` stored it. */
 export type LegacyLike = { id: Uuid; ts: number };
 
-/** Write the rows the database does not already hold, and report how many were added. */
-async function addMissing(rows: UserActivityEntry[]): Promise<number> {
-    if (!rows.length) return 0;
+// Separate from the earlier likes/article-highlight migration already run by existing installs.
+export const USER_ACTIVITY_MIGRATION_KEY = "userActivityPassagesMigrated";
 
-    const existing = await db.userActivity.bulkGet(rows.map((row) => row._id));
-    const missing = rows.filter((_, i) => existing[i] === undefined);
+/**
+ * Resolve missing content in bounded requests. Only a valid response proves that an absent
+ * content doc is gone; transport errors leave its highlights available for the next start.
+ */
+async function lookupMissingContent(ids: string[]): Promise<{
+    docs: BaseDocumentDto[];
+    checked: Set<string>;
+}> {
+    const docs: BaseDocumentDto[] = [];
+    const checked = new Set<string>();
+    if (!isConnected.value || !ids.length) return { docs, checked };
 
-    if (missing.length) {
-        await db.userActivity.bulkPut(missing);
-        userActivityVersion.value++;
+    const http = new HttpReq(config.apiUrl || "");
+    for (let offset = 0; offset < ids.length; offset += 100) {
+        const batch = ids.slice(offset, offset + 100);
+        const response = await http.post("query", {
+            selector: { type: DocType.Content, _id: { $in: batch } },
+            limit: batch.length,
+            identifier: "highlightMigration",
+        });
+        if (!response || !Array.isArray(response.docs)) continue;
+        docs.push(...response.docs);
+        batch.forEach((id) => checked.add(id));
     }
-    return missing.length;
+    return { docs, checked };
 }
+
+/** Write the rows the database does not already hold, and report how many were added. */
+const addMissing = addMissingUserActivity;
 
 /** Likes already store the post id, so they convert directly. The caller clears the source. */
 export async function migrateLikesToUserActivity(likes?: LegacyLike[]): Promise<number> {
@@ -51,12 +79,9 @@ export async function migrateLikesToUserActivity(likes?: LegacyLike[]): Promise<
 
 /**
  * Highlights are stored per translation. Entries written since the post was stored with them
- * carry it; older ones are matched to their Content document instead. An entry whose post
- * cannot be found either way is skipped — its document is not local, so the activity page could not
- * render it anyway.
- *
- * The source is deliberately left in place: `LHighlightable` still reads and writes it, so
- * clearing it would erase highlights from the article view.
+ * carry it; older ones are matched to local Content docs, then looked up remotely once.
+ * Offline or failed lookups keep unresolved entries for the next start. A successful lookup
+ * drops entries that still cannot be resolved. Migrated entries leave the legacy store.
  */
 export async function migrateHighlightsToUserActivity(): Promise<number> {
     const stored = await db.getLuminaryInternals("highlights");
@@ -66,29 +91,104 @@ export async function migrateHighlightsToUserActivity(): Promise<number> {
         .map(([contentId, value]) => ({ contentId, ranges: rangesOf(value), value }))
         .filter((entry) => entry.ranges.length > 0);
 
-    if (!entries.length) return 0;
+    if (!entries.length) {
+        await db.luminaryInternals.delete("highlights");
+        return 0;
+    }
 
     const contentDocs = await db.docs.bulkGet(entries.map((entry) => entry.contentId));
+    const missingIds = entries
+        .filter((entry, i) => !parentIdOf(entry.value) && !contentDocs[i]?.parentId)
+        .map((entry) => entry.contentId);
+    const remote = await lookupMissingContent(missingIds);
+    const remoteParents = new Map(remote.docs.map((doc) => [doc._id, doc.parentId]));
 
     const rows = entries
         .map((entry, i) => ({
             entry,
             parentId:
                 parentIdOf(entry.value) ??
-                (contentDocs[i] as BaseDocumentDto | undefined)?.parentId,
+                (contentDocs[i] as BaseDocumentDto | undefined)?.parentId ??
+                remoteParents.get(entry.contentId),
         }))
         .filter((row): row is { entry: (typeof entries)[number]; parentId: Uuid } => !!row.parentId)
         .map(({ entry, parentId }) => ({
-            _id: userActivityId({ type: "highlighted", contentId: entry.contentId, parentId }),
-            type: "highlighted" as const,
-            contentId: entry.contentId,
             parentId,
-            // Entries predating timestamps sort last rather than claiming to be new.
+            contentId: entry.contentId,
             updatedTimeUtc: updatedAtOf(entry.value),
-            payload: { ranges: entry.ranges },
+            ranges: entry.ranges,
+        }))
+        .flatMap(({ parentId, contentId, updatedTimeUtc, ranges }) =>
+            ranges.map((range) => ({
+                _id: userActivityId({ type: "highlighted", contentId, parentId, range }),
+                type: "highlighted" as const,
+                contentId,
+                parentId,
+                // Entries predating timestamps sort last rather than claiming to be new.
+                updatedTimeUtc,
+                payload: { range },
+            })),
+        );
+
+    const added = await addMissing(rows);
+
+    // Keep only unresolved entries (missing parent/content); remove key when fully migrated.
+    const unresolved = entries.filter((_, i) => {
+        const row = contentDocs[i] as BaseDocumentDto | undefined;
+        return (
+            !parentIdOf(entries[i].value) &&
+            !row?.parentId &&
+            !remote.checked.has(entries[i].contentId)
+        );
+    });
+    if (!unresolved.length) {
+        await db.luminaryInternals.delete("highlights");
+    } else {
+        await db.setLuminaryInternals(
+            "highlights",
+            Object.fromEntries(unresolved.map((entry) => [entry.contentId, entry.value])),
+        );
+    }
+
+    return added;
+}
+
+/** Expand legacy one-row-per-content highlights into one-row-per-passage rows. */
+export async function migrateLegacyHighlightRowsToPassages(): Promise<number> {
+    const legacy = await db.userActivity
+        .where("type")
+        .equals("highlighted")
+        .filter(
+            (row) =>
+                !row.deleted && !!row.contentId && legacyRangesOfPayload(row.payload).length > 0,
+        )
+        .toArray();
+
+    if (!legacy.length) return 0;
+
+    let added = 0;
+
+    for (const row of legacy) {
+        const ranges = legacyRangesOfPayload(row.payload);
+        const expanded = ranges.map((range) => ({
+            _id: userActivityId({
+                type: "highlighted",
+                contentId: row.contentId as Uuid,
+                parentId: row.parentId,
+                range,
+            }),
+            type: "highlighted" as const,
+            contentId: row.contentId,
+            parentId: row.parentId,
+            updatedTimeUtc: row.updatedTimeUtc,
+            payload: { range },
         }));
 
-    return addMissing(rows);
+        added += await addMissing(expanded);
+        await db.userActivity.delete(row._id);
+    }
+
+    return added;
 }
 
 /** Reads either stored shape, converting a legacy HTML snapshot to ranges over its own text. */
@@ -158,6 +258,16 @@ export async function migrateSeenToUserActivity(): Promise<number> {
 
 /** Both passes, for the app to run once. */
 export async function migrateToUserActivity(likes?: LegacyLike[]): Promise<void> {
+    await migrateLegacyHighlightRowsToPassages();
     await migrateLikesToUserActivity(likes);
     await migrateHighlightsToUserActivity();
+}
+
+/** Run the passage migration even on devices that completed the earlier migration. */
+export async function migrateUserActivityOnStartup(likes?: LegacyLike[]): Promise<void> {
+    if (localStorage.getItem(USER_ACTIVITY_MIGRATION_KEY)) return;
+    await migrateToUserActivity(likes);
+    if (!(await db.getLuminaryInternals("highlights"))) {
+        localStorage.setItem(USER_ACTIVITY_MIGRATION_KEY, "true");
+    }
 }

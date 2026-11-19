@@ -567,4 +567,50 @@ describe("syncLocalChanges", () => {
         expect(changeRequestMock).not.toHaveBeenCalled();
         expect(await db.localChanges.get(80)).toBeDefined();
     });
+
+    it("adds dataSource to outgoing change requests when configured", async () => {
+        await handle.stop();
+        handle = syncLocalChanges(localChanges, { dataSource: "user" });
+
+        connect();
+        await waitForExpect(() => expect(isConnected.value).toBe(true));
+
+        changeRequestMock.mockResolvedValueOnce(ack(90));
+        await db.localChanges.put({
+            id: 90,
+            doc: { _id: "ds", type: DocType.Post, updatedTimeUtc: 1 },
+        } as ChangeReqDto);
+
+        await waitForExpect(() => expect(changeRequestMock).toHaveBeenCalledTimes(1));
+        const formData = changeRequestMock.mock.calls[0][0] as FormData;
+        const jsonEntry = [...formData.entries()].find(([k]) => k === "changeRequest__json");
+        expect(jsonEntry).toBeDefined();
+        const payload = JSON.parse(jsonEntry![1] as string);
+        expect(payload.dataSource).toBe("user");
+    });
+
+    it("holds queue draining until ready flips true", async () => {
+        await handle.stop();
+        const ready = ref(false);
+        handle = syncLocalChanges(localChanges, { ready });
+
+        connect();
+        await waitForExpect(() => expect(isConnected.value).toBe(true));
+
+        changeRequestMock.mockResolvedValueOnce(ack(91));
+        await db.localChanges.put({
+            id: 91,
+            doc: { _id: "wait-ready", type: DocType.Post, updatedTimeUtc: 1 },
+        } as ChangeReqDto);
+
+        await wait(200);
+        expect(changeRequestMock).toHaveBeenCalledTimes(0);
+
+        ready.value = true;
+
+        await waitForExpect(async () => {
+            expect(changeRequestMock).toHaveBeenCalledTimes(1);
+            expect(await db.localChanges.get(91)).toBeUndefined();
+        });
+    });
 });

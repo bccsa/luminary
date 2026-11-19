@@ -24,6 +24,16 @@ const hidePrivacyPolicyFromQuery = computed(() => route.query.noprivacypolicy ==
 
 const show = defineModel<boolean>("show");
 
+const logoutAndDecline = async () => {
+    await logout({
+        onBeforeSignout: () => {
+            userPreferencesAsRef.value.privacyPolicy = undefined;
+            useNotificationStore().removeNotification("privacy-policy-banner");
+            show.value = false;
+        },
+    });
+};
+
 // Set the privacy policy status to "updated" if the policy has changed and the user previously accepted it
 // Content is partially synced, so this routes through HybridQuery (IndexedDB +
 // API supplement). The injected { type: Content } is required for that routing.
@@ -177,14 +187,7 @@ setTimeout(() => {
                                           {
                                               variant: "secondary",
                                               name: "deny",
-                                              onClick: () => {
-                                                  userPreferencesAsRef.value.privacyPolicy =
-                                                      undefined;
-                                                  logout();
-                                                  useNotificationStore().removeNotification(
-                                                      "privacy-policy-banner",
-                                                  );
-                                              },
+                                              onClick: logoutAndDecline,
                                           },
                                           () => t("privacy_policy.modal.button_logOut"),
                                       )
@@ -259,12 +262,7 @@ const shouldHidePrivacyPolicy = import.meta.env.VITE_HIDE_PRIVACY_POLICY === "tr
                         userPreferencesAsRef.privacyPolicy?.status === 'accepted' &&
                         isAuthenticated
                     "
-                    @click="
-                        userPreferencesAsRef.privacyPolicy = undefined;
-                        logout();
-                        useNotificationStore().removeNotification('privacy-policy-banner');
-                        show = false;
-                    "
+                    @click="logoutAndDecline"
                 >
                     {{ t("privacy_policy.modal.button_logOut") }}
                 </LButton>

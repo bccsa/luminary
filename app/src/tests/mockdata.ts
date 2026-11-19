@@ -307,6 +307,14 @@ export const mockLanguageDtoEng: LanguageDto = {
     name: "English",
     default: 1,
     translations: {
+        "settings.clear_activity.description_account":
+            "Clear your history, likes and highlights from your account on all devices.",
+        "settings.clear_activity.modal.description_account":
+            "Clear activity on all devices? Removals will sync when connected.",
+        "settings.clear_activity.notification.description_account":
+            "Your activity has been cleared. Other devices will update when they connect.",
+        "logout.unsent_activity_warning":
+            "Some activity has not synced. Logging out will delete it from this device. Log out anyway?",
         "search.placeholder": "Search...",
         "search.go": "Go",
         "search.pressGo": "Press Go to search",

@@ -91,6 +91,8 @@ Start an autonomous sync runner for a specific document type.
 - `publishDateMin` / `publishDateMax` (number, optional): Inclusive `publishDate` bounds for
   the column. Only meaningful for `Content` (and its `DeleteCmd` sibling); leave undefined for
   other types — an undefined bound is treated as an open range.
+- `source` (`SyncSource`, optional): Source-scoped sync state/storage target. When provided,
+  `sync()` uses source mode (single-column `syncBatch` path) and does not add DeleteCmd companions.
 
 > The `type`/`subType` examples below use illustrative type names (e.g. `"content:post"`) as
 > shorthand for the resulting `chunkType`. In real calls `type` and `subType` are `DocType`
@@ -123,6 +125,14 @@ await sync({
     languages: ["en"],
     limit: 100,
     cms: true,
+});
+
+// Source mode (e.g. user-data source)
+await sync({
+    type: "userActivity",
+    memberOf: ["*"],
+    limit: 100,
+    source: userSource,
 });
 ```
 
@@ -237,6 +247,38 @@ The `syncBatch()` function performs these steps iteratively:
 7. If EOF reached, performs horizontal merge
 8. Otherwise, recursively calls itself for the next chunk
 
+In source mode (`options.source` set), `syncBatch` writes fetched docs through
+`source.put(...)`, reads/writes `source.syncList`, sends `dataSource: source.name`
+to the API query, and omits the default `memberOf` selector injection. It awaits
+`source.setSyncList()` after each page and EOF transition, before requesting the next
+page. Interrupted pulls therefore retain a durable cursor. Source pulls do not affect
+the default-source `syncActive` indicator and do not start DeleteCmd companions.
+
+### Source orchestration
+
+`createDataSource(config)` opens an isolated database, restores its cursor, and wires
+its outbound queue. Both pulls and uploads require connectivity, an advertised source
+name in `clientConfig.dataSources`, and the optional caller `ready` ref. An absent
+capability keeps local edits queued for a future compatible server.
+
+- `pull()` retries a stalled uploader and starts one pull at a time. It defers pulling
+  while changes remain queued; draining the queue triggers the pull automatically.
+- `flush(timeoutMs)` restarts a stalled uploader and waits up to the deadline. It returns
+  `false` when the queue remains or transport is unavailable, retaining queued changes.
+- Foregrounding a document triggers the same queue retry and pull checks.
+- `paceMs` spaces uploads while a backlog drains. Quiet acknowledgements keep rejected
+  local documents when the server supplies no replacement and leave global UI messages alone.
+- Incoming writes check pending edits in a database transaction. Source `upsert()` commits
+  the document and queue entry together, replacing earlier queued edits for the same id when
+  `overwriteLocalChanges` is set.
+- `clear()` removes source data and cursor state and invalidates older in-flight pulls.
+  Responses for cleared queue entries cannot restore documents through an acknowledgement.
+- `dispose()` removes the foreground listener, stops watchers and joins outstanding work.
+
+Direct `sync({ source, ... })` callers own the source's `put` and persistence callbacks.
+An optional `source.isCancelled()` guard lets them discard responses after readiness or
+ownership changes. The default sync column, room subscriptions and HybridQuery stay independent.
+
 ### 3. Chunk Calculation
 
 The `calcChunk()` function determines the time range for the next API query:
@@ -290,6 +332,9 @@ The sync system constructs Mango queries in this format:
   use_index: "sync-lesson-index"
 }
 ```
+
+For source mode the query additionally carries `dataSource: <source name>` and omits the
+default `memberOf` selector clause.
 
 ## Usage Patterns
 

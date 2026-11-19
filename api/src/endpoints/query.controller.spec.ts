@@ -1,5 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { BadRequestException, HttpException, HttpStatus } from "@nestjs/common";
+import {
+    BadRequestException,
+    HttpException,
+    HttpStatus,
+    ServiceUnavailableException,
+} from "@nestjs/common";
 import { QueryController } from "./query.controller";
 import { QueryService } from "./query.service";
 import { QueryRateLimiterService } from "../ratelimit/queryRateLimiter.service";
@@ -7,10 +12,12 @@ import { ConfigService } from "@nestjs/config";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { AuthGuard } from "../auth/auth.guard";
 import { FastifyReply, FastifyRequest } from "fastify";
+import { UserDataService } from "../userData/userData.service";
 
 describe("QueryController", () => {
     let controller: QueryController;
     let queryService: { query: jest.Mock };
+    let userData: { query: jest.Mock };
     let configService: { get: jest.Mock };
     let rateLimiter: { check: jest.Mock; recordStrike: jest.Mock };
     let logger: { warn: jest.Mock; error: jest.Mock };
@@ -45,6 +52,7 @@ describe("QueryController", () => {
 
     beforeEach(async () => {
         queryService = { query: jest.fn() };
+        userData = { query: jest.fn() };
         configService = { get: jest.fn() };
         rateLimiter = {
             check: jest.fn().mockReturnValue({ allowed: true, retryAfterMs: 0 }),
@@ -55,6 +63,7 @@ describe("QueryController", () => {
         const module: TestingModule = await Test.createTestingModule({
             controllers: [QueryController],
             providers: [
+                { provide: UserDataService, useValue: userData },
                 { provide: QueryService, useValue: queryService },
                 { provide: ConfigService, useValue: configService },
                 { provide: QueryRateLimiterService, useValue: rateLimiter },
@@ -76,6 +85,80 @@ describe("QueryController", () => {
         await controller.processPostReq(body, mockRequest(), mockReply());
 
         expect(queryService.query).toHaveBeenCalledWith(body, mockUser);
+        expect(userData.query).not.toHaveBeenCalled();
+    });
+
+    it("dispatches a user query exclusively to the user-data service with its own index registry", async () => {
+        configService.get.mockImplementation(configFor(false));
+        userData.query.mockResolvedValue({ docs: [] });
+        const body = {
+            dataSource: "user",
+            selector: {
+                type: "userActivity",
+                updatedTimeUtc: { $gte: 0, $lte: Number.MAX_SAFE_INTEGER },
+            },
+            use_index: "sync-userActivity-index",
+        };
+        await controller.processPostReq(body, mockRequest(), mockReply());
+        expect(userData.query).toHaveBeenCalledWith(body, mockUser);
+        expect(queryService.query).not.toHaveBeenCalled();
+    });
+
+    it.each([false, true])(
+        "rejects unknown sources even with validation bypass=%s",
+        async (bypass) => {
+            configService.get.mockImplementation(configFor(bypass));
+            await expect(
+                controller.processPostReq(
+                    { dataSource: "bogus", selector: { type: "post" } },
+                    mockRequest(),
+                    mockReply(),
+                ),
+            ).rejects.toThrow(BadRequestException);
+            expect(queryService.query).not.toHaveBeenCalled();
+            expect(userData.query).not.toHaveBeenCalled();
+        },
+    );
+
+    it("rejects shared indexes on the user source even when shared validation is bypassed", async () => {
+        configService.get.mockImplementation(configFor(true));
+        await expect(
+            controller.processPostReq(
+                {
+                    dataSource: "user",
+                    selector: { type: "userActivity" },
+                    use_index: "sync-user-index",
+                },
+                mockRequest(),
+                mockReply(),
+            ),
+        ).rejects.toThrow(BadRequestException);
+        expect(userData.query).not.toHaveBeenCalled();
+    });
+
+    it("does not permit user-data indexes on the default source", async () => {
+        configService.get.mockImplementation(configFor(false));
+        await expect(
+            controller.processPostReq(
+                { selector: { type: "userActivity" }, use_index: "sync-userActivity-index" },
+                mockRequest(),
+                mockReply(),
+            ),
+        ).rejects.toThrow(BadRequestException);
+        expect(queryService.query).not.toHaveBeenCalled();
+    });
+
+    it("preserves an unavailable user source's retryable HTTP error", async () => {
+        configService.get.mockImplementation(configFor(false));
+        userData.query.mockRejectedValue(new ServiceUnavailableException("disabled"));
+        await expect(
+            controller.processPostReq(
+                { dataSource: "user", selector: { type: "userActivity" } },
+                mockRequest(),
+                mockReply(),
+            ),
+        ).rejects.toThrow(ServiceUnavailableException);
+        expect(queryService.query).not.toHaveBeenCalled();
     });
 
     it("passes a valid query when validation is enabled", async () => {

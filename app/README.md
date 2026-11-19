@@ -80,6 +80,48 @@ The app tracks how far a user has read through article text and surfaces in-prog
 
 Full design, diagrams, and constants: **[docs/reading-progress-tracker/README.md](docs/reading-progress-tracker/README.md)**.
 
+## User activity and account sync
+
+Likes, highlighted passages and viewing history live in `luminary-user-db`, with their
+own outbound queue and sync cursor. Recording works offline and while signed out.
+Uploads and pulls require a signed-in user, accepted privacy policy status and an API
+advertising `user` in `clientConfig.dataSources`. Until the API supports that source,
+activity stays local and queued; no user-data requests are sent.
+
+At sign-in, unowned device history is adopted by the account. An existing owner marker
+is retained after session loss, so the same user can resume uploading later. Signing in
+as a different user clears the previous owner's device data before transport starts.
+The marker is stored inside the source database and is removed when that database clears.
+
+Logout is refused offline from every entry point. Online, it attempts to flush for up
+to three seconds and asks for confirmation if anything remains unsent. Proceeding clears
+activity from the device before clearing credentials. Account activity returns on a later
+sign-in and pull. Clear activity while signed in writes tombstones for all held rows and
+applies across devices as they sync; while signed out, it wipes the local copy. Activity
+still unsent on another offline device can appear when that device connects.
+
+Pulls run after connection/sign-in, after uploads drain and when the page becomes visible.
+Incoming changes refresh activity lists, recommendations and highlights in mounted articles.
+Activity is ordered by `activityTimeUtc`; the server's `updatedTimeUtc` is only a sync cursor.
+
+Reading/video resume positions and preferences remain device-local. Only the fact and time
+of viewing are mirrored into activity, at most once a minute while progress changes. Existing
+reading progress is backfilled once per device, so logout or clearing history cannot recreate
+old viewing activity on the next startup. Both the SPA and hydrated web build initialize these
+migrations and the progress mirror before components mount.
+
+## Local activity migration
+
+Highlights use one activity row per passage. The passage migration has its own
+completion marker (`userActivityPassagesMigrated`), so devices that already ran the
+older activity migration still upgrade. Existing passage rows, including tombstones,
+take precedence over legacy data.
+
+Legacy highlights whose content is missing locally are looked up remotely in bounded
+requests. Offline use and failed HTTP requests retain unresolved entries and retry on
+the next startup. A successful lookup retires entries that still cannot be resolved.
+The legacy `luminaryInternals["highlights"]` key is deleted after migration completes.
+
 ## Local setup
 
 Refer to the [setup guide](../docs/guides/setup-vue-app.md).

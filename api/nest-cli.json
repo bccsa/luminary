@@ -6,6 +6,11 @@
         "deleteOutDir": true,
         "assets": [
             {
+                "include": "db/userDataDesignDocs/*.json",
+                "outDir": "dist/src",
+                "watchAssets": true
+            },
+            {
                 "include": "db/designDocs/*.json",
                 "outDir": "dist/src",
                 "watchAssets": true

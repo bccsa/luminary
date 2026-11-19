@@ -24,6 +24,9 @@ vi.mock("@/App.vue", () => ({ default: {} }));
 vi.mock("@/i18n", () => ({ initI18n: () => ({ install: () => undefined }) }));
 vi.mock("@/ssg/clientRuntime", () => ({ initSsgClient: vi.fn(async () => undefined) }));
 vi.mock("@/auth", () => ({ setupAuth: vi.fn(async () => undefined) }));
+vi.mock("@/userActivity/source", () => ({
+    setupUserActivitySync: vi.fn(async () => undefined),
+}));
 vi.mock("@/util/ssgTextRecovery", () => ({ captureSsgArticleTextSnapshot: vi.fn() }));
 vi.mock("@/ssg/hydrationLanguage", () => ({ applyServedLanguage: vi.fn() }));
 

@@ -37,7 +37,13 @@ describe("Socketio (mocked)", () => {
         mockS3 = {};
         mockAuth = { resolveOrDefault: jest.fn() };
 
-        gateway = new Socketio(mockLogger, mockDb as any, mockS3 as any, mockAuth as any);
+        gateway = new Socketio(
+            mockLogger,
+            mockDb as any,
+            mockS3 as any,
+            mockAuth as any,
+            { enabled: false } as any,
+        );
 
         // Static method — spy + restore in afterEach.
         accessMapToGroupsSpy = jest.spyOn(PermissionSystem, "accessMapToGroups");
@@ -74,6 +80,27 @@ describe("Socketio (mocked)", () => {
             emit: jest.fn(),
         } as any;
     }
+
+    it("advertises only a successfully initialized user-data source", () => {
+        gateway = new Socketio(mockLogger, mockDb, mockS3, mockAuth, { enabled: true } as any);
+        const socket = makeSocket();
+        initGateway();
+        accessMapToGroupsSpy.mockReturnValue(new Map());
+        gateway.clientConfigReq({ cms: false, docTypes: [] }, socket);
+        expect(socket.emit).toHaveBeenCalledWith(
+            "clientConfig",
+            expect.objectContaining({ dataSources: ["user"] }),
+        );
+    });
+
+    it("omits dataSources when the user-data source is disabled", () => {
+        const socket = makeSocket();
+        initGateway();
+        accessMapToGroupsSpy.mockReturnValue(new Map());
+        gateway.clientConfigReq({ cms: false, docTypes: [] }, socket);
+        const config = socket.emit.mock.calls.find(([event]) => event === "clientConfig")[1];
+        expect(config).not.toHaveProperty("dataSources");
+    });
 
     /** Runs afterInit against a fresh mock server and returns the captured wiring. */
     function initGateway() {
