@@ -123,7 +123,7 @@ function listOptionClass(option: Option): string {
                             'cursor-not-allowed bg-zinc-100 text-zinc-500 dark:bg-slate-950 dark:text-zinc-700':
                                 disabled,
                             'text-zinc-900 dark:text-zinc-100': !isPlaceholderShown && !disabled,
-                            'text-zinc-400 dark:text-zinc-500': isPlaceholderShown && !disabled,
+                            'text-zinc-400': isPlaceholderShown && !disabled,
                         },
                     ]"
                     v-bind="attrsWithoutStyles"

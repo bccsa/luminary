@@ -84,7 +84,7 @@ const computedState = computed(() => props.state);
 const states = {
     default: `
         text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 hover:ring-zinc-400 focus:ring-zinc-950
-        dark:bg-slate-900 dark:text-zinc-100 dark:ring-slate-700 dark:placeholder:text-zinc-500 dark:hover:ring-slate-600 dark:focus:ring-slate-400
+        dark:bg-slate-900 dark:text-zinc-100 dark:ring-slate-700 dark:hover:ring-slate-600 dark:focus:ring-slate-400
     `,
     error: `
         text-red-900 bg-red-50 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500 dark:hover:ring-red-500 dark:focus:ring-red-400
