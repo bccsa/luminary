@@ -754,6 +754,87 @@ describe("FTS Indexer and Search", () => {
         });
     });
 
+    describe("knowing when the stats are out of date", () => {
+        const stale = async () =>
+            (await db.luminaryInternals.get("corpusStatsStale")) !== undefined;
+
+        it("is out of date after a change, until a scan has run", async () => {
+            const { markCorpusStatsStale } = await import("./ftsIndexer");
+            await recomputeCorpusStats();
+            expect(await stale()).toBe(false);
+
+            await markCorpusStatsStale();
+            expect(await stale()).toBe(true);
+
+            await recomputeCorpusStats();
+            expect(await stale()).toBe(false);
+        });
+
+        it("stays out of date when the docs change while a scan runs", async () => {
+            const { markCorpusStatsStale, setCorpusScanner } = await import("./ftsIndexer");
+            setCorpusScanner(async () => {
+                await new Promise((r) => setTimeout(r, 5));
+                await markCorpusStatsStale();
+                return { totalTokenCount: 0, docCount: 0, contentCount: 0, df: {} };
+            });
+            try {
+                await recomputeCorpusStats();
+            } finally {
+                setCorpusScanner();
+            }
+
+            expect(await stale()).toBe(true);
+        });
+
+        it("needs a scan on start only when there are no stats or they are out of date", async () => {
+            const { corpusStatsNeedRecompute, markCorpusStatsStale } = await import("./ftsIndexer");
+            expect(await corpusStatsNeedRecompute()).toBe(true);
+
+            await recomputeCorpusStats();
+            expect(await corpusStatsNeedRecompute()).toBe(false);
+
+            await markCorpusStatsStale();
+            expect(await corpusStatsNeedRecompute()).toBe(true);
+        });
+
+        it("needs a scan on start when an older build's scan produced the stats", async () => {
+            const { corpusStatsNeedRecompute } = await import("./ftsIndexer");
+            await recomputeCorpusStats();
+            const stats = await getCorpusStats();
+            await setCorpusStats({ ...stats, scanVersion: 0 });
+
+            expect(await corpusStatsNeedRecompute()).toBe(true);
+        });
+
+        it("needs a scan on start when content changed without being marked", async () => {
+            const { corpusStatsNeedRecompute } = await import("./ftsIndexer");
+            await recomputeCorpusStats();
+            expect(await corpusStatsNeedRecompute()).toBe(false);
+
+            await db.docs.put(makeContentDoc({ _id: "unmarked", title: "unmarked" }));
+
+            expect(await corpusStatsNeedRecompute()).toBe(true);
+        });
+
+        it("keeps the newest scan's stats when an older scan finishes last", async () => {
+            const { setCorpusScanner } = await import("./ftsIndexer");
+            let scans = 0;
+            setCorpusScanner(async () => {
+                const scan = ++scans;
+                // The first scan is the slow one.
+                if (scan === 1) await new Promise((r) => setTimeout(r, 30));
+                return { totalTokenCount: scan, docCount: scan, contentCount: scan, df: {} };
+            });
+            try {
+                await Promise.all([recomputeCorpusStats(), recomputeCorpusStats()]);
+            } finally {
+                setCorpusScanner();
+            }
+
+            expect((await getCorpusStats()).docCount).toBe(2);
+        });
+    });
+
     describe("scheduleCorpusStatsRecompute", () => {
         it("triggers recomputation after debounce delay", async () => {
             const { entries, tokenCount } = generateSimpleFtsEntries("quantum");
@@ -769,6 +850,9 @@ describe("FTS Indexer and Search", () => {
             scheduleCorpusStatsRecompute();
             scheduleCorpusStatsRecompute();
             scheduleCorpusStatsRecompute();
+            // Out of date from the moment it is scheduled, so a restart before it runs still scans.
+            await new Promise((r) => setTimeout(r, 20));
+            expect(await db.luminaryInternals.get("corpusStatsStale")).toBeDefined();
 
             // Wait for debounce to fire
             await new Promise((r) => setTimeout(r, 11_000));
@@ -776,6 +860,7 @@ describe("FTS Indexer and Search", () => {
             stats = await getCorpusStats();
             expect(stats.docCount).toBe(1);
             expect(stats.totalTokenCount).toBe(tokenCount);
+            expect(await db.luminaryInternals.get("corpusStatsStale")).toBeUndefined();
         }, 15_000);
     });
 

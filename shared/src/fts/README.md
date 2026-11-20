@@ -200,11 +200,11 @@ Each search query:
 
 ### Corpus Stats
 
-Corpus statistics (total token count, document count) are maintained for BM25's average document length calculation:
+Corpus statistics (total token count, document count) are maintained for BM25's average document length calculation. They are kept in `luminaryInternals`, so they survive a restart, and rescanned only when the docs really changed:
 
-- Recomputed after each `bulkPut` containing ContentDtos
-- Debounced recompute (10s) after document deletions
-- Recomputed on startup
+- Debounced recompute (10s) after a `bulkPut` that added, changed or expired Content, and after document deletions (`deleteRevoked()` only when it removed docs)
+- Each scheduled recompute first writes a `corpusStatsStale` mark; a finished scan clears it, unless the docs changed again while it ran
+- On startup, a scan runs only when there are no stats yet or the mark is still there (the app closed before its scan)
 
 Each recompute also stores every trigram's document frequency (df), in the same transaction as the stats; searches read these instead of counting the `*fts` index, falling back to counting when none are stored. Between a write and the debounced recompute, pruning and IDF therefore use the last recompute's frequencies rather than live counts: a trigram new to the corpus has df 0, so it is always kept and gets the maximum IDF.
 
