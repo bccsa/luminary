@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildControlsHtml, type ControlsHtmlOptions } from "../ui/controlsHtml";
+import { buildControlsHtml, cameraItemsHtml, type ControlsHtmlOptions } from "../ui/controlsHtml";
 
 const ALL: ControlsHtmlOptions = {
     audioMenu: true,
@@ -19,7 +19,7 @@ describe("buildControlsHtml", () => {
         const doc = render();
         expect(doc.querySelector(".lmpl-settings")).toBeNull();
         expect(doc.querySelector(".lmpl-cluster-top")).toBeNull();
-        for (const kind of ["quality", "audio", "speed", "captions"]) {
+        for (const kind of ["quality", "audio", "speed", "captions", "camera"]) {
             expect(doc.querySelectorAll(`.lmpl-opt-${kind}`), kind).toHaveLength(1);
         }
     });
@@ -56,6 +56,7 @@ describe("buildControlsHtml", () => {
             audio: ["media-audio-track-radio-group", "Language"],
             speed: ["media-playback-rate-radio-group", "Speed"],
             captions: ["media-captions-radio-group", "Captions"],
+            camera: ["media-menu-radio-group[data-camera-group]", "View"],
         };
         for (const [kind, [group, title]] of Object.entries(expected)) {
             const card = doc.querySelector(`.lmpl-card-${kind}`)!;
@@ -258,8 +259,8 @@ describe("buildControlsHtml", () => {
     it("points every menu trigger at a menu that exists, and no two players share an id", () => {
         const ids = (id: string) => {
             const doc = render({}, id);
-            const targets = [...doc.querySelectorAll("[commandfor]")].map((e) =>
-                e.getAttribute("commandfor")!,
+            const targets = [...doc.querySelectorAll("[commandfor]")].map(
+                (e) => e.getAttribute("commandfor")!,
             );
             for (const target of targets) expect(doc.getElementById(target), target).not.toBeNull();
             return [...doc.querySelectorAll("[id]")].map((e) => e.id);
@@ -267,12 +268,12 @@ describe("buildControlsHtml", () => {
         const a = ids("one");
         const b = ids("two");
         // One card per setting, and the volume's; nothing else carries an id.
-        expect(a).toHaveLength(5);
+        expect(a).toHaveLength(6);
         expect(a.filter((id) => b.includes(id))).toEqual([]);
         expect(new Set(a).size).toBe(a.length);
     });
 
-    it("orders the settings as the now-playing screen's tools: speed, quality, language, captions, browse", () => {
+    it("orders the settings as the now-playing screen's tools: speed, quality, language, captions, camera, browse", () => {
         const order = [...render().querySelectorAll(".lmpl-options > button")].map((b) =>
             [...b.classList].find((c) => c.startsWith("lmpl-opt-")),
         );
@@ -281,8 +282,33 @@ describe("buildControlsHtml", () => {
             "lmpl-opt-quality",
             "lmpl-opt-audio",
             "lmpl-opt-captions",
+            "lmpl-opt-camera",
             "lmpl-opt-browse",
         ]);
+    });
+});
+
+describe("camera setting", () => {
+    it("draws a camera, named from its label", () => {
+        const doc = document.implementation.createHTMLDocument("");
+        doc.body.innerHTML = buildControlsHtml(ALL, "p1", { camera: "Vue" });
+        const camera = doc.querySelector(".lmpl-opt-camera")!;
+        expect(camera.querySelector("svg")).not.toBeNull();
+        expect(camera.querySelector(".media-settings-menu-trigger-label")!.textContent).toBe("Vue");
+    });
+
+    it("leaves its group empty for the player to fill, one item per angle, valued by id and escaped", () => {
+        const group = render().querySelector("[data-camera-group]")!;
+        expect(group.children).toHaveLength(0);
+
+        group.innerHTML = cameraItemsHtml([
+            { id: "main", label: "Main" },
+            { id: "pulpit", label: 'Pulpit <"side">' },
+        ]);
+        const items = [...group.querySelectorAll("media-menu-radio-item")];
+        expect(items.map((i) => i.getAttribute("value"))).toEqual(["main", "pulpit"]);
+        expect(items[1]!.textContent).toBe('Pulpit <"side">');
+        expect(items[1]!.querySelector("media-menu-item-indicator media-icon")).not.toBeNull();
     });
 });
 
