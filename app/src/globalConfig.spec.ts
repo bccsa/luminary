@@ -151,8 +151,11 @@ describe("globalConfig.ts", () => {
         it("falls back to the default cap until the API has sent one", () => {
             maxQueryLanguages.value = 0;
             expect(maxPreferredLanguages.value).toBe(DEFAULT_MAX_PREFERRED_LANGUAGES);
+        });
+
+        it("leaves one language under a cap of one, not the default cap that would exceed it", () => {
             maxQueryLanguages.value = 1;
-            expect(maxPreferredLanguages.value).toBe(DEFAULT_MAX_PREFERRED_LANGUAGES);
+            expect(maxPreferredLanguages.value).toBe(1);
         });
 
         it("trims the preferred set when the API lowers its cap", async () => {

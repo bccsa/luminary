@@ -222,10 +222,13 @@ export const DEFAULT_MAX_PREFERRED_LANGUAGES = 3;
 /**
  * How many languages a user may prefer: the API's query language cap (`maxQueryLanguages`, sent in
  * `clientConfig`) minus one, because the display default (English) is auto-appended in
- * `appDisplayLanguageIdsAsRef` and also counts against the API's cap.
+ * `appDisplayLanguageIdsAsRef` and also counts against the API's cap. Never under one, so a cap of
+ * one still leaves the user a language rather than the default cap, which would exceed it.
  */
 export const maxPreferredLanguages = computed(() =>
-    maxQueryLanguages.value > 1 ? maxQueryLanguages.value - 1 : DEFAULT_MAX_PREFERRED_LANGUAGES,
+    maxQueryLanguages.value > 0
+        ? Math.max(1, maxQueryLanguages.value - 1)
+        : DEFAULT_MAX_PREFERRED_LANGUAGES,
 );
 
 /** Product cap on how many languages a user may sync (download for offline). */
