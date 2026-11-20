@@ -993,6 +993,38 @@ describe("SingleContent", () => {
         }
     });
 
+    it("opens the CMS editor for a post with a single translation", async () => {
+        const windowOpenMock = vi.fn();
+        global.window.open = windowOpenMock;
+
+        cmsUrl.value = "https://cms.example.com";
+        cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
+        vi.spyOn(luminaryShared, "verifyAccess").mockReturnValue(true);
+        await db.docs.delete(mockFrenchContentDto._id);
+
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+        await waitForExpect(() => {
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.title);
+        });
+
+        expect(wrapper!.find("[data-test='translationSelector']").exists()).toBe(false);
+
+        const editButton = wrapper!.find("button[data-test='editButton']");
+        expect(editButton.exists()).toBe(true);
+        await editButton.trigger("click");
+
+        await waitForExpect(() => {
+            expect(windowOpenMock).toHaveBeenCalledTimes(1);
+            expect(windowOpenMock.mock.calls[0][0]).toBe(
+                `https://cms.example.com/post/edit/${mockEnglishContentDto.parentPostType}/${mockEnglishContentDto.parentId}/${mockLanguageDtoEng.languageCode}`,
+            );
+        });
+    });
+
     it.skip("does not show edit button when cmsUrl is not defined", async () => {
         cmsUrl.value = "";
 
