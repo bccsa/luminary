@@ -270,7 +270,7 @@ const onEscape = (e: KeyboardEvent) => {
                         <input
                             v-model="query"
                             ref="inputElement"
-                            class="z-0 h-7 min-w-[40px] flex-1 border-0 bg-transparent p-0 text-zinc-900 placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100 dark:placeholder:text-zinc-600"
+                            class="z-0 h-7 min-w-[40px] flex-1 border-0 bg-transparent p-0 text-zinc-900 placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100"
                             :placeholder="
                                 selectedOptions.length > 0 && !query
                                     ? ''
@@ -343,7 +343,7 @@ const onEscape = (e: KeyboardEvent) => {
                             <input
                                 v-model="query"
                                 ref="inputElement"
-                                class="z-0 w-full flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100 dark:ring-slate-600 dark:placeholder:text-zinc-600"
+                                class="z-0 w-full flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100 dark:ring-slate-600"
                                 :class="[
                                     smallInput && isMobileScreen ? 'h-[30px] text-sm' : 'h-[38px]',
                                     { 'w-96': $slots.actions && !isSmallScreen },

@@ -106,7 +106,7 @@ const toolbarClasses = {
     editor: "flex min-h-0 flex-1 flex-col overflow-hidden",
     editorContent:
         "prose prose-zinc dark:prose-invert lg:prose-sm max-w-none min-h-0 flex-1 border-0 bg-white dark:bg-slate-800 px-0 py-0 ring-0 focus:outline-none focus:ring-0 rounded-none lg:h-full",
-    placeholder: "text-zinc-400 dark:text-zinc-500",
+    placeholder: "text-zinc-400",
 } as const;
 
 function openLinkModal() {
