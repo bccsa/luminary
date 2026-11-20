@@ -257,7 +257,7 @@ Inert until configured: the source is served and advertised only when `DB_USERDA
 
 1. `configuration.ts`, `.env.example`: the two settings.
 2. Provisioning: add the creation command (`PUT /<db>?partitioned=true`) to `scripts/setup-dev.sh` and the API README. At startup the API checks that the database exists and is partitioned. If not, it logs a clear error and leaves the source off; it does not retry forever.
-3. `userData/ownerKey.ts`: the HMAC helper that resolves the owner from `request.user.jwtPayload`. Anonymous callers get 401. Every user-data path goes through it; it is where a device check would go later.
+3. `auth/ownerKey.ts`: the HMAC helper that resolves the owner from `request.user.jwtPayload`. Anonymous callers get 401. Every user-data path goes through it; it is where a device check would go later.
 4. `userData/userDataDb.service.ts`: a small standalone service.
    - A lazy `nano` handle on the user-data database.
    - Applies the design docs from its own directory. Do not reuse `upsertDesignDocs`.
@@ -372,3 +372,30 @@ Manual check, two browsers on one account against an API with the source on:
 - Tombstones keep post and content ids on the server until Phase 5. Erasing an account's data completely is an ops task (delete the partition) until tooling exists.
 - There is no sync status in the UI; failures are silent and retried.
 - The privacy policy text needs a sentence covering synced activity. That is a content change, outside this code work.
+
+## 13. Review refactor progress
+
+These follow-up phases are separate from the original implementation phases above.
+
+### Review Phase 1 — authentication and identity
+
+Implemented against the authentication contract on `origin/main` at `56f1c5c5`.
+That revision uses provider-issued JWTs resolved through `IdentityCacheService`;
+it does not contain a separate Luminary session-token authentication flow.
+
+- Account extraction and rate-limit identity selection live in `api/src/auth/requestIdentity.ts`.
+  Controllers use this shared authentication helper for rate limiting.
+- Owner authorization lives in `api/src/auth/ownerKey.ts` alongside its tests.
+  Owner keys retain the exact existing HMAC input, issuer + newline + subject.
+  Token refreshes and session-id changes do not move stored activity into another partition.
+- Change-request, query and FTS rate limits share the existing User-id bucket when available,
+  otherwise a verified issuer/subject hash. Anonymous callers use an IP bucket.
+- The auth guard and identity cache retain the current `main` implementation. The branch's
+  provider-unavailable response remains supported, with classification based on explicit
+  failure markers/codes rather than words in a verification error message.
+- Mocked regressions cover persisted owner keys, refreshed tokens, cache hits, accounts sharing
+  an IP, anonymous identities, controller integration and authentication error classification.
+
+A future session-token resolver must supply the same account identity through the auth boundary.
+The activity DTO/UUID migration, service/controller split, database assets and performance work
+remain in the later review phases.

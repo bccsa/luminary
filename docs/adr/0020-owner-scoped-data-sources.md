@@ -42,6 +42,12 @@ queries only the caller's partition, and strips the prefix on reads. The owner k
 is never exposed to clients. A local identity marker may separately associate
 retained device data with the issuer and subject from its OIDC profile.
 
+Account extraction belongs to the authentication layer (`auth/requestIdentity.ts`), keeping the
+owner-key helper (`auth/ownerKey.ts`) independent of token transport details. Token refreshes and session identifiers
+do not change the persisted HMAC input. Change-request, query and FTS rate limits reuse the resolved
+shared User id, or an issuer/subject hash for authenticated accounts without a shared User document;
+anonymous requests use IP. A future session-token resolver must retain the original account identity.
+
 `USER_DATA_ID_SECRET` is dedicated to identity derivation, separate from
 `ENCRYPTION_KEY`. It must be backed up and not rotated. Losing or changing it
 orphans the corresponding user data. The source is served and advertised only

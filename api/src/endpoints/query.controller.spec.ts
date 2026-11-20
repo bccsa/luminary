@@ -321,7 +321,24 @@ describe("QueryController", () => {
             mockReply(),
         );
 
-        expect(rateLimiter.recordStrike).toHaveBeenCalledWith("anon:127.0.0.1");
+        expect(rateLimiter.recordStrike).toHaveBeenCalledWith("ip:127.0.0.1");
+    });
+
+    it("uses the authenticated account for user queries without a shared User document", async () => {
+        userData.query.mockResolvedValue({ docs: [] });
+        const user = { groups: [], jwtPayload: { iss: "https://issuer.example", sub: "one" } };
+        const query = { dataSource: "user", selector: { type: "userActivity" } };
+
+        await controller.processPostReq(query, mockRequest(user), mockReply());
+        const first = rateLimiter.check.mock.calls[0][0];
+        await controller.processPostReq(
+            { ...query },
+            mockRequest({ ...user, jwtPayload: { ...user.jwtPayload, sub: "two" } }),
+            mockReply(),
+        );
+
+        expect(first).toMatch(/^jwt:[a-f0-9]{64}$/);
+        expect(rateLimiter.check.mock.calls[1][0]).not.toBe(first);
     });
 
     it("does not strike or warn for a cheap query", async () => {

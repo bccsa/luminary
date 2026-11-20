@@ -46,14 +46,7 @@ function isEndpointUnavailableError(error: unknown): boolean {
     if (e?.isEndpointUnavailable === true) return true;
 
     const code = typeof e?.code === "string" ? e.code : "";
-    if (["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT"].includes(code)) {
-        return true;
-    }
-
-    const message = typeof e?.message === "string" ? e.message : "";
-    return (
-        message.includes("getaddrinfo") || message.includes("JWKS") || message.includes("network")
-    );
+    return ["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT"].includes(code);
 }
 
 @Injectable()

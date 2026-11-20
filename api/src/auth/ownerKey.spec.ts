@@ -1,6 +1,6 @@
-import { UnauthorizedException } from "@nestjs/common";
-import { ownerKey, changeRequestIdentity } from "./ownerKey";
-import { JwtUserDetails } from "../auth/authIdentity.service";
+import { ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { ownerKey } from "./ownerKey";
+import type { JwtUserDetails } from "./authIdentity.service";
 
 const user: JwtUserDetails = {
     groups: [],
@@ -51,21 +51,27 @@ describe("user-data owner identity", () => {
         expect(() => ownerKey(identity as JwtUserDetails, "secret")).toThrow(UnauthorizedException);
     });
 
-    it("keys limiter buckets by User id, then verified identity, then IP", () => {
-        expect(changeRequestIdentity({ ...user, userId: "user-existing" }, "127.0.0.1")).toBe(
-            "user-existing",
-        );
-        const identity = changeRequestIdentity(user, "127.0.0.1");
-        expect(identity).toMatch(/^jwt:[a-f0-9]{64}$/);
-        expect(changeRequestIdentity(user, "192.0.2.1")).toBe(identity);
+    it("keeps the stored partition when token or session claims rotate", () => {
         expect(
-            changeRequestIdentity(
-                { ...user, jwtPayload: { ...user.jwtPayload, sub: "other" } },
-                "127.0.0.1",
+            ownerKey(
+                {
+                    ...user,
+                    jwtPayload: {
+                        ...user.jwtPayload,
+                        iat: 200,
+                        exp: 300,
+                        jti: "new-token-id",
+                        sid: "new-session-id",
+                    },
+                },
+                "secret",
             ),
-        ).not.toBe(identity);
-        expect(changeRequestIdentity({ groups: [], anonymous: true }, "127.0.0.1")).toBe(
-            "ip:127.0.0.1",
-        );
+        ).toBe(ownerKey(user, "secret"));
+    });
+
+    it("rejects a missing owner secret without falling back to another identity", () => {
+        expect(() => ownerKey(user, "")).toThrow(ServiceUnavailableException);
+        expect(() => ownerKey(user, undefined)).toThrow(ServiceUnavailableException);
+        expect(() => ownerKey({ groups: [], anonymous: true }, "")).toThrow(UnauthorizedException);
     });
 });

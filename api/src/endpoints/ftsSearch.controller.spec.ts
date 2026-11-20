@@ -72,6 +72,24 @@ describe("FtsSearchController", () => {
         expect(rateLimiter.recordStrike).not.toHaveBeenCalled();
     });
 
+    it("shares an account bucket across token refreshes without a User document", async () => {
+        ftsSearchService.searchWithStats.mockResolvedValue({ results: [], stats: cheapStats });
+        const user = {
+            groups: [],
+            jwtPayload: { iss: "https://issuer.example", sub: "subject", jti: "first" },
+        };
+        await controller.search(body() as any, mockRequest(user), mockReply());
+        const first = rateLimiter.check.mock.calls[0][0];
+        await controller.search(
+            body() as any,
+            mockRequest({ ...user, jwtPayload: { ...user.jwtPayload, jti: "refreshed" } }),
+            mockReply(),
+        );
+
+        expect(first).toMatch(/^jwt:[a-f0-9]{64}$/);
+        expect(rateLimiter.check.mock.calls[1][0]).toBe(first);
+    });
+
     it("returns 429 with Retry-After when the limiter denies the request", async () => {
         rateLimiter.check.mockReturnValue({ allowed: false, retryAfterMs: 4200 });
         const reply = mockReply();

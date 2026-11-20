@@ -66,6 +66,12 @@ User document. The API derives the owner with HMAC-SHA256, adds `<ownerKey>:` to
 queries through CouchDB's partition path, and strips that prefix from response documents.
 Bookmarks are omitted because they can encode internal stored ids.
 
+`auth/requestIdentity.ts` extracts the account identity from the authenticated request context.
+`auth/ownerKey.ts` retains the same issuer/subject HMAC across token refreshes and sessions. Change-request,
+query and FTS rate limits use the shared User id when available, otherwise an issuer/subject hash,
+and IP for anonymous callers. Token and session identifiers do not select owner partitions or
+reset an account's rate-limit allowance.
+
 User queries require `selector.type: "userActivity"`, use a separate index allowlist, and accept
 the sync engine's `updatedTimeUtc` bounds including zero and `Number.MAX_SAFE_INTEGER`.
 Change requests validate a standalone `UserActivityDto`: id up to 1,024 characters, parent/content

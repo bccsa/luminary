@@ -60,7 +60,7 @@ Writes go through `upsertDoc(doc)` which auto-generates `DeleteCmd` docs when `m
 loop. It enables only after both `DB_USERDATA_DATABASE` and `USER_DATA_ID_SECRET` are configured,
 the dedicated database is partitioned, and its indexes install. `UserDataService` owns the
 standalone `UserActivityDto` validation and response id conversion; the API `DocType` enum
-does not include `UserActivity`. `ownerKey()` authorizes all user-source paths from verified
+does not include `UserActivity`. `auth/ownerKey.ts` authorizes all user-source paths from verified
 JWT issuer/subject. Every query uses `partitionedFind`; unknown sources never fall back to the
 shared dataset. Writes use activity-time comparison, server-set cursor timestamps and
 conflict retries. Validation rejects are HTTP 200 acks; source/storage failures are retryable
@@ -90,6 +90,12 @@ Multi-provider OIDC. `AuthProvider` documents in the DB define each provider (do
 **Failure-reason codes** (`AuthFailureReason`) are critical for client behavior: `provider_not_found` tells the client to evict its cached provider doc and re-pick; `token_invalid` triggers a similar eviction so Dexie can resync. The Socket.io gateway in `socketio.ts` injects these into `connect_error` payloads; the REST `AuthGuard` does the equivalent via `UnauthorizedException`.
 
 The `JwtModule` is registered globally in `app.module.ts` with no signing secret — tokens are verified against each provider's JWKS. Group-membership and identity claims are derived from the claim/group mappings stored on each `AuthProvider` doc and evaluated by `AuthIdentityService` (plus `AutoGroupMappings` docs).
+
+`auth/requestIdentity.ts` owns account extraction and rate-limit identities from this resolved context.
+`auth/ownerKey.ts` consumes the account identity without interpreting token/session identifiers, preserving
+the persisted issuer/subject HMAC. Change-request, query and FTS controllers share `rateLimitIdentity()`:
+shared User id first, verified issuer/subject hash second, IP for anonymous callers. Future token
+transports must resolve to the same account before reaching these helpers.
 
 ### Socket.io (`src/socketio.ts`)
 

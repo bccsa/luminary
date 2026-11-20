@@ -1201,6 +1201,26 @@ describe("AuthGuard (Integrated)", () => {
     // ── resolveOrDefault error-reason discrimination ─────────────────────────
 
     describe("resolveOrDefault auth failure reasons", () => {
+        it.each([
+            "The JWKS endpoint did not contain any keys",
+            "Unable to find a signing key that matches network-key in JWKS",
+            "jwt issuer invalid. expected: https://network.example",
+            "jwt issuer invalid. expected: https://getaddrinfo.example",
+        ])(
+            "keeps verification failures as token_invalid when their message mentions infrastructure: %s",
+            async (message) => {
+                jest.spyOn(authIdentityService, "resolveIdentity").mockRejectedValueOnce(
+                    new Error(message),
+                );
+                await expect(
+                    authIdentityService.resolveOrDefault("token", "provider-id"),
+                ).rejects.toMatchObject({
+                    reason: "token_invalid",
+                    message: "Invalid authentication token",
+                });
+            },
+        );
+
         it("tags 'Provider not found' errors with reason=provider_not_found", async () => {
             // Empty docs from getDoc triggers "Provider not found" inside resolveIdentity.
             mockDbService.getDoc = jest.fn().mockResolvedValue({ docs: [] });

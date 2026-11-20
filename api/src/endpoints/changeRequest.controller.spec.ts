@@ -107,7 +107,7 @@ describe("ChangeRequestController", () => {
         expect(mockRateLimiter.recordRequest).toHaveBeenCalledWith("mock-user");
     });
 
-    it("keys authenticated callers without a User document separately from their IP", async () => {
+    it("keeps refreshed tokens in one account bucket and separates accounts sharing an IP", async () => {
         mockIdentity = {
             groups: [],
             jwtPayload: { iss: "https://issuer.example", sub: "subject-a" },
@@ -119,6 +119,14 @@ describe("ChangeRequestController", () => {
             payload: { dataSource: "user", doc: {} },
         });
         const first = mockRateLimiter.recordRequest.mock.calls[0][0];
+        mockIdentity.jwtPayload.jti = "refreshed-token";
+        mockIdentity.jwtPayload.sid = "new-session";
+        await app.inject({
+            method: "POST",
+            url: "/changerequest",
+            payload: { dataSource: "user", doc: {} },
+        });
+        expect(mockRateLimiter.recordRequest.mock.calls[1][0]).toBe(first);
         mockIdentity.jwtPayload.sub = "subject-b";
         await app.inject({
             method: "POST",
@@ -126,7 +134,7 @@ describe("ChangeRequestController", () => {
             payload: { dataSource: "user", doc: {} },
         });
         expect(first).toMatch(/^jwt:[a-f0-9]{64}$/);
-        expect(mockRateLimiter.recordRequest.mock.calls[1][0]).not.toBe(first);
+        expect(mockRateLimiter.recordRequest.mock.calls[2][0]).not.toBe(first);
     });
 
     it("returns a bad user document's rejected ack with HTTP 200", async () => {

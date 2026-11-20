@@ -7,7 +7,7 @@ import { ConfigService } from "@nestjs/config";
 import { UserDataService } from "./userData.service";
 import { UserDataDbService } from "./userDataDb.service";
 import { MAX_ACTIVITY_ID_LENGTH, MAX_HIGHLIGHT_TEXT_LENGTH } from "../dto/UserActivityDto";
-import { ownerKey } from "./ownerKey";
+import { ownerKey } from "../auth/ownerKey";
 
 describe("UserDataService", () => {
     const user = { groups: [], jwtPayload: { iss: "https://issuer.example", sub: "subject-123" } };

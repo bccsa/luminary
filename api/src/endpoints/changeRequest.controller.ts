@@ -17,7 +17,7 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { ChangeRequestRateLimiterService } from "../ratelimit/changeRequestRateLimiter.service";
 import { removeDangerousKeys } from "../util/removeDangerousKeys";
 import { patchFileData } from "../util/patchFileData";
-import { changeRequestIdentity } from "../userData/ownerKey";
+import { rateLimitIdentity } from "../auth/requestIdentity";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -39,7 +39,7 @@ export class ChangeRequestController {
         }
 
         // Counted before parsing so a flood of oversized or malformed requests is limited too
-        const identityKey = changeRequestIdentity(request.user, request.ip);
+        const identityKey = rateLimitIdentity(request.user, request.ip);
         const gate = this.rateLimiter.check(identityKey);
         if (!gate.allowed) {
             reply.header("Retry-After", String(Math.ceil(gate.retryAfterMs / 1000)));

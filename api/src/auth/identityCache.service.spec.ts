@@ -5,6 +5,8 @@ import { AuthIdentityService, IdentityResult } from "./authIdentity.service";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { DbService } from "../db/db.service";
 import { DeleteReason, DocType } from "../enums";
+import { rateLimitIdentity } from "./requestIdentity";
+import { ownerKey } from "./ownerKey";
 
 const CONFIG_KEY = "identityCache";
 
@@ -81,6 +83,39 @@ describe("IdentityCacheService", () => {
     });
 
     describe("hit / miss", () => {
+        it("preserves owner and limiter identities on cache hits and refreshed tokens", async () => {
+            const { svc, authIdentity } = makeService(cacheCfg);
+            const jwtPayload = {
+                iss: "https://issuer.example",
+                sub: "subject-123",
+                exp: Math.floor(Date.now() / 1000) + 3600,
+                jti: "first-token",
+                sid: "first-session",
+            };
+            authIdentity.resolveOrDefault
+                .mockResolvedValueOnce(authResult({ userId: undefined, jwtPayload }))
+                .mockResolvedValueOnce(
+                    authResult({
+                        userId: undefined,
+                        jwtPayload: { ...jwtPayload, jti: "refreshed-token", sid: "new-session" },
+                    }),
+                );
+
+            const initial = await svc.resolveOrDefault("first-token", "provider");
+            const hit = await svc.resolveOrDefault("first-token", "provider");
+            const refreshed = await svc.resolveOrDefault("refreshed-token", "provider");
+
+            for (const result of [hit, refreshed]) {
+                expect(ownerKey(result.userDetails, "test-secret")).toBe(
+                    ownerKey(initial.userDetails, "test-secret"),
+                );
+                expect(rateLimitIdentity(result.userDetails, "192.0.2.1")).toBe(
+                    rateLimitIdentity(initial.userDetails, "127.0.0.1"),
+                );
+            }
+            expect(authIdentity.resolveOrDefault).toHaveBeenCalledTimes(2);
+        });
+
         it("caches on miss and serves the second request from cache", async () => {
             const { svc, authIdentity } = makeService(cacheCfg);
             await svc.resolveOrDefault("t", "p");

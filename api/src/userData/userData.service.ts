@@ -6,7 +6,7 @@ import { JwtUserDetails } from "../auth/authIdentity.service";
 import { UserActivityDto } from "../dto/UserActivityDto";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { AckStatus } from "../enums";
-import { ownerKey } from "./ownerKey";
+import { ownerKey } from "../auth/ownerKey";
 import { UserDataDbService } from "./userDataDb.service";
 import { removeEmptyValues } from "../util/removeEmptyValues";
 
