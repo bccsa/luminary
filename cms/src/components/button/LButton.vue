@@ -9,12 +9,12 @@ const buttonClasses = cva({
     variants: {
         variant: {
             primary:
-                "active:text-zinc-50 dark:active:text-zinc-800 disabled:ring-zinc-300 dark:disabled:ring-zinc-700 bg-zinc-700 ring-1 shadow-sm text-white ring-zinc-900/60 hover:bg-zinc-600 active:bg-zinc-800/80 dark:bg-yellow-300 dark:text-zinc-600 dark:ring-white/10 dark:hover:bg-yellow-200 dark:active:bg-zinc-300 disabled:bg-zinc-300 disabled:text-zinc-100 dark:disabled:bg-slate-700 dark:disabled:text-zinc-500",
+                "bg-zinc-700 ring-1 shadow-sm text-white ring-zinc-900/60 hover:bg-zinc-800/90 active:bg-zinc-800/80 dark:bg-yellow-300 dark:text-zinc-600 dark:ring-white/10 dark:enabled:hover:bg-yellow-200 dark:enabled:active:bg-zinc-300 disabled:bg-zinc-300 disabled:text-zinc-100 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600",
             secondary:
-                "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100/70 dark:bg-slate-700 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-600 dark:active:bg-slate-500 disabled:bg-zinc-100 disabled:text-zinc-500 dark:disabled:bg-slate-900 dark:disabled:text-zinc-700",
+                "bg-white ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100/70 dark:bg-slate-700 dark:text-zinc-100 dark:ring-slate-600 dark:enabled:hover:bg-slate-600 dark:enabled:active:bg-slate-500 disabled:bg-zinc-100 disabled:text-zinc-500 dark:disabled:bg-slate-900 dark:disabled:text-zinc-700",
             tertiary:
-                "disabled:hover:bg-transparent bg-transparent text-zinc-700 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100 disabled:text-zinc-500 dark:disabled:text-zinc-600",
-            muted: "bg-transparent text-zinc-600 hover:text-zinc-700 active:text-zinc-800 dark:active:text-zinc-200 hover:bg-zinc-100 active:bg-zinc-200 dark:active:bg-slate-700 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-slate-800/50 disabled:text-zinc-400 dark:disabled:text-zinc-600 disabled:hover:bg-transparent",
+                "bg-transparent text-zinc-700 hover:text-zinc-950 dark:text-zinc-400 dark:enabled:hover:text-zinc-100 disabled:text-zinc-500",
+            muted: "bg-transparent text-zinc-600 hover:text-zinc-700 active:text-zinc-800 hover:bg-zinc-100 active:bg-zinc-200 dark:text-zinc-500 dark:enabled:hover:text-zinc-300 dark:enabled:hover:bg-slate-800/50 disabled:text-zinc-400",
         },
         size: {
             sm: "px-2 py-1.5",
@@ -115,12 +115,12 @@ function segmentClass(base: string, position: "left" | "middle" | "right") {
 
 const iconVariants = {
     primary:
-        "text-zinc-100 group-hover:text-white group-active:text-white dark:text-zinc-800 dark:group-hover:text-zinc-800 dark:group-active:text-zinc-800 dark:group-disabled:text-zinc-600",
+        "text-zinc-100 enabled:group-hover:text-zinc-700 enabled:group-active:text-white dark:text-zinc-800",
     secondary:
-        "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80 dark:text-zinc-400 dark:group-hover:text-zinc-100 dark:group-active:text-zinc-100 dark:group-disabled:text-zinc-700",
+        "text-zinc-800/80 enabled:group-hover:text-zinc-900/80 enabled:group-active:text-zinc-900/80 dark:text-zinc-400 dark:enabled:group-hover:text-zinc-100",
     tertiary:
-        "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80 dark:text-zinc-400 dark:group-hover:text-zinc-100 dark:group-active:text-zinc-100 dark:group-disabled:text-zinc-600",
-    muted: "dark:text-zinc-500 dark:group-disabled:text-zinc-600",
+        "text-zinc-800/80 enabled:group-hover:text-zinc-900/80 enabled:group-active:text-zinc-900/80 dark:text-zinc-400 dark:enabled:group-hover:text-zinc-100",
+    muted: "dark:text-zinc-500",
 };
 
 const tooltipVariants = {

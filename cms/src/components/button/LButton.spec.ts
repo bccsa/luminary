@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import LButton from "./LButton.vue";
 import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
+import { defineComponent, markRaw } from "vue";
 
 describe("LButton", () => {
     it("renders the default slot and icon", async () => {
@@ -37,6 +38,36 @@ describe("LButton", () => {
         expect(wrapper.text()).toContain("Right");
         expect(wrapper.find('[role="group"]').exists()).toBe(true);
     });
+
+    it("keeps base icon styling on disabled buttons without unrestricted hover effects", () => {
+    const TestIcon = defineComponent({
+        template: "<svg />",
+    });
+
+    const wrapper = mount(LButton, {
+        props: {
+            disabled: true,
+            variant: "secondary",
+            icon: markRaw(TestIcon),
+        },
+        slots: {
+            default: "Disabled button",
+        },
+    });
+
+    const icon = wrapper.find("svg");
+
+    expect(icon.exists()).toBe(true);
+    expect(icon.classes()).toContain("text-zinc-800/80");
+
+    expect(icon.classes()).toContain(
+        "enabled:group-hover:text-zinc-900/80",
+    );
+
+    expect(icon.classes()).not.toContain(
+        "group-hover:text-zinc-900/80",
+    );
+});
 
     it("emits main-click when main segment is clicked", async () => {
         const wrapper = mount(LButton, {
