@@ -102,12 +102,12 @@ onMounted(() => {
 
 <template>
     <DisplayCard
-        :title="``"
+        :title="assignedGroup.name"
         :updatedTimeUtc="0"
         class="rounded-md border !px-0 !py-0 dark:border-slate-700 dark:bg-slate-800"
         @click="isVisible = true"
     >
-        <template #content>
+        <template #title>
             <div class="flex items-center justify-between">
                 <div
                     class="flex-shrink-0 whitespace-nowrap pl-3 font-medium dark:text-zinc-200"
@@ -136,6 +136,8 @@ onMounted(() => {
                     />
                 </div>
             </div>
+        </template>
+        <template #content>
             <div v-if="typesWithActivePermissions.length > 0" class="group relative py-1">
                 <div
                     v-if="canScrollLeft"

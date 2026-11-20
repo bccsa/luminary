@@ -62,12 +62,13 @@ const handleClick = () => {
         @click="handleClick"
     >
         <!-- Header: Title -->
-        <div v-if="title || isLocalChange" class="relative flex items-center justify-between py-1">
+        <div v-if="title || isLocalChange || $slots.title" class="relative flex items-center justify-between py-1">
             <div
                 data-test="card-title"
                 class="w-full"
                 :class="{ 'flex justify-between': isSmallScreen }"
             >
+            <slot name="title" >
                 <div class="flex items-center gap-0">
                     <div
                         v-if="titleHtml"
@@ -84,6 +85,7 @@ const handleClick = () => {
                         <slot name="title-extension" />
                     </div>
                 </div>
+            </slot>
                 <LBadge v-if="isLocalChange && isSmallScreen" variant="warning">
                     Offline changes
                 </LBadge>
