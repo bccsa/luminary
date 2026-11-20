@@ -1,4 +1,13 @@
 import type { ContentDto } from "luminary-shared";
+import { publicUrl } from "@/seo/publicSite";
+
+/**
+ * The link a share points to: the public site, not the current origin. An installed PWA or
+ * the native app runs on its own origin, which wouldn't resolve for a recipient without it.
+ */
+export function articleShareUrl(slug: string): string {
+    return publicUrl(`/${slug}`) ?? window.location.href;
+}
 
 // `url` must carry the link: t.me/share/url treats it as the thing being shared and
 // bounces to Telegram's home page when it's empty, whatever `text` holds. Telegram
@@ -92,8 +101,15 @@ const HERO_ASPECT_RATIO = 1.78;
 // the reader bytes without reaching them any sharper.
 const SHARE_IMAGE_TARGET_WIDTH = 1080;
 
-/** URL of the image variant to attach to a share, or undefined when the post has no image. */
-export function shareImageUrl(content: ContentDto, bucketBaseUrl?: string): string | undefined {
+/**
+ * URL of the image variant to attach to a share, or undefined when the post has no image.
+ * `targetWidth` picks the file nearest that width, for a smaller use of the same 16:9 picture.
+ */
+export function shareImageUrl(
+    content: ContentDto,
+    bucketBaseUrl?: string,
+    targetWidth: number = SHARE_IMAGE_TARGET_WIDTH,
+): string | undefined {
     const collections = content.parentImageData?.fileCollections ?? [];
     if (!bucketBaseUrl || !collections.length) return undefined;
 
@@ -108,8 +124,7 @@ export function shareImageUrl(content: ContentDto, bucketBaseUrl?: string): stri
     if (!files.length) return undefined;
 
     const file = files.reduce((closest, candidate) =>
-        Math.abs(candidate.width - SHARE_IMAGE_TARGET_WIDTH) <
-        Math.abs(closest.width - SHARE_IMAGE_TARGET_WIDTH)
+        Math.abs(candidate.width - targetWidth) < Math.abs(closest.width - targetWidth)
             ? candidate
             : closest,
     );

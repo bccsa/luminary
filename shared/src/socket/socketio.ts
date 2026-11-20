@@ -56,7 +56,10 @@ class SocketIO {
         });
 
         this.socket.on("disconnect", (reason: string) => {
-            reportBreadcrumb(`Socket disconnected: ${reason}`, { area: "socket", op: "disconnect" });
+            reportBreadcrumb(`Socket disconnected: ${reason}`, {
+                area: "socket",
+                op: "disconnect",
+            });
             isConnected.value = false;
             this.stopForegroundReconnect();
         });

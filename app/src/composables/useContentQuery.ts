@@ -18,7 +18,7 @@ import { hasPersistedSession } from "@/auth";
 import { mangoIsPublished, publishedNowConditions } from "@/util/mangoIsPublished";
 import { useRoute } from "vue-router";
 import { reportCacheEntry, reportKeys } from "@/ssg/dependencyCapture";
-import { chainFor, queueOnChain } from "@/ssg/ssrChains";
+import { chainFor, queueOnChain } from "@/ssg/ssgChains";
 import { isPrerender } from "@/ssg/isPrerender";
 import { queryContentLocal } from "@/ssg/contentStore";
 import { reportRenderIssue } from "@/ssg/renderDiagnostics";
@@ -110,12 +110,12 @@ export type UseContentQueryOptions = HybridQueryOptions & {
      */
     useIndex?: string;
     /**
-     * Fields stripped only from the SSR-authored response-cache write, distinct from `cacheStripFields` (which also strips from the client's ongoing re-cache writes). Use this for a field the hydrating client can recover another way (e.g. from the rendered DOM) to avoid shipping it twice.
+     * Fields stripped only from the prerender-authored response-cache write, distinct from `cacheStripFields` (which also strips from the client's ongoing re-cache writes). Use this for a field the hydrating client can recover another way (e.g. from the rendered DOM) to avoid shipping it twice.
      */
-    ssrCacheStripFields?: string[];
+    ssgCacheStripFields?: string[];
     /**
      * Marks this query as identical across the ENTIRE SSG build (e.g. a fixed-id
-     * copyright lookup), so the SSR branch fetches it once for the whole build instead
+     * copyright lookup), so the prerender branch fetches it once for the whole build instead
      * of once per route, and runs it outside the per-route serial chain (a
      * build-constant query has no parent/child ordering to respect).
      *
@@ -183,7 +183,7 @@ export function useContentQuery(
  * Like {@link useContentQuery}, but also exposes {@link ContentQueryState.isFetching} —
  * for a caller that must tell "still fetching" from "fetched, genuinely empty" (e.g. a
  * not-found resolver) instead of guessing off a wall-clock timeout. Same query/options
- * contract, same SSR/client routing.
+ * contract, same prerender/client routing.
  */
 export function useContentQueryWithState(
     selector: () => MangoSelector[],
@@ -215,7 +215,7 @@ function useContentQueryState(
         // that DOES render one of these — e.g. the article body (`text`) or the
         // edit-permission check (`memberOf`).
         stripFields = ["fts", "ftsTokenCount", "text", "memberOf", "_rev"],
-        ssrCacheStripFields,
+        ssgCacheStripFields,
         buildOnce = false,
         ...rest
     } = options;
@@ -258,7 +258,7 @@ function useContentQueryState(
         stripFields,
         ...rest,
         // Auth-scope the response-cache key: the SSG build always seeds the `:anon`
-        // entry (see the SSR branch below), so a returning logged-in client must
+        // entry (see the prerender branch below), so a returning logged-in client must
         // read/write a different `:auth` entry rather than painting the public seed
         // or overwriting it with personalized data (see useContentQuery.spec.ts).
         cacheId: `${rest.cacheId ?? ""}:${hasPersistedSession() ? "auth" : "anon"}`,
@@ -314,7 +314,7 @@ function useContentQueryState(
                 // client shows these docs on first paint with no flash. vite-ssg serializes
                 // these `hqcache:*` entries into the page HTML. Gated on `cache` to match the
                 // client branch, which never reads a seed it didn't ask for — an uncached
-                // query's SSR write is dead data that only inflates the prerender's peak
+                // query's prerender write is dead data that only inflates the prerender's peak
                 // localStorage footprint (the jsdom quota is bounded, and a page fires several
                 // of these mid-render).
                 if (cache) {
@@ -325,9 +325,9 @@ function useContentQueryState(
                         cacheKey,
                         { local: docs, remote: [] },
                         limit,
-                        // ssrCacheStripFields (SSR-only) falls back to cacheStripFields so a
+                        // ssgCacheStripFields (prerender-only) falls back to cacheStripFields so a
                         // caller that doesn't need the asymmetry can keep using one option.
-                        ssrCacheStripFields ?? rest.cacheStripFields,
+                        ssgCacheStripFields ?? rest.cacheStripFields,
                     );
                     // Attribute the entry to this route as it is written. `writeResponseCache`
                     // targets one shared store, so scraping it after the render would also

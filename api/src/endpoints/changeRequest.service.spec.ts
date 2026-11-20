@@ -5,15 +5,20 @@ import { AckStatus } from "../enums";
 import { changeRequest_post } from "../test/changeRequestDocuments";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { JwtUserDetails } from "../auth/authIdentity.service";
+import { IdentityCacheService } from "../auth/identityCache.service";
 
 describe("ChangeRequest service", () => {
     let service: DbService;
     let changeRequestService: ChangeRequestService;
     let mockUserDetails: JwtUserDetails;
+    const identityCacheService = { invalidate: jest.fn() };
 
     beforeAll(async () => {
         service = (await createTestingModule("changereq-service")).dbService;
-        changeRequestService = new ChangeRequestService(service);
+        changeRequestService = new ChangeRequestService(
+            service,
+            identityCacheService as unknown as IdentityCacheService,
+        );
 
         mockUserDetails = {
             userId: "user-super-admin",
@@ -22,6 +27,19 @@ describe("ChangeRequest service", () => {
             name: "Test User",
             accessMap: PermissionSystem.getAccessMap(["group-super-admins"]),
         };
+    });
+
+    it("rejects anonymous identities even when their groups grant write access", async () => {
+        const anonymous: JwtUserDetails = {
+            groups: ["group-super-admins"],
+            accessMap: PermissionSystem.getAccessMap(["group-super-admins"]),
+            anonymous: true,
+        };
+
+        const res = await changeRequestService.changeRequest(changeRequest_post(), anonymous);
+
+        expect(res.ack).toBe(AckStatus.Rejected);
+        expect(res.docs).toBeUndefined();
     });
 
     it("can query the api endpoint", async () => {
@@ -98,6 +116,42 @@ describe("ChangeRequest service", () => {
 
         const res = await changeRequestService.changeRequest(changeRequest, mockUserDetails);
         expect(res.ack).toBe(AckStatus.Accepted);
+    });
+
+    describe("identity cache invalidation", () => {
+        const userDoc = async () => ({ ...(await service.getDoc("user-editor1")).docs[0] });
+
+        beforeEach(() => {
+            identityCacheService.invalidate.mockClear();
+        });
+
+        it("invalidates cached identities after an accepted User change request", async () => {
+            const doc = { ...(await userDoc()), name: "Editor 1 renamed" };
+
+            const res = await changeRequestService.changeRequest({ doc }, mockUserDetails);
+
+            expect(res.ack).toBe(AckStatus.Accepted);
+            expect(identityCacheService.invalidate).toHaveBeenCalledTimes(1);
+        });
+
+        it("does not invalidate when a User change request is rejected", async () => {
+            const doc = { ...(await userDoc()), email: "not-an-email" };
+
+            const res = await changeRequestService.changeRequest({ doc }, mockUserDetails);
+
+            expect(res.ack).toBe(AckStatus.Rejected);
+            expect(identityCacheService.invalidate).not.toHaveBeenCalled();
+        });
+
+        it("does not invalidate for change requests on other document types", async () => {
+            const res = await changeRequestService.changeRequest(
+                changeRequest_post(),
+                mockUserDetails,
+            );
+
+            expect(res.ack).toBe(AckStatus.Accepted);
+            expect(identityCacheService.invalidate).not.toHaveBeenCalled();
+        });
     });
 
     it("returns the post/tag document with associated content documents when a delete request is rejected", async () => {

@@ -405,7 +405,7 @@ const contentActions = computed(() => {
             name: "Delete",
             action: () => (showDeleteModal.value = true),
             icon: TrashIconOutline,
-            iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
+            iconClass: "h-5 w-5 text-red-500 dark:text-red-400 flex-shrink-0",
         });
     }
     return actions;
@@ -415,7 +415,7 @@ const contentActions = computed(() => {
 <template>
     <BasePage>
         <template #pageNav>
-            <h1 class="text-md font-semibold leading-7 dark:text-zinc-700 lg:hidden">
+            <h1 class="text-md font-semibold leading-7 dark:text-zinc-100 lg:hidden">
                 {{ isNew ? "Create new language" : `Edit ${editable.name}` }}
             </h1>
             <h1 class="text-md hidden font-semibold leading-7 lg:block">
@@ -460,7 +460,7 @@ const contentActions = computed(() => {
                 <LBadge
                     v-if="isDirty"
                     variant="warning"
-                    class="hidden rounded bg-yellow-100 px-4 py-2.5 text-yellow-800 lg:inline-flex"
+                    class="hidden rounded bg-yellow-100 px-4 py-2.5 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-400 lg:inline-flex"
                     >Unsaved changes</LBadge
                 >
                 <EditContentActionsWrapper
@@ -484,7 +484,7 @@ const contentActions = computed(() => {
             </div>
         </template>
         <div class="space-y-2">
-            <LCard class="rounded-lg shadow-lg dark:bg-slate-900">
+            <LCard class="rounded-lg bg-white shadow-lg dark:bg-slate-900">
                 <LInput
                     label="Name"
                     name="languageName"
@@ -522,7 +522,7 @@ const contentActions = computed(() => {
                 />
 
                 <!-- add a divider line -->
-                <div class="my-3 border-t border-zinc-400"></div>
+                <div class="my-3 border-t border-zinc-200 dark:border-slate-700"></div>
 
                 <div class="mt-2 flex items-center justify-between">
                     <FormLabel for="is-language-default-toggle" class="flex items-center">
@@ -539,26 +539,26 @@ const contentActions = computed(() => {
             <div class="min-h-screen">
                 <!--Strings translation -->
                 <LCard>
-                    <table class="mt-5 min-w-full divide-y divide-zinc-200">
-                        <thead class="dark:bg-slate-800">
+                    <table class="mt-5 min-w-full divide-y divide-zinc-200 dark:divide-slate-700">
+                        <thead class="bg-zinc-50 dark:bg-slate-800">
                             <tr>
                                 <!-- key -->
                                 <th
-                                    class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold dark:text-zinc-100 sm:pl-6"
+                                    class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-100 sm:pl-6"
                                 >
                                     Key
                                 </th>
 
                                 <!-- value -->
                                 <th
-                                    class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold dark:text-zinc-100 sm:pl-3"
+                                    class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-100 sm:pl-3"
                                 >
                                     Value
                                 </th>
 
                                 <!-- value -->
                                 <th
-                                    class="group py-3.5 pl-4 pr-3 text-center text-sm font-semibold dark:text-zinc-100 sm:pl-3"
+                                    class="group py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-zinc-900 dark:text-zinc-100 sm:pl-3"
                                     v-if="canEditOrCreate"
                                 >
                                     Action
@@ -566,16 +566,18 @@ const contentActions = computed(() => {
 
                                 <!-- action -->
                                 <th
-                                    class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold dark:text-zinc-100 sm:pl-6"
+                                    class="group py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-100 sm:pl-6"
                                 >
                                     Compare
                                 </th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-zinc-200 dark:bg-slate-900">
+                        <tbody
+                            class="divide-y divide-zinc-200 bg-white dark:divide-slate-700 dark:bg-slate-900"
+                        >
                             <tr>
                                 <td
-                                    class="w-1/3 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium dark:text-zinc-100 sm:pl-6"
+                                    class="w-1/3 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 dark:text-zinc-100 sm:pl-6"
                                 >
                                     <LInput
                                         name="key"
@@ -587,7 +589,7 @@ const contentActions = computed(() => {
                                     />
                                 </td>
                                 <td
-                                    class="w-1/3 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium dark:text-zinc-100 sm:pl-3"
+                                    class="w-1/3 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 dark:text-zinc-100 sm:pl-3"
                                 >
                                     <LInput
                                         name="value"
@@ -600,7 +602,7 @@ const contentActions = computed(() => {
                                 </td>
 
                                 <td
-                                    class="w-1/8 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium dark:text-zinc-100 sm:pl-3"
+                                    class="w-1/8 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 dark:text-zinc-100 sm:pl-3"
                                     v-if="canEditOrCreate"
                                 >
                                     <div class="flex justify-center">
@@ -610,14 +612,14 @@ const contentActions = computed(() => {
                                             class="mx-auto"
                                         >
                                             <PlusCircleIcon
-                                                class="w-7 cursor-pointer text-zinc-500 hover:text-zinc-700"
+                                                class="w-7 cursor-pointer text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                                             />
                                         </button>
                                     </div>
                                 </td>
 
                                 <td
-                                    class="w-1/12 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium dark:text-zinc-100 sm:pl-6"
+                                    class="w-1/12 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 dark:text-zinc-100 sm:pl-6"
                                 >
                                     <LSelect
                                         v-model="comparisonLanguage"
@@ -645,7 +647,7 @@ const contentActions = computed(() => {
                                 }"
                             >
                                 <td
-                                    class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium dark:text-zinc-100 sm:pl-6"
+                                    class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 font-mono text-sm font-medium text-zinc-700 dark:text-zinc-100 sm:pl-6"
                                 >
                                     <LInput
                                         v-model="row.translationKey"
@@ -658,7 +660,7 @@ const contentActions = computed(() => {
                                     />
                                 </td>
                                 <td
-                                    class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium hover:cursor-pointer dark:text-zinc-100 sm:pl-3"
+                                    class="flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 hover:cursor-pointer dark:text-zinc-100 sm:pl-3"
                                 >
                                     <LInput
                                         v-model="row.translationValue"
@@ -672,11 +674,11 @@ const contentActions = computed(() => {
                                     />
                                 </td>
                                 <td
-                                    class="flex-1 justify-items-center whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium dark:text-zinc-100 sm:pl-3"
+                                    class="flex-1 justify-items-center whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 dark:text-zinc-100 sm:pl-3"
                                     v-if="canEditOrCreate"
                                 >
                                     <TrashIcon
-                                        class="h-6 w-6 cursor-pointer text-zinc-500 hover:text-red-600"
+                                        class="h-6 w-6 cursor-pointer text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
                                         title="Delete this line"
                                         @click="
                                             keyToDelete = row.translationKey;
@@ -687,7 +689,7 @@ const contentActions = computed(() => {
                                 </td>
 
                                 <td
-                                    class="w-2/3 flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium dark:text-zinc-100 sm:pl-6"
+                                    class="w-2/3 flex-1 whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 dark:text-zinc-100 sm:pl-6"
                                 >
                                     <span class="text-wrap">
                                         {{ row.comparisonValue }}

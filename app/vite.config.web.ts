@@ -5,8 +5,30 @@ import { defineConfig, loadEnv, type Plugin, type UserConfig } from "vite";
 import type { ViteSSGOptions } from "vite-ssg";
 import type { RouteRecordRaw } from "vue-router";
 import vue from "@vitejs/plugin-vue";
+
+// The app compiles its player source, whose Video.js 10 tags are custom elements. Inlined rather than
+// imported from player-web, whose entry loads Video.js and Vue components into the config.
+const isVideoJsElement = (tag: string): boolean =>
+    tag === "video-player" ||
+    tag === "video-skin" ||
+    tag === "hlsjs-video" ||
+    tag.startsWith("media-");
+const VIDEOJS_PACKAGES = [
+    "@videojs/html",
+    "@videojs/hlsjs-video",
+    "@videojs/core",
+    "@videojs/element",
+    "@videojs/media",
+    "@videojs/native-hls-video",
+    "@videojs/spf",
+    "@videojs/store",
+    "@videojs/utils",
+    "hls.js",
+];
 import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 import { deferEntryUntilPainted } from "./vite-plugins/deferEntryUntilPainted";
+import { youtubeEmbedPage } from "./vite-plugins/youtubeEmbedPage";
+import { ssgConstructableStyleSheets } from "./vite-plugins/ssgConstructableStyleSheets";
 import { buildDeleteQueue } from "./src/ssg/deleteQueue";
 import {
     drainQuery,
@@ -20,7 +42,7 @@ import {
     LEGACY_AUTH0_CACHE_PREFIX,
     OIDC_USER_PREFIX,
 } from "./src/authStorage";
-import { releaseSsrChain } from "./src/ssg/ssrChains";
+import { releaseSsgChain } from "./src/ssg/ssgChains";
 import { takeRenderIssues, type RenderIssue } from "./src/ssg/renderDiagnostics";
 import { setSessionNow } from "./src/util/sessionNow";
 import {
@@ -185,7 +207,7 @@ function assertRouteLanguage(route: string, keys: Set<string> | undefined): void
 const OUT_DIR = "dist-web";
 const WEB_ORIGIN = (env.VITE_WEB_ORIGIN || "").replace(/\/$/, "");
 const APP_NAME = env.VITE_APP_NAME || "Luminary";
-// Node-side build/SSR fetches only — prefers a colocated internal API when set, falling
+// Node-side build/prerender fetches only — prefers a colocated internal API when set, falling
 // back to the public URL. The client bundle keeps using VITE_API_URL (compiled into the
 // shipped JS), so this never reaches real visitors' browsers.
 const SSG_API_URL = process.env.SSG_API_URL || env.VITE_API_URL;
@@ -489,7 +511,7 @@ function indexEnumeratedDocs(docs: SsgContent[], now: number): void {
         if (d.language) routeLang[`/${d.slug}`] = d.language;
     }
     (globalThis as Record<string, unknown>).__SSG_ROUTE_LANG__ = routeLang;
-    // Publish the full drained corpus (incl. coming-soon) for the SSR branch's local
+    // Publish the full drained corpus (incl. coming-soon) for the prerender branch's local
     // query resolver (src/ssg/contentStore.ts). Read on `globalThis` because the config
     // and the Vite-SSG app bundle are separate module realms. Feed queries read this
     // locally, so a tile can only ever reference a doc that was published at drain time —
@@ -608,7 +630,9 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
     plugins: [
         ssgBuildLock(),
         buildTargetVirtuals(),
-        vue(),
+        youtubeEmbedPage(),
+        ssgConstructableStyleSheets(),
+        vue({ template: { compilerOptions: { isCustomElement: isVideoJsElement } } }),
         rewriteWebEntry(),
         deferEntryUntilPainted(),
     ],
@@ -621,7 +645,9 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         },
         // shared/src imports these; a second copy of vue or dexie breaks reactivity, and on
         // this target it surfaces as a hydration mismatch rather than an outright error.
-        dedupe: ["vue", "dexie", "@vueuse/core"],
+        // The player UI here and its engine in luminary-media-convert must share one Video.js: two copies
+        // register the same custom elements twice and the engine drives an element from the other copy.
+        dedupe: ["vue", "dexie", "@vueuse/core", ...VIDEOJS_PACKAGES],
     },
     define: {
         // Make hydration mismatches visible even in the production build so "no warnings" is a real signal.
@@ -743,7 +769,7 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             // every page's seed for the whole build (~2k pages) on top of a build that already
             // needs an enlarged heap. Keyed by route so this is safe under concurrency.
             delete state.cache[route];
-            releaseSsrChain(route);
+            releaseSsgChain(route);
             const ls = (globalThis as { localStorage?: { removeItem(k: string): void } })
                 .localStorage;
             if (ls) for (const key of Object.keys(cache)) ls.removeItem(key);

@@ -7,9 +7,8 @@ type CaptureState = {
 };
 
 const GLOBAL_KEY = "__SSG_DEPS__";
-const globalCapture = () => (globalThis as Record<string, unknown>)[GLOBAL_KEY] as
-    | CaptureState
-    | undefined;
+const globalCapture = () =>
+    (globalThis as Record<string, unknown>)[GLOBAL_KEY] as CaptureState | undefined;
 
 function activateCapture(initial: Partial<CaptureState> = {}): void {
     (globalThis as Record<string, unknown>)[GLOBAL_KEY] = {

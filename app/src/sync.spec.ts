@@ -31,9 +31,8 @@ vi.mock("./globalConfig", async () => {
 // Import after mocks are set up
 const { initAuthLangSync, initSync, triggerSync, syncIterators } = await import("./sync");
 
-const { accessMap, getAccessibleGroups, isConnected, setCancelSync, sync } = await import(
-    "luminary-shared"
-);
+const { accessMap, getAccessibleGroups, isConnected, setCancelSync, sync } =
+    await import("luminary-shared");
 
 const { appSyncedLanguageIdsAsRef } = await import("./globalConfig");
 

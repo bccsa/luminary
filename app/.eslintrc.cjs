@@ -12,4 +12,8 @@ module.exports = {
     parserOptions: {
         ecmaVersion: "latest",
     },
+    rules: {
+        // Video.js 10's controls are custom elements, filled from static markup (media-player/player).
+        "vue/no-v-text-v-html-on-component": ["error", { allow: ["media-controls"] }],
+    },
 };

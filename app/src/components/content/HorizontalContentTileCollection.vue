@@ -97,15 +97,17 @@ useInfiniteScroll(
     () => {
         scrollPosition.value += 10;
     },
-    { distance: 10 },
+    // Without canLoadMore, a row that fits on screen loads (and forces a layout) every 100 ms forever
+    {
+        direction: "right",
+        distance: 10,
+        canLoadMore: () => scrollPosition.value < props.contentDocs.length,
+    },
 );
 </script>
 
 <template>
-    <div
-        v-if="contentDocs.length"
-        class="select-none"
-    >
+    <div v-if="contentDocs.length" class="select-none">
         <h2
             v-if="title"
             class="flex min-w-0 items-baseline gap-2 px-4 text-lg text-zinc-800 dark:text-slate-50"
@@ -149,10 +151,7 @@ useInfiniteScroll(
                 class="flex overflow-x-scroll py-2 scrollbar-hide"
                 @scroll="setSpinBtnVisibility"
             >
-                <div
-                    ref="scrollContent"
-                    class="flex flex-row gap-4 px-4"
-                >
+                <div ref="scrollContent" class="flex flex-row gap-4 px-4">
                     <ContentTile
                         v-for="content in infiniteScrollData"
                         :key="content._id"

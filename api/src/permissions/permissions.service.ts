@@ -441,15 +441,13 @@ export class PermissionSystem extends EventEmitter {
         delete this._targetRouteTypeMap[target];
 
         Object.keys(this._typePermissionGroupMap).forEach((type: DocType) => {
-            Object.keys(this._typePermissionGroupMap[type]).forEach(
-                (permission: AclPermission) => {
-                    delete this._typePermissionGroupMap[type][permission][target];
+            Object.keys(this._typePermissionGroupMap[type]).forEach((permission: AclPermission) => {
+                delete this._typePermissionGroupMap[type][permission][target];
 
-                    if (Object.keys(this._typePermissionGroupMap[type][permission]).length == 0) {
-                        delete this._typePermissionGroupMap[type][permission];
-                    }
-                },
-            );
+                if (Object.keys(this._typePermissionGroupMap[type][permission]).length == 0) {
+                    delete this._typePermissionGroupMap[type][permission];
+                }
+            });
 
             if (Object.keys(this._typePermissionGroupMap[type]).length == 0) {
                 delete this._typePermissionGroupMap[type];

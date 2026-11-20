@@ -21,10 +21,5 @@ export class MongoSelectorDto {
 
     // Allow arbitrary field criteria
     [field: string]:
-        | string
-        | number
-        | boolean
-        | MongoComparisonCriteria
-        | MongoSelectorDto[]
-        | undefined;
+        string | number | boolean | MongoComparisonCriteria | MongoSelectorDto[] | undefined;
 }

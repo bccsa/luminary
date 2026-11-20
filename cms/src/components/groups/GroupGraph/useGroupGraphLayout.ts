@@ -1,12 +1,14 @@
 import { computed, type Ref } from "vue";
 import { MarkerType, Position } from "@vue-flow/core";
 import type { GroupDto } from "luminary-shared";
+import { isDarkTheme } from "@/globalConfig";
 import {
     CHART_COLUMN_WIDTH,
     CHART_ROW_HEIGHT,
     CHART_TOP_OFFSET,
     TREE_COLUMN_WIDTH,
     TREE_ROW_HEIGHT,
+    TREE_WRAP_COLUMNS,
     chartLanes,
     snapPosition,
     type ChartNode,
@@ -119,6 +121,8 @@ export function useGroupGraphLayout(
             });
 
             let columnOffset = 0;
+            let bandRowOffset = 0;
+            let bandRows = 0;
 
             return clusters.flatMap((cluster) => {
                 const root = [...cluster].sort(sortByReach)[0];
@@ -152,6 +156,12 @@ export function useGroupGraphLayout(
                     treeColumnCount.value,
                     Math.max(1, ...orderedLevels.map(([, groups]) => groups.length)),
                 );
+                // Wrap to a new band of rows instead of extending the layout endlessly to the right.
+                if (columnOffset > 0 && columnOffset + clusterColumns > TREE_WRAP_COLUMNS) {
+                    bandRowOffset += bandRows + 1;
+                    columnOffset = 0;
+                    bandRows = 0;
+                }
                 let rowOffset = 0;
 
                 const nodes = orderedLevels.flatMap(([, groups]) => {
@@ -168,7 +178,9 @@ export function useGroupGraphLayout(
                                 (clusterColumns - columns) * (TREE_COLUMN_WIDTH / 2) +
                                 column * TREE_COLUMN_WIDTH +
                                 36,
-                            y: (rowOffset + row) * TREE_ROW_HEIGHT + CHART_TOP_OFFSET,
+                            y:
+                                (bandRowOffset + rowOffset + row) * TREE_ROW_HEIGHT +
+                                CHART_TOP_OFFSET,
                         });
                     });
 
@@ -176,6 +188,7 @@ export function useGroupGraphLayout(
                     return levelNodes;
                 });
 
+                bandRows = Math.max(bandRows, rowOffset);
                 columnOffset += clusterColumns + 1;
                 return nodes;
             });
@@ -214,7 +227,18 @@ export function useGroupGraphLayout(
                 const downstream = selectedAccess.value.downstreamEdges.has(edge.id);
                 const upstream = selectedAccess.value.upstreamEdges.has(edge.id);
                 const active = direct || inherited;
-                const stroke = downstream ? "#0284c7" : upstream ? "#7c3aed" : "#cbd5e1";
+                const dark = isDarkTheme.value;
+                const stroke = downstream
+                    ? dark
+                        ? "#38bdf8"
+                        : "#0284c7"
+                    : upstream
+                      ? dark
+                          ? "#a78bfa"
+                          : "#7c3aed"
+                      : dark
+                        ? "#475569"
+                        : "#cbd5e1";
 
                 return {
                     id: edge.id,
@@ -229,7 +253,7 @@ export function useGroupGraphLayout(
                         type: MarkerType.ArrowClosed,
                         width: 16,
                         height: 16,
-                        color: active ? stroke : "#94a3b8",
+                        color: active ? stroke : dark ? "#64748b" : "#94a3b8",
                     },
                     style: {
                         stroke,

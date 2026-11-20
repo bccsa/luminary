@@ -7,11 +7,12 @@ import {
     syncActive,
     type LanguageDto,
     type Uuid,
-    type ContentDto,
 } from "luminary-shared";
 import { computed, ref, watch, watchEffect, type WatchStopHandle } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
-import { audioFilesOf } from "./util/audioFiles";
+import { migrateSeenToUserActivity, migrateToUserActivity } from "./userActivity/migrate";
+import { startContentProgressMirror } from "./userActivity/fromContentProgress";
+import { pruneUserActivityTombstones } from "./userActivity/store";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -55,14 +56,84 @@ export const isDataSaverEnabled = (): boolean => {
 };
 
 /**
- * User-controlled "Data Saver" preference, persisted to localStorage and toggled from the Settings
- * page. Independent of the OS/browser `saveData` flag (`isDataSaverEnabled`) and the measured
- * connection speed (`useNetworkSpeedEstimator`) — any of the three being on reduces image quality. A
- * module-level singleton ref so every consumer (Settings toggle, image provider) shares one value.
+ * How much data to save: `light` keeps video but holds it to its lowest quality and lightens images;
+ * `strict` also starts media with the sound only. Chosen on the Settings page.
  */
-export const userDataSaverEnabled = ref(localStorage.getItem("dataSaver") === "true");
-watch(userDataSaverEnabled, (enabled) => {
-    localStorage.setItem("dataSaver", String(enabled));
+export type DataSaverLevel = "off" | "light" | "strict";
+
+const DATA_SAVER_LEVEL_KEY = "dataSaverLevel";
+const DATA_SAVER_LEVELS: readonly DataSaverLevel[] = ["off", "light", "strict"];
+
+/** The level stored, else the on/off switch it replaced (on meant what `strict` does); null until chosen. */
+function readDataSaverLevel(): DataSaverLevel | null {
+    const stored = localStorage.getItem(DATA_SAVER_LEVEL_KEY) as DataSaverLevel | null;
+    if (stored && DATA_SAVER_LEVELS.includes(stored)) return stored;
+    const legacy = localStorage.getItem("dataSaver");
+    if (legacy === "true") return "strict";
+    if (legacy === "false") return "off";
+    return null;
+}
+
+/** The level the user chose on the Settings page; null until they choose one. */
+export const dataSaverLevel = ref<DataSaverLevel | null>(readDataSaverLevel());
+watch(dataSaverLevel, (level) => {
+    if (level === null) localStorage.removeItem(DATA_SAVER_LEVEL_KEY);
+    else localStorage.setItem(DATA_SAVER_LEVEL_KEY, level);
+    localStorage.removeItem("dataSaver");
+});
+
+/**
+ * The level in force: the user's choice, else `light` while the device's own Data Saver is on. The
+ * measured connection speed (`useNetworkSpeedEstimator`) lightens images on its own, apart from this.
+ */
+export const effectiveDataSaverLevel = computed<DataSaverLevel>(
+    () => dataSaverLevel.value ?? (isDataSaverEnabled() ? "light" : "off"),
+);
+
+/** Any data saving is in force (light or strict). */
+export const dataSaverOn = computed(() => effectiveDataSaverLevel.value !== "off");
+
+/** The user chose to save data (light or strict); setting it picks `strict` or `off`. */
+export const userDataSaverEnabled = computed<boolean>({
+    get: () => dataSaverLevel.value === "light" || dataSaverLevel.value === "strict",
+    set: (enabled) => (dataSaverLevel.value = enabled ? "strict" : "off"),
+});
+
+/**
+ * Whether the next video plays by itself when one ends (a short countdown first). On unless the user turns it off,
+ * on the Settings page or the now-playing screen. Persisted to localStorage.
+ */
+export const autoplayNext = ref(localStorage.getItem("autoplay") !== "false");
+watch(autoplayNext, (on) => {
+    localStorage.setItem("autoplay", String(on));
+});
+
+/**
+ * Where the media player puts a video's subtitles: over the foot of the picture (true), or in a band under it
+ * (false, the default). Persisted to localStorage and toggled from the Settings page.
+ */
+export const subtitlesOnVideo = ref(localStorage.getItem("subtitlesOnVideo") === "true");
+watch(subtitlesOnVideo, (onVideo) => {
+    localStorage.setItem("subtitlesOnVideo", String(onVideo));
+});
+
+/**
+ * The subtitles the viewer last chose, carried to every video and audio opened after: `on` is whether they were left
+ * on, `lang` the language picked. On until the viewer turns them off. Persisted to localStorage.
+ */
+export const subtitlePreference = ref<{ on: boolean; lang?: string }>(
+    (() => {
+        try {
+            const stored = JSON.parse(localStorage.getItem("subtitlePreference") ?? "null");
+            if (stored && typeof stored.on === "boolean") return stored;
+        } catch {
+            /* an unreadable value is no preference */
+        }
+        return { on: true };
+    })(),
+);
+watch(subtitlePreference, (preference) => {
+    localStorage.setItem("subtitlePreference", JSON.stringify(preference));
 });
 
 /**
@@ -422,82 +493,63 @@ export const initLanguage = () => {
     });
 };
 
-/**
- * Global media queue for audio playback.
- * Contains ContentDto items that should be played in sequence.
- */
-export const mediaQueue = ref<ContentDto[]>([]);
-
-/**
- * Add content to the media queue and start playing if it's the first item.
- * @param content - The content to add to the queue
- */
-export const addToMediaQueue = (content: ContentDto) => {
-    // Check if content has audio files
-    if (!audioFilesOf(content)?.length) {
-        console.warn("Content has no audio files to play");
-        return;
-    }
-
-    // Check if content is already in queue
-    const existingIndex = mediaQueue.value.findIndex((item) => item._id === content._id);
-    if (existingIndex !== -1) {
-        // If already in queue, move it to the front
-        mediaQueue.value.splice(existingIndex, 1);
-    }
-
-    // Add to front of queue
-    mediaQueue.value.unshift(content);
-};
-
-/**
- * Remove content from the media queue.
- * @param contentId - The ID of the content to remove
- */
-export const removeFromMediaQueue = (contentId: string) => {
-    const index = mediaQueue.value.findIndex((item) => item._id === contentId);
-    if (index !== -1) {
-        mediaQueue.value.splice(index, 1);
-    }
-};
-
-/**
- * Clear the entire media queue.
- */
-export const clearMediaQueue = () => {
-    mediaQueue.value = [];
-};
-
-/**
- * Move to the next item in the media queue.
- */
-export const nextInMediaQueue = () => {
-    if (mediaQueue.value.length > 1) {
-        mediaQueue.value.shift(); // Remove first item
-    } else {
-        clearMediaQueue(); // Clear if it was the last item
-    }
-};
-
-type Bookmark = {
+type Like = {
     id: Uuid;
     ts: number;
 };
 
 export type UserPreferences = {
-    bookmarks?: Array<Bookmark>;
+    likes?: Array<Like>;
     privacyPolicy?: { status: "accepted" | "necessaryOnly"; ts: number };
 };
+
+/** Installs predating the rename hold the same entries under `bookmarks`. */
+function readUserPreferences(): UserPreferences {
+    const { bookmarks: legacyBookmarks, ...stored } = JSON.parse(
+        localStorage.getItem("userPreferences") || "{}",
+    );
+    return legacyBookmarks && !stored.likes ? { ...stored, likes: legacyBookmarks } : stored;
+}
 
 /**
  * The user preferences as Vue ref.
  */
-export const userPreferencesAsRef = ref(
-    JSON.parse(localStorage.getItem("userPreferences") || "{}") as UserPreferences,
-);
+export const userPreferencesAsRef = ref(readUserPreferences());
 watch(userPreferencesAsRef.value, (newVal) => {
     localStorage.setItem("userPreferences", JSON.stringify({ ...newVal }));
 });
+
+const USER_ACTIVITY_MIGRATED_KEY = "userActivityMigrated";
+
+/**
+ * Starts the user-activity store. Needs the shared database open, so call it after sync has started.
+ */
+export const initUserActivity = () => {
+    // Expired tombstones are dropped once per start.
+    void pruneUserActivityTombstones().catch((err) =>
+        console.error("User activity tombstone prune failed:", err),
+    );
+
+    // Reading history is taken from the continue-reading store, so the mirror has to be
+    // listening before anything can scroll.
+    startContentProgressMirror();
+
+    // Outside the one-shot flag below: installs that already migrated still hold seen ids. It
+    // removes its source, so later starts find nothing to do.
+    void migrateSeenToUserActivity().catch((err) =>
+        console.error("Seen ids migration failed:", err),
+    );
+
+    // Delete this block, and `userActivity/migrate.ts` with it, once every install has migrated.
+    if (localStorage.getItem(USER_ACTIVITY_MIGRATED_KEY)) return;
+
+    void migrateToUserActivity(userPreferencesAsRef.value.likes)
+        .then(() => {
+            delete userPreferencesAsRef.value.likes;
+            localStorage.setItem(USER_ACTIVITY_MIGRATED_KEY, "true");
+        })
+        .catch((err) => console.error("User activity migration failed:", err));
+};
 
 /**
  * Query string parameters captured on app startup
@@ -565,3 +617,23 @@ export const fallbackImageUrls = loadFallbackImageUrls();
  * True while the app's Startup function is still running. Used to display the loading splash screen.
  */
 export const isAppLoading = ref(!new URLSearchParams(window.location.search).has("nosplash"));
+
+/**
+ * The viewer has allowed videos hosted by YouTube to load without asking each time, on this device.
+ * Off until they tick "Always allow" on a notice; the Settings page turns it off again. A
+ * module-level singleton like Data Saver, so the notice and the Settings toggle share one value.
+ */
+export const youtubeAlwaysAllow = ref(localStorage.getItem("youtubeAlwaysAllow") === "true");
+watch(youtubeAlwaysAllow, (allowed) => {
+    localStorage.setItem("youtubeAlwaysAllow", String(allowed));
+});
+
+/**
+ * The chapters and up next panel under a content page's player is put away: for someone who came to
+ * read, and wants the text to start under the player. Remembered, like the other per-viewer settings,
+ * in the browser. Open until the viewer folds it.
+ */
+export const chaptersPanelFolded = ref(localStorage.getItem("chaptersPanelFolded") === "true");
+watch(chaptersPanelFolded, (folded) => {
+    localStorage.setItem("chaptersPanelFolded", String(folded));
+});

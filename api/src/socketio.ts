@@ -1,3 +1,4 @@
+import { normalizeDocTypes } from "./util/normalizeDocTypes";
 import {
     WebSocketGateway,
     SubscribeMessage,
@@ -19,7 +20,7 @@ import { JwtUserDetails } from "./auth/authIdentity.service";
 import { S3Service } from "./s3/s3.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
-import { AuthIdentityService } from "./auth/authIdentity.service";
+import { IdentityCacheService } from "./auth/identityCache.service";
 
 /**
  * Data request from client type definition.
@@ -119,7 +120,7 @@ export class Socketio implements OnGatewayInit {
         private readonly logger: Logger,
         private db: DbService,
         private s3: S3Service,
-        private authIdentityService: AuthIdentityService,
+        private identityCacheService: IdentityCacheService,
     ) {}
 
     afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
@@ -143,7 +144,7 @@ export class Socketio implements OnGatewayInit {
             }
 
             try {
-                const authIdentity = await this.authIdentityService.resolveOrDefault(
+                const authIdentity = await this.identityCacheService.resolveOrDefault(
                     token,
                     providerId,
                 );
@@ -289,12 +290,11 @@ export class Socketio implements OnGatewayInit {
         socket.data.cms = reqData.cms === true;
 
         // Determine which doc types to get
-        const docTypes: Array<any> = [];
-        reqData.docTypes.forEach((docType) => {
-            if (!docTypes.includes(docType.type)) docTypes.push(docType.type);
-        });
+        const requested = Array.isArray(reqData?.docTypes)
+            ? reqData.docTypes.map((docType) => docType?.type)
+            : [];
 
-        this.joinDocTypeRooms(socket, docTypes);
+        this.joinDocTypeRooms(socket, normalizeDocTypes(requested));
     }
 
     /**
@@ -318,7 +318,7 @@ export class Socketio implements OnGatewayInit {
      */
     @SubscribeMessage("joinRooms")
     joinRooms(@MessageBody() reqData: ClientRoomReq, @ConnectedSocket() socket: ClientSocket) {
-        this.joinDocTypeRooms(socket, reqData?.docTypes ?? []);
+        this.joinDocTypeRooms(socket, normalizeDocTypes(reqData?.docTypes));
     }
 
     /**
@@ -330,7 +330,7 @@ export class Socketio implements OnGatewayInit {
      */
     @SubscribeMessage("leaveRooms")
     leaveRooms(@MessageBody() reqData: ClientRoomReq, @ConnectedSocket() socket: ClientSocket) {
-        const docTypes = reqData?.docTypes ?? [];
+        const docTypes = normalizeDocTypes(reqData?.docTypes);
         if (!docTypes.length) return;
 
         const { permission, suffix } = this.roomConfig(socket);

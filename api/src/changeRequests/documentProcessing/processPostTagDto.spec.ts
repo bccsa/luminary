@@ -3,7 +3,11 @@ import { PostDto } from "../../dto/PostDto";
 import { createTestingModule } from "../../test/testingModule";
 import { PermissionSystem } from "../../permissions/permissions.service";
 import { processChangeRequest } from "../processChangeRequest";
-import { changeRequest_content, changeRequest_post } from "../../test/changeRequestDocuments";
+import {
+    changeRequest_content,
+    changeRequest_post,
+    changeRequest_tag,
+} from "../../test/changeRequestDocuments";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { DocType } from "../../enums";
 import { deleteImage, processImage } from "./processImageDto";
@@ -231,6 +235,95 @@ describe("processPostTagDto", () => {
                 d.parentTaggedDocs.some((t) => t == changeRequest2.doc._id),
             ),
         ).toBe(true);
+    });
+
+    describe("tagged documents cache (#2366)", () => {
+        const categoryId = "tag-cache-category";
+        const categoryContentId = "content-cache-category";
+
+        const saveCategory = async (taggedDocs: string[]) => {
+            const tagChangeRequest = changeRequest_tag();
+            tagChangeRequest.doc._id = categoryId;
+            tagChangeRequest.doc.tagType = "category";
+            (tagChangeRequest.doc as any).taggedDocs = taggedDocs;
+            await processChangeRequest("", tagChangeRequest, ["group-super-admins"], db);
+        };
+
+        const savePost = async (id: string, tags: string[]) => {
+            const postChangeRequest = changeRequest_post();
+            postChangeRequest.doc._id = id;
+            postChangeRequest.doc.tags = tags;
+            await processChangeRequest("", postChangeRequest, ["group-super-admins"], db);
+        };
+
+        const cached = async () => ({
+            taggedDocs: (await db.getDoc(categoryId)).docs[0].taggedDocs,
+            parentTaggedDocs: (await db.getDoc(categoryContentId)).docs[0].parentTaggedDocs,
+        });
+
+        beforeAll(async () => {
+            await saveCategory([]);
+            const contentChangeRequest = changeRequest_content();
+            contentChangeRequest.doc._id = categoryContentId;
+            contentChangeRequest.doc.parentId = categoryId;
+            contentChangeRequest.doc.slug = "cache-category";
+            await processChangeRequest("", contentChangeRequest, ["group-super-admins"], db);
+        });
+
+        it("keeps posts tagged since the editor loaded the tag when the tag is saved", async () => {
+            await savePost("post-cache-1", [categoryId]);
+
+            // The CMS sends the taggedDocs it loaded before post-cache-1 was tagged
+            await saveCategory([]);
+
+            const { taggedDocs, parentTaggedDocs } = await cached();
+            expect(taggedDocs).toContain("post-cache-1");
+            expect(parentTaggedDocs).toContain("post-cache-1");
+        });
+
+        it("does not let a client add posts that are not tagged", async () => {
+            await saveCategory(["post-not-tagged"]);
+
+            const { taggedDocs, parentTaggedDocs } = await cached();
+            expect(taggedDocs).not.toContain("post-not-tagged");
+            expect(parentTaggedDocs).not.toContain("post-not-tagged");
+        });
+
+        it("restores an entry lost from the cache on the next tagging", async () => {
+            const tag = (await db.getDoc(categoryId)).docs[0];
+            tag.taggedDocs = [];
+            await db.upsertDoc(tag);
+
+            await savePost("post-cache-2", [categoryId]);
+
+            const { taggedDocs, parentTaggedDocs } = await cached();
+            expect(taggedDocs).toEqual(expect.arrayContaining(["post-cache-1", "post-cache-2"]));
+            expect(parentTaggedDocs).toEqual(
+                expect.arrayContaining(["post-cache-1", "post-cache-2"]),
+            );
+        });
+
+        it("removes a post from the cache when it is untagged", async () => {
+            await savePost("post-cache-2", []);
+
+            const { taggedDocs, parentTaggedDocs } = await cached();
+            expect(taggedDocs).not.toContain("post-cache-2");
+            expect(parentTaggedDocs).not.toContain("post-cache-2");
+            expect(taggedDocs).toContain("post-cache-1");
+        });
+
+        it("copies changed post tags to the post's existing content", async () => {
+            const contentChangeRequest = changeRequest_content();
+            contentChangeRequest.doc._id = "content-cache-post-1";
+            contentChangeRequest.doc.parentId = "post-cache-1";
+            contentChangeRequest.doc.slug = "cache-post-1";
+            await processChangeRequest("", contentChangeRequest, ["group-super-admins"], db);
+
+            await savePost("post-cache-1", [categoryId, "tag-topicA"]);
+
+            const content = (await db.getDoc("content-cache-post-1")).docs[0];
+            expect(content.parentTags).toEqual([categoryId, "tag-topicA"]);
+        });
     });
 
     it("can cascade delete requests for post / tag documents to content documents", async () => {

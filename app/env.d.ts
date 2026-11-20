@@ -17,7 +17,6 @@ interface ImportMetaEnv {
     readonly VITE_SENTRY_DSN: string;
 
     readonly VITE_SENTRY_ENVIRONMENT?: string;
-
 }
 
 interface ImportMeta {
@@ -32,10 +31,7 @@ declare module "virtual:demo-banner" {
     import type { DemoBannerService } from "@/build-time/contracts/demo-banner/contract";
 
     export const DemoBannerKey: InjectionKey<DemoBannerService>;
-    export function installDemoBanner(
-        app: App,
-        options?: { bannerComponent?: Component },
-    ): void;
+    export function installDemoBanner(app: App, options?: { bannerComponent?: Component }): void;
 }
 
 declare module "virtual:platform-chrome" {
@@ -60,6 +56,15 @@ declare module "virtual:app-lifecycle" {
     export function notifyUiReady(): void;
 }
 
+declare module "virtual:share" {
+    import type { App } from "vue";
+    import type { InjectionKey } from "vue";
+    import type { ShareService } from "@/build-time/contracts/share/contract";
+
+    export const ShareKey: InjectionKey<ShareService>;
+    export function installShare(app: App): void;
+}
+
 declare module "virtual:screen-wake" {
     import type { App } from "vue";
     import type { InjectionKey } from "vue";
@@ -67,6 +72,15 @@ declare module "virtual:screen-wake" {
 
     export const ScreenWakeKey: InjectionKey<ScreenWakeService>;
     export function installScreenWake(app: App): void;
+}
+
+declare module "virtual:video-player" {
+    import type { App } from "vue";
+    import type { InjectionKey } from "vue";
+    import type { VideoPlayerService } from "@/build-time/contracts/video-player/contract";
+
+    export const VideoPlayerKey: InjectionKey<VideoPlayerService>;
+    export function installVideoPlayer(app: App): void;
 }
 
 declare module "virtual:app-update" {

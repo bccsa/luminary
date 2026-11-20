@@ -69,7 +69,6 @@ describe("EditAclByGroup.vue", () => {
             display: "block",
             visibility: "visible",
         });
-
     });
 
     beforeEach(() => {
@@ -158,16 +157,14 @@ describe("EditAclByGroup.vue", () => {
         await wrapper.find('[data-test="display-card"]').trigger("click");
         await wrapper.vm.$nextTick();
 
-        const trigger = wrapper
-            .findAll("button")
-            .find((b) => b.text().includes("Add / Remove"))!;
+        const trigger = wrapper.findAll("button").find((b) => b.text().includes("Add / Remove"))!;
         await trigger.trigger("click");
         await wrapper.vm.$nextTick();
 
         await waitForExpect(() => {
-            expect(
-                wrapper.findAll("button").some((b) => b.text().trim() === "Redirect"),
-            ).toBe(true);
+            expect(wrapper.findAll("button").some((b) => b.text().trim() === "Redirect")).toBe(
+                true,
+            );
         });
 
         const toggle = wrapper.findAll("button").find((b) => b.text().trim() === "Redirect")!;

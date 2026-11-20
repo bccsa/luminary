@@ -73,7 +73,9 @@ export default async function (db: DbService) {
                 if (!collections?.length) continue;
 
                 // Only collections that have stored files but no placeholder yet.
-                const missing = collections.filter((c: any) => !c.thumbHash && c.imageFiles?.length);
+                const missing = collections.filter(
+                    (c: any) => !c.thumbHash && c.imageFiles?.length,
+                );
                 if (!missing.length) continue;
 
                 if (!parent.imageBucketId) {

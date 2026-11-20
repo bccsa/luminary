@@ -10,6 +10,7 @@ import type { ContentDto } from "luminary-shared";
 import { ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { useBackNavigation } from "@/composables/useBackNavigation";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
+import { useScrollMemory } from "@/composables/useScrollMemory";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
@@ -26,11 +27,14 @@ const props = defineProps<{
     desktopTopBar?: boolean;
     /** The centre slot is occupied before any scrolling; keep the row below the chrome clear for it. */
     reserveTopBarCenter?: boolean;
+    /** Lines the desktop banner up with the article column instead of the full page width. */
+    articleWidthBanner?: boolean;
 }>();
 
 const { onBackClick } = useBackNavigation();
 
 const main = ref<HTMLElement | undefined>(undefined);
+useScrollMemory(main);
 
 // The mobile chrome overlays the scroller and steps aside via transform —
 // a layout animation would resize the page mid-scroll and read as the text
@@ -99,6 +103,8 @@ const topChromeFade =
 provide("appMainScrollEl", main);
 
 const handleArrowKeyFocus = (e: KeyboardEvent) => {
+    // A key something else has handled, such as the media player's volume, is not for scrolling.
+    if (e.defaultPrevented) return;
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         if (main.value) main.value.focus();
     }
@@ -132,10 +138,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div
-        ref="pageRoot"
-        class="flex h-full w-full scrollbar-hide"
-    >
+    <div ref="pageRoot" class="flex h-full w-full scrollbar-hide">
         <!-- Desktop left sidebar — prerendered on the SSG build too (public nav /
              logo; the auth/Dexie bits self-defer inside the component). -->
         <DesktopSidebar />
@@ -146,6 +149,7 @@ onUnmounted(() => {
                  the reader scrolls down, returning on the first scroll up. -->
             <div
                 ref="topBarWrap"
+                data-top-bar
                 class="absolute inset-x-0 top-0 z-30 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform xl:hidden"
                 :class="mobileChrome.hidden.value ? '-translate-y-full' : 'translate-y-0'"
             >
@@ -157,10 +161,7 @@ onUnmounted(() => {
                 </TopBar>
             </div>
 
-            <Teleport
-                v-if="notificationsReady"
-                to="body"
-            >
+            <Teleport v-if="notificationsReady" to="body">
                 <NotificationToastManager v-if="showNotifications" />
             </Teleport>
 
@@ -173,7 +174,7 @@ onUnmounted(() => {
                      so content clears the bars at rest yet scrolls under them. The 74px
                      fallback matches the bar's natural height for prerendered HTML. -->
                 <div
-                    class="pb-[var(--mobile-menu-h,0px)] pt-[var(--top-bar-h,74px)] xl:pb-0 xl:pt-0"
+                    class="pb-[calc(var(--mobile-menu-h,0px)+var(--media-bar-h,0px))] pt-[var(--top-bar-h,74px)] xl:pb-0 xl:pt-0"
                 >
                     <!-- Desktop pinned chrome: back (left) + quick controls (right) stay fixed while scrolling.
                      Direct child of the scrolling <main> so `sticky` keeps it pinned the whole way.
@@ -223,6 +224,12 @@ onUnmounted(() => {
                                 </a>
                             </RouterLink>
                             <div
+                                v-if="$slots.topBarLeading"
+                                class="pointer-events-auto relative z-10 ml-2 min-w-0"
+                            >
+                                <slot name="topBarLeading" />
+                            </div>
+                            <div
                                 class="pointer-events-auto relative z-10 ml-auto flex items-center gap-2 pr-2"
                                 :class="[
                                     quickControlBacking,
@@ -255,17 +262,17 @@ onUnmounted(() => {
 
                     <!-- Spacer that keeps in-flow content (banners, the page title) out from under a
                      centre-slot control that is showing before the page has scrolled. -->
+                    <div v-if="desktopTopBar && reserveTopBarCenter" class="h-11" />
+
+                    <!-- Leading controls fill the pinned row edge to edge, so the page starts below it. -->
                     <div
-                        v-if="desktopTopBar && reserveTopBarCenter"
-                        class="h-11"
+                        v-if="desktopTopBar && $slots.topBarLeading"
+                        class="hidden h-11 xl:block"
                     />
 
                     <!-- Desktop notification: normal flow below the pinned chrome; pushes article down when present.
                      [&>div]:mb-2 trims the banner's default mb-4 so the gap above the title matches the page-top gap. -->
-                    <div
-                        v-if="desktopTopBar"
-                        class="hidden justify-center lg:flex"
-                    >
+                    <div v-if="articleWidthBanner" class="hidden justify-center lg:flex">
                         <div class="w-full lg:w-3/4 lg:max-w-3xl">
                             <NotificationBannerManager
                                 v-if="showNotifications && notificationsReady"
@@ -274,10 +281,10 @@ onUnmounted(() => {
                         </div>
                     </div>
 
-                    <!-- Notification for mobile (desktopTopBar pages) and all non-desktopTopBar pages. -->
+                    <!-- Notification for mobile (article pages) and all other pages. -->
                     <NotificationBannerManager
                         v-if="showNotifications && notificationsReady"
-                        :class="desktopTopBar ? 'lg:hidden' : 'px-2'"
+                        :class="articleWidthBanner ? 'lg:hidden' : 'px-2'"
                     />
 
                     <slot />

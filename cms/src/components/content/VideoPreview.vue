@@ -17,7 +17,7 @@ import LModal from "@/components/modals/LModal.vue";
 import LBadge from "@/components/common/LBadge.vue";
 import { PlayCircleIcon } from "@heroicons/vue/24/outline";
 import { LockClosedIcon, LockOpenIcon } from "@heroicons/vue/16/solid";
-import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web-legacy";
+import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web";
 import { type ContentParentDto, fetchHlsKey, toAbsoluteMediaUrl } from "luminary-shared";
 import { storageSelection } from "@/composables/storageSelection";
 
@@ -213,7 +213,7 @@ watch(masterUrl, () => (showing.value = false));
                             </button>
                             <p
                                 v-if="error?.code"
-                                class="mt-2 font-mono text-[11px] text-zinc-500"
+                                class="mt-2 font-mono text-[11px] text-zinc-500 dark:text-zinc-400"
                                 data-test="preview-error-code"
                             >
                                 {{ error.code }}

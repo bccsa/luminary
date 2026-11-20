@@ -105,7 +105,11 @@ describe("applySortLimit", () => {
     });
 
     it("keeps a mixed sort+tie order stable across input permutations", () => {
-        const mk = (id: string, pd: number): Doc => ({ _id: id, updatedTimeUtc: 1, publishDate: pd });
+        const mk = (id: string, pd: number): Doc => ({
+            _id: id,
+            updatedTimeUtc: 1,
+            publishDate: pd,
+        });
         const a = [mk("z", 30), mk("m", 20), mk("a", 20), mk("q", 10)];
         const b = [mk("a", 20), mk("q", 10), mk("z", 30), mk("m", 20)];
         const orderA = applySortLimit(a, [{ publishDate: "desc" }]).map((d) => d._id);

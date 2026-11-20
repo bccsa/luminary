@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, toRaw, watchEffect } from "vue";
-import { ExclamationCircleIcon } from "@heroicons/vue/24/solid";
+import { ref, computed, toRaw, shallowReactive, watchEffect } from "vue";
+import { ExclamationCircleIcon, ExclamationTriangleIcon } from "@heroicons/vue/24/solid";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
 import LSelect from "../forms/LSelect.vue";
+import MediaNotice from "../media/MediaNotice.vue";
 import {
     type ImageUploadDto,
     type ImageFileCollectionDto,
@@ -25,6 +26,24 @@ const emit = defineEmits<{
 
 const parent = defineModel<ContentParentDto>("parent");
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
+
+// Images below this width look soft in tall, cover-cropped tiles on high-density screens, and the
+// API discards the original after processing, so a small upload can never be improved later.
+const MIN_RECOMMENDED_IMAGE_WIDTH = 1280;
+// Tracked per upload object (not filename) so same-named files don't share state.
+const smallUploads = shallowReactive(new Set<ImageUploadDto>());
+
+const hasSmallImage = computed(() => {
+    const imageData = parent.value?.imageData;
+    if (!imageData) return false;
+    const smallExisting = imageData.fileCollections.some(
+        (c) =>
+            c.imageFiles.length > 0 &&
+            Math.max(...c.imageFiles.map((f) => f.width)) < MIN_RECOMMENDED_IMAGE_WIDTH,
+    );
+    const smallUpload = (imageData.uploadData ?? []).some((u) => smallUploads.has(u));
+    return smallExisting || smallUpload;
+});
 
 // Bucket selection (simplified approach using existing database data)
 const bucketSelection = storageSelection();
@@ -111,6 +130,7 @@ const isDragging = ref(false);
 const dragCounter = ref(0);
 const showFailureMessage = ref(false);
 const failureMessage = ref<string | undefined>(undefined);
+const BUCKET_GONE = "The selected storage bucket no longer exists. Please select another bucket.";
 
 // Validate that selected bucket still exists and auto-select if only one available
 watchEffect(() => {
@@ -130,30 +150,20 @@ watchEffect(() => {
         }
     }
 
-    // Proactively show error messages for bucket configuration issues
-    // This ensures users see the error immediately, not just when they try to upload
-    if (!bucketSelection.hasImageBuckets.value) {
-        // No buckets configured at all
-        failureMessage.value =
-            "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.";
-        showFailureMessage.value = true;
-    } else if (!effectiveImageBucketId.value && bucketSelection.imageBuckets.value.length > 1) {
-        // Multiple buckets available but none selected
-        failureMessage.value = "Please select a storage bucket before uploading images.";
-        showFailureMessage.value = true;
-    } else if (effectiveImageBucketId.value) {
-        // Bucket is selected, clear any bucket-related errors
-        // Only clear if the current error is about bucket selection/configuration
-        const bucketRelatedErrors = [
-            "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.",
-            "Please select a storage bucket before uploading images.",
-            "The selected storage bucket no longer exists. Please select another bucket.",
-        ];
-        if (failureMessage.value && bucketRelatedErrors.includes(failureMessage.value)) {
-            failureMessage.value = undefined;
-            showFailureMessage.value = false;
-        }
+    // A stale "no longer exists" error is resolved once a bucket is chosen again
+    if (effectiveImageBucketId.value && failureMessage.value === BUCKET_GONE) {
+        failureMessage.value = undefined;
+        showFailureMessage.value = false;
     }
+});
+
+// Worded and shown like the Media section's bucket select (MediaBucketSelect)
+const bucketProblem = computed(() => {
+    if (!bucketSelection.hasImageBuckets.value)
+        return "No storage buckets are configured. Add an S3 bucket in Storage settings before uploading images.";
+    if (!effectiveImageBucketId.value && bucketSelection.imageBuckets.value.length > 1)
+        return "Choose a storage bucket before uploading images.";
+    return undefined;
 });
 
 const handleFiles = (files: FileList | null) => {
@@ -164,11 +174,8 @@ const handleFiles = (files: FileList | null) => {
     // Resolve the bucket the user is uploading to. Persist it on the parent now —
     // the upload itself is a real user edit, so the resulting dirty state is
     // legitimate. Until this point the parent was untouched.
-    if (!effectiveImageBucketId.value) {
-        failureMessage.value = "Please select a storage bucket before uploading images.";
-        showFailureMessage.value = true;
-        return;
-    }
+    // bucketProblem already tells the editor why
+    if (!effectiveImageBucketId.value) return;
     if (parent.value && !parent.value.imageBucketId) {
         parent.value.imageBucketId = effectiveImageBucketId.value;
         emit("bucketSelected", effectiveImageBucketId.value);
@@ -181,16 +188,7 @@ const handleFiles = (files: FileList | null) => {
 
     if (!currentBucketExists) {
         if (parent.value) parent.value.imageBucketId = undefined;
-        failureMessage.value =
-            "The selected storage bucket no longer exists. Please select another bucket.";
-        showFailureMessage.value = true;
-        return;
-    }
-
-    // Check if buckets are configured
-    if (!bucketSelection.hasImageBuckets.value) {
-        failureMessage.value =
-            "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.";
+        failureMessage.value = BUCKET_GONE;
         showFailureMessage.value = true;
         return;
     }
@@ -229,6 +227,20 @@ const processFiles = (files: File[]) => {
             } as ImageUploadDto;
 
             parent.value.imageData.uploadData.push(uploadData);
+
+            if (typeof createImageBitmap === "function") {
+                createImageBitmap(file)
+                    .then((bitmap) => {
+                        // The API upscales by up to 10%, so only warn below that tolerance
+                        const stillPresent = parent.value?.imageData?.uploadData?.some(
+                            (u) => toRaw(u) === uploadData,
+                        );
+                        if (stillPresent && bitmap.width < MIN_RECOMMENDED_IMAGE_WIDTH / 1.1)
+                            smallUploads.add(uploadData);
+                        bitmap.close();
+                    })
+                    .catch(() => {});
+            }
         };
 
         reader.readAsArrayBuffer(file);
@@ -250,6 +262,8 @@ const removeFileCollection = (collection: ImageFileCollectionDto) => {
 
 const removeFileUploadData = (uploadData: ImageUploadDto) => {
     if (!parent.value?.imageData?.uploadData) return;
+
+    smallUploads.delete(toRaw(uploadData));
 
     parent.value.imageData.uploadData = parent.value.imageData.uploadData
         .filter((f) => f !== uploadData)
@@ -297,7 +311,7 @@ defineExpose({
             <LSelect
                 v-model="parent!.imageBucketId"
                 :options="bucketOptions"
-                label="Storage"
+                label="Storage bucket"
                 placeholder="Select storage bucket"
                 :disabled="disabled"
                 @update:modelValue="handleBucketChange"
@@ -310,6 +324,10 @@ defineExpose({
                 {{ fileTypeDescription }}
             </p>
         </div>
+
+        <MediaNotice v-if="bucketProblem" state="warning" class="mb-2" data-test="bucket-problem">
+            {{ bucketProblem }}
+        </MediaNotice>
 
         <!-- Header with error message toggle -->
         <div :disabled="disabled" class="flex justify-between">
@@ -332,15 +350,25 @@ defineExpose({
             </div>
         </div>
 
+        <p
+            v-if="hasSmallImage"
+            class="my-2 flex items-start gap-1 text-xs dark:text-amber-700"
+            data-test="small-image-warning"
+        >
+            <ExclamationTriangleIcon class="h-4 w-4 shrink-0" />
+            This image is quite small and may look blurry on some screens. For best results, use an
+            image at least {{ MIN_RECOMMENDED_IMAGE_WIDTH }} pixels wide.
+        </p>
+
         <!-- Full-width Drag and Drop Area -->
         <div
-            class="-mx-4 flex w-screen flex-col justify-center transition duration-150 ease-in-out scrollbar-hide dark:bg-slate-900 sm:mx-0 sm:w-full"
+            class="-mx-4 flex w-screen flex-col justify-center bg-white transition duration-150 ease-in-out scrollbar-hide dark:bg-slate-900 sm:mx-0 sm:w-full"
             @dragenter="handleDragEnter"
             @dragover="handleDragOver"
             @dragleave="handleDragLeave"
             @drop="handleDrop"
             :class="{
-                'border-blue-500 bg-blue-50 dark:bg-blue-900/20': isDragging,
+                'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20': isDragging,
             }"
         >
             <!-- Drop instructions -->

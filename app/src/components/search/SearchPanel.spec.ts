@@ -24,7 +24,9 @@ const resetMock = vi.hoisted(() => vi.fn());
 const runSearchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("vue-router", () => ({
-    useRouter: vi.fn().mockImplementation(() => ({ push: routePushMock, replace: routeReplaceMock })),
+    useRouter: vi
+        .fn()
+        .mockImplementation(() => ({ push: routePushMock, replace: routeReplaceMock })),
     useRoute: vi.fn().mockImplementation(() => routeMock),
     onBeforeRouteLeave: vi.fn(),
 }));
@@ -133,6 +135,20 @@ afterEach(() => {
 });
 
 describe("SearchPanel (page mode — /search)", () => {
+    it("backs the gap under the top bar so results can't show above the pinned search bar", () => {
+        mountPage();
+
+        const bar = wrapper!.find("[data-keeps-keyboard]");
+        expect(bar.classes()).toEqual(
+            expect.arrayContaining([
+                "max-lg:sticky",
+                "max-lg:before:absolute",
+                "max-lg:before:bottom-full",
+                "max-lg:before:bg-inherit",
+            ]),
+        );
+    });
+
     it("populates the input and runs the search when /search?q is present", async () => {
         routeMock.query = { q: "public search" };
         mountPage();
@@ -218,6 +234,35 @@ describe("SearchPanel (page mode — /search)", () => {
         const selected = wrapper!.findAll('[aria-selected="true"]');
         expect(selected).toHaveLength(1);
         expect(selected[0].attributes("id")).toBe("search-result-0");
+    });
+
+    it("shows result thumbnails as squares at the original thumbnail height", async () => {
+        const results = [
+            {
+                docId: "a",
+                score: 1,
+                wordMatchScore: 0,
+                doc: { _id: "a", title: "Title a", slug: "a", language: "lang-eng" },
+            } as unknown as FtsSearchResult,
+        ];
+        setupFts({ results, lastSearchedQuery: "title" });
+        wrapper = mount(SearchPanel, {
+            props: { mode: "page" },
+            global: {
+                stubs: {
+                    LImage: {
+                        props: ["size", "aspectRatio"],
+                        template:
+                            '<div data-test="thumb" :data-size="size" :data-aspect="aspectRatio" />',
+                    },
+                },
+            },
+        });
+        await flushPromises();
+
+        const thumb = wrapper.find('[data-test="thumb"]');
+        expect(thumb.attributes("data-size")).toBe("searchThumbnail");
+        expect(thumb.attributes("data-aspect")).toBe("square");
     });
 
     it("clears the query on Escape instead of closing an overlay", async () => {

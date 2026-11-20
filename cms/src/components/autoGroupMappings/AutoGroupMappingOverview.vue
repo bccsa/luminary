@@ -175,10 +175,13 @@ const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
             <LButton
                 v-if="autoGroupMappings.canEdit && hasAnyContent && isSmallScreen"
                 variant="primary"
+                class="max-lg:gap-x-0"
                 :icon="PlusIcon"
+                icon-class="max-lg:ml-0"
                 @click="openCreate"
+                aria-label="Create mapping"
             >
-                Create mapping
+                <span class="hidden lg:inline">Create mapping</span>
             </LButton>
         </template>
 
@@ -211,11 +214,17 @@ const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
 
         <!-- Permission warnings -->
         <div v-if="!autoGroupMappings.canView || !autoGroupMappings.canEdit" class="mb-1">
-            <span v-if="!autoGroupMappings.canView" class="mb-1 flex gap-1 text-xs text-zinc-600">
+            <span
+                v-if="!autoGroupMappings.canView"
+                class="mb-1 flex gap-1 text-xs text-zinc-600 dark:text-zinc-400"
+            >
                 <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />
                 No view permission
             </span>
-            <span v-if="!autoGroupMappings.canEdit" class="flex gap-1 text-xs text-zinc-600">
+            <span
+                v-if="!autoGroupMappings.canEdit"
+                class="flex gap-1 text-xs text-zinc-600 dark:text-zinc-400"
+            >
                 <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />
                 No edit permission
             </span>
@@ -237,7 +246,7 @@ const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
             description="Try adjusting your search or filter criteria."
         />
 
-        <div v-else-if="filteredMappings.length" class="flex flex-col gap-[3px]">
+        <div v-else-if="filteredMappings.length" class="flex flex-col gap-[4px]">
             <AutoGroupMappingDisplayCard
                 v-for="mapping in filteredMappings"
                 :key="mapping._id"

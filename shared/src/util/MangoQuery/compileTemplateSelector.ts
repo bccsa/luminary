@@ -735,7 +735,11 @@ export function compileTemplateSelector(template: MangoSelector): ParameterizedP
 
             if (hasOperators) {
                 predicates.push(
-                    compileFieldCriteria(key, value as MangoComparisonCriteria, compileTemplateSelector),
+                    compileFieldCriteria(
+                        key,
+                        value as MangoComparisonCriteria,
+                        compileTemplateSelector,
+                    ),
                 );
             } else if (isPlaceholder(value)) {
                 // This case is handled above, but double-check

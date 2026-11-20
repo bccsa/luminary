@@ -8,8 +8,15 @@ const OIDC_STATE_PREFIX = "oidc.";
 const LEGACY_AUTH0_CACHE_PREFIX = "@@auth0spajs@@::";
 const LEGACY_AUTH0_STATE_PREFIX = "a0.spajs.";
 
-/** The selected provider, retained across the OIDC redirect. */
+/** The provider of the completed sign-in. */
 export const ACTIVE_PROVIDER_KEY = "cms_activeAuthProvider";
+
+/**
+ * The provider of a sign-in that has started but not completed, retained across
+ * the OIDC redirect. Only a completed callback promotes it to {@link ACTIVE_PROVIDER_KEY},
+ * so a login the user backs out of never counts as a session.
+ */
+export const PENDING_PROVIDER_KEY = "cms_pendingAuthProvider";
 
 /**
  * One-shot flag: set when the user marks a sign-out as happening on a shared
@@ -108,9 +115,79 @@ export function persistActiveProvider(provider: PersistedProvider): void {
 }
 
 export function readPersistedProvider(): PersistedProvider | null {
+    return readProviderRecord(ACTIVE_PROVIDER_KEY);
+}
+
+type PendingSignin = PersistedProvider & { forceReauth: boolean };
+
+function readPendingSignin(): PendingSignin | null {
+    const provider = readProviderRecord(PENDING_PROVIDER_KEY);
+    if (!provider) return null;
+    let forceReauth = false;
+    try {
+        forceReauth = JSON.parse(localStorage.getItem(PENDING_PROVIDER_KEY)!).forceReauth === true;
+    } catch {
+        // Already validated by readProviderRecord.
+    }
+    return { ...provider, forceReauth };
+}
+
+/**
+ * Record an interactive sign-in as in flight. The provider only becomes the
+ * active one once its callback completes (see commitPendingSignin), so backing
+ * out of the provider's login page can't bind later boots to that provider.
+ */
+function markSigninPending(provider: ProviderConfig, forceReauth: boolean): void {
+    if (typeof localStorage === "undefined") return;
+    try {
+        localStorage.removeItem(ACTIVE_PROVIDER_KEY);
+        const pending: PendingSignin = {
+            _id: provider._id,
+            domain: provider.domain,
+            clientId: provider.clientId,
+            audience: provider.audience,
+            forceReauth,
+        };
+        localStorage.setItem(PENDING_PROVIDER_KEY, JSON.stringify(pending));
+    } catch {
+        // Storage is an optimisation; a redirect must still proceed without it.
+    }
+}
+
+function commitPendingSignin(provider: ProviderConfig): void {
+    persistActiveProvider(provider);
+    try {
+        localStorage.removeItem(PENDING_PROVIDER_KEY);
+    } catch {
+        // Storage may be unavailable.
+    }
+}
+
+/**
+ * Drop a sign-in the user never completed, so the next login offers every
+ * provider again. Returns whether there was one.
+ */
+function abandonPendingSignin(): boolean {
+    const pending = readPendingSignin();
+    if (!pending) return false;
+    clearAuthCache();
+    // The abandoned attempt consumed the shared-device flag without anyone signing in.
+    if (pending.forceReauth) markForceReauthOnNextLogin();
+    return true;
+}
+
+// A page restored from the back-forward cache never boots again, so setupAuth()
+// can't notice that the user backed out of the provider's login page.
+if (typeof window !== "undefined") {
+    window.addEventListener("pageshow", (event) => {
+        if (event.persisted && abandonPendingSignin()) openProviderModal();
+    });
+}
+
+function readProviderRecord(key: string): PersistedProvider | null {
     if (typeof localStorage === "undefined") return null;
     try {
-        const provider = JSON.parse(localStorage.getItem(ACTIVE_PROVIDER_KEY) ?? "null");
+        const provider = JSON.parse(localStorage.getItem(key) ?? "null");
         if (
             provider &&
             typeof provider._id === "string" &&
@@ -183,11 +260,13 @@ let installedOidc: UserManager | null = null;
  * role.
  */
 let installedProviderId: string | null = null;
+let installedProvider: ProviderConfig | null = null;
 
 function installManager(provider: ProviderConfig): UserManager {
     const manager = createManager(provider);
     installedOidc = manager;
     installedProviderId = provider._id;
+    installedProvider = provider;
     isAuthPluginInstalled.value = true;
     setProviderIdHeader(provider._id);
     // A superseded manager keeps emitting — a late signinSilent on the provider
@@ -219,8 +298,9 @@ export async function setupAuth(): Promise<void> {
     const url = new URL(location.href);
     const isCallback = url.searchParams.has("code") && url.searchParams.has("state");
 
-    const provider = await resolveActiveProvider();
-    if (!provider) {
+    const pending = readPendingSignin();
+    const active = await resolveActiveProvider();
+    if (!pending && !active) {
         // No provider selected yet. conditionalAuthGuard opens the provider
         // modal because no OIDC manager was installed. Nothing is left that can
         // redeem a code, and leaving it in the URL keeps an authorization code
@@ -228,6 +308,14 @@ export async function setupAuth(): Promise<void> {
         if (isCallback) stripAuthCallbackParams();
         return;
     }
+
+    // A sign-in that came back without a callback was abandoned on the
+    // provider's page; leaving nothing installed lets the guard offer every provider.
+    if (pending && !isCallback) {
+        abandonPendingSignin();
+        return;
+    }
+    const provider = (pending ?? active)!;
 
     const manager = installManager(provider);
     isLoading.value = true;
@@ -250,6 +338,14 @@ export async function setupAuth(): Promise<void> {
                 // code+state in the URL means every subsequent load retries
                 // and fails the exact same way, forever.
                 stripAuthCallbackParams();
+            }
+            if (pending) {
+                if (!oidcUser.value) {
+                    abandonPendingSignin();
+                    openProviderModal();
+                    return;
+                }
+                commitPendingSignin(pending);
             }
         } else {
             oidcUser.value = await manager.getUser();
@@ -414,14 +510,15 @@ export async function loginWithProvider(
     provider: ProviderConfig,
     opts?: { prompt?: OidcPrompt },
 ): Promise<void> {
-    persistActiveProvider(provider);
     const manager = installManager(provider);
     await manager.clearStaleState();
     // Only fall back to the shared-device flag when the caller didn't already
     // request a specific prompt (session-recovery call sites already pass
     // prompt: "login" themselves) — otherwise the flag stays pending for the
     // actual next unprompted login instead of being consumed here for nothing.
-    const prompt = opts?.prompt ?? (consumeForceReauthOnNextLogin() ? "login" : undefined);
+    const forceReauth = !opts?.prompt && consumeForceReauthOnNextLogin();
+    const prompt = opts?.prompt ?? (forceReauth ? "login" : undefined);
+    markSigninPending(provider, forceReauth);
     // `extraQueryParams` on a signin call REPLACES the manager-level object in
     // oidc-client-ts; using it for prompt would drop Auth0's API audience and
     // produce an opaque access token. `prompt` is a standard first-class option.
@@ -434,7 +531,11 @@ export function useAuth() {
         isLoading,
         isAuthenticated,
         user,
-        loginWithRedirect: () => installedOidc?.signinRedirect(),
+        loginWithRedirect: () => {
+            if (!installedOidc || !installedProvider) return;
+            markSigninPending(installedProvider, false);
+            return installedOidc.signinRedirect();
+        },
         logout: async (opts?: LogoutOptions) => {
             const manager = installedOidc;
             if (!manager) return;
@@ -476,6 +577,7 @@ export function useAuth() {
 export function clearAuthCache(): void {
     installedOidc = null;
     installedProviderId = null;
+    installedProvider = null;
     setProviderIdHeader(null);
     oidcUser.value = null;
     isAuthPluginInstalled.value = false;
@@ -497,6 +599,7 @@ export function clearAuthCache(): void {
     clearStoragePrefix(sessionStorage, LEGACY_AUTH0_STATE_PREFIX);
     try {
         localStorage.removeItem(ACTIVE_PROVIDER_KEY);
+        localStorage.removeItem(PENDING_PROVIDER_KEY);
     } catch {
         // Storage may be unavailable.
     }

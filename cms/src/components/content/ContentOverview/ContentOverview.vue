@@ -246,11 +246,14 @@ const createNew = () => {
             <LButton
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
                 variant="primary"
+                class="max-lg:gap-x-0"
                 :icon="PlusIcon"
+                icon-class="max-lg:ml-0"
                 data-test="create-button"
                 @click="createNew"
+                :aria-label="`Create ${docType}`"
             >
-                Create {{ docType }}
+                <span class="hidden lg:inline">Create {{ docType }}</span>
             </LButton>
         </template>
 
@@ -265,19 +268,19 @@ const createNew = () => {
             />
         </template>
 
-        <div v-if="cmsLanguageIdAsRef" class="flex flex-col gap-[3px]">
-            <div v-if="searchActive" class="px-2 py-1 text-xs text-zinc-500">
+        <div v-if="cmsLanguageIdAsRef" class="flex flex-col gap-[4px]">
+            <div v-if="searchActive" class="px-2 py-1 text-xs text-zinc-500 dark:text-zinc-400">
                 {{ showRelated ? "Showing related results" : "Showing exact matches" }}
                 for "{{ (queryOptions.search ?? "").trim() }}".
                 <button
                     type="button"
-                    class="text-zinc-600 underline hover:text-zinc-900"
+                    class="text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
                     data-test="toggle-related"
                     @click="showRelated = !showRelated"
                 >
                     Click here to show {{ showRelated ? "exact matches" : "related results" }}
                 </button>
-                <span v-if="showRelated" class="block text-zinc-400">
+                <span v-if="showRelated" class="block text-zinc-400 dark:text-zinc-500">
                     Related results are ranked by relevance — sorting is not applied.
                 </span>
             </div>

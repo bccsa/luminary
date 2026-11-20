@@ -1,5 +1,6 @@
 import {
     computed,
+    nextTick,
     ref,
     toRaw,
     watch,
@@ -13,6 +14,7 @@ import {
     AckStatus,
     type ContentDto,
     type ContentParentDto,
+    type MediaDto,
     type PostDto,
     type PostType,
     type TagDto,
@@ -67,8 +69,17 @@ export type UseEditContentSource = {
     isIncomingChange: ComputedRef<(id: Uuid) => boolean>;
     /** True while an existing doc has not yet hydrated (drives the loading state). */
     isLoading: Ref<boolean>;
-    /** Persist the parent + edited content children and re-baseline the dirty state. */
-    save: () => Promise<void>;
+    /**
+     * Persist the parent + edited content children and re-baseline the dirty state.
+     * `preferredLanguage`: the translation being edited, used as the linked-dates source.
+     */
+    save: (preferredLanguage?: Uuid) => Promise<void>;
+    /**
+     * Persist `media` onto the parent as last saved, and nothing else: the editor's other
+     * unsaved edits stay unsaved, and the new media reads as saved. Settles with the
+     * server's answer, so it waits while offline; rejects when the server refuses it.
+     */
+    saveMedia: (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => Promise<void>;
     /** Whether anything other than `fields` is unsaved, on the parent or any translation. */
     hasEditsBesides: (fields: (keyof ContentParentDto)[]) => boolean;
     /** Delete the parent document (does not mark content children for deletion). */
@@ -94,6 +105,24 @@ function normaliseParent(item: ContentParentDto): ContentParentDto {
 }
 
 /**
+ * Give translations without a publish date the dates of a dated sibling (preferring the
+ * translation being edited), as the API's linkDates cascade would. Each translation is a
+ * separate change request, so one sent without a publish date is otherwise rejected before
+ * the cascade from its sibling can reach it.
+ */
+function fillLinkedDates(children: ContentDto[], preferredLanguage?: Uuid) {
+    const dated = children.filter((c) => !c.deleteReq && c.publishDate != null);
+    const source = dated.find((c) => c.language === preferredLanguage) ?? dated[0];
+    if (!source) return;
+    for (const c of children) {
+        if (c.deleteReq || c.publishDate != null) continue;
+        // Both dates, so a translation's own expiry can't land before the borrowed publish date
+        c.publishDate = source.publishDate;
+        c.expiryDate = source.expiryDate;
+    }
+}
+
+/**
  * Owns the data layer of the content editor: local-first reactive loading (parent and
  * content children via {@link useHybridQuery}), editable copies with dirty tracking via
  * {@link toEditable}, and the persistence + revert + duplicate primitives. UI concerns
@@ -102,6 +131,9 @@ function normaliseParent(item: ContentParentDto): ContentParentDto {
  * Must be called synchronously in a component `setup` so the live subscriptions tear
  * down on unmount.
  */
+/** How often a change still queued after a lost connection is looked at again. */
+export const QUEUED_CHANGE_POLL_MS = 1000;
+
 export function useEditContentSource(options: UseEditContentSourceOptions): UseEditContentSource {
     const { docType, tagOrPostType, onParentNotFound } = options;
 
@@ -354,7 +386,7 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         return editableContent.value.some((c) => contentEditable.isEdited.value(c._id));
     };
 
-    const save = async () => {
+    const save = async (preferredLanguage?: Uuid) => {
         const parent = editableParent.value;
         if (!parent) return;
 
@@ -365,9 +397,50 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         parentEditable.updateShadow(parent._id);
 
         const children = [...editableContent.value];
+        if (parent.linkDates) {
+            fillLinkedDates(children, preferredLanguage);
+            await nextTick(); // let toEditable's dirty tracking see the filled dates
+        }
         await Promise.all(
             children.map((c) => (c.deleteReq ? removeContent(c._id) : saveContent(c._id))),
         );
+    };
+
+    /**
+     * The server's answer to a queued change. A connection lost before it answered also
+     * reads as rejected, but leaves the change queued to be sent again; only once it has
+     * left the queue is the answer the server's own.
+     */
+    const serverAnswer = async (localChangeId: number) => {
+        for (;;) {
+            const ack = await db.waitForLocalChangeAck(localChangeId);
+            if (ack.ack !== AckStatus.Rejected) return ack;
+            if (!(await db.localChanges.get(localChangeId))) {
+                // The queue entry goes just before its answer is recorded: read it again.
+                return db.waitForLocalChangeAck(localChangeId);
+            }
+            await new Promise((resolve) => setTimeout(resolve, QUEUED_CHANGE_POLL_MS));
+        }
+    };
+
+    const saveMedia = async (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => {
+        const saved = existingParent.value;
+        if (!saved) throw new Error("The document has not been saved yet.");
+
+        const doc = _.cloneDeep(toRaw(saved));
+        doc.media = { ...doc.media, ...media };
+        const { localChangeId } = await db.upsert({ doc });
+        // Set rather than left to the live query, so the editor sees it at once: `media` is
+        // back-patched, which moves it into the editable copy and its baseline together.
+        parentSource.value = [doc];
+
+        const ack = await serverAnswer(localChangeId);
+        if (ack.ack !== AckStatus.Rejected) return;
+        // A refusal without the server's copy deletes the local one, which the live query
+        // does not pass on: put back what was saved, so the refused media does not read
+        // as saved.
+        if (!ack.docs?.length) parentSource.value = [saved];
+        throw new Error(ack.message || "The server refused the change.");
     };
 
     /**
@@ -422,6 +495,7 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         isIncomingChange,
         isLoading,
         save,
+        saveMedia,
         hasEditsBesides,
         deleteParent,
         revert,

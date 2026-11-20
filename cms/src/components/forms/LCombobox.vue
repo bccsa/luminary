@@ -246,7 +246,7 @@ const onEscape = (e: KeyboardEvent) => {
                     <!-- Inline tags trigger -->
                     <div
                         v-if="inlineTags"
-                        class="relative flex min-h-[42px] flex-wrap items-center gap-1 rounded-md bg-white pl-2 pr-1 transition-all focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950 dark:bg-slate-900 dark:focus-within:outline-indigo-500"
+                        class="relative flex min-h-[42px] flex-wrap items-center gap-1 rounded-md bg-white pl-2 pr-1 transition-all focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950 dark:bg-slate-900 dark:focus-within:outline-slate-400"
                         :class="{ 'border-[1px] border-zinc-300 dark:border-slate-700': !noBorder }"
                         v-bind="attrsWithoutStyles"
                     >
@@ -320,7 +320,7 @@ const onEscape = (e: KeyboardEvent) => {
                     <!-- Standard trigger -->
                     <div
                         v-else
-                        class="relative flex w-full justify-between gap-2 rounded-md bg-white transition-all focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950 dark:bg-slate-900 dark:focus-within:outline-indigo-500"
+                        class="relative flex w-full justify-between gap-2 rounded-md bg-white transition-all focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950 dark:bg-slate-900 dark:focus-within:outline-slate-400"
                         :class="{
                             'border-[1px] border-zinc-300 dark:border-slate-700': !noBorder,
                             'pl-1 pr-3': smallInput && isMobileScreen,
@@ -343,7 +343,7 @@ const onEscape = (e: KeyboardEvent) => {
                             <input
                                 v-model="query"
                                 ref="inputElement"
-                                class="z-0 w-full flex-1 border-0 bg-transparent p-0 text-zinc-900 placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100 dark:placeholder:text-zinc-600"
+                                class="z-0 w-full flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100 dark:ring-slate-600 dark:placeholder:text-zinc-600"
                                 :class="[
                                     smallInput && isMobileScreen ? 'h-[30px] text-sm' : 'h-[38px]',
                                     { 'w-96': $slots.actions && !isSmallScreen },
@@ -403,13 +403,13 @@ const onEscape = (e: KeyboardEvent) => {
                         :key="option.id"
                         :disabled="option.selected"
                         role="menuitem"
-                        class="w-full cursor-pointer list-none text-start text-sm hover:bg-zinc-100 focus:bg-zinc-100"
+                        class="w-full cursor-pointer list-none text-start text-sm hover:bg-zinc-100 focus:bg-zinc-100 dark:hover:bg-slate-700 dark:focus:bg-slate-700"
                         :class="[
                             'relative cursor-default select-none py-2 pl-3 pr-9',
                             {
                                 'bg-white text-black hover:bg-zinc-100 dark:bg-slate-800 dark:text-zinc-300 dark:hover:bg-slate-700 dark:hover:text-white':
                                     !option.selected,
-                                'cursor-not-allowed text-zinc-300 dark:text-zinc-600':
+                                'cursor-not-allowed text-zinc-300 hover:bg-white dark:text-zinc-600 dark:hover:bg-slate-800':
                                     option.selected,
                                 'bg-zinc-100 dark:bg-slate-700 dark:text-zinc-100':
                                     highlightedIndex === filtered.indexOf(option),

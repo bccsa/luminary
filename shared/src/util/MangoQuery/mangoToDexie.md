@@ -2,7 +2,7 @@
 
 Translate a Mango query into a Dexie `Collection`, pushing index‑friendly parts down to IndexedDB where possible and applying the rest in memory via `mangoCompile`.
 
-**Template-based caching**: Query analysis results are cached based on query *structure*, not values. This means queries like `{ type: "post" }` and `{ type: "page" }` share the same cached analysis, with values applied at runtime. Cache entries expire after 5 minutes of non-use.
+**Template-based caching**: Query analysis results are cached based on query _structure_, not values. This means queries like `{ type: "post" }` and `{ type: "page" }` share the same cached analysis, with values applied at runtime. Cache entries expire after 5 minutes of non-use.
 
 > See also: [mangoCompile](./mangoCompile.md) for compiling a Mango selector into an in‑memory predicate.
 
@@ -42,14 +42,14 @@ If no `$sort`, the function uses cached template analysis:
 2. **Analyze**: Get or compute pushdown strategy for the template (cached)
 3. **Apply**: Execute pushdown with actual runtime values
 
-| Priority | Operator(s) | Dexie method | Notes |
-|----------|-------------|--------------|-------|
-| 1 | Multiple equalities | `where({ f1: v1, f2: v2, ... })` | Maximizes compound index usage. Booleans excluded. |
-| 2 | `$beginsWith` | `where(field).startsWith(prefix)` | Efficient prefix search on indexed string field. |
-| 3 | `$gte` + `$lte` (same field) | `where(field).between(lower, upper)` | Combined range query. Also handles `$gt`/`$lt` combinations. |
-| 4 | `$in` | `where(field).anyOf(values)` | Array membership. Boolean‑only arrays excluded. |
-| 4a | `$in` on primary key | `table.bulkGet(values)` | Direct key lookups, faster than `anyOf` for primary key fields. |
-| 5 | Single comparator | `equals`, `notEqual`, `above`, `below`, `aboveOrEqual`, `belowOrEqual` | For `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`. |
+| Priority | Operator(s)                  | Dexie method                                                           | Notes                                                           |
+| -------- | ---------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------- |
+| 1        | Multiple equalities          | `where({ f1: v1, f2: v2, ... })`                                       | Maximizes compound index usage. Booleans excluded.              |
+| 2        | `$beginsWith`                | `where(field).startsWith(prefix)`                                      | Efficient prefix search on indexed string field.                |
+| 3        | `$gte` + `$lte` (same field) | `where(field).between(lower, upper)`                                   | Combined range query. Also handles `$gt`/`$lt` combinations.    |
+| 4        | `$in`                        | `where(field).anyOf(values)`                                           | Array membership. Boolean‑only arrays excluded.                 |
+| 4a       | `$in` on primary key         | `table.bulkGet(values)`                                                | Direct key lookups, faster than `anyOf` for primary key fields. |
+| 5        | Single comparator            | `equals`, `notEqual`, `above`, `below`, `aboveOrEqual`, `belowOrEqual` | For `$eq`, `$ne`, `$gt`, `$lt`, `$gte`, `$lte`.                 |
 
 The pushdown strategy is cached per template. At runtime, the cached strategy is applied with actual values:
 
@@ -255,6 +255,7 @@ mangoToDexie(table, { selector: { type: "page", authorId: 99 } });
 ```
 
 **Benefits**:
+
 - Dramatically improves cache hit rate for parameterized queries
 - Reduces memory usage (fewer cache entries)
 - Expensive analysis done once per structure, cheap value binding per call

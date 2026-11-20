@@ -55,8 +55,7 @@ const activeListId = useDexieLiveQuery(() =>
 
 const sortedTodos = useDexieLiveQueryWithDeps(
     activeListId,
-    (activeListId: string | undefined) =>
-        db.todos.where("listId").equals(activeListId).toArray(),
+    (activeListId: string | undefined) => db.todos.where("listId").equals(activeListId).toArray(),
     {
         initialValue: [],
         /* Supports all watch options; default: immediate: true */

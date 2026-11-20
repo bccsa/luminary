@@ -1,20 +1,18 @@
 <script setup lang="ts">
 import { db, type ContentDto, type GroupDto } from "luminary-shared";
 import { type ContentOverviewQueryOptions } from "./types";
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import FilterOptions from "@/components/common/FilterOptions.vue";
 import {
     ArrowsUpDownIcon,
     ArrowUpIcon,
     ArrowDownIcon,
-    MagnifyingGlassIcon,
     TagIcon,
     UserGroupIcon,
     LanguageIcon,
     CloudArrowUpIcon,
     CalendarDaysIcon,
 } from "@heroicons/vue/24/outline";
-import { XMarkIcon } from "@heroicons/vue/20/solid";
 import LRadio from "@/components/forms/LRadio.vue";
 import LCombobox from "@/components/forms/LCombobox.vue";
 import LSelect from "@/components/forms/LSelect.vue";
@@ -25,12 +23,9 @@ import LDropdown from "@/components/common/LDropdown.vue";
 import { groupLabel } from "@/util/groups";
 
 /**
- * Reuses the shared FilterOptions component for just its responsive shell (desktop row / mobile
- * Adjustments-button-and-modal / reset wiring). ContentOverview's filter dimensions (status,
- * translation, tags, sort) and its Enter/Esc-driven min-length search are specific enough that
- * they stay fully custom here, via the shared component's search / extra-filters /
- * extra-filters-mobile / selected-filters slots — the built-in group filter and search model are
- * unused.
+ * ContentOverview's filters on the shared filter bar. The search box is the shared one; the
+ * filter dimensions (status, translation, tags, groups, sort, dates) are specific enough to stay
+ * custom here, via the extra-filters / extra-filters-mobile / selected-filters slots.
  */
 
 type FilterOptionsProps = {
@@ -61,32 +56,6 @@ const translationOptions = [
     { value: "all", label: "All" },
 ];
 
-const searchTerm = ref(queryOptions.value.search);
-const search = () => {
-    if (!searchTerm.value) return;
-    if (searchTerm.value.length >= 3 || searchTerm.value.length === 0) {
-        queryOptions.value.search = searchTerm.value;
-    }
-};
-const showSearchButton = ref(false);
-const showResetButton = ref(false);
-
-const showSearchIcon = computed(() => !String(searchTerm.value ?? "").length);
-
-const trailingPaddingClass = computed(() => {
-    if (showSearchButton.value && showResetButton.value) return "pr-[5.5rem]";
-    if (showSearchButton.value) return "pr-14";
-    if (showResetButton.value) return "pr-10";
-    return "";
-});
-
-const clearSearch = () => {
-    queryOptions.value.search = "";
-    searchTerm.value = "";
-    showSearchButton.value = false;
-    showResetButton.value = false;
-};
-
 const resetQueryOptions = () => {
     queryOptions.value = {
         languageId: queryOptions.value.languageId,
@@ -101,11 +70,8 @@ const resetQueryOptions = () => {
         publishStatus: "all",
     };
 
-    searchTerm.value = "";
     const storageKey = `queryOptions_${props.docType}_${props.tagOrPostType}`;
     sessionStorage.removeItem(storageKey);
-    showSearchButton.value = false;
-    showResetButton.value = false;
 };
 
 const showSortOptions = ref(false);
@@ -130,67 +96,15 @@ const publishedAfterString = dateRangeField("publishedAfter");
 const publishedBeforeString = dateRangeField("publishedBefore");
 const expiresAfterString = dateRangeField("expiresAfter");
 const expiresBeforeString = dateRangeField("expiresBefore");
-
-watch(
-    () => searchTerm.value,
-    (newVal) => {
-        if (!newVal || newVal.length === 0) {
-            clearSearch();
-            return;
-        }
-        if (newVal.length >= 3) {
-            showSearchButton.value = true;
-            showResetButton.value = true;
-        } else showSearchButton.value = false;
-    },
-);
 </script>
 
 <template>
     <FilterOptions
+        v-model:search="queryOptions.search"
+        submit-search
         :is-small-screen="isSmallScreen"
-        search-placeholder="Search..."
         @reset="resetQueryOptions"
     >
-        <template #search>
-            <LInput
-                type="text"
-                :icon="showSearchIcon ? MagnifyingGlassIcon : undefined"
-                class="h-full min-w-0 flex-grow"
-                name="search"
-                placeholder="Search..."
-                data-test="search-input"
-                v-model="searchTerm as string"
-                autocomplete="off"
-                :full-height="true"
-                :trailing-padding-class="trailingPaddingClass"
-                @keydown.enter="search"
-                @keydown.esc="clearSearch"
-            >
-                <template #searchButton>
-                    <div class="flex items-center gap-1">
-                        <button
-                            v-if="showSearchButton"
-                            type="button"
-                            class="rounded-md bg-white px-2 py-1 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50"
-                            data-test="search-go-button"
-                            @click="search"
-                        >
-                            Go
-                        </button>
-                        <button
-                            v-if="showResetButton"
-                            type="button"
-                            aria-label="Clear search"
-                            @click="clearSearch"
-                        >
-                            <XMarkIcon class="h-5 w-5 cursor-pointer text-zinc-500" />
-                        </button>
-                    </div>
-                </template>
-            </LInput>
-        </template>
-
         <template #extra-filters>
             <LSelect
                 data-test="filter-select"
@@ -282,7 +196,11 @@ watch(
                         <LButton
                             class="flex justify-stretch"
                             data-test="ascending-sort-toggle"
-                            :class="queryOptions.orderDirection == 'asc' ? 'bg-zinc-100' : 'bg-white'"
+                            :class="
+                                queryOptions.orderDirection == 'asc'
+                                    ? 'bg-zinc-100 dark:bg-slate-600'
+                                    : 'bg-white dark:bg-slate-700'
+                            "
                             :icon="ArrowUpIcon"
                             @click="queryOptions.orderDirection = 'asc'"
                             >Ascending</LButton
@@ -291,7 +209,9 @@ watch(
                             class="flex justify-stretch"
                             data-test="descending-sort-toggle"
                             :class="
-                                queryOptions.orderDirection == 'desc' ? 'bg-zinc-100' : 'bg-white'
+                                queryOptions.orderDirection == 'desc'
+                                    ? 'bg-zinc-100 dark:bg-slate-600'
+                                    : 'bg-white dark:bg-slate-700'
                             "
                             variant="secondary"
                             :icon="ArrowDownIcon"
@@ -318,7 +238,9 @@ watch(
 
                 <div class="flex w-64 flex-col gap-3">
                     <div>
-                        <p class="mb-1 text-sm font-medium text-zinc-700">Published between</p>
+                        <p class="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                            Published between
+                        </p>
                         <div class="flex flex-col gap-1">
                             <LInput
                                 name="publishedAfter"
@@ -337,7 +259,9 @@ watch(
                         </div>
                     </div>
                     <div>
-                        <p class="mb-1 text-sm font-medium text-zinc-700">Expires between</p>
+                        <p class="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                            Expires between
+                        </p>
                         <div class="flex flex-col gap-1">
                             <LInput
                                 name="expiresAfter"
@@ -404,7 +328,9 @@ watch(
             />
             <div class="flex flex-col gap-3 py-4">
                 <div class="flex flex-col gap-2">
-                    <p class="text-sm font-medium text-zinc-700">Published between</p>
+                    <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        Published between
+                    </p>
                     <LInput
                         name="publishedAfter"
                         type="datetime-local"
@@ -421,7 +347,9 @@ watch(
                     />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <p class="text-sm font-medium text-zinc-700">Expires between</p>
+                    <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        Expires between
+                    </p>
                     <LInput
                         name="expiresAfter"
                         type="datetime-local"

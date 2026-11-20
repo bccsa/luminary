@@ -13,7 +13,12 @@ const isVisible = defineModel<boolean>("isVisible", { required: true });
     <LModal heading="Select Theme" v-model:is-visible="isVisible">
         <div class="divide-y divide-zinc-200 dark:divide-slate-600 dark:text-zinc-100">
             <button
-                class="flex h-10 w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
+                class="flex h-10 w-full cursor-pointer items-center rounded-md p-3 hover:bg-zinc-300/40 dark:hover:bg-slate-600"
+                :class="
+                    theme === 'light'
+                        ? 'rounded-md bg-zinc-200/60 dark:rounded-md dark:bg-slate-700 dark:hover:bg-slate-600'
+                        : ''
+                "
                 @click="theme = 'light'"
                 data-test="switch-theme-button"
             >
@@ -21,12 +26,17 @@ const isVisible = defineModel<boolean>("isVisible", { required: true });
                 <span class="text-sm">Light</span>
                 <CheckCircleIcon
                     v-if="theme === 'light'"
-                    class="ml-auto h-6 w-6 text-yellow-500"
+                    class="ml-auto h-6 w-6 text-yellow-500 dark:text-yellow-400"
                     aria-hidden="true"
                 />
             </button>
             <button
-                class="flex h-10 w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
+                class="flex h-10 w-full cursor-pointer items-center rounded-md p-3 hover:bg-zinc-300/40 dark:hover:bg-slate-600"
+                :class="
+                    theme === 'dark'
+                        ? 'rounded-md bg-zinc-200/60 dark:rounded-md dark:bg-slate-700 dark:hover:bg-slate-600'
+                        : ''
+                "
                 @click="theme = 'dark'"
                 data-test="switch-theme-button"
             >
@@ -34,12 +44,17 @@ const isVisible = defineModel<boolean>("isVisible", { required: true });
                 <span class="text-sm">Dark</span>
                 <CheckCircleIcon
                     v-if="theme === 'dark'"
-                    class="ml-auto h-6 w-6 text-yellow-500"
+                    class="ml-auto h-6 w-6 text-yellow-500 dark:text-yellow-400"
                     aria-hidden="true"
                 />
             </button>
             <button
-                class="flex h-10 w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
+                class="flex h-10 w-full cursor-pointer items-center rounded-md p-3 hover:bg-zinc-300/40 dark:hover:bg-slate-600"
+                :class="
+                    theme === 'system'
+                        ? 'rounded-md bg-zinc-200/60 dark:rounded-md dark:bg-slate-700 dark:hover:bg-slate-600'
+                        : ''
+                "
                 @click="theme = 'system'"
                 data-test="switch-theme-button"
             >
@@ -47,14 +62,14 @@ const isVisible = defineModel<boolean>("isVisible", { required: true });
                 <span class="text-sm">System</span>
                 <CheckCircleIcon
                     v-if="theme === 'system'"
-                    class="ml-auto h-6 w-6 text-yellow-500"
+                    class="ml-auto h-6 w-6 text-yellow-500 dark:text-yellow-400"
                     aria-hidden="true"
                 />
             </button>
         </div>
         <template #footer>
             <LButton
-                variant="secondary"
+                variant="primary"
                 size="lg"
                 rounding="less"
                 class="w-full"

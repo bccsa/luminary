@@ -52,10 +52,7 @@ export async function syncBatch(options: SyncOptions) {
     // Sealing the frontier there would falsely mark the column complete while leaving days of
     // data unfetched. In that case fall through so the gap-fill / vertical-merge paths can
     // resolve it instead of prematurely declaring eof.
-    if (
-        chunk.blockStart < chunk.blockEnd &&
-        chunk.blockEnd - chunk.blockStart <= syncTolerance
-    ) {
+    if (chunk.blockStart < chunk.blockEnd && chunk.blockEnd - chunk.blockStart <= syncTolerance) {
         const mergeResult = merge(options);
         mergeResult.eof = true;
         markColumnEof(options);
@@ -150,7 +147,8 @@ export async function syncBatch(options: SyncOptions) {
         return;
     }
 
-    if (!res || !res.docs || !Array.isArray(res.docs)) throw new Error("Invalid API response format");
+    if (!res || !res.docs || !Array.isArray(res.docs))
+        throw new Error("Invalid API response format");
 
     // Surface API warnings (e.g. CouchDB "documents examined is high") together with the exact
     // query + index that triggered them, so the offending sync column is identifiable.
@@ -207,11 +205,7 @@ export async function syncBatch(options: SyncOptions) {
             : { min: undefined, max: undefined };
         // Push chunk to chunk list
         syncList.value.push({
-            chunkType: getChunkTypeString(
-                options.type,
-                options.subType,
-                options.alwaysOffline,
-            ),
+            chunkType: getChunkTypeString(options.type, options.subType, options.alwaysOffline),
             memberOf: options.memberOf,
             languages: options.languages,
             blockStart,

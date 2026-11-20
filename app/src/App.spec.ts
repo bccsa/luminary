@@ -16,6 +16,8 @@ import { isAppLoading, theme } from "./globalConfig";
 import { createMemoryHistory, createRouter } from "vue-router";
 import HomePage from "@/pages/HomePage.vue";
 import ExplorePage from "@/pages/ExplorePage.vue";
+import { markPlayerSwap, clearSwaps } from "@/util/playerSwap";
+import { closeMediaPlayer, mediaPlayerView, openMediaPlayer } from "@/media-player/mediaPlayer";
 
 const routeReplaceMock = vi.fn();
 const currentRouteMock = ref({ fullPath: `/${mockEnglishContentDto.slug}`, query: {} });
@@ -196,6 +198,42 @@ describe("App", () => {
             });
 
             expect(document.documentElement.classList.contains("dark")).toBe(false);
+        });
+    });
+
+    describe("The media player on a route change", () => {
+        beforeEach(() => {
+            (auth as any).useAuth.mockReturnValue({
+                isLoading: ref(false),
+                isAuthenticated: ref(false),
+            });
+            isAppLoading.value = false;
+            clearSwaps();
+            openMediaPlayer(mockEnglishContentDto, "en");
+        });
+
+        afterEach(() => {
+            closeMediaPlayer();
+            clearSwaps();
+            currentRouteMock.value = { fullPath: `/${mockEnglishContentDto.slug}`, query: {} };
+        });
+
+        it("minimises on a route change", async () => {
+            mount(App, { shallow: true });
+            currentRouteMock.value = { fullPath: "/somewhere", query: {} };
+            await waitForExpect(() => expect(mediaPlayerView.value).toBe("mini"));
+        });
+
+        it("stays open for the navigation of a swap to the next video in full-screen", async () => {
+            mount(App, { shallow: true });
+            markPlayerSwap("/next-slug");
+            currentRouteMock.value = { fullPath: "/next-slug", query: {} };
+            await wait(20);
+            expect(mediaPlayerView.value).toBe("expanded");
+
+            // Only that one: the next route change minimises as usual.
+            currentRouteMock.value = { fullPath: "/elsewhere", query: {} };
+            await waitForExpect(() => expect(mediaPlayerView.value).toBe("mini"));
         });
     });
 

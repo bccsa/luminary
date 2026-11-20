@@ -109,7 +109,7 @@ import { appTest as test, expect } from "../../fixtures/test";
 
 [App page-load safeguards](app/pages/page-loads.spec.ts) run as a guest in both modes.
 They check direct loads and reloads of `/`, `/explore`, `/watch`, `/search`,
-`/bookmarks`, and `/settings` at desktop and mobile widths, plus feed navigation
+`/activity`, and `/settings` at desktop and mobile widths, plus feed navigation
 and browser back/forward. They require successful HTML responses, completed
 `data-render-state`, a cleared boot splash, and visible page UI, and fail on
 uncaught JavaScript errors. Feed contents may be empty; these checks do not

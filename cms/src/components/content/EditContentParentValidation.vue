@@ -40,6 +40,12 @@ const props = defineProps<Props>();
 const editableParent = defineModel<ContentParentDto>("editableParent");
 const editableContent = defineModel<ContentDto[]>("editableContent");
 
+const hasLinkedPublishDate = computed(
+    () =>
+        !!editableParent.value?.linkDates &&
+        !!editableContent.value?.some((c) => !c.deleteReq && c.publishDate != null),
+);
+
 // Overall validation checking
 const overallValidations = ref([] as Validation[]);
 const overallIsValid = ref(true);
@@ -235,7 +241,7 @@ watch(
     <div ref="languageSelector" @pointerdown="onSelectorPointerDown">
         <LCard
             :class="[
-                bare ? '' : 'bg-white',
+                bare ? '' : 'bg-white dark:bg-slate-800',
                 // In the sticky/collapsed state, drop the 2px y-borders and the
                 // card shadow so adjacent cards don't stack visible dividers.
                 isLanguageSelectorCollapsed && '!shadow-none',
@@ -279,7 +285,7 @@ watch(
             </template>
 
             <template #persistent>
-                <div class="flex flex-col gap-1" :class="{ 'mb-3': isLanguageSelectorCollapsed }">
+                <div class="flex flex-col gap-1" :class="{ 'mb-0': isLanguageSelectorCollapsed }">
                     <EditContentValidation
                         v-for="content in editableContent?.filter((c) => !c.deleteReq)"
                         :editableContent="content"
@@ -289,6 +295,7 @@ watch(
                         :existingContent="existingContent?.find((c) => c._id == content._id)"
                         :dirty="isContentItemDirty(content._id)"
                         :can-delete="canDelete"
+                        :has-linked-publish-date="hasLinkedPublishDate"
                         :isCardCollapsed="isLanguageSelectorCollapsed"
                     />
                 </div>
@@ -297,17 +304,26 @@ watch(
             <div class="flex flex-col">
                 <div
                     v-if="!(canTranslate || canPublish) || !canEdit"
-                    class="mb-1 rounded-md bg-zinc-50 p-2 shadow"
+                    class="mb-1 rounded-md bg-zinc-50 p-2 shadow dark:bg-slate-900"
                 >
-                    <span v-if="!canTranslate" class="mb-1 flex gap-1 text-xs dark:text-zinc-100">
+                    <span
+                        v-if="!canTranslate"
+                        class="mb-1 flex gap-1 text-xs text-zinc-600 dark:text-zinc-100"
+                    >
                         <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No
                         translate permission</span
                     >
-                    <span v-if="!canPublish" class="mb-1 flex gap-1 text-xs text-zinc-600">
+                    <span
+                        v-if="!canPublish"
+                        class="mb-1 flex gap-1 text-xs text-zinc-600 dark:text-zinc-400"
+                    >
                         <ExclamationCircleIcon class="h-4 w-4 text-red-400" />No publish
                         permission</span
                     >
-                    <span v-if="!canEdit" class="flex gap-1 text-xs text-zinc-600">
+                    <span
+                        v-if="!canEdit"
+                        class="flex gap-1 text-xs text-zinc-600 dark:text-zinc-400"
+                    >
                         <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No
                         edit permission</span
                     >
@@ -321,7 +337,7 @@ watch(
                         >
                             <div class="flex items-center gap-2">
                                 <XCircleIcon class="h-[18px] w-[18px] min-w-[18px] text-red-400" />
-                                <span class="text-xs dark:text-zinc-100">{{
+                                <span class="text-xs text-zinc-700 dark:text-zinc-100">{{
                                     validation.message
                                 }}</span>
                             </div>

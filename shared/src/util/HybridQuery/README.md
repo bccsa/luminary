@@ -324,6 +324,27 @@ paint **another** document's window on first paint. Give such a query a per-iden
 A provably-empty new query (e.g. an empty `$in`) always clears `output`, regardless of
 this option — that branch never recomputes, so a kept window would never be replaced.
 
+### Waiting for the supplement before publishing (opt-in)
+
+```ts
+const items = useHybridQuery<ContentDto>(query, { waitForRemote: true });
+```
+
+By default a Content query publishes its local result as soon as Dexie answers, then
+publishes again once the below-cutoff API supplement merges in. For a list sorted by the
+query itself that second result only appends older docs. For a list the caller
+**re-ranks** (recommendations, related content), the supplement reorders what is already
+on screen, so the list visibly loads twice.
+
+With `{ waitForRemote: true }`, when the first local result owes a supplement, `output`
+keeps what it already shows (empty, a cache seed, or a window kept by
+`keepPreviousResult`) and publishes the merged window **once**, when the supplement
+settles. The hold is released when the POST resolves or fails, or when it is parked
+offline (the local result is then all there is). No supplement owed (a full local page,
+full-corpus sync, a non-Content query) means no hold, so this costs nothing in full-sync
+clients. Live updates after the hold publish as usual. Pair it with `isFetching` to show a
+loading state while `output` is empty.
+
 ### `useHybridQuery<T>(query, options?)` — composable
 
 A thin wrapper that constructs the class and returns **only** its `output` ref —

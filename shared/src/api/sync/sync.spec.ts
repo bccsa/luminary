@@ -228,9 +228,7 @@ describe("sync module", () => {
             await initSync(mockHttpService);
 
             expect(syncList.value).toHaveLength(3);
-            const byChunkType = Object.fromEntries(
-                syncList.value.map((e) => [e.chunkType, e]),
-            );
+            const byChunkType = Object.fromEntries(syncList.value.map((e) => [e.chunkType, e]));
             // Content + DeleteCmd entries get filled.
             expect(byChunkType["content:post"].publishDateMin).toBe(OPEN_MIN);
             expect(byChunkType["content:post"].publishDateMax).toBe(OPEN_MAX);

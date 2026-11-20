@@ -18,11 +18,13 @@ const greeting = computed(() => {
 <template>
     <div class="flex flex-wrap items-center justify-between gap-3 px-4 lg:px-0">
         <div class="flex flex-col lg:flex-row lg:items-baseline lg:gap-2">
-            <h1 class="pl-0 text-lg font-semibold dark:text-zinc-100">{{ greeting }},</h1>
-            <h2 class="pl-0 text-lg font-semibold text-zinc-600 dark:text-yellow-400">
+            <h1 class="pl-0 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                {{ greeting }},
+            </h1>
+            <h2 class="pl-0 text-lg font-semibold text-zinc-900 dark:text-yellow-400">
                 {{ userName }}
             </h2>
-            <p class="pl-0 text-xs text-zinc-600 dark:text-zinc-300">
+            <p class="pl-0 text-xs text-zinc-500 dark:text-zinc-300">
                 Here's what's happening today
             </p>
         </div>
@@ -30,7 +32,7 @@ const greeting = computed(() => {
             <!-- Sync indicator -->
             <div
                 v-if="syncActive"
-                class="flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700"
+                class="flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"
             >
                 <ArrowPathIcon class="h-3.5 w-3.5 animate-spin" />
                 Syncing

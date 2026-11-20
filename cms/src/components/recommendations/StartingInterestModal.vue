@@ -104,7 +104,7 @@ function remove() {
 <template>
     <LModal v-model:is-visible="isVisible" :heading="heading">
         <div class="space-y-4">
-            <div class="text-sm text-zinc-600">
+            <div class="text-sm text-zinc-600 dark:text-zinc-400">
                 {{
                     isEdit
                         ? "How interested should a new visitor seem in this topic?"
@@ -153,7 +153,15 @@ function remove() {
                         @click="save"
                         data-test="starting-interest-save"
                     >
-                        {{ isSaving ? (isEdit ? "Saving..." : "Adding...") : isEdit ? "Save" : "Add" }}
+                        {{
+                            isSaving
+                                ? isEdit
+                                    ? "Saving..."
+                                    : "Adding..."
+                                : isEdit
+                                  ? "Save"
+                                  : "Add"
+                        }}
                     </LButton>
                 </div>
             </div>

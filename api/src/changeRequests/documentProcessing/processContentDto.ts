@@ -5,7 +5,9 @@ import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
 import { DocType, PublishStatus, Uuid } from "../../enums";
 import { computeFtsData } from "../../util/ftsIndexing";
+import { sanitizeContentText } from "../../util/sanitizeContentText";
 import { foldPreviousSlugs, isTrackableSlugChange } from "../computePreviousSlugs";
+import { patchFreshDoc } from "./patchFreshDoc";
 
 /**
  * Process Content DTO
@@ -24,6 +26,9 @@ export default async function processContentDto(
     // is dropped before persistence — only the unpublish path in DbService is allowed to set it.
     delete doc.statusChangeDeleteCmdId;
     delete doc.previousSlugs;
+
+    // `text` is rendered with v-html in the app, so it must be safe before it is stored or indexed
+    if (doc.text) doc.text = sanitizeContentText(doc.text);
 
     doc.slug = await validateSlug(doc.slug, doc._id, db);
 
@@ -64,6 +69,7 @@ export default async function processContentDto(
         doc.parentImageData = parentDoc.imageData;
         doc.parentImageBucketId = parentDoc.imageBucketId;
         doc.parentMedia = parentDoc.media;
+        doc.parentMediaBucketId = parentDoc.mediaBucketId;
 
         if (parentDoc.type == DocType.Post) {
             doc.parentPostType = (parentDoc as PostDto).postType;
@@ -109,21 +115,21 @@ export default async function processContentDto(
     const propagateDates = parentDoc.linkDates && !doc.deleteReq;
 
     // Update all translations with the new list of available translations
-    for (const t of translations) {
-        t.availableTranslations = availableTranslations;
+    for (const sibling of translations) {
+        await patchFreshDoc<ContentDto>(db, sibling._id, (t) => {
+            t.availableTranslations = availableTranslations;
 
-        // Propagate this translation's date onto its siblings when the parent has linking
-        // enabled. Guarded on "!== undefined" rather than blindly assigning: a Content doc
-        // commonly has no publishDate (Draft, never scheduled) or no expiryDate (never set),
-        // and that's not the same as a deliberate "clear this date" action — propagating
-        // undefined would wipe a sibling's real date every time an unrelated translation is
-        // saved without one.
-        if (propagateDates) {
-            if (doc.publishDate !== undefined) t.publishDate = doc.publishDate;
-            if (doc.expiryDate !== undefined) t.expiryDate = doc.expiryDate;
-        }
-
-        await db.upsertDoc(t);
+            // Propagate this translation's date onto its siblings when the parent has linking
+            // enabled. Guarded on "!== undefined" rather than blindly assigning: a Content doc
+            // commonly has no publishDate (Draft, never scheduled) or no expiryDate (never set),
+            // and that's not the same as a deliberate "clear this date" action — propagating
+            // undefined would wipe a sibling's real date every time an unrelated translation is
+            // saved without one.
+            if (propagateDates) {
+                if (doc.publishDate !== undefined) t.publishDate = doc.publishDate;
+                if (doc.expiryDate !== undefined) t.expiryDate = doc.expiryDate;
+            }
+        });
     }
 
     // Compute pre-calculated FTS index data for the content document

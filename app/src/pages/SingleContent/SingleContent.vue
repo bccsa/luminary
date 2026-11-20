@@ -21,11 +21,17 @@ import { useContentQuery, useContentQueryWithState } from "@/composables/useCont
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
-import { markSeen } from "@/recommendation/seenStore";
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
+import { hasContentProgress } from "@/contentProgress";
 import {
-    BookmarkIcon as BookmarkIconOutline,
+    hasUserActivity,
+    recordUserActivity,
+    removeUserActivity,
+    userActivityVersion,
+} from "@/userActivity/store";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { HeartIcon as HeartIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
+import {
+    HeartIcon as HeartIconOutline,
     MoonIcon,
     ClockIcon,
     PencilIcon,
@@ -41,18 +47,16 @@ import {
     cmsLanguages,
     cmsDefaultLanguage,
     queryParams,
-    addToMediaQueue,
     cmsUrl,
 } from "@/globalConfig";
-import { useNotificationStore } from "@/stores/notification";
 import NotFoundPage from "@/pages/NotFoundPage.vue";
 import RelatedContent from "@/components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 
 import LImage from "@/components/images/LImage.vue";
 import ShareMenu from "@/components/content/ShareMenu.vue";
+import { articleShareUrl } from "@/composables/useSocialShare";
 
-import { userPreferencesAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
 import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
@@ -62,17 +66,15 @@ import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
 import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
-import { SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
-import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import MediaAction from "@/media-player/MediaAction.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import ArticleOutline from "./ArticleOutline.vue";
 import { markPageReady } from "@/util/renderState";
-import { hasVideoSource } from "@/util/videoSource";
-import { audioFilesOf } from "@/util/audioFiles";
+import { hasMediaSource } from "@/util/mediaSource";
 import { computeEstimatedReadingMinutes, resolveReadingSpeedWpm } from "@/util/readingTime";
 import {
     resolveArticleScrollContainer,
@@ -81,7 +83,7 @@ import {
 import { useContentHead, type PublicTaxonomy } from "@/seo/contentHead";
 import { useTranslationSwitcher } from "@/composables/useTranslationSwitcher";
 import { useKeepScreenAwake } from "@/composables/useKeepScreenAwake";
-import { recoverSsrArticleText, takeSsrArticleTextSnapshot } from "@/util/ssrTextRecovery";
+import { recoverSsgArticleText, takeSsgArticleTextSnapshot } from "@/util/ssgTextRecovery";
 import { isPrerender } from "@/ssg/isPrerender";
 
 const router = useRouter();
@@ -125,10 +127,10 @@ const { output: contentArr, isFetching: isContentFetching } = useContentQueryWit
         stripFields: [],
         persistOffline: true,
         // `text` is the heaviest field on the page and already sits in the prerendered
-        // `[data-ssr-article-text]` node — omit it (and the FTS/rev fields, which the
-        // live/persisted copy above now keeps) from the SSR-authored cache write so it
+        // `[data-ssg-article-text]` node — omit it (and the FTS/rev fields, which the
+        // live/persisted copy above now keeps) from the prerender-authored cache write so it
         // isn't shipped twice; the hydration patch below recovers `text` from that node.
-        ssrCacheStripFields: ["text", "fts", "ftsTokenCount", "_rev"],
+        ssgCacheStripFields: ["text", "fts", "ftsTokenCount", "_rev"],
     },
 );
 
@@ -151,9 +153,9 @@ watch(
     },
 );
 
-// One-time hydration patch (client only): recover `text` (omitted from the cache seed via `ssrCacheStripFields`) from the snapshot `main.web.ts` captured before `app.mount` cleared the prerendered DOM, so `v-html` matches the prerendered HTML. Runs in setup (not a watcher) so it lands before the template's first evaluation. Guarded on `!isPrerender` so it runs in the browser after the web build hydrates but skips the Node prerender pass; the normal SPA always passes. No-op when the seed already carries `text` or there's nothing to recover.
+// One-time hydration patch (client only): recover `text` (omitted from the cache seed via `ssgCacheStripFields`) from the snapshot `main.web.ts` captured before `app.mount` cleared the prerendered DOM, so `v-html` matches the prerendered HTML. Runs in setup (not a watcher) so it lands before the template's first evaluation. Guarded on `!isPrerender` so it runs in the browser after the web build hydrates but skips the Node prerender pass; the normal SPA always passes. No-op when the seed already carries `text` or there's nothing to recover.
 if (!isPrerender()) {
-    const recovered = recoverSsrArticleText(contentArr.value[0], takeSsrArticleTextSnapshot());
+    const recovered = recoverSsgArticleText(contentArr.value[0], takeSsgArticleTextSnapshot());
     if (recovered) contentOverride.value = recovered;
 }
 
@@ -260,7 +262,7 @@ const resolveNotFound = async () => {
     // Cold-start backstop: the prerender seeds `:anon` only, so a logged-in
     // client (reads `:auth`) or cleared/quota-hit localStorage has no seed, and
     // Dexie is empty until sync runs. Before declaring not-found, confirm the
-    // slug exists via the same REST path the SSR prerender used — mirrors the
+    // slug exists via the same REST path the SSG prerender used — mirrors the
     // composable's query shape for the `languageFilter: false` case (the
     // publishDate sort is required for the slug-led index to engage). If the
     // API confirms absence or is unreachable, fall through to the real 404.
@@ -351,6 +353,7 @@ if (!isPrerender()) {
         if (c && c._id) {
             touchRetention([c._id]);
             const id = c._id;
+            const parentId = c.parentId;
             const tags = c.parentTags;
             const hasText = !!c.text;
             contentTagsById.set(id, tags);
@@ -365,7 +368,14 @@ if (!isPrerender()) {
             });
             dwellTimer = setTimeout(() => {
                 if (!hasText) recordAffinity(tags);
-                markSeen(id);
+                // History is taken from the continue store, which short content never
+                // reaches: an article that fits one screen, one estimated under a minute,
+                // or audio stopped before the player's 60s mark. Dwelling stands in for the
+                // progress those never record. Anything already in the store is the
+                // mirror's to report.
+                if (parentId && !hasContentProgress(id)) {
+                    void recordUserActivity({ type: "viewed", parentId });
+                }
             }, DWELL_MS);
         }
     });
@@ -392,7 +402,7 @@ const translationsArr = useContentQuery(
         // scoped to isSSG so normal SPA use doesn't accumulate one entry per slug
         // ever visited for no benefit.
         cacheId: isSSG ? `translations:${props.slug}` : undefined,
-        // These are sibling metadata for the dropdown/hreflang, not the article itself, so don't persist them offline. `cache: true` stays so the SSR-rendered translations list matches the client's first paint.
+        // These are sibling metadata for the dropdown/hreflang, not the article itself, so don't persist them offline. `cache: true` stays so the prerendered translations list matches the client's first paint.
         persistOffline: false,
         // Seek siblings by parentId rather than scanning the publishDate index.
         useIndex: "content-parentId-publishDate-index",
@@ -408,9 +418,38 @@ const translationsArr = useContentQuery(
 // Published-right-now check compiled to a plain predicate rather than reusing `mangoIsPublished`, which also bakes in single-language-priority selection — wrong here, where the dropdown/hreflang need every published sibling translation. `includeScheduled: false` excludes future-dated "coming soon" translations that aren't readable yet.
 const isPublishedNow = mangoCompile({ $and: publishedNowConditions({ includeScheduled: false }) });
 
+// Sync only downloads the user's chosen languages, and `translationsArr` only asks the API for
+// posts older than the sync window, so siblings in languages that aren't downloaded are fetched here.
+const remoteTranslations = ref<ContentDto[]>([]);
+if (!isPrerender()) {
+    watch(
+        [() => content.value?.parentId, isConnected],
+        async ([parentId, connected], previous) => {
+            if (parentId !== previous?.[0]) remoteTranslations.value = [];
+            if (!parentId || !connected) return;
+            try {
+                const docs = await queryRemote<ContentDto>({
+                    selector: { $and: [{ type: DocType.Content }, { parentId }] },
+                    $sort: [{ publishDate: "desc" }],
+                    use_index: "content-parentId-publishDate-index",
+                    identifier: "translationSiblings",
+                });
+                if (content.value?.parentId === parentId) remoteTranslations.value = docs;
+            } catch {
+                // Offline or a failed request: the switcher falls back to the downloaded translations.
+            }
+        },
+        { immediate: true },
+    );
+}
+
 const availableTranslations = computed<ContentDto[]>(() => {
     if (!content.value) return [];
-    const published = translationsArr.value.filter((c) => isPublishedNow(c));
+    const localIds = new Set(translationsArr.value.map((c) => c._id));
+    const published = [
+        ...translationsArr.value,
+        ...remoteTranslations.value.filter((c) => !localIds.has(c._id)),
+    ].filter((c) => isPublishedNow(c));
     return published.length > 1 ? published : [];
 });
 
@@ -455,7 +494,7 @@ const languages = computed<LanguageDto[]>(() =>
         .filter((l): l is LanguageDto => !!l),
 );
 
-// Tags drive the category chips and RelatedContent. In the prerender the seam fetches them chained after `content` (via `ssrChain`, so the selector reads a resolved parent) and primes a per-slug cache for no-flash hydration.
+// Tags drive the category chips and RelatedContent. In the prerender the seam fetches them chained after `content` (via `ssgChain`, so the selector reads a resolved parent) and primes a per-slug cache for no-flash hydration.
 const tags = useContentQuery(
     () => {
         // Before `content` resolves, match nothing via a provably-empty `$in` rather
@@ -525,44 +564,33 @@ const is404 = computed(() => {
     return !content.value;
 });
 
-// Function to toggle bookmark for the current content
-const toggleBookmark = () => {
-    if (!userPreferencesAsRef.value.bookmarks) {
-        userPreferencesAsRef.value.bookmarks = [];
-    }
+// Function to toggle the like for the current content
+const toggleLike = async () => {
+    const parentId = content.value?.parentId;
+    if (!parentId) return;
 
-    if (isBookmarked.value) {
-        // Remove from bookmarks
-        userPreferencesAsRef.value.bookmarks = userPreferencesAsRef.value.bookmarks.filter(
-            (b) => b.id != content.value?.parentId,
-        );
-        if (content.value) {
-            recordAffinity(
-                content.value.parentTags,
-                affinityConfig.value.eventWeight.bookmarkRemoved,
-            );
-        }
+    // Read the stored state rather than the displayed one: `isLiked` is refreshed
+    // asynchronously, so a quick second tap would otherwise act on a stale value.
+    if (await hasUserActivity({ type: "liked", parentId })) {
+        await removeUserActivity({ type: "liked", parentId });
+        recordAffinity(content.value?.parentTags, affinityConfig.value.eventWeight.bookmarkRemoved);
     } else {
-        // Add to bookmarks
-        if (!content.value) return;
-        userPreferencesAsRef.value.bookmarks.push({ id: content.value.parentId, ts: Date.now() });
-        // Bookmarking is explicit, unambiguous intent — weight it above a plain open.
-        recordAffinity(content.value.parentTags, affinityConfig.value.eventWeight.bookmark);
-        useNotificationStore().addNotification({
-            id: "bookmark-added",
-            title: t("bookmarks.notification.title"),
-            description: t("bookmarks.notification.description"),
-            state: "success",
-            type: "toast",
-            timeout: 5000,
-        });
+        await recordUserActivity({ type: "liked", parentId });
+        // Liking is explicit, unambiguous intent — weight it above a plain open.
+        recordAffinity(content.value?.parentTags, affinityConfig.value.eventWeight.bookmark);
     }
 };
 
-// Check if the current content is bookmarked
-const isBookmarked = computed(() => {
-    return userPreferencesAsRef.value.bookmarks?.some((b) => b.id == content.value?.parentId);
-});
+// Whether the current content is liked. IndexedDB has no reactivity of its own, so this is
+// re-read whenever the content changes or any activity is written.
+const isLiked = ref(false);
+watch(
+    [() => content.value?.parentId, userActivityVersion],
+    async ([parentId]) => {
+        isLiked.value = parentId ? await hasUserActivity({ type: "liked", parentId }) : false;
+    },
+    { immediate: true },
+);
 
 // The normal SPA sets the tab/window title imperatively (it has no @unhead plugin). The web
 // build's `useContentHead` above owns the whole head there, including the meta
@@ -630,6 +658,7 @@ const readingTime = computed<number>(() =>
 
 const {
     hasResumableProgress,
+    hasResumableProgressOnOpen,
     readingProgressPercent,
     scrollProgressPercent,
     restoreScrollPosition,
@@ -651,9 +680,15 @@ const {
 
 /** Hide the resume offer for this visit after the user continues, dismisses, or scrolls. */
 const continuePromptHandled = ref(false);
-const resumeOffered = computed(() => hasResumableProgress.value && !continuePromptHandled.value);
+const resumeOffered = computed(
+    () => hasResumableProgressOnOpen.value && !continuePromptHandled.value,
+);
 
-watch(contentId, () => {
+// The article drops out and back while its query rebuilds; only a different article is a new visit.
+let promptContentId = contentId.value;
+watch(contentId, (id) => {
+    if (!id || id === promptContentId) return;
+    promptContentId = id;
     continuePromptHandled.value = false;
 });
 
@@ -693,32 +728,13 @@ const quickLanguageSwitch = (languageId: string) => {
     showDropdown.value = false;
 };
 
-// Check if the current content has audio files - fully reactive to data changes
-const hasAudioFiles = computed(() => {
-    // Check the live query result first (most up-to-date), then fall back to content ref
-    const dataSource = contentArr.value[0] || content.value;
-    return !!audioFilesOf(dataSource)?.length;
-});
-
-// Function to start playing audio
-const playAudio = () => {
-    if (content.value && hasAudioFiles.value) {
-        addToMediaQueue(content.value);
-    }
-};
-
 // Posts rarely carry their own copyright, so shared quotes fall back to the instance-wide
 // notice the page already shows in its copyright banner.
 const { copyrightText: globalCopyright } = useGlobalCopyright();
 const shareCopyright = computed(() => content.value?.copyright || globalCopyright.value);
 
-// Whether the hero image can carry the title/summary as an overlay. Video has its own
-// player chrome the overlay would fight with, so it keeps a plain title above instead.
-const hasHeroImage = computed(
-    () =>
-        !hasVideoSource(content.value) &&
-        !!(content.value?.parentId || content.value?.parentImageData),
-);
+// Whether the hero image can carry the title/summary as an overlay.
+const hasHeroImage = computed(() => !!(content.value?.parentId || content.value?.parentImageData));
 
 watch([isLoading, content, is404], async () => {
     if (is404.value) {
@@ -737,14 +753,12 @@ watch([isLoading, content, is404], async () => {
     <BasePage
         :showBackButton="true"
         desktopTopBar
-        :reserveTopBarCenter="resumeOffered && readingProgressPercent < 99"
+        articleWidthBanner
+        :reserveTopBarCenter="!hasHeroImage && resumeOffered && readingProgressPercent < 99"
     >
         <!-- Reading pill: offers to resume on open, then stands in for the title as a chapter
              dropdown once it scrolls out of view. -->
-        <template
-            #topBarCenter
-            v-if="!is404 && content && readingTrackerEnabled"
-        >
+        <template #topBarCenter v-if="!is404 && content && readingTrackerEnabled">
             <ArticleOutline
                 :articleRoot="articleProseRef"
                 :scrollContainer="scrollContainer"
@@ -759,10 +773,7 @@ watch([isLoading, content, is404], async () => {
                 @dismiss="continuePromptHandled = true"
             />
         </template>
-        <template
-            #quickControls
-            v-if="!is404"
-        >
+        <template #quickControls v-if="!is404">
             <DropdownMenu
                 v-if="!isLoading && !isLoadingTranslations && availableTranslations.length > 1"
                 v-model:open="showDropdown"
@@ -815,26 +826,14 @@ watch([isLoading, content, is404], async () => {
                 :aria-label="isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'"
                 @click="theme = isDarkTheme ? 'light' : 'dark'"
             >
-                <SunIcon
-                    v-if="isDarkTheme"
-                    class="h-5 w-5"
-                    aria-hidden="true"
-                />
-                <MoonIcon
-                    v-else
-                    class="h-5 w-5"
-                    aria-hidden="true"
-                />
+                <SunIcon v-if="isDarkTheme" class="h-5 w-5" aria-hidden="true" />
+                <MoonIcon v-else class="h-5 w-5" aria-hidden="true" />
             </button>
         </template>
 
         <NotFoundPage v-if="is404" />
 
-        <div
-            v-else
-            class="flex min-h-full flex-col gap-6"
-            :class="{ 'mb-6': !tags.length }"
-        >
+        <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
             <div
                 class="flex flex-grow justify-center lg:grid lg:grid-cols-[1fr_minmax(0,48rem)_1fr] lg:gap-x-8"
                 :class="{ 'items-center': showLoadingBar }"
@@ -845,10 +844,7 @@ watch([isLoading, content, is404], async () => {
                     class="lg:col-start-2"
                 />
                 <template v-else-if="content">
-                    <article
-                        ref="articleRef"
-                        class="w-full lg:col-start-2"
-                    >
+                    <article ref="articleRef" class="w-full lg:col-start-2">
                         <!-- Desktop: title row originates at the top of the page, level with the pinned
                          topbar chrome, and scrolls away with the content like normal. Suppressed when
                          a hero image is present, since its overlay carries the title instead. -->
@@ -898,95 +894,89 @@ watch([isLoading, content, is404], async () => {
 
                         <!-- The hero overlay carries the title, so there is no title above to leave room for. -->
                         <div :class="hasHeroImage ? 'lg:mt-2' : 'mt-5 lg:mt-2'">
-                            <IgnorePagePadding
-                                :mobileOnly="true"
-                                :ignoreTop="true"
-                            >
-                                <VideoPlayer
-                                    v-if="content && hasVideoSource(content)"
-                                    :key="content._id"
-                                    :content="content"
-                                    :language="selectedLanguageCode"
-                                />
-                                <div
-                                    v-else-if="hasHeroImage"
-                                    class="relative cursor-pointer overflow-hidden lg:rounded-xl"
-                                    @click="
-                                        () => {
-                                            if (content)
-                                                currentImageIndex = activeImageCollection(content);
-                                            enableZoom = true;
-                                        }
-                                    "
-                                >
-                                    <LImage
-                                        :image="content.parentImageData"
-                                        :content-parent-id="content.parentId"
-                                        :parent-image-bucket-id="content.parentImageBucketId"
-                                        aspectRatio="video"
-                                        size="post"
-                                    />
+                            <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
+                                <!-- The Play button hangs over the picture's edge, so it sits outside the clipped picture. -->
+                                <div v-if="hasHeroImage" class="relative">
                                     <div
-                                        v-if="
-                                            (content.parentImageData?.fileCollections?.length ??
-                                                0) > 1
-                                        "
-                                        class="absolute bottom-2 right-2 flex items-center gap-1"
-                                    >
-                                        <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
-                                    </div>
-
-                                    <!-- Small Play Audio Button (only show if content has audio but no video) -->
-                                    <button
-                                        v-if="hasAudioFiles"
-                                        @click.stop="
-                                            (event) => {
-                                                playAudio();
-                                                // Prevent focus staying on button
-                                                (event.target as HTMLElement).blur();
+                                        class="relative cursor-pointer overflow-hidden lg:rounded-xl"
+                                        @click="
+                                            () => {
+                                                if (content)
+                                                    currentImageIndex =
+                                                        activeImageCollection(content);
+                                                enableZoom = true;
                                             }
                                         "
-                                        class="absolute bottom-2.5 left-3.5 flex items-center justify-center gap-1.5 rounded-full bg-black/60 py-1 pl-2 pr-3.5 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                                        title="Play Audio"
                                     >
-                                        <SpeakerWaveIcon class="h-5 w-5" />
-                                        {{ t("singlecontent.listen") }}
-                                    </button>
-
-                                    <!-- Title + summary scrim: the gradient carries just the title/summary
-                                         zone, not the whole image, so the photo above it stays readable. -->
-                                    <div
-                                        class="pointer-events-none absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
-                                    ></div>
-                                    <div
-                                        class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
-                                        @click.stop
-                                    >
-                                        <div class="flex items-start gap-2">
-                                            <h1
-                                                class="text-xl font-semibold leading-tight text-white [text-wrap:balance] lg:text-3xl"
-                                            >
-                                                {{ content.title }}
-                                            </h1>
-                                            <button
-                                                v-if="canEdit() && cmsUrl"
-                                                @click="openCmsEditor"
-                                                class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-white/70 hover:text-yellow-400"
-                                                data-test="editButton"
-                                            >
-                                                <PencilIcon class="h-5 w-5" />
-                                            </button>
-                                        </div>
-                                        <p
-                                            v-if="content.summary"
-                                            class="max-w-2xl text-sm leading-relaxed text-white/85 lg:text-base"
+                                        <LImage
+                                            :image="content.parentImageData"
+                                            :content-parent-id="content.parentId"
+                                            :parent-image-bucket-id="content.parentImageBucketId"
+                                            aspectRatio="video"
+                                            size="post"
+                                        />
+                                        <div
+                                            v-if="
+                                                (content.parentImageData?.fileCollections?.length ??
+                                                    0) > 1
+                                            "
+                                            class="absolute right-2 flex items-center gap-1"
+                                            :class="hasMediaSource(content) ? 'top-2' : 'bottom-2'"
                                         >
-                                            {{ content.summary }}
-                                        </p>
+                                            <DocumentDuplicateIcon
+                                                class="h-10 w-10 text-zinc-400"
+                                            />
+                                        </div>
+
+                                        <!-- Title + summary scrim: the gradient carries just the title/summary
+                                         zone, not the whole image, so the photo above it stays readable. -->
+                                        <div
+                                            class="pointer-events-none absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
+                                        ></div>
+                                        <div
+                                            class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
+                                            :class="hasMediaSource(content) && 'pr-24 lg:pr-32'"
+                                        >
+                                            <div class="flex items-start gap-2">
+                                                <h1
+                                                    class="text-xl font-semibold leading-tight text-white [text-wrap:balance] lg:text-3xl"
+                                                >
+                                                    {{ content.title }}
+                                                </h1>
+                                                <button
+                                                    v-if="canEdit() && cmsUrl"
+                                                    @click.stop="openCmsEditor"
+                                                    class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-white/70 hover:text-yellow-400"
+                                                    data-test="editButton"
+                                                >
+                                                    <PencilIcon class="h-5 w-5" />
+                                                </button>
+                                            </div>
+                                            <p
+                                                v-if="content.summary"
+                                                class="max-w-2xl text-sm leading-relaxed text-white/85 lg:text-base"
+                                            >
+                                                {{ content.summary }}
+                                            </p>
+                                        </div>
                                     </div>
+                                    <MediaAction
+                                        v-if="hasMediaSource(content)"
+                                        :key="content._id"
+                                        :content="content"
+                                        :language="selectedLanguageCode"
+                                        corner
+                                    />
                                 </div>
                             </IgnorePagePadding>
                         </div>
+
+                        <MediaAction
+                            v-if="hasMediaSource(content) && !hasHeroImage"
+                            :key="content._id"
+                            :content="content"
+                            :language="selectedLanguageCode"
+                        />
 
                         <div
                             v-if="!hasHeroImage && content.summary"
@@ -1035,7 +1025,7 @@ watch([isLoading, content, is404], async () => {
                             </div>
 
                             <div class="flex items-center gap-3">
-                                <!-- Bookmark Button -->
+                                <!-- Like Button -->
                                 <button
                                     v-if="
                                         !(
@@ -1043,17 +1033,17 @@ watch([isLoading, content, is404], async () => {
                                             content.parentPostType == PostType.Page
                                         )
                                     "
-                                    @click="toggleBookmark"
-                                    data-test="bookmark"
+                                    @click="toggleLike"
+                                    data-test="like"
                                     class="flex items-center transition-colors"
                                 >
                                     <component
-                                        :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
+                                        :is="isLiked ? HeartIconSolid : HeartIconOutline"
                                         class="h-5 w-5"
                                         :class="{
-                                            'text-yellow-500': isBookmarked,
+                                            'text-yellow-500': isLiked,
                                             'text-zinc-400 hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200':
-                                                !isBookmarked,
+                                                !isLiked,
                                         }"
                                     />
                                 </button>
@@ -1088,10 +1078,12 @@ watch([isLoading, content, is404], async () => {
                         <LHighlightable
                             v-if="content.text"
                             :content-id="content._id"
+                            :parent-id="content.parentId"
                             :title="content.title"
                             :revision="text"
                             :copyright="shareCopyright"
                             :can-share="canShare()"
+                            :share-url="articleShareUrl(content.slug)"
                             @highlighted="
                                 recordAffinity(
                                     content?.parentTags,
@@ -1108,7 +1100,7 @@ watch([isLoading, content, is404], async () => {
                         >
                             <div
                                 ref="articleProseRef"
-                                :data-ssr-article-text="isPrerender() ? true : undefined"
+                                :data-ssg-article-text="isPrerender() ? true : undefined"
                                 v-html="text"
                                 class="prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
                                 :class="{
@@ -1151,14 +1143,11 @@ watch([isLoading, content, is404], async () => {
         :isVisible="showCategoryModal"
         @close="showCategoryModal = false"
         :heading="selectedCategory?.title || ''"
+        closeButton
     >
         <div class="max-h-[calc(80%)] overflow-y-auto">
             <div class="">
-                <VerticalTagViewer
-                    v-if="selectedCategory"
-                    :tag="selectedCategory"
-                    class=""
-                />
+                <VerticalTagViewer v-if="selectedCategory" :tag="selectedCategory" class="" />
             </div>
         </div>
     </LModal>

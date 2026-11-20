@@ -48,9 +48,9 @@ describe("LCard", () => {
         // Read the v-show inline style each time. (Repeated isVisible() calls on the same selector
         // are unreliable in @vue/test-utils; the inline `display` style is the source of truth.)
         const isCollapsed = () =>
-            (wrapper.find("[data-test='collapsible-container']").attributes("style") ?? "").includes(
-                "display: none",
-            );
+            (
+                wrapper.find("[data-test='collapsible-container']").attributes("style") ?? ""
+            ).includes("display: none");
 
         expect(isCollapsed()).toBe(false);
 

@@ -6,11 +6,16 @@ import {
     getMediaProgress,
     removeMediaProgress,
     getReadingProgress,
+    hasContentProgress,
+    isMediaFinished,
+    isContentProgressFinished,
     contentProgressAsRef,
     removeReadingProgress,
     setReadingProgress,
     syncContentProgressFromStorage,
     watchContentProgressStorage,
+    applyBackgroundMediaProgress,
+    mediaProgressKey,
 } from "@/contentProgress";
 
 describe("contentProgress.ts", () => {
@@ -28,14 +33,62 @@ describe("contentProgress.ts", () => {
         expect(getMediaProgress("unknown", "unknown")).toBe(0);
     });
 
-    it("only keeps the playback progress of the last 10 media items", async () => {
-        for (let i = 0; i < 20; i++) {
+    it("only keeps the playback progress of the last 50 media items", async () => {
+        for (let i = 0; i < 60; i++) {
             setMediaProgress(`mediaId${i}`, `contentId${i}`, i, i * 10);
         }
         expect(getMediaProgress("mediaId0", "contentId0")).toBe(0);
         expect(getMediaProgress("mediaId9", "contentId9")).toBe(0);
         expect(getMediaProgress("mediaId10", "contentId10")).toBe(10);
-        expect(getMediaProgress("mediaId19", "contentId19")).toBe(19);
+        expect(getMediaProgress("mediaId59", "contentId59")).toBe(59);
+    });
+
+    it("drops the oldest finished item first when over the limit, keeping unfinished ones", async () => {
+        for (let i = 0; i < 4; i++) setReadingProgress(`unfinished${i}`, 40);
+        for (let i = 0; i < 50; i++) setReadingProgress(`finished${i}`, 100);
+
+        const ids = contentProgressAsRef.value.map((entry) => entry.contentId);
+        expect(ids).toHaveLength(50);
+        for (let i = 0; i < 4; i++) expect(ids).toContain(`unfinished${i}`);
+        expect(ids).not.toContain("finished0");
+        expect(ids).toContain("finished49");
+    });
+
+    it("drops the oldest item when every entry is unfinished", async () => {
+        for (let i = 0; i < 51; i++) setReadingProgress(`unfinished${i}`, 40);
+
+        const ids = contentProgressAsRef.value.map((entry) => entry.contentId);
+        expect(ids).toHaveLength(50);
+        expect(ids).not.toContain("unfinished0");
+    });
+
+    it("counts media and reading as finished from 95%", async () => {
+        setMediaProgress("mediaId", "contentId", 189, 200);
+        expect(isMediaFinished("mediaId", "contentId")).toBe(false);
+        setMediaProgress("mediaId", "contentId", 190, 200);
+        expect(isMediaFinished("mediaId", "contentId")).toBe(true);
+        expect(isMediaFinished("otherMedia", "contentId")).toBe(false);
+
+        expect(
+            isContentProgressFinished({ contentId: "a", updatedAt: 0, reading: { progress: 94 } }),
+        ).toBe(false);
+        expect(
+            isContentProgressFinished({ contentId: "a", updatedAt: 0, reading: { progress: 95 } }),
+        ).toBe(true);
+        expect(isContentProgressFinished({ contentId: "a", updatedAt: 0 })).toBe(false);
+    });
+
+    it("needs every recorded part to be finished", async () => {
+        const entry = {
+            contentId: "a",
+            updatedAt: 0,
+            reading: { progress: 100 },
+            watching: { mediaId: "m", progress: 10, duration: 200 },
+        };
+        expect(isContentProgressFinished(entry)).toBe(false);
+        expect(
+            isContentProgressFinished({ ...entry, watching: { ...entry.watching, progress: 200 } }),
+        ).toBe(true);
     });
 
     it("can remove the playback progress of a media item", async () => {
@@ -58,6 +111,66 @@ describe("contentProgress.ts", () => {
 
         expect(getMediaProgress("mediaIdInf", "contentIdInf")).toBe(0);
         expect(getMediaDuration("mediaIdInf", "contentIdInf")).toBe(0);
+    });
+
+    describe("progress kept while the app was in the background", () => {
+        const key = mediaProgressKey("mediaId", "contentId");
+
+        it("applies a position kept after the page's last save", () => {
+            setMediaProgress("mediaId", "contentId", 124, 600);
+            const savedAt = contentProgressAsRef.value[0].updatedAt + 1;
+
+            const applied = applyBackgroundMediaProgress({
+                key,
+                position: 289,
+                duration: 600,
+                savedAt,
+            });
+
+            expect(getMediaProgress("mediaId", "contentId")).toBe(289);
+            expect(applied).toEqual({ contentId: "contentId", from: 124, to: 289, duration: 600 });
+        });
+
+        it("applies one for media the page never saved", () => {
+            applyBackgroundMediaProgress({ key, position: 289, duration: 600, savedAt: 1 });
+            expect(getMediaProgress("mediaId", "contentId")).toBe(289);
+        });
+
+        it("keeps a page save made since", () => {
+            setMediaProgress("mediaId", "contentId", 300, 600);
+            const savedAt = contentProgressAsRef.value[0].updatedAt - 1;
+
+            const applied = applyBackgroundMediaProgress({
+                key,
+                position: 289,
+                duration: 600,
+                savedAt,
+            });
+
+            expect(getMediaProgress("mediaId", "contentId")).toBe(300);
+            expect(applied).toBeUndefined();
+        });
+
+        it("marks media that played to its end as finished", () => {
+            applyBackgroundMediaProgress({
+                key,
+                position: 600,
+                duration: 600,
+                savedAt: Date.now(),
+            });
+            expect(isMediaFinished("mediaId", "contentId")).toBe(true);
+        });
+
+        it("ignores a position too early to resume, and a key it did not make", () => {
+            applyBackgroundMediaProgress({ key, position: 30, duration: 600, savedAt: Date.now() });
+            applyBackgroundMediaProgress({
+                key: "nonsense",
+                position: 289,
+                duration: 600,
+                savedAt: Date.now(),
+            });
+            expect(hasContentProgress("contentId")).toBe(false);
+        });
     });
 
     describe("Reading Progress", () => {
@@ -156,6 +269,20 @@ describe("contentProgress.ts", () => {
             ).toEqual({ progress: 72 });
 
             stop();
+        });
+
+        it("reports whether a content has any progress at all", () => {
+            expect(hasContentProgress("nothing-here")).toBe(false);
+
+            setReadingProgress("read-me", 30);
+            expect(hasContentProgress("read-me")).toBe(true);
+
+            setMediaProgress("media-1", "watch-me", 30, 300);
+            expect(hasContentProgress("watch-me")).toBe(true);
+
+            // The entry goes with its last part, so the content has nothing recorded again.
+            removeReadingProgress("read-me");
+            expect(hasContentProgress("read-me")).toBe(false);
         });
 
         it("migrates legacy readingProgress and mediaProgress keys on first load", () => {

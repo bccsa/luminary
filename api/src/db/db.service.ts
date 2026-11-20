@@ -505,8 +505,8 @@ export class DbService extends EventEmitter {
             // Cleanup the obsolete StatusChange deleteCmd when switching content from draft to
             // published. The deleteCmd's `_id` is tracked on the draft doc itself
             // (`statusChangeDeleteCmdId`), so we can delete it by primary key — strongly consistent.
-            // Pre-fix orphan deleteCmds (no tracking field) are handled by a one-time schema
-            // upgrade in `schemaUpgrade/v15.ts`.
+            // deleteCmds of drafts that lost the tracking field are reconciled by the schema
+            // upgrades in `schemaUpgrade/v15.ts` and `schemaUpgrade/v25.ts`.
             if (
                 existing &&
                 doc.type === DocType.Content &&
@@ -520,6 +520,21 @@ export class DbService extends EventEmitter {
 
                 // Don't carry the field forward onto the republished doc.
                 delete (doc as ContentDto).statusChangeDeleteCmdId;
+            }
+
+            // A draft saved again still owns its StatusChange deleteCmd. The change request
+            // strips the server-only tracking field, so carry it over from the stored draft;
+            // without it the republish above cannot find the deleteCmd and leaves it orphaned.
+            if (
+                existing &&
+                doc.type === DocType.Content &&
+                (existing as ContentDto).status === PublishStatus.Draft &&
+                (doc as ContentDto).status === PublishStatus.Draft &&
+                (existing as ContentDto).statusChangeDeleteCmdId
+            ) {
+                (doc as ContentDto).statusChangeDeleteCmdId = (
+                    existing as ContentDto
+                ).statusChangeDeleteCmdId;
             }
 
             // Generate delete command if the document's status has changed to draft
@@ -1033,6 +1048,28 @@ export class DbService extends EventEmitter {
             docs: queryRes.rows.map((row) => row.doc).filter((doc) => doc.type == DocType.Content),
             warnings: queryRes.warnings,
         } as DbQueryResult;
+    }
+
+    /**
+     * Get the IDs of the Post and Tag documents tagged with each of the given tags, read from
+     * the stored documents' `tags` (the source of truth for a tag's `taggedDocs` cache)
+     * @param tagIds - Single or array of tag IDs
+     * @returns Map of tag ID to tagged document IDs; every requested tag has an entry
+     */
+    async getTaggedDocIds(tagIds: Uuid | Uuid[]): Promise<Map<Uuid, Uuid[]>> {
+        await this.ensureConnected();
+        if (!Array.isArray(tagIds)) tagIds = [tagIds];
+
+        const tagged = new Map<Uuid, Uuid[]>(tagIds.map((id) => [id, []]));
+        if (!tagIds.length) return tagged;
+
+        const queryRes = await this.db.view("tags", "tags", { keys: tagIds });
+        for (const row of queryRes.rows) {
+            const ids = tagged.get(row.key as Uuid);
+            if (ids && !ids.includes(row.id)) ids.push(row.id);
+        }
+
+        return tagged;
     }
 
     /**

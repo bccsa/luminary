@@ -47,7 +47,7 @@ const handleProviderSelect = (provider: AuthProviderDto) => {
             <button
                 v-for="provider in providers"
                 :key="provider._id"
-                class="group relative flex h-full w-full items-center gap-3 overflow-hidden rounded-lg border border-zinc-200 bg-white px-4 py-5 hover:shadow-sm"
+                class="group relative flex h-full w-full items-center gap-3 overflow-hidden rounded-lg border border-zinc-200 bg-white px-4 py-5 hover:shadow-sm dark:border-slate-700 dark:bg-slate-700"
                 :style="
                     provider.backgroundColor
                         ? {
@@ -79,7 +79,7 @@ const handleProviderSelect = (provider: AuthProviderDto) => {
                     />
                 </div>
                 <span
-                    class="text-start text-[15px] font-medium text-zinc-700 group-hover:text-zinc-900"
+                    class="text-start text-[15px] font-medium text-zinc-700 group-hover:text-zinc-900 dark:text-zinc-100 dark:group-hover:text-zinc-100"
                     :style="provider.textColor ? { color: provider.textColor } : {}"
                 >
                     {{ provider.label }}
@@ -90,10 +90,12 @@ const handleProviderSelect = (provider: AuthProviderDto) => {
                 v-if="providers.length === 0"
                 class="flex flex-col items-center justify-center py-8 text-center"
             >
-                <div class="mb-3 rounded-full bg-zinc-100 p-3">
-                    <ExclamationTriangleIcon class="h-6 w-6 text-zinc-400" />
+                <div class="mb-3 rounded-full bg-zinc-100 p-3 dark:bg-slate-700">
+                    <ExclamationTriangleIcon class="h-6 w-6 text-zinc-400 dark:text-zinc-500" />
                 </div>
-                <p class="text-sm text-zinc-500">No sign-in methods available.</p>
+                <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                    No sign-in methods available.
+                </p>
             </div>
         </div>
     </LModal>

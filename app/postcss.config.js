@@ -26,6 +26,17 @@ export default {
             ],
             onFeatureUsage: (usageInfo) => {
                 const title = usageInfo.featureData.title.toLowerCase();
+                // The media player's own stylesheet and the Video.js 10 skin it builds on are exempt:
+                // they use container queries and their units, :fullscreen, color() and
+                // overflow-anchor, which this list flags. Only those two files are.
+                const file = usageInfo.usage?.source?.input?.file ?? "";
+                if (
+                    /[\\/]src[\\/]media-player[\\/]player[\\/](styles\.css|generated[\\/]skin\.css)$/.test(
+                        file,
+                    )
+                ) {
+                    return;
+                }
 
                 if (
                     title.includes("font-family") ||
@@ -41,6 +52,12 @@ export default {
                     title.includes("lch and lab color values") ||
                     title.includes("box-decoration") ||
                     title.includes("selection") ||
+                    // The media player: its skin (Video.js 10) lays out controls with display: contents and
+                    // clips with clip-path, its styles fade edges with masks (with -webkit- fallbacks), and
+                    // the drawn-down player clips the page behind it.
+                    title.includes("display: contents") ||
+                    title.includes("clip-path") ||
+                    title.includes("css masks") ||
                     !isCLI
                 ) {
                     return;

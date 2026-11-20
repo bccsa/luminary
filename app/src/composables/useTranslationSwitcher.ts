@@ -1,4 +1,4 @@
-import { computed, onMounted, ref, watch, type Ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from "vue";
 import type { ContentDto, LanguageDto } from "luminary-shared";
 import type { Router } from "vue-router";
 import { useNotificationStore } from "@/stores/notification";
@@ -106,16 +106,31 @@ export function useTranslationSwitcher({
         window.history.replaceState(window.history.state, "", newUrl);
     });
 
+    /** The reader's own language, offered on an article opened from outside in another one. */
+    const offeredSlug = computed(() => {
+        const currentContent = content.value;
+        const preferredId = preferredLanguageId.value;
+        if (!currentContent || !preferredId || !openedFromExternalLink.value) return undefined;
+        if (userSwitchedLanguage.value || currentContent.language === preferredId) return undefined;
+        return translations.value.find(
+            (item) => item.language === preferredId && item.slug !== currentContent.slug,
+        )?.slug;
+    });
+
+    // The banner belongs to the article that offers it: it shows after a short delay, and goes
+    // whenever there is no offer, including on the article it led to and when the page is left.
+    // So a switch made while it is pending, or while the new page loads, can't bring it back.
+    let pending: ReturnType<typeof setTimeout> | undefined;
+    const withdraw = () => {
+        clearTimeout(pending);
+        useNotificationStore().removeNotification("content-available");
+    };
     watch(
-        [content, preferredLanguageId, openedFromExternalLink, translations],
-        ([currentContent, preferredId, external]) => {
-            if (!currentContent || !preferredId || !external || userSwitchedLanguage.value) return;
-            if (currentContent.language === preferredId) return;
-            const preferred = translations.value.find(
-                (item) => item.language === preferredId && item.slug !== currentContent.slug,
-            );
-            if (!preferred) return;
-            setTimeout(() => {
+        offeredSlug,
+        (slug) => {
+            if (!slug) return withdraw();
+            clearTimeout(pending);
+            pending = setTimeout(() => {
                 useNotificationStore().addNotification({
                     id: "content-available",
                     title: () => translate("notification.translation_available.title"),
@@ -126,23 +141,14 @@ export function useTranslationSwitcher({
                     state: "info",
                     type: "banner",
                     closable: true,
-                    link: { name: "content", params: { slug: preferred.slug } },
+                    link: { name: "content", params: { slug } },
                     openLink: true,
                 });
             }, 800);
         },
         { immediate: true },
     );
-
-    watch(
-        () => content.value?.language,
-        (languageId) => {
-            if (languageId === preferredLanguageId.value) {
-                useNotificationStore().removeNotification("content-available");
-            }
-        },
-        { immediate: true },
-    );
+    onBeforeUnmount(withdraw);
 
     return {
         selectedLanguageId,

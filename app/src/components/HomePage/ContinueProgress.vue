@@ -5,6 +5,7 @@ import { computed, onMounted, onUnmounted } from "vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 import {
     contentProgressAsRef,
+    isContentProgressFinished,
     watchContentProgressStorage,
     type ContentProgressEntry,
 } from "@/contentProgress";
@@ -12,16 +13,20 @@ import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
 
+/** The store keeps more entries than the row shows. */
+const MAX_CONTINUE_ITEMS = 10;
+
 onMounted(() => {
     onUnmounted(watchContentProgressStorage());
 });
 
-// Progress entries are recency-ordered; keep any with reading or watching progress.
+// Progress entries are recency-ordered; keep any with unfinished reading or watching progress.
 const contentIds = computed<string[]>(() =>
     contentProgressAsRef.value
         .filter(
             (entry: ContentProgressEntry) =>
-                entry.reading !== undefined || entry.watching !== undefined,
+                (entry.reading !== undefined || entry.watching !== undefined) &&
+                !isContentProgressFinished(entry),
         )
         .map((entry: ContentProgressEntry) => entry.contentId),
 );
@@ -52,9 +57,9 @@ const content = useContentQuery(
 // Re-sort to match the progress recency order.
 const continuedContent = computed(() => {
     const orderMap = new Map(contentIds.value.map((id, i) => [id, i]));
-    return [...content.value].sort(
-        (a, b) => (orderMap.get(a._id) ?? 0) - (orderMap.get(b._id) ?? 0),
-    );
+    return [...content.value]
+        .sort((a, b) => (orderMap.get(a._id) ?? 0) - (orderMap.get(b._id) ?? 0))
+        .slice(0, MAX_CONTINUE_ITEMS);
 });
 </script>
 

@@ -1,7 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import { type ContentParentDto, type MediaDto, toAbsoluteMediaUrl } from "luminary-shared";
-import { FilmIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
+import {
+    type ContentParentDto,
+    type MediaDto,
+    isBucketRelative,
+    toAbsoluteMediaUrl,
+    useHasLocalChanges,
+} from "luminary-shared";
+import {
+    FilmIcon,
+    PencilSquareIcon,
+    QuestionMarkCircleIcon,
+    TrashIcon,
+} from "@heroicons/vue/24/outline";
+import LButton from "../button/LButton.vue";
 import LCard from "../common/LCard.vue";
 import LDialog from "../common/LDialog.vue";
 import EncodeMediaButton from "../media/EncodeMediaButton.vue";
@@ -9,6 +21,7 @@ import EncodeStatus from "../media/EncodeStatus.vue";
 import MediaBucketSelect from "../media/MediaBucketSelect.vue";
 import EditContentVideo from "./EditContentVideo.vue";
 import { useMediaEncoder } from "@/composables/useMediaEncoder";
+import { isYouTubeUrl } from "@/util/youtubeUtils";
 import { ENCODER_DOWNLOAD_URL } from "@/util/mediaEncoder";
 import { storageSelection } from "@/composables/storageSelection";
 
@@ -37,6 +50,18 @@ type Props = {
      * video as coming soon while the encode runs instead of waiting for a manual save.
      */
     saveEncodedMedia?: (write: () => void) => Promise<void>;
+    /** The document as last saved: the encoder's URLs are compared with its video, and confirmed against it. */
+    savedParent?: ContentParentDto;
+    /**
+     * Saves a new version of the saved video onto the saved document, and nothing else: the
+     * editor's other unsaved changes stay theirs to save.
+     */
+    saveMediaOnly?: (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => Promise<void>;
+    /**
+     * Takes the video off the document and saves it, once the editor has confirmed here; without
+     * it the video only leaves the form, for the editor to save.
+     */
+    saveDeletedMedia?: (write: () => void) => Promise<void>;
 };
 const props = defineProps<Props>();
 
@@ -46,34 +71,96 @@ const showHelp = ref(false);
 const showSaveFirstModal = ref(false);
 const bucketSelection = storageSelection();
 
+/** The saved document's video, absolute, as the encoder names it. */
+const savedVideoUrl = computed(() => {
+    const saved = props.savedParent;
+    const bucketId = bucketSelection.effectiveMediaBucketId(saved?.mediaBucketId);
+    return toAbsoluteMediaUrl(
+        saved?.media?.hlsUrl,
+        bucketSelection.getBucketById(bucketId ?? null)?.publicUrl,
+    );
+});
+
+const hasLocalChange = useHasLocalChanges();
+/** New versions handed to the editor to save whose server answer has not come. */
+const savingVersions = ref(0);
+
 const {
     availability,
     outdated,
     busy,
     status,
+    encoding,
     progress,
     pipelineProgress,
     error,
     refreshAvailability,
     watchForEncoder,
     start,
+    edit,
     resume,
     stop,
-} = useMediaEncoder();
+} = useMediaEncoder({
+    // Not while a save is still queued or unanswered: the server can yet refuse it.
+    storedHlsUrl: () => {
+        const saved = props.savedParent;
+        if (!saved || savingVersions.value || hasLocalChange.value(saved._id)) return undefined;
+        return savedVideoUrl.value;
+    },
+});
 
 const effectiveBucketId = computed(() =>
     bucketSelection.effectiveMediaBucketId(parent.value?.mediaBucketId),
 );
 
+/** The folder a playlist URL is in, which holds every file of that video. */
+const folderOf = (url: string) => {
+    const path = url.split(/[?#]/)[0];
+    return path.slice(0, path.lastIndexOf("/") + 1);
+};
+
+/** A playlist's version within its folder: `master.m3u8` is 0, `master_rN.m3u8` is N. */
+const revisionOf = (url: string) => {
+    const name = url.split(/[?#]/)[0].split("/").pop() ?? "";
+    const match = /^master_r(\d+)\.m3u8$/.exec(name);
+    return match ? Number(match[1]) : 0;
+};
+
 /**
  * The encoder publishes its URL when encoding *starts*, so this lands well before
  * the output exists. Saved straight away where the editor allows it, so the app's
  * coming-soon state covers the gap until the output is in the bucket.
+ *
+ * Each edit of the video in the encoder publishes another URL, a new version in the
+ * same folder.
  */
 const handleEncodedMedia = (media: Pick<MediaDto, "hlsUrl" | "hlsKey">, documentId: string) => {
     // The editor may have moved to another document while the encoder was slow to
     // answer; that document must not receive this one's collection.
     if (!parent.value || parent.value._id !== documentId) return;
+
+    // Already saved: there is nothing to write, and the encoder is told so.
+    const saved = savedVideoUrl.value;
+    if (!media.hlsUrl || saved === media.hlsUrl) return;
+
+    // A new version of the saved video is saved on its own, at once: the encoder takes no
+    // further edit until it is stored. Another folder is a new video, and waits for the
+    // editor's Save, because the API deletes the saved video's files when the document
+    // stops naming their folder.
+    const newVersion = !!saved && !!folderOf(saved) && folderOf(saved) === folderOf(media.hlsUrl);
+
+    // An encoder that last saw an older version (another machine's, or one reopened from
+    // its own history) offers it again on resume. Storing it would undo the later edit.
+    if (newVersion && revisionOf(media.hlsUrl) <= revisionOf(saved)) return;
+
+    if (newVersion && props.saveMediaOnly && !props.disabled) {
+        savingVersions.value++;
+        void props
+            .saveMediaOnly(media)
+            .catch(() => undefined)
+            .finally(() => savingVersions.value--);
+        return;
+    }
 
     // A resumed session offers the URL it started with, absolute, while the API
     // stores it relative to the bucket. Writing it back says the same thing in a
@@ -127,6 +214,82 @@ const startEncode = () => {
     });
 };
 
+/** The video this document already has, absolute, as the encoder reaches it. */
+const existingVideoUrl = computed(() => {
+    const bucket = bucketSelection.getBucketById(effectiveBucketId.value ?? null);
+    return toAbsoluteMediaUrl(parent.value?.media?.hlsUrl, bucket?.publicUrl);
+});
+
+/** Why the existing video cannot be opened for editing, or empty when it can. */
+const editDisabledReason = computed(() => {
+    if (props.disabled) return "You do not have permission to edit this document.";
+    if (availability.value != "available") return "Luminary Media Convert is not running.";
+    if (busy.value) return "Opening Luminary Media Convert…";
+    if (encoding.value) return "Available once the encode has finished.";
+    return "";
+});
+
+/** Opens the existing video in the encoder, to change its chapters and audio tracks. */
+const editVideo = () => {
+    const bucketId = effectiveBucketId.value;
+    if (!parent.value?._id || !bucketId || !existingVideoUrl.value) return;
+    void edit({
+        documentId: parent.value._id,
+        title: props.title || "Untitled",
+        mediaBucketId: bucketId,
+        hlsUrl: existingVideoUrl.value,
+        onMediaReady: handleEncodedMedia,
+    });
+};
+
+const showDeleteVideoModal = ref(false);
+
+/** Files of ours to delete: a video hosted elsewhere (YouTube) only leaves the document. */
+const videoInOurStorage = computed(() => {
+    const url = parent.value?.media?.hlsUrl;
+    if (!url) return false;
+    if (isBucketRelative(url)) return true;
+    const bucketRoot = toAbsoluteMediaUrl(
+        "/",
+        bucketSelection.getBucketById(effectiveBucketId.value ?? null)?.publicUrl,
+    );
+    return !!bucketRoot && url.startsWith(bucketRoot);
+});
+
+/** What the dialog says: files deleted for ours, only the link removed for a video hosted elsewhere. */
+const deleteWording = computed(() => {
+    if (videoInOurStorage.value) {
+        return {
+            title: "Delete the video?",
+            description:
+                "This removes the video from this document and deletes its files from storage, unless another document still uses them. This cannot be undone.",
+            button: "Delete video",
+        };
+    }
+    const where = isYouTubeUrl(parent.value?.media?.hlsUrl ?? "")
+        ? "on YouTube"
+        : "where it is hosted";
+    return {
+        title: "Remove the video?",
+        description: `This removes the video from this document. The video itself stays ${where}: nothing is deleted.`,
+        button: "Remove video",
+    };
+});
+
+/** Asked here, where the editor pressed Delete, rather than later on Save. */
+const deleteVideo = () => {
+    showDeleteVideoModal.value = true;
+};
+
+const confirmDeleteVideo = async () => {
+    showDeleteVideoModal.value = false;
+    const write = () => {
+        if (parent.value) delete parent.value.media;
+    };
+    if (props.saveDeletedMedia) await props.saveDeletedMedia(write);
+    else write();
+};
+
 /**
  * An encode outlives this page, so arriving at a document asks whether one is
  * already running for it rather than assuming the encoder is idle.
@@ -159,14 +322,6 @@ watch(
 <template>
     <LCard v-if="parent" bare title="Media" :icon="FilmIcon" data-test="media-section">
         <template #actions>
-            <EncodeMediaButton
-                :availability="availability"
-                :busy="busy"
-                :documentId="parent._id"
-                :hasBucket="Boolean(effectiveBucketId)"
-                :disabled="disabled"
-                @encode="encode"
-            />
             <button
                 class="flex cursor-pointer items-center gap-1 rounded-md"
                 type="button"
@@ -178,6 +333,54 @@ watch(
         </template>
 
         <div class="flex flex-col gap-3">
+            <!-- One even row under the title: the header has room for the title alone. -->
+            <div class="flex gap-2 [&>*]:flex-1 [&>*]:justify-center" data-test="media-toolbar">
+                <EncodeMediaButton
+                    :availability="availability"
+                    :busy="busy"
+                    :documentId="parent._id"
+                    :hasBucket="Boolean(effectiveBucketId)"
+                    :disabled="disabled"
+                    @encode="encode"
+                />
+                <LButton
+                    v-if="existingVideoUrl && effectiveBucketId"
+                    :icon="PencilSquareIcon"
+                    variant="secondary"
+                    size="sm"
+                    :disabled="Boolean(editDisabledReason)"
+                    :title="
+                        editDisabledReason || 'Edit the chapters and audio tracks of this video'
+                    "
+                    data-test="edit-media-button"
+                    @click.stop="editVideo"
+                >
+                    <span class="text-xs">Edit</span>
+                </LButton>
+                <LButton
+                    v-if="existingVideoUrl"
+                    :icon="TrashIcon"
+                    variant="secondary"
+                    context="danger"
+                    size="sm"
+                    :disabled="disabled"
+                    title="Remove this video from the document"
+                    data-test="delete-media-button"
+                    @click.stop="deleteVideo"
+                >
+                    <span class="text-xs">Delete</span>
+                </LButton>
+            </div>
+
+            <!-- Said under the buttons, not only on hover: a disabled button gives no other clue, and touch has no hover. -->
+            <p
+                v-if="encoding && existingVideoUrl && effectiveBucketId"
+                class="text-xs text-zinc-500 dark:text-zinc-400"
+                data-test="edit-media-hint"
+            >
+                You can edit the chapters and audio tracks once the video has finished encoding
+            </p>
+
             <p v-if="showHelp" class="text-xs dark:text-zinc-200">
                 Video and audio are produced by Luminary Media Convert. Use Encode to open it, pick
                 a file, and the encoded playlist is saved back to this document. You need the app on
@@ -186,7 +389,7 @@ watch(
                     :href="ENCODER_DOWNLOAD_URL"
                     target="_blank"
                     rel="noopener"
-                    class="font-medium underline underline-offset-2 hover:text-zinc-700"
+                    class="font-medium underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-300"
                     data-test="media-help-download"
                     >download it here</a
                 >.
@@ -211,6 +414,24 @@ watch(
         </div>
     </LCard>
 
+    <LDialog
+        v-model:open="showDeleteVideoModal"
+        :title="deleteWording.title"
+        :description="deleteWording.description"
+        :primaryAction="confirmDeleteVideo"
+        :secondaryAction="() => (showDeleteVideoModal = false)"
+        :primaryButtonText="deleteWording.button"
+        secondaryButtonText="Cancel"
+        context="danger"
+        :showClosingButton="false"
+    >
+        <p
+            class="mt-3 break-all font-mono text-xs text-zinc-500 dark:text-zinc-400"
+            data-test="delete-media-url"
+        >
+            {{ parent?.media?.hlsUrl }}
+        </p>
+    </LDialog>
     <LDialog
         v-model:open="showSaveFirstModal"
         title="Save before encoding"

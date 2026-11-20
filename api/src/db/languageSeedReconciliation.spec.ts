@@ -49,8 +49,14 @@ describe("reconcileLanguageTranslationSeeds", () => {
                 JSON.stringify({ translations: { "k.spa": "es" } }),
             );
             // Non-language seed files must be ignored.
-            fs.writeFileSync(path.join(dir, "group-languages.json"), JSON.stringify({ type: "group" }));
-            fs.writeFileSync(path.join(dir, "content-page1-eng.json"), JSON.stringify({ type: "content" }));
+            fs.writeFileSync(
+                path.join(dir, "group-languages.json"),
+                JSON.stringify({ type: "group" }),
+            );
+            fs.writeFileSync(
+                path.join(dir, "content-page1-eng.json"),
+                JSON.stringify({ type: "content" }),
+            );
 
             const result = readSeedLanguageTranslations(dir);
 

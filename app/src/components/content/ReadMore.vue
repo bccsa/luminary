@@ -12,6 +12,7 @@ import { RouterLink } from "vue-router";
 import { type ContentDto } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import LImage from "../images/LImage.vue";
+import { useRevealedCount } from "@/composables/useScrollMemory";
 
 const props = defineProps<{ items: ContentDto[] }>();
 
@@ -37,7 +38,13 @@ const tagsFor = (content: ContentDto): ContentDto[] => {
 // the sentinel below the list scrolls into view (the grid grows vertically too, so the
 // same mechanism serves mobile and desktop).
 const BATCH_SIZE = 8;
-const visibleCount = ref(BATCH_SIZE);
+const { saved: savedCount, save: saveCount } = useRevealedCount();
+const visibleCount = ref(Math.max(BATCH_SIZE, savedCount));
+// Saved from the start, so a visit that opens at one batch replaces an older, longer count.
+saveCount(visibleCount.value);
+watch(visibleCount, saveCount);
+// The related items load after mount, which would otherwise reset the restored count below.
+let keepRestoredCount = savedCount > BATCH_SIZE;
 const visibleItems = computed(() => props.items.slice(0, visibleCount.value));
 
 const sentinel = ref<HTMLElement | null>(null);
@@ -124,8 +131,11 @@ onUnmounted(() => {
 });
 watch(
     () => props.items,
-    () => {
-        visibleCount.value = BATCH_SIZE;
+    (items, previous) => {
+        const firstLoad = previous.length === 0 && items.length > 0;
+        const keep = keepRestoredCount && firstLoad;
+        keepRestoredCount = false;
+        if (!keep) visibleCount.value = BATCH_SIZE;
     },
 );
 // Newly revealed cards (infinite scroll, or a new related set) need re-measuring once rendered.
@@ -140,10 +150,7 @@ watch(visibleItems, () => nextTick(remeasureAll));
         <ul
             class="flex flex-col gap-3 px-4 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-6 sm:px-8 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
         >
-            <li
-                v-for="item in visibleItems"
-                :key="item._id"
-            >
+            <li v-for="item in visibleItems" :key="item._id">
                 <RouterLink
                     :to="{ name: 'content', params: { slug: item.slug } }"
                     class="ease-out-expo group flex gap-2 overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 transition hover:shadow-lg hover:brightness-[1.15] dark:bg-slate-800 dark:ring-white/10 sm:h-full sm:flex-col sm:gap-1"
@@ -236,10 +243,6 @@ watch(visibleItems, () => nextTick(remeasureAll));
         </ul>
 
         <!-- Infinite-scroll sentinel: reveals the next batch when it enters the viewport. -->
-        <div
-            ref="sentinel"
-            class="h-px"
-            aria-hidden="true"
-        ></div>
+        <div ref="sentinel" class="h-px" aria-hidden="true"></div>
     </div>
 </template>

@@ -43,6 +43,19 @@ const STATUS_LABELS: Record<string, string> = {
 const running = computed(() => props.status == "encoding" || props.status == "uploading_to_s3");
 
 /**
+ * The encoder's error, as an editor should read it. An older encoder sends the
+ * tail of ffmpeg's output, file paths and progress lines that say nothing to
+ * the person who started the encode; anything that long, or on several lines,
+ * becomes one plain sentence, and the detail stays in the encoder's log.
+ */
+const shownError = computed(() => {
+    const error = props.error?.trim();
+    if (!error) return "";
+    if (!error.includes("\n") && error.length <= 240) return error;
+    return "The encode failed. Open Luminary Media Convert to continue the encode or run it again.";
+});
+
+/**
  * How far the upload has got, once it is the only thing left to wait for.
  *
  * Segments upload as they are packed, so the session stays `encoding` until only
@@ -80,26 +93,36 @@ const percentage = computed(() => {
     >
         <div v-if="status" data-test="encoder-status">
             <div v-if="percentage != undefined" class="flex items-center gap-2">
-                <div class="h-1.5 flex-1 overflow-hidden rounded-full dark:bg-slate-700">
+                <div
+                    class="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-slate-700"
+                >
                     <div
-                        class="h-full rounded-full bg-zinc-700 transition-[width] duration-500"
+                        class="h-full rounded-full bg-zinc-700 transition-[width] duration-500 dark:bg-zinc-300"
                         :style="{ width: `${percentage}%` }"
                         data-test="encoder-progress-bar"
                     />
                 </div>
-                <span class="whitespace-nowrap text-xs font-medium tabular-nums text-zinc-700">
+                <span
+                    class="whitespace-nowrap text-xs font-medium tabular-nums text-zinc-700 dark:text-zinc-300"
+                >
                     {{ label }} {{ percentage }}%
                 </span>
             </div>
-            <span v-else class="text-xs font-medium text-zinc-700">{{ label }}</span>
+            <span v-else class="text-xs font-medium text-zinc-700 dark:text-zinc-300">{{
+                label
+            }}</span>
 
-            <p v-if="running" class="mt-1 text-xs text-zinc-500" data-test="encoder-leave-hint">
+            <p
+                v-if="running"
+                class="mt-1 text-xs text-zinc-500 dark:text-zinc-400"
+                data-test="encoder-leave-hint"
+            >
                 You can save and come back — this keeps running.
             </p>
         </div>
 
         <MediaNotice v-if="error" state="error" data-test="encoder-error">
-            {{ error }}
+            {{ shownError }}
         </MediaNotice>
 
         <!-- Outdated outranks the availability notices: the encoder answered, so
@@ -110,7 +133,7 @@ const percentage = computed(() => {
                 :href="ENCODER_DOWNLOAD_URL"
                 target="_blank"
                 rel="noopener"
-                class="font-medium underline underline-offset-2 hover:text-yellow-900"
+                class="font-medium underline underline-offset-2 hover:text-yellow-900 dark:hover:text-yellow-200"
                 data-test="encoder-download"
                 >Download the current version</a
             >, then install it over the old one.
@@ -129,7 +152,7 @@ const percentage = computed(() => {
             Luminary Media Convert did not answer.
             <a
                 :href="ENCODER_PROTOCOL_URL"
-                class="font-medium underline underline-offset-2 hover:text-yellow-900"
+                class="font-medium underline underline-offset-2 hover:text-yellow-900 dark:hover:text-yellow-200"
                 data-test="encoder-launch"
                 >Open it</a
             >
@@ -139,7 +162,7 @@ const percentage = computed(() => {
                 :href="ENCODER_DOWNLOAD_URL"
                 target="_blank"
                 rel="noopener"
-                class="font-medium underline underline-offset-2 hover:text-yellow-900"
+                class="font-medium underline underline-offset-2 hover:text-yellow-900 dark:hover:text-yellow-200"
                 data-test="encoder-download"
                 >Download it</a
             >.
@@ -153,7 +176,7 @@ const percentage = computed(() => {
             Luminary Media Convert is not running.
             <a
                 :href="ENCODER_PROTOCOL_URL"
-                class="font-medium underline underline-offset-2 hover:text-zinc-900"
+                class="font-medium underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-50"
                 data-test="encoder-launch"
                 >Open it</a
             >
@@ -162,7 +185,7 @@ const percentage = computed(() => {
                 :href="ENCODER_DOWNLOAD_URL"
                 target="_blank"
                 rel="noopener"
-                class="font-medium underline underline-offset-2 hover:text-zinc-900"
+                class="font-medium underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-50"
                 data-test="encoder-download"
                 >download it</a
             >

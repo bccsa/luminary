@@ -29,14 +29,8 @@ import {
 } from "luminary-shared";
 import * as luminaryShared from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import {
-    appLanguageIdsAsRef,
-    appName,
-    cmsLanguages,
-    initLanguage,
-    userPreferencesAsRef,
-    cmsUrl,
-} from "@/globalConfig";
+import { appLanguageIdsAsRef, appName, cmsLanguages, initLanguage, cmsUrl } from "@/globalConfig";
+import { hasUserActivity, recordUserActivity } from "@/userActivity/store";
 import {
     getReadingProgress,
     removeReadingProgress,
@@ -45,8 +39,10 @@ import {
 } from "@/contentProgress";
 import { computeEstimatedReadingMinutes } from "@/util/readingTime";
 import { ref, computed } from "vue";
-import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
+import BasePage from "@/components/BasePage.vue";
+import ArticleOutline from "../ArticleOutline.vue";
 import RelatedContent from "@/components/content/RelatedContent.vue";
 import ReadMore from "@/components/content/ReadMore.vue";
 import * as auth from "@/auth";
@@ -57,6 +53,7 @@ import { articleJsonLd, languageCodeForContent } from "@/seo/contentHead";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import ShareMenu from "@/components/content/ShareMenu.vue";
 import { highlightVersion } from "@/recommendation/highlightStore";
+import { bumpSessionNow } from "@/util/sessionNow";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 const mockIsExternalNavigation = vi.hoisted(() => vi.fn());
@@ -70,6 +67,17 @@ type ReadingTrackerOptions = Parameters<
 const readingTrackerOptions = vi.hoisted(() => ({
     current: undefined as ReadingTrackerOptions | undefined,
 }));
+const queryRemoteMock = vi.hoisted(() => vi.fn());
+vi.mock("luminary-shared", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("luminary-shared")>();
+    // A proxy, not a spread, so live bindings such as `db` (assigned at init) stay live.
+    return new Proxy(actual, {
+        get: (target, key) =>
+            key === "queryRemote"
+                ? (...args: unknown[]) => queryRemoteMock(...args)
+                : target[key as keyof typeof target],
+    });
+});
 
 vi.mock("@/recommendation/affinityStore", () => ({
     affinityProfile: affinityProfileMock,
@@ -119,7 +127,7 @@ vi.mock("@/router", () => ({
 vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 
 // The real player has no jsdom-compatible serving strategy; these tests aren't about playback.
-vi.mock("@luminary-media-converter/player-web-legacy", async () => {
+vi.mock("@luminary-media-converter/player-web", async () => {
     const { defineComponent, h } = await import("vue");
     return {
         LuminaryPlayer: defineComponent({
@@ -138,11 +146,14 @@ vi.mock("vue-i18n", () => ({
         t: (key: string) => mockLanguageDtoEng.translations[key] || key,
     }),
 }));
+// The app's player UI re-exports the mocked engine's stand-ins.
+vi.mock("@/media-player/player", () => import("@luminary-media-converter/player-web"));
 
 vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({
         bucketBaseUrl: computed(() => "https://bucket.example.com"),
     }),
+    useStorageBuckets: () => ref([]),
 }));
 
 describe("SingleContent", () => {
@@ -223,7 +234,7 @@ describe("SingleContent", () => {
             },
         });
 
-        const videoPlayer = wrapper!.findComponent(VideoPlayer);
+        const videoPlayer = wrapper!.findComponent(MediaPlayerWrapper);
 
         await waitForExpect(() => {
             expect(videoPlayer).toBeDefined();
@@ -260,9 +271,8 @@ describe("SingleContent", () => {
         });
     });
 
-    it("keeps the gap below the title when a video replaces the hero image", async () => {
+    it("lays a video post out like any other, with the play button on the picture", async () => {
         await db.docs.update(mockEnglishContentDto._id, {
-            parentImage: "",
             video: "test-video.mp4",
         } as any);
 
@@ -274,11 +284,33 @@ describe("SingleContent", () => {
 
         await waitForExpect(() => {
             const media = wrapper!.findComponent(IgnorePagePadding).element.parentElement!;
-            expect(media.className).toBe("mt-5 lg:mt-2");
+            expect(media.className).toBe("lg:mt-2");
+            expect(wrapper!.html()).toContain("test-image.webp");
+            expect(wrapper!.find("[data-test='mediaPlay']").exists()).toBe(true);
         });
     });
 
-    it("does not render the SSR article-text marker on the hydrated client", async () => {
+    it("offers no media button when the content has no media", async () => {
+        await db.docs.update(mockEnglishContentDto._id, {
+            parentMedia: undefined,
+            video: undefined,
+        } as any);
+
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(
+                wrapper!.find("[data-test='title']").exists() || wrapper!.html().length > 0,
+            ).toBe(true);
+            expect(wrapper!.find("[data-test='mediaPlay']").exists()).toBe(false);
+        });
+    });
+
+    it("does not render the SSG article-text marker on the hydrated client", async () => {
         // The marker is prerender-only (import.meta.env.SSR): the hydrated client must
         // omit it so the recovered text doesn't carry a stale attribute into the vdom.
         wrapper = mount(SingleContent, {
@@ -291,7 +323,7 @@ describe("SingleContent", () => {
             expect(wrapper!.find("article").exists()).toBe(true);
         });
 
-        expect(wrapper!.find("[data-ssr-article-text]").exists()).toBe(false);
+        expect(wrapper!.find("[data-ssg-article-text]").exists()).toBe(false);
     });
 
     it("displays the publish date", async () => {
@@ -487,8 +519,8 @@ describe("SingleContent", () => {
         expect(jsonLd.inLanguage).not.toBe(mockEnglishContentDto.language);
     });
 
-    it("can add and remove a bookmark", async () => {
-        userPreferencesAsRef.value.bookmarks = [];
+    it("can add and remove a like", async () => {
+        await db.userActivity.clear();
         const notificationStore = useNotificationStore();
 
         wrapper = mount(SingleContent, {
@@ -500,64 +532,73 @@ describe("SingleContent", () => {
         // Wait for the article itself: the loading bar is delayed now, so its absence no
         // longer means the content has arrived.
         await waitForExpect(() => {
-            expect(wrapper!.find("button[data-test='bookmark']").exists()).toBe(true);
+            expect(wrapper!.find("button[data-test='like']").exists()).toBe(true);
         });
 
-        const bookmarkButton = wrapper!.find("button[data-test='bookmark']");
-        await bookmarkButton.trigger("click");
+        const likeButton = wrapper!.find("button[data-test='like']");
+        await likeButton.trigger("click");
 
         await waitForExpect(async () => {
             expect(
-                userPreferencesAsRef.value.bookmarks &&
-                    userPreferencesAsRef.value.bookmarks.some(
-                        (b) => b.id === mockEnglishContentDto.parentId,
-                    ),
-            ).toBe(true);
-            expect(notificationStore.addNotification).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    id: "bookmark-added",
-                    title: "Bookmark added",
-                    description: "This content has been added to your bookmarks.",
-                    state: "success",
-                    type: "toast",
-                    timeout: 5000,
+                await hasUserActivity({
+                    type: "liked",
+                    parentId: mockEnglishContentDto.parentId,
                 }),
-            );
+            ).toBe(true);
         });
 
-        await bookmarkButton.trigger("click");
+        await likeButton.trigger("click");
 
         await waitForExpect(async () => {
             expect(
-                userPreferencesAsRef.value.bookmarks &&
-                    userPreferencesAsRef.value.bookmarks.some(
-                        (b) => b.id === mockEnglishContentDto.parentId,
-                    ),
+                await hasUserActivity({
+                    type: "liked",
+                    parentId: mockEnglishContentDto.parentId,
+                }),
             ).toBe(false);
         });
 
-        expect(notificationStore.addNotification).toHaveBeenCalledTimes(1);
+        expect(notificationStore.addNotification).not.toHaveBeenCalled();
     });
 
-    it("records bookmark-removal affinity when un-bookmarking content", async () => {
-        userPreferencesAsRef.value.bookmarks = [
-            { id: mockEnglishContentDto.parentId, ts: Date.now() },
-        ];
+    it("does not record a view for merely opening the content", async () => {
+        await db.userActivity.clear();
+
+        wrapper = mount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.find("button[data-test='like']").exists()).toBe(true);
+        });
+
+        // History comes from reading progress instead — see `userActivity/fromContentProgress`.
+        expect(
+            await hasUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId }),
+        ).toBe(false);
+    });
+
+    it("records like-removal affinity when unliking content", async () => {
+        await db.userActivity.clear();
+        await recordUserActivity({ type: "liked", parentId: mockEnglishContentDto.parentId });
         const wrapper = mount(SingleContent, {
             props: { slug: mockEnglishContentDto.slug },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.find("button[data-test='bookmark']").exists()).toBe(true);
+            expect(wrapper.find("button[data-test='like']").exists()).toBe(true);
         });
         recordAffinityMock.mockClear();
 
-        await wrapper.find("button[data-test='bookmark']").trigger("click");
+        await wrapper.find("button[data-test='like']").trigger("click");
 
-        expect(recordAffinityMock).toHaveBeenCalledWith(
-            mockEnglishContentDto.parentTags,
-            EventWeight.BookmarkRemoved,
-        );
+        // The toggle reads the stored state before acting, so the affinity call lands a tick later.
+        await waitForExpect(() => {
+            expect(recordAffinityMock).toHaveBeenCalledWith(
+                mockEnglishContentDto.parentTags,
+                EventWeight.BookmarkRemoved,
+            );
+        });
         wrapper.unmount();
     });
 
@@ -752,6 +793,26 @@ describe("SingleContent", () => {
         await waitForExpect(() => {
             expect(wrapper!.text()).toContain(mockFrenchContentDto.title);
         });
+    });
+
+    it("offers translations in languages that are not downloaded", async () => {
+        await db.docs.delete(mockFrenchContentDto._id);
+        cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
+        queryRemoteMock.mockResolvedValue([mockEnglishContentDto, mockFrenchContentDto]);
+        isConnected.value = true;
+
+        wrapper = mount(SingleContent, { props: { slug: mockEnglishContentDto.slug } });
+
+        await waitForExpect(() => {
+            expect(wrapper!.find("[data-test='translationSelector']").exists()).toBe(true);
+        });
+        expect(queryRemoteMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                selector: {
+                    $and: [{ type: "content" }, { parentId: mockEnglishContentDto.parentId }],
+                },
+            }),
+        );
     });
 
     it("shows the notification when the content is available in the preferred language", async () => {
@@ -1071,6 +1132,19 @@ describe("SingleContent", () => {
         expect(getReadingProgress(mockEnglishContentDto._id)).toBe(60);
     });
 
+    it("lets the resume pill overlay a hero image instead of pushing it down", async () => {
+        setReadingProgress(mockEnglishContentDto._id, 60);
+
+        wrapper = mount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.findComponent(ArticleOutline).props("offerResume")).toBe(true);
+        });
+        expect(wrapper!.findComponent(BasePage).props("reserveTopBarCenter")).toBe(false);
+    });
+
     it("records affinity exactly once when a reading session ends", async () => {
         const wrapper = shallowMount(SingleContent, {
             props: { slug: mockEnglishContentDto.slug },
@@ -1154,6 +1228,61 @@ describe("SingleContent", () => {
         setTimeoutSpy.mockRestore();
     });
 
+    it("records a view on dwell for content the continue store never sees", async () => {
+        await db.userActivity.clear();
+        localStorage.removeItem("contentProgress");
+        syncContentProgressFromStorage();
+
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+        const wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(setTimeoutSpy.mock.calls.some(([, delay]) => delay === 15000)).toBe(true);
+        });
+
+        const dwellCallback = setTimeoutSpy.mock.calls.find(([, delay]) => delay === 15000)?.[0];
+        (dwellCallback as () => void)();
+
+        await waitForExpect(async () => {
+            expect(
+                await hasUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId }),
+            ).toBe(true);
+        });
+
+        wrapper.unmount();
+        setTimeoutSpy.mockRestore();
+    });
+
+    it("leaves the view to the mirror when progress is already recorded", async () => {
+        await db.userActivity.clear();
+        localStorage.removeItem("contentProgress");
+        syncContentProgressFromStorage();
+        setReadingProgress(mockEnglishContentDto._id, 40);
+
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+        const wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(setTimeoutSpy.mock.calls.some(([, delay]) => delay === 15000)).toBe(true);
+        });
+
+        const dwellCallback = setTimeoutSpy.mock.calls.find(([, delay]) => delay === 15000)?.[0];
+        (dwellCallback as () => void)();
+        await flushPromises();
+
+        expect(
+            await hasUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId }),
+        ).toBe(false);
+
+        removeReadingProgress(mockEnglishContentDto._id);
+        wrapper.unmount();
+        setTimeoutSpy.mockRestore();
+    });
+
     it("does not add a dwell-based open signal for text content", async () => {
         const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
         const wrapper = shallowMount(SingleContent, {
@@ -1178,5 +1307,46 @@ describe("SingleContent", () => {
         );
         wrapper.unmount();
         setTimeoutSpy.mockRestore();
+    });
+
+    describe("resume offer when a live publish briefly drops the article", () => {
+        async function mountAndLiveRebuild(beforeRebuild: () => void | Promise<void>) {
+            wrapper = mount(SingleContent, { props: { slug: mockEnglishContentDto.slug } });
+            await waitForExpect(() => {
+                expect(wrapper!.findComponent(ArticleOutline).exists()).toBe(true);
+            });
+            await beforeRebuild();
+
+            // Newly published content re-keys the content query, which clears and refills it.
+            bumpSessionNow(Date.now() + 1000);
+            await flushPromises();
+            await waitForExpect(() => {
+                expect(wrapper!.findComponent(ArticleOutline).exists()).toBe(true);
+            });
+            await nextTick();
+            return wrapper!.findComponent(ArticleOutline);
+        }
+
+        it("does not offer to resume progress the reader made on this visit", async () => {
+            const outline = await mountAndLiveRebuild(() => {
+                expect(wrapper!.findComponent(ArticleOutline).props("offerResume")).toBe(false);
+                setReadingProgress(mockEnglishContentDto._id, 27);
+            });
+
+            expect(outline.props("offerResume")).toBe(false);
+        });
+
+        it("keeps a dismissed resume offer dismissed", async () => {
+            setReadingProgress(mockEnglishContentDto._id, 40);
+            const outline = await mountAndLiveRebuild(async () => {
+                const offered = wrapper!.findComponent(ArticleOutline);
+                expect(offered.props("offerResume")).toBe(true);
+                offered.vm.$emit("dismiss");
+                await nextTick();
+                expect(offered.props("offerResume")).toBe(false);
+            });
+
+            expect(outline.props("offerResume")).toBe(false);
+        });
     });
 });

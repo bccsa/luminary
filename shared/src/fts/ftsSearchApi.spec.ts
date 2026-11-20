@@ -94,7 +94,12 @@ describe("ftsSearchApi", () => {
 
     it("normalizes results and tags them source: 'api'", async () => {
         const apiResults: ApiFtsResult[] = [
-            { docId: "d1", score: 5, wordMatchScore: 2, doc: { _id: "d1", title: "garden" } as any },
+            {
+                docId: "d1",
+                score: 5,
+                wordMatchScore: 2,
+                doc: { _id: "d1", title: "garden" } as any,
+            },
         ];
         ftsMock.mockResolvedValue(apiResults);
         const res = await ftsSearchApi({ query: "garden" });

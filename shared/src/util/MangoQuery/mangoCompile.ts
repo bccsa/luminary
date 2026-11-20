@@ -16,10 +16,7 @@
 
 import type { MangoSelector, Predicate } from "./MangoTypes";
 import { normalizeSelector, generateTemplateKey } from "./templateNormalize";
-import {
-    compileTemplateSelector,
-    type ParameterizedPredicate,
-} from "./compileTemplateSelector";
+import { compileTemplateSelector, type ParameterizedPredicate } from "./compileTemplateSelector";
 import {
     cacheGet,
     cacheSet,
@@ -103,7 +100,7 @@ export function mangoCompile(q: MangoSelector): Predicate {
 
     // Check cache for compiled template
     const cached = cacheGet<ParameterizedPredicate>(cacheKey);
-    
+
     if (cached) {
         // Cache hit - return bound predicate with cached template
         return (doc: any) => cached(doc, values);

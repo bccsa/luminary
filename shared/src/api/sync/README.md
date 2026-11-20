@@ -36,7 +36,7 @@ Each sync operation creates entries in the `syncList` array with the following s
 `Content` and its sibling `DeleteCmd` entries — other chunk types have no `publishDate`
 field and leave them undefined (treated as an open range).
 
-**Language keep (Content).** `languages` is the language *set* a Content column applies to. The
+**Language keep (Content).** `languages` is the language _set_ a Content column applies to. The
 Content sync query does not filter by exact membership: it uses a **set-based priority-fallback
 keep** — keep a doc if its `language` is in the set, OR (fallback) none of the set's languages has a
 published translation of that document (so the doc's own translation is the last-resort fallback).

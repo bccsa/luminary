@@ -1,0 +1,8 @@
+{
+    "_id": "_design/tags",
+    "views": {
+        "tags": {
+            "map": "function (doc) {\n  if ((doc.type === \"post\" || doc.type === \"tag\") && Array.isArray(doc.tags)) {\n    doc.tags.forEach(function (tagId) {\n      emit(tagId);\n    });\n  }\n}"
+        }
+    }
+}

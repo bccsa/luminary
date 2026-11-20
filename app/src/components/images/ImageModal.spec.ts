@@ -22,7 +22,9 @@ vi.mock("./LImage.vue", () => ({
 const singleImageProps: any = {
     image: {
         _id: "img-1",
-        fileCollections: [{ aspectRatio: 1.78, imageFiles: [{ filename: "test.jpg", width: 800, height: 450 }] }],
+        fileCollections: [
+            { aspectRatio: 1.78, imageFiles: [{ filename: "test.jpg", width: 800, height: 450 }] },
+        ],
     },
     contentParentId: "content-1",
 };
@@ -221,5 +223,95 @@ describe("ImageModal", () => {
 
         const style = container.attributes("style") || "";
         expect(style).toContain("scale(1)");
+    });
+
+    describe("mouse drag when zoomed", () => {
+        // jsdom has no layout, so give the container a size that allows panning when zoomed
+        const mountZoomed = async () => {
+            vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(2000);
+            vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(2000);
+            const wrapper = mount(ImageModal, { props: singleImageProps, attachTo: document.body });
+            const container = wrapper.find(".touch-none");
+            await container.trigger("dblclick", { clientX: 0, clientY: 0 });
+            await nextTick();
+            return { wrapper, container };
+        };
+
+        const translateOf = (style: string) => style.match(/translate\((-?[\d.]+)px/)?.[1];
+
+        it("does not start a drag when not zoomed", async () => {
+            const addSpy = vi.spyOn(window, "addEventListener");
+            const wrapper = mount(ImageModal, { props: singleImageProps });
+
+            await wrapper.find(".touch-none").trigger("mousedown", { clientX: 10, clientY: 10 });
+
+            expect(addSpy).not.toHaveBeenCalledWith("mousemove", expect.any(Function));
+            wrapper.unmount();
+        });
+
+        it("keeps panning when the cursor leaves the image container", async () => {
+            const { wrapper, container } = await mountZoomed();
+            const before = translateOf(container.attributes("style") || "");
+
+            await container.trigger("mousedown", { clientX: 100, clientY: 100 });
+            // Dispatched on window (not the container), as when the cursor is outside the image
+            window.dispatchEvent(new MouseEvent("mousemove", { clientX: 160, clientY: 100 }));
+            await nextTick();
+
+            expect(translateOf(container.attributes("style") || "")).not.toBe(before);
+            wrapper.unmount();
+        });
+
+        it("ends the drag when the mouse is released outside the container", async () => {
+            const { wrapper, container } = await mountZoomed();
+
+            await container.trigger("mousedown", { clientX: 100, clientY: 100 });
+            window.dispatchEvent(new MouseEvent("mouseup"));
+            const afterRelease = container.attributes("style");
+
+            window.dispatchEvent(new MouseEvent("mousemove", { clientX: 300, clientY: 300 }));
+            await nextTick();
+
+            expect(container.attributes("style")).toBe(afterRelease);
+            wrapper.unmount();
+        });
+
+        it("ends the drag when the window loses focus", async () => {
+            const { wrapper, container } = await mountZoomed();
+
+            await container.trigger("mousedown", { clientX: 100, clientY: 100 });
+            window.dispatchEvent(new Event("blur"));
+            const afterBlur = container.attributes("style");
+
+            window.dispatchEvent(new MouseEvent("mousemove", { clientX: 300, clientY: 300 }));
+            await nextTick();
+
+            expect(container.attributes("style")).toBe(afterBlur);
+            wrapper.unmount();
+        });
+
+        it("removes the window listeners on release", async () => {
+            const removeSpy = vi.spyOn(window, "removeEventListener");
+            const { wrapper, container } = await mountZoomed();
+
+            await container.trigger("mousedown", { clientX: 100, clientY: 100 });
+            window.dispatchEvent(new MouseEvent("mouseup"));
+
+            expect(removeSpy).toHaveBeenCalledWith("mousemove", expect.any(Function));
+            expect(removeSpy).toHaveBeenCalledWith("mouseup", expect.any(Function));
+            expect(removeSpy).toHaveBeenCalledWith("blur", expect.any(Function));
+            wrapper.unmount();
+        });
+
+        it("removes the window listeners if unmounted mid-drag", async () => {
+            const removeSpy = vi.spyOn(window, "removeEventListener");
+            const { wrapper, container } = await mountZoomed();
+
+            await container.trigger("mousedown", { clientX: 100, clientY: 100 });
+            wrapper.unmount();
+
+            expect(removeSpy).toHaveBeenCalledWith("mousemove", expect.any(Function));
+            expect(removeSpy).toHaveBeenCalledWith("mouseup", expect.any(Function));
+        });
     });
 });

@@ -14,21 +14,15 @@ const firstBanner = computed(() => {
 </script>
 
 <template>
-    <div
-        aria-live="assertive"
-        class="sticky inset-x-0 flex items-end sm:items-start"
-    >
+    <div aria-live="assertive" class="sticky inset-x-0 flex items-end sm:items-start">
         <div class="w-full">
-            <Transition
-                name="bottom-banner"
-                mode="out-in"
-            >
+            <Transition name="bottom-banner" mode="out-in">
                 <!-- pb: stays above the overlaying mobile menu; only occupies that
                      space while a banner is actually showing. -->
                 <div
                     v-if="firstBanner"
                     :key="firstBanner.id"
-                    class="bottom-banner-grid pb-[var(--mobile-menu-h,0px)] lg:pb-0"
+                    class="bottom-banner-grid pb-[calc(var(--mobile-menu-h,0px)+var(--media-bar-h,0px))] lg:pb-0"
                 >
                     <div class="bottom-banner-grid-content">
                         <NotificationBottom :notification="firstBanner" />

@@ -94,7 +94,7 @@ const sizeClasses = computed(() => {
                 ref="modalRef"
                 data-test="modal-content"
                 :class="[
-                    'relative z-50 flex flex-col bg-zinc-200 p-5 shadow-xl focus:outline-none dark:bg-slate-800 dark:text-zinc-100',
+                    'relative z-50 flex flex-col bg-white/90 p-5 shadow-xl focus:outline-none dark:bg-slate-800 dark:text-zinc-100',
                     sizeClasses,
                 ]"
             >
@@ -137,7 +137,9 @@ const sizeClasses = computed(() => {
                 </div>
                 <div
                     :class="[
-                        noDivider ? 'dark:text-zinc-100' : 'divide-y divide-zinc-200',
+                        noDivider
+                            ? 'dark:text-zinc-100'
+                            : 'divide-y divide-zinc-200 dark:divide-slate-700',
                         'flex min-h-0 flex-1 flex-col overflow-y-auto',
                         noPadding ? (transparentHeader ? '-m-5' : '-m-5 mt-0') : '',
                     ]"

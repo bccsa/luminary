@@ -24,7 +24,7 @@ describe("redirectHtml", () => {
 
         expect(html).toContain('<meta name="x-redirect-status" content="302">');
         expect(html).toContain('<meta name="robots" content="noindex">');
-        expect(html).not.toContain("rel=\"canonical\"");
+        expect(html).not.toContain('rel="canonical"');
     });
 
     it("maps slugs to html files", () => {

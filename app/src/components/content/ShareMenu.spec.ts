@@ -6,6 +6,8 @@ import type { ContentDto } from "luminary-shared";
 import ShareMenu from "./ShareMenu.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { publicUrl } from "@/seo/publicSite";
+import { ShareKey } from "@/build-time/contracts/share/token";
+import { WebShareService } from "@/build-time/plugins/share/share-web";
 
 const expectedShareUrl = publicUrl(`/${mockEnglishContentDto.slug}`) ?? window.location.href;
 
@@ -17,6 +19,11 @@ const { dataSaver } = vi.hoisted(() => ({ dataSaver: { on: false } }));
 vi.mock("@/globalConfig", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/globalConfig")>()),
     isDataSaverEnabled: () => dataSaver.on,
+    dataSaverOn: {
+        get value() {
+            return dataSaver.on;
+        },
+    },
 }));
 vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({ bucket: ref(null), bucketBaseUrl: computed(() => bucket.url) }),
@@ -73,6 +80,7 @@ describe("ShareMenu", () => {
     const mountMenu = async (props: { content?: ContentDto; copyright?: string } = {}) => {
         const wrapper = mount(ShareMenu, {
             props: { content: mockEnglishContentDto, ...props },
+            global: { provide: { [ShareKey as symbol]: new WebShareService() } },
         });
         await nextTick();
         return wrapper;

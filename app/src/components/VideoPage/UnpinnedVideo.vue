@@ -4,12 +4,12 @@ import { DocType, PostType, TagType } from "luminary-shared";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { useContentQuery } from "@/composables/useContentQuery";
+import { hasVideoSelector } from "@/util/mediaSource";
 
 const newest100Content = useContentQuery(
     () => [
         // Only include content that has a video, is not page content, and is either untagged or tagged with a topic.
-        { video: { $exists: true, $ne: "" } },
-        { video: { $ne: null } },
+        hasVideoSelector,
         {
             $or: [
                 { parentPostType: { $exists: false } },

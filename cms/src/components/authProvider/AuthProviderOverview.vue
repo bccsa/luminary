@@ -97,11 +97,14 @@ defineExpose({
             <LButton
                 v-if="authProviders.canEdit && hasAnyContent && isSmallScreen"
                 variant="primary"
+                class="max-lg:gap-x-0"
                 :icon="PlusIcon"
+                icon-class="max-lg:ml-0"
                 data-test="create-auth-provider"
                 @click="authProviders.openCreateModal"
+                aria-label="Create provider"
             >
-                Create provider
+                <span class="hidden lg:inline">Create provider</span>
             </LButton>
         </template>
 
@@ -114,7 +117,7 @@ defineExpose({
             />
         </template>
 
-        <div class="flex flex-col gap-[3px]">
+        <div class="flex flex-col gap-[4px]">
             <EmptyState
                 v-if="!hasAnyContent"
                 title="No auth provider configured"

@@ -1,29 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { ShareIcon } from "@heroicons/vue/24/outline";
 import type { ContentDto } from "luminary-shared";
 import { useI18n } from "vue-i18n";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
+import ShareTargets from "@/components/content/ShareTargets.vue";
 import {
-    buildTelegramShareUrl,
-    buildWhatsAppShareUrl,
-    buildXShareUrl,
-    buildRedditShareUrl,
+    articleShareUrl,
     firstParagraphExcerpt,
-    formatShareMessage,
     fetchShareImageFile,
     shareImageUrl,
 } from "@/composables/useSocialShare";
+import { useShare, type ShareDraft } from "@/composables/useShare";
 import { useBucketInfo } from "@/composables/useBucketInfo";
-import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import { dataSaverOn } from "@/globalConfig";
 import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
-import { publicUrl } from "@/seo/publicSite";
-import TelegramIcon from "@/components/icons/TelegramIcon.vue";
-import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
-import XIcon from "@/components/icons/XIcon.vue";
-import RedditIcon from "@/components/icons/RedditIcon.vue";
-import InstagramIcon from "@/components/icons/InstagramIcon.vue";
-import { useNotificationStore } from "@/stores/notification";
 
 const props = defineProps<{
     content: ContentDto;
@@ -33,31 +24,13 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const open = ref(false);
+const { nativeShareAvailable, shareNatively, canShareFiles } = useShare();
 
-// The public site origin, not the current one — an installed PWA runs on its own origin,
-// and a link back to that origin wouldn't resolve for a recipient without the app.
-const shareUrl = () => publicUrl(`/${props.content.slug}`) ?? window.location.href;
-
-const shareMessage = (options: { withUrl?: boolean } = {}) =>
-    formatShareMessage({
-        quote: firstParagraphExcerpt(props.content.text) || props.content.summary,
-        title: props.content.title,
-        copyright: props.copyright || props.content.copyright,
-        url: options.withUrl ? shareUrl() : undefined,
-    });
-
-// Only phones/tablets (coarse pointer) get the OS share sheet: there it opens the
-// messaging apps the reader actually has, while a desktop sheet mostly re-lists web
-// targets the curated menu already covers. Resolved after mount, not at setup: the
-// prerendered HTML has no `navigator`, and rendering the menu on both sides keeps
-// hydration matched.
-const nativeShareAvailable = ref(false);
-// Tracked independently of `nativeShareAvailable`: the curated WhatsApp target still needs
-// to know phone/tablet vs. desktop even when the reader has no native share sheet.
-const isCoarsePointer = ref(false);
-onMounted(() => {
-    isCoarsePointer.value = window.matchMedia("(pointer: coarse)").matches;
-    nativeShareAvailable.value = typeof navigator?.share === "function" && isCoarsePointer.value;
+const draft = (): ShareDraft => ({
+    quote: firstParagraphExcerpt(props.content.text) || props.content.summary,
+    title: props.content.title,
+    copyright: props.copyright || props.content.copyright,
+    url: articleShareUrl(props.content.slug),
 });
 
 const { bucketBaseUrl } = useBucketInfo(computed(() => props.content.parentImageBucketId));
@@ -66,19 +39,18 @@ const { bucketBaseUrl } = useBucketInfo(computed(() => props.content.parentImage
 // share carries a file, so the article image is attached wherever the platform accepts one.
 // iOS drops the user activation across an `await`, so the file has to be in hand before the
 // tap: fetch it as soon as the share sheet is known to be this device's path (the bucket URL
-// arrives asynchronously, hence the watch) and hand `navigator.share` whatever is ready.
+// arrives asynchronously, hence the watch) and hand the sheet whatever is ready.
 const shareFiles = ref<File[]>();
 let preparedUrl: string | undefined;
 
 async function prepareShareImage(url: string) {
     const file = await fetchShareImageFile(url);
-    if (file && navigator.canShare?.({ files: [file] })) shareFiles.value = [file];
+    if (file && canShareFiles([file])) shareFiles.value = [file];
 }
 
 // A reader who has asked for less data (or is on a slow link) gets the text-only share the
 // curated targets already send; the link preview still carries the image.
-const mayPrefetchImage = () =>
-    !isSlowConnection.value && !userDataSaverEnabled.value && !isDataSaverEnabled();
+const mayPrefetchImage = () => !isSlowConnection.value && !dataSaverOn.value;
 
 watch(
     () =>
@@ -93,78 +65,12 @@ watch(
     { immediate: true },
 );
 
-// Prefer the share sheet where it's available, with the curated targets as the fallback.
-async function shareNatively() {
-    try {
-        await navigator.share({
-            title: props.content.title,
-            text: shareMessage(),
-            url: shareUrl(),
-            files: shareFiles.value,
-        });
-    } catch (e) {
-        if ((e as DOMException)?.name === "AbortError") return; // reader dismissed the sheet
-        // Web Share can be present but blocked (e.g. an iframe without the web-share
-        // permission) — drop to the curated targets for the rest of this page view.
-        nativeShareAvailable.value = false;
-        open.value = true;
-    }
+async function share() {
+    if (!(await shareNatively(draft(), shareFiles.value))) open.value = true;
 }
 
 const triggerClass =
     "flex items-center text-zinc-400 transition-colors hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200";
-
-const itemClass =
-    "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500";
-
-function shareToTelegram() {
-    window.open(buildTelegramShareUrl(shareMessage(), shareUrl()), "_blank", "noopener,noreferrer");
-    open.value = false;
-}
-
-function shareToWhatsApp() {
-    window.open(
-        buildWhatsAppShareUrl(shareMessage({ withUrl: true }), isCoarsePointer.value),
-        "_blank",
-        "noopener,noreferrer",
-    );
-    open.value = false;
-}
-
-function shareToX() {
-    window.open(buildXShareUrl(shareMessage(), shareUrl()), "_blank", "noopener,noreferrer");
-    open.value = false;
-}
-
-function shareToReddit() {
-    window.open(
-        buildRedditShareUrl(props.content.title, shareUrl()),
-        "_blank",
-        "noopener,noreferrer",
-    );
-    open.value = false;
-}
-
-// Instagram has no web share-URL API for posts/links, so the closest one-click equivalent
-// is copying the text + link for the user to paste into a DM, Story or bio.
-async function shareToInstagram() {
-    try {
-        await navigator.clipboard.writeText(shareMessage({ withUrl: true }));
-    } catch (e) {
-        console.error("Failed to copy share text to clipboard:", e);
-        open.value = false;
-        return;
-    }
-    useNotificationStore().addNotification({
-        id: "share-link-copied",
-        title: t("singlecontent.shareInstagramCopiedTitle"),
-        description: t("singlecontent.shareInstagramCopiedDescription"),
-        state: "success",
-        type: "toast",
-        timeout: 5000,
-    });
-    open.value = false;
-}
 </script>
 
 <template>
@@ -174,7 +80,7 @@ async function shareToInstagram() {
         :aria-label="t('singlecontent.share')"
         data-test="shareMenuTrigger"
         :class="triggerClass"
-        @click="shareNatively"
+        @click="share"
     >
         <ShareIcon class="h-5 w-5" />
     </button>
@@ -183,7 +89,7 @@ async function shareToInstagram() {
         v-else
         v-model:open="open"
         placement="top-start"
-        panel-class="w-60 rounded-lg bg-white p-1.5 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
+        panel-class="w-60 rounded-lg bg-white p-1.5 shadow-xl ring-1 ring-zinc-200 dark:bg-menu-dark dark:ring-slate-500"
     >
         <template #trigger>
             <span
@@ -196,59 +102,13 @@ async function shareToInstagram() {
         </template>
 
         <template #default="{ triggerOffsetX = 0, above = true }">
-            <div class="flex flex-col gap-0.5">
-                <button
-                    type="button"
-                    @click="shareToTelegram"
-                    data-test="shareTelegram"
-                    :class="itemClass"
-                >
-                    <TelegramIcon class="size-4 flex-shrink-0" />
-                    <span class="min-w-0 truncate">{{ t("singlecontent.shareTelegram") }}</span>
-                </button>
-                <button
-                    type="button"
-                    @click="shareToWhatsApp"
-                    data-test="shareWhatsApp"
-                    :class="itemClass"
-                >
-                    <WhatsAppIcon class="size-4 flex-shrink-0" />
-                    <span class="min-w-0 truncate">{{ t("singlecontent.shareWhatsApp") }}</span>
-                </button>
-                <button
-                    type="button"
-                    @click="shareToX"
-                    data-test="shareX"
-                    :class="itemClass"
-                >
-                    <XIcon class="size-4 flex-shrink-0" />
-                    <span class="min-w-0 truncate">{{ t("singlecontent.shareX") }}</span>
-                </button>
-                <button
-                    type="button"
-                    @click="shareToReddit"
-                    data-test="shareReddit"
-                    :class="itemClass"
-                >
-                    <RedditIcon class="size-4 flex-shrink-0" />
-                    <span class="min-w-0 truncate">{{ t("singlecontent.shareReddit") }}</span>
-                </button>
-                <button
-                    type="button"
-                    @click="shareToInstagram"
-                    data-test="shareInstagram"
-                    :class="itemClass"
-                >
-                    <InstagramIcon class="size-4 flex-shrink-0" />
-                    <span class="min-w-0 truncate">{{ t("singlecontent.shareInstagram") }}</span>
-                </button>
-            </div>
+            <ShareTargets :draft="draft()" @done="open = false" />
 
             <!-- Arrow, matching the highlight-selection popup's pointer. It tracks the
                  trigger rather than the panel edge, so it still points at the share button
                  when the panel has been clamped to the viewport. -->
             <div
-                class="absolute h-3 w-3 -rotate-45 border-zinc-200 bg-white dark:border-slate-500 dark:bg-slate-700"
+                class="absolute h-3 w-3 -rotate-45 border-zinc-200 bg-white dark:border-slate-500 dark:bg-menu-dark"
                 :class="above ? '-bottom-1.5 border-b border-l' : '-top-1.5 border-r border-t'"
                 :style="{ left: `${triggerOffsetX - 6}px` }"
             ></div>

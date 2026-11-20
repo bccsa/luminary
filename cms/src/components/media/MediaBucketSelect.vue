@@ -79,16 +79,19 @@ const problem = computed(() => {
             :options="bucketOptions"
             :disabled="disabled"
             label="Storage bucket"
+            placeholder="Select storage bucket"
             data-test="bucket-select"
         />
 
         <p
             v-else-if="effectiveMediaBucketId"
-            class="text-xs text-zinc-500"
+            class="text-xs text-zinc-500 dark:text-zinc-400"
             data-test="bucket-single"
         >
             Encoding into
-            <span class="font-medium dark:text-zinc-200">{{ bucketOptions[0]?.label }}</span
+            <span class="font-medium text-zinc-700 dark:text-zinc-200">{{
+                bucketOptions[0]?.label
+            }}</span
             >.
         </p>
 

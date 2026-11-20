@@ -7,11 +7,13 @@
 // Must import polyfills first so jsdom-missing globals (e.g. window.matchMedia)
 // exist before globalConfig.ts and friends touch them at module load.
 import "./ssg/polyfills";
+import "./polyfills";
 import "./assets/main.css";
 import { ViteSSG } from "vite-ssg";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import { routes } from "./router/routes";
+import { registerRouterGuards } from "./router";
 import { localizedStaticRoutes } from "./router/localizedRoutes";
 import { initI18n } from "./i18n";
 import { DocType, HttpReq, initHybridQuery, queryRemote, type LanguageDto } from "luminary-shared";
@@ -19,7 +21,9 @@ import { apiUrl, appLanguageIdsAsRef, cmsLanguages, isAppLoading } from "./globa
 import { SSG_DISPLAY_LANGUAGES, ssgDisplayLanguages } from "./ssg/renderLanguage";
 import { applyServedLanguage } from "./ssg/hydrationLanguage";
 import { isPrerender } from "./ssg/isPrerender";
-import { captureSsrArticleTextSnapshot } from "./util/ssrTextRecovery";
+import { captureSsgArticleTextSnapshot } from "./util/ssgTextRecovery";
+import { markAppReady } from "./util/renderState";
+import { installChunkReload } from "./util/chunkReload";
 
 // Tag this query so the API's expensive-query logs can separate prerender build load
 // from normal app load.
@@ -88,10 +92,13 @@ export const createApp = ViteSSG(
                 keep.has(l._id) ? l : { ...l, translations: {} },
             );
         } else {
+            // The entry chunk's hashed URL identifies the build; the web build has no build-id define.
+            installChunkReload(router, import.meta.url);
+
             // Snapshot the prerendered article body before `app.mount` clears #app; the
             // hydration patch in SingleContent recovers `text` (stripped from the cache
             // seed) from this snapshot so the body survives the JS boot.
-            captureSsrArticleTextSnapshot();
+            captureSsgArticleTextSnapshot();
 
             // Client: take the render language from the serialized state so the first
             // render's UI strings + content match the prerendered HTML. An explicit stored
@@ -118,6 +125,9 @@ export const createApp = ViteSSG(
             // for vite-ssg to serialize after the page's onServerPrefetch hooks run.
             initialState.pinia = pinia.state.value;
         } else {
+            // Client only: the guards read sessionStorage and the browser history.
+            registerRouterGuards(router);
+
             // Restore the per-slug snapshot BEFORE mount so the first client render
             // matches the prerendered HTML.
             if (initialState.pinia) {
@@ -133,6 +143,7 @@ export const createApp = ViteSSG(
             } catch (err) {
                 console.error("[ssg] client runtime/auth init failed", err);
             }
+            markAppReady();
         }
     },
     {

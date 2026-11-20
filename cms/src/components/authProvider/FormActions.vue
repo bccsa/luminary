@@ -76,13 +76,7 @@ const handleRevert = () => emit("revert");
                 </LButton>
             </div>
             <div class="flex gap-2">
-                <LButton
-                    @click="handleClose"
-                    variant="secondary"
-                    size="sm"
-                >
-                    Cancel
-                </LButton>
+                <LButton @click="handleClose" variant="secondary" size="sm"> Cancel </LButton>
                 <LButton
                     variant="primary"
                     size="sm"

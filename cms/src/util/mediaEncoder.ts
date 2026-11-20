@@ -93,6 +93,8 @@ export type CreateEncoderSessionRequest = {
     byteRangeMaxFileSizeMB?: number;
     audioByteRangeMaxFileSizeMB?: number;
     existingMedia?: { hlsUrl: string; hlsKey?: string };
+    /** `edit` opens `existingMedia` to change its chapters and audio tracks; it never encodes. */
+    mode?: "encode" | "edit";
 };
 
 export type CreateEncoderSessionResponse = {
@@ -101,6 +103,11 @@ export type CreateEncoderSessionResponse = {
     eventsUrl: string;
     apiVersion: string;
     reused: boolean;
+    /**
+     * In `edit` mode, the version of the video the session opened: newer than
+     * `existingMedia.hlsUrl` when an edit was saved that this document never stored.
+     */
+    hlsUrl?: string;
 };
 
 /**
@@ -169,10 +176,25 @@ export async function createEncoderSession(
                 "Accept the prompt in the encoder window, then try again. (HTTP 403)",
         );
     }
+    if (res.status == 409) {
+        // A conflict, such as editing a post that is still encoding, carries a message written for the editor.
+        const message = encoderMessage(text);
+        if (message) throw new Error(message);
+    }
     if (!res.ok) {
         throw new Error(`Encoder refused the session (HTTP ${res.status}): ${text}`);
     }
     return JSON.parse(text) as CreateEncoderSessionResponse;
+}
+
+/** The `message` of an encoder error body, if it has one. */
+function encoderMessage(body: string): string | undefined {
+    try {
+        const message = (JSON.parse(body) as { message?: unknown }).message;
+        return typeof message == "string" && message ? message : undefined;
+    } catch {
+        return undefined;
+    }
 }
 
 /**
@@ -267,6 +289,36 @@ export async function fetchEncoderSessionKey(
     }
 
     return await unmaskKeyHex(sessionId, body.maskedKeyHex);
+}
+
+/**
+ * Tell the encoder the document has stored `hlsUrl`. The encoder holds further edits of
+ * the video until the version it last wrote is stored, so none is lost to a document
+ * still naming an older one.
+ *
+ * Rejects when the encoder cannot be reached or fails to record it, so the caller can
+ * ask again. A refusal is no failure: encoders from before versioned playlists have no
+ * such route (404), and a session the encoder no longer holds (401) has nothing left to
+ * confirm. `hlsUrl` goes back exactly as the encoder published it, which is what it
+ * compares.
+ */
+export async function ackEncoderSession(
+    sessionId: string,
+    readToken: string,
+    hlsUrl: string,
+    baseUrl: string = ENCODER_BASE_URL,
+): Promise<void> {
+    const res = await fetch(
+        `${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}/ack` +
+            `?token=${encodeURIComponent(readToken)}`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ hlsUrl }),
+        },
+    );
+    if (res.ok || res.status === 401 || res.status === 404) return;
+    throw new Error(`The encoder answered ${res.status} to the acknowledgement.`);
 }
 
 /**

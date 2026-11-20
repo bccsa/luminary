@@ -12,14 +12,19 @@ import {
     TagType,
     type ContentDto,
     type LanguageDto,
+    type MediaDto,
     type TagDto,
     type Uuid,
     verifyAccess,
     PostType,
     isBucketRelative,
     toAbsoluteMediaUrl,
+    useSharedHybridQuery,
+    type GroupDto,
 } from "luminary-shared";
 import { storageSelection } from "@/composables/storageSelection";
+import { groupsMissingDependencyAccess } from "@/components/groups/groupAccess";
+import MissingAccessBanner from "@/components/groups/MissingAccessBanner.vue";
 import { useEditContentSource } from "./composables/useEditContentSource";
 import { useContentLanguage } from "./composables/useContentLanguage";
 import { useContentPermissions } from "./composables/useContentPermissions";
@@ -112,6 +117,8 @@ watch(showDeleteModal, (open) => {
 
 const { getBucketById } = storageSelection();
 const showReplaceMediaModal = ref(false);
+/** The save takes the video off rather than putting another in its place. */
+const deletesMedia = computed(() => !editableParent.value?.media?.hlsUrl);
 
 /**
  * True when saving drops a saved video in one of our buckets. The API then deletes its
@@ -126,6 +133,47 @@ const replacesStoredMedia = computed(() => {
 
     const bucketRoot = toAbsoluteMediaUrl("/", getBucketById(saved.mediaBucketId)?.publicUrl);
     return !!bucketRoot && savedUrl.startsWith(bucketRoot);
+});
+
+const allGroups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
+
+/**
+ * Groups whose members can view this document but hold no Storage view on the group of a
+ * bucket it uses, so they would see the document and never receive the bucket.
+ */
+const missingBucketAccess = (bucketId: string | undefined) => {
+    const parent = editableParent.value;
+    if (!parent || !bucketId) return [];
+    const bucketGroups = getBucketById(bucketId)?.memberOf ?? [];
+    return groupsMissingDependencyAccess(
+        parent.memberOf,
+        props.docType,
+        bucketGroups,
+        DocType.Storage,
+        allGroups.value,
+    );
+};
+
+const accessWarnings = computed(() => {
+    const parent = editableParent.value;
+    return [
+        {
+            key: "media",
+            subject:
+                "the storage bucket its video is stored in, so they will not be able to play the video",
+            groups: parent?.media?.hlsUrl ? missingBucketAccess(parent.mediaBucketId) : [],
+        },
+        {
+            key: "image",
+            subject:
+                "the storage bucket its images are stored in, so they will not be able to see the images",
+            groups: parent?.imageData?.fileCollections?.length
+                ? missingBucketAccess(parent.imageBucketId)
+                : [],
+        },
+    ].filter((w) => w.groups.length);
 });
 
 // Concurrent-edit conflict UI: banner + read-only diff modal (ticket #932). Detection is driven by
@@ -207,12 +255,20 @@ const createTranslation = (language: LanguageDto) => {
     });
 };
 
-const isValid = ref(true);
+// Valid only when both the parent (group membership) and the translations are. Saving gates the
+// encode too, so a post with no group can never be saved, or encoded, into a document nobody can read.
+const parentIsValid = ref(true);
+const translationsAreValid = ref(true);
+const isValid = computed(() => parentIsValid.value && translationsAreValid.value);
 
 // Guards against a rapid second save re-entering while the first is still queuing changes.
 const isSaving = ref(false);
 
-const saveChanges = async () => {
+/** `mediaConfirmed`: the editor has already agreed to the video's files going, where they deleted it. */
+const saveChanges = async (options?: {
+    mediaConfirmed?: boolean;
+    notice?: { title: string; description: string };
+}) => {
     if (isSaving.value) return;
     if (!isValid.value) {
         notify("error", "Changes not saved", "There are validation errors that prevent saving");
@@ -250,22 +306,23 @@ const saveChanges = async () => {
         return;
     }
 
-    if (replacesStoredMedia.value) {
+    if (replacesStoredMedia.value && options?.mediaConfirmed !== true) {
         showReplaceMediaModal.value = true;
         return;
     }
-    await persistChanges();
+    await persistChanges(options?.notice);
     return true;
 };
 
-const persistChanges = async () => {
+/** `notice`: what the save did, when it says more than "saved". */
+const persistChanges = async (notice?: { title: string; description: string }) => {
     isSaving.value = true;
     try {
-        await source.save();
+        await source.save(selectedLanguage.value?._id);
         notify(
             "success",
-            `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
-            `The ${props.tagOrPostType} was saved successfully`,
+            notice?.title ?? `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
+            notice?.description ?? `The ${props.tagOrPostType} was saved successfully`,
         );
     } finally {
         isSaving.value = false;
@@ -286,6 +343,56 @@ const saveEncodedMedia = async (write: () => void) => {
         return;
     }
     await saveChanges();
+};
+
+// A new version of the saved video is the encoder's change, not the editor's, so it is
+// saved on its own and the editor's other edits stay theirs to save.
+const saveMediaOnly = async (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => {
+    const otherEdits = source.hasEditsBesides(["media"]);
+    try {
+        await source.saveMedia(media);
+    } catch (err: any) {
+        notify(
+            "error",
+            "Video not saved",
+            `The edited video could not be saved to this ${props.tagOrPostType}: ${err?.message ?? err}`,
+        );
+        return;
+    }
+    notify(
+        "success",
+        "Video saved",
+        otherEdits
+            ? `The edited video was saved to this ${props.tagOrPostType}. Your other changes are not saved yet.`
+            : `The edited video was saved to this ${props.tagOrPostType}.`,
+    );
+};
+
+// The delete saves at once, so other unsaved edits must be the editor's to save first.
+const saveDeletedMedia = async (write: () => void) => {
+    if (source.hasEditsBesides(["media"])) {
+        notify(
+            "info",
+            "Save your other changes first",
+            `Save or revert your other changes to this ${props.tagOrPostType}, then delete the video.`,
+        );
+        return;
+    }
+    write();
+    // After the write: a saved video in our storage now leaves it.
+    const filesGo = replacesStoredMedia.value;
+    await saveChanges({
+        mediaConfirmed: true,
+        notice: filesGo
+            ? {
+                  title: "Video deleted",
+                  description: `The video was removed from this ${props.tagOrPostType} and its files are being deleted from storage.`,
+              }
+            : {
+                  title: "Video removed",
+                  description: `The video was removed from this ${props.tagOrPostType}. Nothing was deleted where it is hosted.`,
+              },
+    });
 };
 
 const revertChanges = () => {
@@ -418,13 +525,13 @@ const contentActions = computed(() => {
             name: "Preview",
             action: () => window.open(liveUrl.value, "_blank"),
             icon: ArrowTopRightOnSquareIcon,
-            iconClass: "h-5 w-5 flex-shrink-0 dark:text-zinc-100",
+            iconClass: "h-5 w-5 flex-shrink-0 dark:text-zinc-100 text-zinc-500",
         },
         {
             name: "Duplicate",
             action: () => (showDuplicateModal.value = true),
             icon: DocumentDuplicateIcon,
-            iconClass: "h-5 w-5 flex-shrink-0 dark:text-zinc-100",
+            iconClass: "h-5 w-5 flex-shrink-0 dark:text-zinc-100 text-zinc-500",
         },
     ];
     if (canDelete.value) {
@@ -432,7 +539,7 @@ const contentActions = computed(() => {
             name: "Delete",
             action: () => (showDeleteModal.value = true),
             icon: TrashIcon,
-            iconClass: "h-5 w-5 text-red-500 flex-shrink-0",
+            iconClass: "h-5 w-5 text-red-500 dark:text-red-400 flex-shrink-0",
         });
     }
     return actions;
@@ -513,7 +620,7 @@ watch(isLgScreen, (isLg) => {
                             class="flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-slate-700"
                         >
                             {{ selectedLanguage.languageCode.toUpperCase() }}
-                            <ChevronDownIcon class="h-4 w-4 text-zinc-500" />
+                            <ChevronDownIcon class="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                         </button>
                     </template>
                     <div class="py-1">
@@ -529,7 +636,7 @@ watch(isLgScreen, (isLg) => {
                             {{ lang.name }}
                             <CheckCircleIcon
                                 v-if="lang._id === selectedLanguage._id"
-                                class="h-5 w-5 flex-shrink-0 text-yellow-500"
+                                class="h-5 w-5 flex-shrink-0 text-yellow-500 dark:text-yellow-400"
                             />
                         </button>
                     </div>
@@ -548,13 +655,15 @@ watch(isLgScreen, (isLg) => {
         <div
             v-if="hasIncomingChanges"
             data-test="incoming-changes-banner"
-            class="mx-2 mb-2 mt-2 flex items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800 lg:mx-8"
+            class="mx-2 mb-2 mt-2 flex items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800 dark:border-yellow-900 dark:bg-yellow-950/20 dark:text-yellow-400 lg:mx-8"
         >
-            <ExclamationTriangleIcon class="h-5 w-5 flex-shrink-0 text-yellow-500" />
+            <ExclamationTriangleIcon
+                class="h-5 w-5 flex-shrink-0 text-yellow-500 dark:text-yellow-400"
+            />
             <span>This document was changed remotely by someone else.</span>
             <button
                 type="button"
-                class="ml-auto flex items-center gap-1 whitespace-nowrap font-medium text-yellow-900 underline hover:text-yellow-950"
+                class="ml-auto flex items-center gap-1 whitespace-nowrap font-medium text-yellow-900 underline hover:text-yellow-950 dark:text-yellow-300 dark:hover:text-yellow-200"
                 data-test="incoming-changes-review"
                 @click="showIncomingModal = true"
             >
@@ -562,6 +671,15 @@ watch(isLgScreen, (isLg) => {
                 Review changes
             </button>
         </div>
+        <!-- Viewers of this document who are not allowed to read a bucket it depends on. -->
+        <MissingAccessBanner
+            v-for="warning in accessWarnings"
+            :key="warning.key"
+            :data-test="`${warning.key}-access-banner`"
+            class="mx-2 mb-2 mt-2 lg:mx-8"
+            :groups="warning.groups"
+            :subject="warning.subject"
+        />
         <div
             class="flex flex-col gap-0 lg:h-full lg:min-h-0 lg:flex-row lg:gap-2 lg:overflow-hidden lg:pl-8"
         >
@@ -573,7 +691,7 @@ watch(isLgScreen, (isLg) => {
                 <div
                     class="scrollbar-hide lg:h-full lg:min-h-0 lg:overflow-y-auto lg:px-2 lg:pb-2 lg:pt-2"
                 >
-                    <div class="flex flex-col gap-[3px] pb-0 lg:gap-2 lg:pb-4">
+                    <div class="flex flex-col gap-[8px] pb-0 lg:gap-2 lg:pb-4">
                         <EditContentParent
                             v-if="editableParent"
                             :docType="props.docType"
@@ -583,7 +701,9 @@ watch(isLgScreen, (isLg) => {
                             :disabled="!canEditParent"
                             :newDocument="newDocument"
                             :content="editableContent"
+                            class="border-zinc-200 dark:border-slate-700"
                             v-model:parent="editableParent"
+                            @updateIsValid="(val) => (parentIsValid = val)"
                         >
                             <template #supplementary>
                                 <!-- Image, media + video live inside the settings card. -->
@@ -596,6 +716,7 @@ watch(isLgScreen, (isLg) => {
                                             :tagOrPostType="props.tagOrPostType"
                                             :disabled="!canEditParent"
                                             :newDocument="newDocument"
+                                            class="border-zinc-200 dark:border-slate-700"
                                             v-model:parent="editableParent"
                                         />
 
@@ -614,6 +735,9 @@ watch(isLgScreen, (isLg) => {
                                                 existingParent && !isDirty ? undefined : saveChanges
                                             "
                                             :saveEncodedMedia="saveEncodedMedia"
+                                            :savedParent="existingParent"
+                                            :saveMediaOnly="saveMediaOnly"
+                                            :saveDeletedMedia="saveDeletedMedia"
                                             v-model:parent="editableParent"
                                         />
                                     </div>
@@ -638,8 +762,9 @@ watch(isLgScreen, (isLg) => {
                                 :languages="cmsLanguages"
                                 :untranslatedLanguages="untranslatedLanguages"
                                 :isContentItemDirty="isContentItemDirty"
+                                class="border-zinc-200 dark:border-slate-700"
                                 :existingContent="existingContent"
-                                @updateIsValid="(val) => (isValid = val)"
+                                @updateIsValid="(val) => (translationsAreValid = val)"
                                 @create-translation="(language) => createTranslation(language)"
                             />
 
@@ -666,7 +791,7 @@ watch(isLgScreen, (isLg) => {
                 class="flex w-full min-w-0 flex-1 flex-col lg:h-full lg:min-h-0 lg:overflow-hidden"
             >
                 <div
-                    class="flex w-full flex-1 flex-col bg-white dark:border-slate-700 dark:bg-slate-800/30 lg:min-h-0 lg:overflow-hidden lg:border-l lg:border-zinc-200 lg:pr-8"
+                    class="flex w-full flex-1 flex-col bg-white dark:border-slate-700 dark:bg-slate-800/30 lg:min-h-0 lg:overflow-hidden lg:border-l lg:border-zinc-200"
                 >
                     <EmptyState
                         v-if="!selectedContent"
@@ -753,13 +878,15 @@ watch(isLgScreen, (isLg) => {
              document. -->
         <label
             v-if="editableParent?.media?.hlsUrl"
-            class="mt-3 flex cursor-pointer select-none items-start gap-2 text-sm text-zinc-700"
+            class="mt-3 flex cursor-pointer select-none items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300"
             data-test="delete-media-files"
         >
             <input v-model="deleteMediaFiles" type="checkbox" class="mt-0.5 h-4 w-4" />
             <span>
                 Also delete the media files from storage
-                <span class="mt-0.5 block break-all font-mono text-xs text-zinc-500">
+                <span
+                    class="mt-0.5 block break-all font-mono text-xs text-zinc-500 dark:text-zinc-400"
+                >
                     {{ editableParent.media.hlsUrl }}
                 </span>
             </span>
@@ -767,8 +894,12 @@ watch(isLgScreen, (isLg) => {
     </LDialog>
     <LDialog
         v-model:open="showReplaceMediaModal"
-        title="Replace the video?"
-        description="Saving deletes the current video's files from storage, unless another document still uses them. This cannot be undone."
+        :title="deletesMedia ? 'Delete the video?' : 'Replace the video?'"
+        :description="
+            deletesMedia
+                ? 'Saving deletes this video\'s files from storage, unless another document still uses them. This cannot be undone.'
+                : 'Saving deletes the current video\'s files from storage, unless another document still uses them. This cannot be undone.'
+        "
         :primaryAction="
             async () => {
                 showReplaceMediaModal = false;
@@ -781,7 +912,10 @@ watch(isLgScreen, (isLg) => {
         context="danger"
         :showClosingButton="false"
     >
-        <p class="mt-3 break-all font-mono text-xs text-zinc-500" data-test="replace-media-url">
+        <p
+            class="mt-3 break-all font-mono text-xs text-zinc-500 dark:text-zinc-400"
+            data-test="replace-media-url"
+        >
             {{ existingParent?.media?.hlsUrl }}
         </p>
     </LDialog>

@@ -1,14 +1,24 @@
 import "fake-indexeddb/auto";
 import { mount } from "@vue/test-utils";
+import { createSSRApp } from "vue";
+import { renderToString } from "vue/server-renderer";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 
 vi.mock("@/globalConfig", async () => {
     const { ref } = await import("vue");
+    const isDataSaverEnabled = vi.fn(() => false);
+    const userDataSaverEnabled = ref(false);
     return {
         fallbackImageUrls: ["fallback.webp"],
-        isDataSaverEnabled: vi.fn(() => false),
-        userDataSaverEnabled: ref(false),
+        isDataSaverEnabled,
+        userDataSaverEnabled,
+        // Read afresh each time, as the real level reads the device's flag.
+        dataSaverOn: {
+            get value() {
+                return userDataSaverEnabled.value || isDataSaverEnabled();
+            },
+        },
     };
 });
 // Mock the speed probe so we can drive the "slow connection" branch without timing a real download.
@@ -443,4 +453,39 @@ describe("LImageProvider", () => {
         // Full ladder retained.
         expect(img1.attributes("srcset")).toContain("video-1200.webp 1200w");
     });
+
+    it.each(["portrait", "original"] as const)(
+        "replaces the prerendered reduced `sizes` with the client value after hydration (%s)",
+        async (aspectRatio) => {
+            const props = {
+                parentId: "test-id-hydrate",
+                image: mockImage,
+                aspectRatio,
+                size: "thumbnailCompact" as const,
+                bucketPublicUrl: "https://bucket.example.com",
+            };
+
+            const env = import.meta.env as { SSR: boolean };
+            env.SSR = true;
+            let html: string;
+            try {
+                html = await renderToString(createSSRApp(LImageProvider, props));
+            } finally {
+                env.SSR = false;
+            }
+            expect(html).toContain('sizes="128px"');
+
+            const container = document.createElement("div");
+            container.innerHTML = html;
+            document.body.appendChild(container);
+            const app = createSSRApp(LImageProvider, props);
+            app.mount(container);
+
+            expect(container.querySelector("img")!.getAttribute("sizes")).toContain(
+                "(prefers-reduced-data: reduce) 128px, (min-width: 768px)",
+            );
+            app.unmount();
+            container.remove();
+        },
+    );
 });
