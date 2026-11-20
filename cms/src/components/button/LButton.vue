@@ -115,12 +115,12 @@ function segmentClass(base: string, position: "left" | "middle" | "right") {
 
 const iconVariants = {
     primary:
-        "text-zinc-100 group-hover:text-white group-active:text-white dark:text-zinc-800 dark:group-hover:text-zinc-800 dark:group-active:text-zinc-800 dark:group-disabled:text-zinc-600",
+        "text-zinc-100 enabled:group-hover:text-zinc-700 enabled:group-active:text-white dark:text-zinc-800",
     secondary:
-        "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80 dark:text-zinc-400 dark:group-hover:text-zinc-100 dark:group-active:text-zinc-100 dark:group-disabled:text-zinc-700",
+        "text-zinc-800/80 enabled:group-hover:text-zinc-900/80 enabled:group-active:text-zinc-900/80 dark:text-zinc-400 dark:enabled:group-hover:text-zinc-100",
     tertiary:
-        "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80 dark:text-zinc-400 dark:group-hover:text-zinc-100 dark:group-active:text-zinc-100 dark:group-disabled:text-zinc-600",
-    muted: "dark:text-zinc-500 dark:group-disabled:text-zinc-600",
+        "text-zinc-800/80 enabled:group-hover:text-zinc-900/80 enabled:group-active:text-zinc-900/80 dark:text-zinc-400 dark:enabled:group-hover:text-zinc-100",
+    muted: "dark:text-zinc-500",
 };
 
 const tooltipVariants = {
@@ -283,7 +283,7 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
             class="order-2"
             :class="
                 twMerge(
-                    !disabled && $slots.default ? iconVariants[variant] : '',
+                    $slots.default ? iconVariants[variant] : '',
                     iconRight && $slots.default ? '-mr-0.5' : '',
                     !iconRight && $slots.default ? '-ml-0.5' : '',
                     smallIcon && isMobileScreen ? 'h-4 w-4' : '',
