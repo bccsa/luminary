@@ -237,6 +237,7 @@ async function loadSource(source: PlayerSource): Promise<void> {
     const media = mediaEl.value;
     if (!media) return;
     const generation = ++loadGeneration;
+    startTrackUnread = true;
     sourceError.value = null;
 
     if (isYouTubeUrl(source.masterUrl)) {
@@ -272,8 +273,25 @@ function applyPreferredLanguage(): void {
     const target = findPreferredTrack(snapshot.audioTracks, preferred);
     if (!target) return;
     autoAppliedTrackId = target;
-    if (target === snapshot.activeAudioTrackId) return;
+    // Nothing to do when the state names it already, unless the engine is known to play another: until somebody
+    // chooses, the state names the first track listed, and the engine plays the stream's default.
+    const playing = engineAudioTrackId();
+    if (target === snapshot.activeAudioTrackId && (playing === undefined || playing === target))
+        return;
     instance.setAudioTrack(target);
+}
+
+/** The controller's id for the track the engine has enabled, joined by position as the menu's relay joins them. */
+function engineAudioTrackId(): string | undefined {
+    const tracks = mediaEl.value?.audioTracks;
+    const known = state.value.audioTracks;
+    if (!tracks || known.length !== tracks.length) return undefined;
+    let i = 0;
+    for (const track of tracks) {
+        if (track.enabled) return known[i]?.id;
+        i++;
+    }
+    return undefined;
 }
 
 watch([() => props.source, () => props.preferredLanguage], () => {
@@ -310,11 +328,27 @@ function onEngineAudioTrackChange(): void {
     const tracks = mediaEl.value?.audioTracks;
     if (isYouTube.value || !instance || !tracks) return;
     const known = state.value.audioTracks;
-    if (known.length !== tracks.length) return;
     let i = 0;
     for (const track of tracks) {
         if (track.enabled) {
-            const id = known[i]?.id;
+            const id = known.length === tracks.length ? known[i]?.id : undefined;
+            // The track the engine started this source on, not a pick: see `audioListSettling`. Only once the list
+            // has been rebuilt for it: until then it is the outgoing source's, and a change there is a pick.
+            if (audioListSettling && audioListRebuilt) {
+                audioListSettling = false;
+                // A load's first list, with no preferred language in it for the host to select: the track the engine
+                // starts on is the one that plays, and the state names the first track listed until it is told. On a
+                // new video the picture started for that track's language, the stream's default, so telling it moves
+                // no picture. Never after a re-attach, where the controller hands the viewer's choice back.
+                const awaited = [
+                    props.preferredLanguage,
+                    ...(props.source.preferredAudioLanguages ?? []),
+                ].some((lang) => !!lang && !!findPreferredTrack(known, lang));
+                if (startTrackUnread && !awaited && id && id !== state.value.activeAudioTrackId)
+                    instance.setAudioTrack(id);
+                startTrackUnread = false;
+                return;
+            }
             if (id && id !== state.value.activeAudioTrackId) instance.setAudioTrack(id);
             return;
         }
@@ -453,6 +487,23 @@ onMounted(() => {
 onBeforeUnmount(() => qualityCardObserver?.disconnect());
 let audioTrackList: EventTarget | undefined;
 let textTrackList: EventTarget | undefined;
+/**
+ * The audio list was bound for a new source and has not yet shown the track it starts on. Every attach (an angle
+ * switch, the audio toggle, a recovery) rebuilds the list with the stream's default enabled, and that `change`
+ * arrives before the controller hands the viewer's choice back. Relayed, the default would overwrite the choice,
+ * and move the picture to the default's language. From nothing to something after a load is not a pick, as on native.
+ * Raised on `loadstart`, lowered by the first `change` on the rebuilt list or, at the latest, on `loadeddata`.
+ */
+let audioListSettling = false;
+/**
+ * A track has been added to the audio list since `loadstart`. Until one is, the list still holds the outgoing
+ * source's tracks, and a pick made on it in those few milliseconds would otherwise lower `audioListSettling`: the
+ * rebuilt list's default would then be relayed as a pick.
+ */
+let audioListRebuilt = false;
+const onAudioTrackAdded = (): void => void (audioListRebuilt = true);
+/** A new `source` has not yet shown the track its engine starts on. A re-attach does not raise it again. */
+let startTrackUnread = false;
 
 /**
  * Listens to the element's audio and text track lists, for a choice made in the player's own menus.
@@ -461,6 +512,7 @@ let textTrackList: EventTarget | undefined;
  * controller, and the player's state would go on saying English.
  */
 function bindTrackLists(): void {
+    audioTrackList?.removeEventListener("addtrack", onAudioTrackAdded);
     audioTrackList?.removeEventListener("change", onEngineAudioTrackChange);
     textTrackList?.removeEventListener("change", onEngineTextTrackChange);
     textTrackList?.removeEventListener("change", placeCues);
@@ -468,6 +520,10 @@ function bindTrackLists(): void {
     const media = mediaEl.value;
     audioTrackList = media?.audioTracks as unknown as EventTarget | undefined;
     textTrackList = media?.textTracks as unknown as EventTarget | undefined;
+    // On `loadstart`, which comes before the engine rebuilds the list for the source.
+    audioListSettling = true;
+    audioListRebuilt = false;
+    audioTrackList?.addEventListener("addtrack", onAudioTrackAdded);
     audioTrackList?.addEventListener("change", onEngineAudioTrackChange);
     textTrackList?.addEventListener("change", onEngineTextTrackChange);
     textTrackList?.addEventListener("change", placeCues);
@@ -559,6 +615,9 @@ onMounted(() => {
     keepAlive = createKeepAlive(keepAliveEl.value);
 
     on("loadstart", bindTrackLists);
+    // The engine enables the default when it reads the manifest, long before data loads: a flag still up by now
+    // is one no `change` came for, and left up it would swallow the viewer's next pick.
+    on("loadeddata", () => (audioListSettling = false));
     bindTrackLists();
     applyFit();
     on("loadstart", applyFit);
@@ -618,6 +677,7 @@ onBeforeUnmount(() => {
     removePressActivation = null;
     for (const [type, handler] of mediaListeners) mediaEl.value?.removeEventListener(type, handler);
     mediaListeners.length = 0;
+    audioTrackList?.removeEventListener("addtrack", onAudioTrackAdded);
     audioTrackList?.removeEventListener("change", onEngineAudioTrackChange);
     textTrackList?.removeEventListener("change", onEngineTextTrackChange);
     textTrackList?.removeEventListener("change", placeCues);
