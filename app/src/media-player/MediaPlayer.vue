@@ -984,19 +984,6 @@ watch([() => item.value?.content._id, expanded, audioMode], () => {
 const LOADED_VISIBLE_FRACTION = 0.006;
 const loadedShows = computed(() => loaded.value - progress.value > LOADED_VISIBLE_FRACTION);
 
-/** The last camera seen playing on this item, where Video returns to. */
-let videoAngleId: string | null = null;
-watch(
-    () => state.value?.activeAngleId,
-    (id) => {
-        if (id && id !== AUDIO_ONLY_ANGLE_ID) videoAngleId = id;
-    },
-);
-// Another item's camera is not one this item has: asked for, the switch to Video would do nothing.
-watch(
-    () => item.value?.content._id,
-    () => (videoAngleId = null),
-);
 const videoAngles = computed(
     () => state.value?.angles.filter((angle) => angle.id !== AUDIO_ONLY_ANGLE_ID) ?? [],
 );
@@ -1066,8 +1053,10 @@ async function showVideo() {
     }
     const audioPending = audioRequested.value;
     audioRequested.value = false;
+    // The player's own return-to-video angle: also right for an item opened as sound, which no camera has played on,
+    // and after the audio language changed while only the sound played, which moves it to that language's picture.
     const target =
-        videoAngles.value.find((angle) => angle.id === videoAngleId)?.id ??
+        videoAngles.value.find((angle) => angle.id === state.value?.videoAngleId)?.id ??
         videoAngles.value.find((angle) => angle.isDefault)?.id ??
         videoAngles.value[0]?.id;
     if ((audioMode.value || audioPending) && target) await controller.value?.setAngle(target);
