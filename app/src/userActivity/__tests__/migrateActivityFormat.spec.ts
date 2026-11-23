@@ -92,6 +92,38 @@ describe("activity format migration", () => {
         expect(await db.localChanges.count()).toBe(1);
     });
 
+    it.each([10, 20])(
+        "uploads the retained removal instead of an equal/older queued live row at %s",
+        async (queuedTime) => {
+            const removed = normalizeUserActivityDocument({
+                ...legacy,
+                activityTimeUtc: 20,
+                deleted: true,
+            });
+            await db.docs.put(removed);
+            await db.localChanges.add({
+                docId: legacy._id,
+                doc: { ...legacy, activityTimeUtc: queuedTime },
+            } as any);
+            await migrateActivityFormat(db);
+            const change = (await db.localChanges.toArray())[0];
+            expect(change.doc).toEqual(await db.docs.get(removed._id));
+            expect(change.doc).toMatchObject({ deleted: true, activityTimeUtc: 20 });
+        },
+    );
+
+    it("does not resurrect a removal when equal-time queued versions coalesce", async () => {
+        await db.localChanges.bulkAdd([
+            { docId: legacy._id, doc: { ...legacy, deleted: true } },
+            { docId: legacy._id, doc: legacy },
+        ] as any);
+        await migrateActivityFormat(db);
+        const changes = await db.localChanges.toArray();
+        expect(changes).toHaveLength(1);
+        expect(changes[0].doc).toMatchObject({ deleted: true });
+        expect(changes[0].doc).toEqual(await db.docs.get(changes[0].docId));
+    });
+
     it("rolls back without dropping data if a legacy record cannot be migrated", async () => {
         const invalid = { ...legacy, type: "unknown" };
         await db.docs.put(invalid as any);

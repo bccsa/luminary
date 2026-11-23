@@ -492,3 +492,30 @@ Phase 4 (live owner updates) and Phase 5 (quotas/tombstone cleanup) remain defer
 Verification: 249 mock-only tests passed across 16 suites, plus API build/type checking and
 lint/format checks on changed API code. All 100 relocated JSON assets match their original
 bytes and the compiled copies. Build output contains no assets at the old root paths.
+
+### Review Phase 5 — final performance review and regression checks
+
+Scope confirmed with the repository owner: review and regression checks; original quota and
+tombstone-cleanup Phase 5 remains deferred. Findings and verification limits are recorded in
+`docs/reviews/user-data-sync-final-review.md`.
+
+- Source pulls now use indexed pending-document key lookups instead of loading every queued
+  document's payload for each incoming page. Transactional protection of local edits remains.
+- Format migration queues the same winning document it retains locally, preventing an older
+  or equal-time queued live copy from undoing a retained tombstone. Regression cases cover
+  stored/queued conflicts and duplicate queued versions.
+- Additional mocked checks cover simultaneous writes to the same owner/document and exhausted
+  conflict retries, alongside the existing singleton and request-count checks.
+- **Open correctness finding:** a mocked source probe with three documents at one timestamp
+  and batch size two imports only two. The inherited timestamp-only sync cursor can seal a
+  saturated timestamp prematurely. Stable tie-breaker pagination requires a separate coordinated
+  API/client cursor change; it is not fixed by this review. See the review report for reproduction.
+
+Live CouchDB/S3 tests, browser E2E and throughput measurements remain user-owned. This review
+does not claim complete sync convergence while the timestamp-tie finding is unresolved.
+
+Normal regression suites passed: app 2,170 (one skipped), shared 1,525, CMS 1,224 and selected
+mocked API/HTTP 274. API/app/CMS type checks and changed-code lint passed. The separate
+timestamp-tie diagnostic failed as described above and remains an open finding.
+Shared/API/app/CMS builds passed; the CMS build used the favicon setting from `.env.example`
+as a command-scoped override because the local value was unset. No `.env` file was edited.

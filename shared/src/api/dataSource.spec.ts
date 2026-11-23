@@ -313,4 +313,33 @@ describe("createDataSource", () => {
         expect(await source.db.docs.count()).toBe(0);
         expect(await source.db.getLuminaryInternals("syncList")).toEqual([]);
     });
+
+    it("protects pending edits in a backlog while importing unrelated remote documents", async () => {
+        let respond!: (value: { docs: BaseDocumentDto[] }) => void;
+        http.post.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    respond = resolve;
+                }),
+        );
+        changeRequestMock.mockResolvedValue(undefined);
+        const { source, enabled } = await create();
+        connect();
+        enabled.value = true;
+        await waitForExpect(() => expect(http.post).toHaveBeenCalledTimes(1));
+
+        const queued = Array.from({ length: 100 }, (_, i) => makeDoc(`queued-${i}`, 5000));
+        await source.db.transaction("rw", source.db.docs, source.db.localChanges, async () => {
+            await source.db.docs.bulkPut(queued);
+            await source.db.localChanges.bulkAdd(
+                queued.map((doc, i) => ({ id: i + 1, docId: doc._id, doc })),
+            );
+        });
+        respond({ docs: [makeDoc("queued-50", 1000), makeDoc("remote-only", 999)] });
+        await source.pull();
+        expect((await source.db.docs.get("queued-50"))?.updatedTimeUtc).toBe(5000);
+        expect((await source.db.docs.get("remote-only"))?.updatedTimeUtc).toBe(999);
+        expect(await source.db.localChanges.count()).toBe(100);
+        expect(defaultSyncList.value).toEqual([]);
+    });
 });

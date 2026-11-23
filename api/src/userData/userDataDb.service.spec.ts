@@ -366,4 +366,33 @@ describe("UserDataDbService (mocked nano)", () => {
         expect(service.enabled).toBe(true);
         expect(nano).toHaveBeenCalledTimes(2);
     });
+
+    it("bounds conflict retries without reporting a successful write", async () => {
+        await service.initialize();
+        handle.get.mockClear();
+        handle.insert.mockReset().mockRejectedValue(conflict());
+        await expect(service.upsert("owner-a", activity, 0)).rejects.toMatchObject({
+            statusCode: 409,
+        });
+        expect(handle.get).toHaveBeenCalledTimes(1);
+        expect(handle.insert).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the newest activity under simultaneous writes to the same owner and id", async () => {
+        await service.initialize();
+        handle.insert.mockImplementation(async (doc) => {
+            const previous = docs.get(doc._id);
+            if (previous ? doc._rev !== previous._rev : doc._rev !== undefined) throw conflict();
+            const rev = `${Number(previous?._rev.split("-")[0] ?? 0) + 1}-server`;
+            docs.set(doc._id, { ...doc, _rev: rev });
+            return { ok: true, id: doc._id, rev };
+        });
+        await Promise.all(
+            [120, 150, 130, 140].map((activityTimeUtc) =>
+                service.upsert("owner-a", { ...activity, activityTimeUtc }),
+            ),
+        );
+        expect(docs.get(`owner-a:${activity._id}`).activityTimeUtc).toBe(150);
+        expect(nano).toHaveBeenCalledTimes(1);
+    });
 });

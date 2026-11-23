@@ -70,8 +70,13 @@ export async function createDataSource(config: DataSourceConfig): Promise<DataSo
         // Check cancellation inside the transaction too: a clear may precede its start.
         await sourceDb.transaction("rw", sourceDb.docs, sourceDb.localChanges, async () => {
             if (isCancelled()) return;
-            const queued = await sourceDb.localChanges.toArray();
-            const queuedDocIds = new Set(queued.map((c) => c.docId));
+            // Look up only incoming ids; pending highlight payloads can be large.
+            const queuedDocIds = new Set(
+                await sourceDb.localChanges
+                    .where("docId")
+                    .anyOf(docs.map((doc) => doc._id))
+                    .keys(),
+            );
             const filtered = docs.filter((doc) => !queuedDocIds.has(doc._id));
             if (filtered.length > 0) {
                 await sourceDb.bulkPut(filtered);

@@ -129,6 +129,11 @@ uncontended activity write reads the current revision then writes once; stale or
 retries skip the write. Conflicts still re-read to preserve activity-time ordering across API
 instances. Mocked request-count checks verify this behavior; live throughput has not been measured.
 
+The [final review](../docs/reviews/user-data-sync-final-review.md) records an unresolved
+timestamp-pagination limit: a full batch of documents sharing one `updatedTimeUtc` can cause
+the client's generic sync cursor to stop before importing every tied document. Stable
+tie-breaker pagination remains follow-up work; passing unit suites does not resolve it.
+
 On the first startup with this format, the API migrates existing user-data records in pages of
 100, preserving owner partitions and activity timestamps, then writes
 `_local/userActivityFormat-v2`. Interrupted migrations resume safely on restart. Source support

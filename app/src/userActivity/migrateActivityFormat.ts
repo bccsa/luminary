@@ -38,7 +38,13 @@ export async function migrateActivityFormat(db: DataSourceHandle["db"]): Promise
         await db.docs.clear();
         await db.docs.bulkPut([...documents.values()]);
         await db.localChanges.clear();
-        await db.localChanges.bulkPut([...queued.values()]);
+        // Upload the same winner we retain locally, including equal-time tombstones.
+        await db.localChanges.bulkPut(
+            [...queued.values()].map((change) => ({
+                ...change,
+                doc: documents.get(change.docId)!,
+            })),
+        );
         await db.setLuminaryInternals(FORMAT_KEY, 2);
     });
 }
