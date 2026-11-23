@@ -723,6 +723,8 @@ describe("MediaPlayerWrapper", () => {
                 masterUrl: ABSOLUTE,
                 keyHex: undefined,
                 maxHeightInPlace: true,
+                // The viewer's language, so playback starts on the view for it.
+                preferredAudioLanguages: ["en"],
                 bandwidthEstimate: 1_000_000,
                 sidecars: {
                     chapters: [

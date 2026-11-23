@@ -80,6 +80,7 @@ function initialState(): PlayerState {
         playbackRate: 1,
         angles: [],
         activeAngleId: null,
+        videoAngleId: null,
         qualities: [],
         activeQualityId: "auto",
         audioTracks: [],

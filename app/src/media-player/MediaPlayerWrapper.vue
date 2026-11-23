@@ -297,6 +297,23 @@ const youtubeUrl = computed(() =>
 
 /** The angle the load starts on, fixed per content so a later change of mind does not reload. */
 const startAngleId = ref<string | undefined>(undefined);
+/**
+ * The languages `preferredLanguage` will choose the audio by, for the player to start on the picture made for it
+ * (burnt-in titles, lip sync) rather than switch to it once the audio is selected. Whether the stream has the
+ * remembered language is not known before it loads, so both of that rule's candidates go, in its order, and the
+ * player takes the first the stream has; nothing beyond them, or the load could start on a picture whose audio is
+ * never selected. Fixed per content like `startAngleId`: the remembered language moves with every audio pick, and
+ * every new source reloads the stream. The cap's reload in place keeps it, as the player ignores it on a reload of the
+ * same video and goes on following the language it was following, on the angle `startAngleId` names.
+ */
+const preferredAudioLanguages = shallowRef<string[]>([]);
+function audioLanguagesToStartWith(): string[] {
+    const candidates = [
+        audioLanguagePreference.value,
+        props.language || appLanguagesPreferredAsRef.value[0]?.languageCode,
+    ];
+    return [...new Set(candidates.filter((lang): lang is string => !!lang))];
+}
 
 /**
  * What Data Saver allows a picture: nothing above this height is offered to the player, so it can
@@ -412,13 +429,21 @@ watch(
 
 /**
  * Where the engine cannot hold the cap in place (AVPlayer): Data Saver turned on or off mid-play sets or lifts it by
- * loading the same content again in place, on the angle it is on. False when the cap already matches.
+ * loading the same content again in place, on the angle the player is heading for. That is not always the one playing:
+ * during an automatic switch the playing angle is the one on its way out, while the player already follows the new
+ * audio language, and a reload onto it would keep that audio and lose the switch. Audio only stays Audio only (its
+ * `videoAngleId` is only where "Video" returns to). False when the cap already matches.
  */
 function syncDataSaverCap(): boolean {
     if (player.value?.controller?.canCapInPlace || !props.content) return false;
     const cap = playbackDataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : undefined;
     if (maxHeight.value === cap) return false;
-    startAngleId.value = player.value?.state?.activeAngleId ?? startAngleId.value;
+    const state = player.value?.state;
+    const headingFor =
+        state?.activeAngleId === AUDIO_ONLY_ANGLE_ID
+            ? state.activeAngleId
+            : (state?.videoAngleId ?? state?.activeAngleId);
+    startAngleId.value = headingFor ?? startAngleId.value;
     preservePosition.value = true;
     maxHeight.value = cap;
     return true;
@@ -431,6 +456,9 @@ const source = computed<PlayerSource | null>(() => {
         masterUrl: url,
         keyHex: keyHex.value,
         startAngleId: startAngleId.value,
+        ...(preferredAudioLanguages.value.length
+            ? { preferredAudioLanguages: preferredAudioLanguages.value }
+            : {}),
         maxHeight: maxHeight.value,
         // Held in place where the engine can, so the setting moves it with no reload.
         maxHeightInPlace: true,
@@ -453,6 +481,7 @@ watch(
         const masterUrl = mediaSource.value;
         if (masterUrl && !isYouTubeUrl(masterUrl)) warmPlaylists(masterUrl);
         startAngleId.value = props.startAudio ? AUDIO_ONLY_ANGLE_ID : undefined;
+        preferredAudioLanguages.value = audioLanguagesToStartWith();
         maxHeight.value = playbackDataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : undefined;
         preservePosition.value = false;
         resumeAt.value = resumePoint();
