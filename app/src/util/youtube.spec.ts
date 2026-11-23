@@ -10,6 +10,9 @@ describe("youtube", () => {
             `https://youtu.be/${id}`,
             `https://www.youtube.com/embed/${id}`,
             `https://www.youtube.com/v/${id}`,
+            `https://www.youtube.com/live/${id}?si=abc`,
+            `https://www.youtube.com/shorts/${id}`,
+            `https://m.youtube.com/watch?v=${id}`,
         ]) {
             expect(youTubeIdOf(url)).toBe(id);
             expect(isYouTubeLink(url)).toBe(true);

@@ -20,6 +20,7 @@ import { LockClosedIcon, LockOpenIcon } from "@heroicons/vue/16/solid";
 import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web";
 import { type ContentParentDto, fetchHlsKey, toAbsoluteMediaUrl } from "luminary-shared";
 import { storageSelection } from "@/composables/storageSelection";
+import { extractYouTubeId } from "@/util/youtubeUtils";
 
 type Props = {
     parent: ContentParentDto | undefined;
@@ -41,6 +42,9 @@ const masterUrl = computed(() => {
     const bucket = getBucketById(props.parent?.mediaBucketId ?? null);
     return toAbsoluteMediaUrl(url, bucket?.publicUrl);
 });
+
+/** Our player only plays HLS collections, so a YouTube link is previewed in YouTube's own embed. */
+const youTubeId = computed(() => extractYouTubeId(props.parent?.media?.hlsUrl ?? "") ?? undefined);
 
 /**
  * The key, as the player needs it.
@@ -161,6 +165,7 @@ watch(masterUrl, () => (showing.value = false));
             -->
             <template #rightHeading>
                 <LBadge
+                    v-if="!youTubeId"
                     :variant="keySource ? 'success' : 'default'"
                     :icon="keySource ? LockClosedIcon : LockOpenIcon"
                     withIcon
@@ -179,8 +184,17 @@ watch(masterUrl, () => (showing.value = false));
             </template>
 
             <div class="overflow-hidden rounded-md bg-black">
+                <iframe
+                    v-if="showing && youTubeId"
+                    :src="`https://www.youtube-nocookie.com/embed/${youTubeId}?rel=0`"
+                    title="YouTube video preview"
+                    class="aspect-video w-full"
+                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                    allowfullscreen
+                    data-test="video-preview-youtube"
+                ></iframe>
                 <LuminaryPlayer
-                    v-if="showing"
+                    v-else-if="showing"
                     :source="source"
                     :controls="{ subtitlesMenu: false }"
                     data-test="video-preview-player"
