@@ -1055,8 +1055,9 @@ const screenAngles = computed(() =>
 const canSwitch = computed(
     () =>
         !!controller.value &&
-        !!state.value?.angles.some((angle) => angle.id === AUDIO_ONLY_ANGLE_ID) &&
-        videoAngles.value.length > 0,
+        ((!!state.value?.angles.some((angle) => angle.id === AUDIO_ONLY_ANGLE_ID) &&
+            videoAngles.value.length > 0) ||
+            engine.value?.streamOffersVideo === true),
 );
 
 async function showAudio() {
@@ -1104,6 +1105,11 @@ async function showVideo() {
     if (videoOffByChoice.value) {
         videoOffByChoice.value = false;
         handle.value?.setVideoOff?.(false);
+        if (isNativeApp() && !inlineVideo.value) await handle.value?.enterFullscreen();
+        return;
+    }
+    if (engine.value?.streamForVideo?.()) {
+        audioRequested.value = false;
         if (isNativeApp() && !inlineVideo.value) await handle.value?.enterFullscreen();
         return;
     }

@@ -389,6 +389,63 @@ describe("MediaPlayerWrapper with downloads", () => {
             expect(playerNotice.value).toBeNull();
         });
 
+        describe("the picture asked for over a download of the sound only", () => {
+            async function playingSoundDownload(online: boolean) {
+                const entry = {
+                    ...entryOf(parentId, WIDE_CHAPTERS, [0, 1, 2, 3]),
+                    selection: { kind: "audio" as const, audioLanguage: "eng" },
+                };
+                const service = downloadsServiceStub({
+                    entries: [entry],
+                    playable: [parentId],
+                    network: { online, metered: false },
+                });
+                service.hooks.open.mockResolvedValue(
+                    playbackOf(timelineOf([{ fullStart: 0, fullEnd: 600, localStart: 0 }], 600)),
+                );
+                const wrapper = await mountWith(service);
+                state().activeAngleId = "audio-only";
+                await loaded(wrapper);
+                await at(wrapper, 120, 600);
+                return wrapper;
+            }
+
+            it("online, offers the picture and streams it from the same word on the default camera", async () => {
+                const wrapper = await playingSoundDownload(true);
+                const vm = wrapper.vm as any;
+                expect(vm.streamOffersVideo).toBe(true);
+
+                expect(vm.streamForVideo()).toBe(true);
+                await flushPromises();
+
+                const source = native(wrapper).props("source");
+                expect(source.masterUrl).toContain("https://");
+                expect(source.startPosition).toBe(120);
+                expect(source.startAngleId).toBeUndefined();
+                expect(playOnlineOverride.value).toBe(true);
+            });
+
+            it("offline, offers no picture and keeps playing the download", async () => {
+                const wrapper = await playingSoundDownload(false);
+                const vm = wrapper.vm as any;
+                expect(vm.streamOffersVideo).toBe(false);
+                expect(vm.streamForVideo()).toBe(false);
+                expect(native(wrapper).props("source").masterUrl).toContain("luminary://offline/");
+            });
+
+            it("offers nothing over a download that holds the picture", async () => {
+                const service = downloadsServiceStub({
+                    entries: [entryOf(parentId, WIDE_CHAPTERS, [0, 1, 2, 3])],
+                    playable: [parentId],
+                });
+                service.hooks.open.mockResolvedValue(
+                    playbackOf(timelineOf([{ fullStart: 0, fullEnd: 600, localStart: 0 }], 600)),
+                );
+                const wrapper = await mountWith(service);
+                expect((wrapper.vm as any).streamOffersVideo).toBe(false);
+            });
+        });
+
         it("raises no fallback notice for an open another item superseded", async () => {
             const service = downloadsServiceStub({ playable: [parentId] });
             let resolve!: (value: null) => void;

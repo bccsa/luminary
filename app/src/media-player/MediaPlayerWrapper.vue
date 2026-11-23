@@ -830,7 +830,15 @@ const playingSource = computed<"downloaded" | "online" | undefined>(() =>
     downloadsPlayer() ? (playback.value ? "downloaded" : "online") : undefined,
 );
 
-defineExpose({ player, inlineActive, syncDataSaverCap, playback, playingSource });
+defineExpose({
+    player,
+    inlineActive,
+    syncDataSaverCap,
+    playback,
+    playingSource,
+    streamOffersVideo: computed(() => streamOffersVideo.value),
+    streamForVideo: () => streamForVideo(),
+});
 
 /**
  * Progress is stored in full-item time against the full duration: a download's own, shorter timeline is converted
@@ -1190,6 +1198,24 @@ function streamKey() {
 function streamInstead(position: number | undefined, play?: boolean) {
     playOnlineOverride.value = true;
     reloadAt(null, position, play);
+}
+
+/** A download of the sound alone plays and the stream can be reached: the picture can come from the stream. */
+const streamOffersVideo = computed(
+    () =>
+        !!playback.value &&
+        online() &&
+        !!mediaSource.value &&
+        downloads?.entryFor(props.content.parentId)?.selection.kind === "audio",
+);
+
+/** Video asked for over a download of the sound alone: the stream loads at the same word, on its default camera. */
+function streamForVideo(): boolean {
+    if (!streamOffersVideo.value || closedPlaybackId) return false;
+    streamInstead(streamPosition());
+    // The download's sound-only angle would carry over and load the stream's sound alone.
+    startAngleId.value = undefined;
+    return true;
 }
 
 /**
