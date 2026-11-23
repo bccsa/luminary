@@ -6,6 +6,7 @@ import * as request from "supertest";
 import multipart from "@fastify/multipart";
 import { ChangeRequestController } from "./changeRequest.controller";
 import { ChangeRequestService } from "./changeRequest.service";
+import { UserChangeRequestService } from "../userData/userChangeRequest.service";
 import { AuthGuard } from "../auth/auth.guard";
 import { DocType } from "../enums";
 import * as path from "path";
@@ -14,6 +15,7 @@ import * as fs from "fs";
 describe("ChangeRequestController", () => {
     let app: NestFastifyApplication;
     const mockChangeRequest = jest.fn();
+    const mockUserChangeRequest = jest.fn();
     const mockRateLimiter = { check: jest.fn(), recordRequest: jest.fn() };
     let mockAnonymous = false;
     let mockIdentity: any;
@@ -24,6 +26,10 @@ describe("ChangeRequestController", () => {
             controllers: [ChangeRequestController],
             providers: [
                 { provide: ChangeRequestRateLimiterService, useValue: mockRateLimiter },
+                {
+                    provide: UserChangeRequestService,
+                    useValue: { changeRequest: mockUserChangeRequest },
+                },
                 {
                     provide: ChangeRequestService,
                     useValue: {
@@ -60,6 +66,7 @@ describe("ChangeRequestController", () => {
 
     beforeEach(() => {
         mockChangeRequest.mockClear();
+        mockUserChangeRequest.mockReset();
         mockRateLimiter.check.mockReset().mockReturnValue({ allowed: true, retryAfterMs: 0 });
         mockRateLimiter.recordRequest.mockClear();
         mockAnonymous = false;
@@ -140,7 +147,7 @@ describe("ChangeRequestController", () => {
     it.each(["user", "user-v2"])(
         "returns a bad %s document's rejected ack with HTTP 200",
         async (dataSource) => {
-            mockChangeRequest.mockResolvedValue({
+            mockUserChangeRequest.mockResolvedValue({
                 ack: "rejected",
                 message: "Invalid user activity document",
             });
@@ -157,7 +164,9 @@ describe("ChangeRequestController", () => {
     it.each(["user", "user-v2"])(
         "returns a disabled %s source's HTTP 503 instead of a final ack",
         async (dataSource) => {
-            mockChangeRequest.mockRejectedValueOnce(new ServiceUnavailableException("disabled"));
+            mockUserChangeRequest.mockRejectedValueOnce(
+                new ServiceUnavailableException("disabled"),
+            );
             const response = await app.inject({
                 method: "POST",
                 url: "/changerequest",
@@ -211,7 +220,7 @@ describe("ChangeRequestController", () => {
         it.each(["user", "user-v2"])(
             "preserves the %s source and returns HTTP 200 for multipart activity",
             async (dataSource) => {
-                mockChangeRequest.mockResolvedValue({ ack: "accepted" });
+                mockUserChangeRequest.mockResolvedValue({ ack: "accepted" });
                 const body = {
                     dataSource,
                     doc: {
@@ -221,10 +230,12 @@ describe("ChangeRequestController", () => {
                 };
                 const response = await createLFormDataRequest(body, []);
                 expect(response.status).toBe(200);
-                expect(mockChangeRequest).toHaveBeenCalledWith(
-                    expect.objectContaining(body),
+                expect(mockUserChangeRequest).toHaveBeenCalledWith(
+                    body.doc,
                     expect.anything(),
+                    dataSource,
                 );
+                expect(mockChangeRequest).not.toHaveBeenCalled();
             },
         );
 

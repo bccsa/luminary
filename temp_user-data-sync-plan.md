@@ -425,8 +425,9 @@ Implemented across API, shared and app:
   metadata and starts fresh `syncList:v2` cursors. The API migrates server records in pages
   of 100 before advertising either source, with an idempotent completion marker.
 
-Deployment requires backing up the user database and stopping older API instances before
-the server migration. Older clients remain supported, but older API binaries cannot read
+Upgrading an existing legacy user database requires a backup and stopping older API instances
+before migration. Currently this applies only locally; new, empty deployment databases need
+no legacy-data cutover. Older clients remain supported, but older API binaries cannot read
 the migrated database; rollback requires its matching database backup. Live database and
 two-browser integration checks remain user-owned. The later controller/service split,
 database asset organization and further performance review are not part of this phase.
@@ -435,3 +436,30 @@ Verification: shared build and full unit suite, app full unit suite, mocked API 
 change-request/socket/migration tests (including JSON/multipart requests), CMS sync unit
 tests, API/app/CMS type checks and lint on changed code. The API build includes all three
 new partitioned indexes. Live CouchDB/S3 and browser E2E tests were not run.
+
+### Review Phase 3 — separate query and change-request handling
+
+- `UserQueryService` and `UserChangeRequestService` own the user read/write paths separately.
+  `UserDataService` retains common owner derivation, response conversion and availability.
+- `ChangeRequestController` routes parsed JSON and multipart requests to the appropriate
+  service. The shared `ChangeRequestService` has no dependency on user-data processing,
+  and user requests never enter shared document validation or rejection lookups.
+- `UserQueryController` provides `POST /user/query`, defaulting to the `user-v2` format.
+  `QueryController` retains `/query` for shared data and compatibility dispatch for existing
+  source-aware clients. Client URLs, capability gating and wire formats remain supported.
+- `QueryRequestService` extracts common validation, account rate limiting, identifier
+  normalization, execution-cost reporting and execution-statistics removal. User queries
+  always validate against the user index registry, including when shared validation is bypassed.
+- User validation failures still return final rejected acknowledgements; stale writes return
+  the stored document in the caller's format. Disabled/unavailable storage remains an HTTP
+  error so clients retain queued activity. Shared validation messages remain unchanged.
+- Services reuse Nest singleton providers and the existing user database connection.
+  No database provisioning, DTO migration or client data changes are introduced in this phase.
+
+Verification covers owner isolation on both HTTP query paths, legacy/current formats,
+unknown sources, mandatory validation, shared rate-limit buckets, retryable failures,
+JSON/multipart write dispatch and existing activity/identity regressions using mocked
+databases: 253 tests passed across 14 suites. API build, type checking and lint on changed
+code also passed. Live database and browser E2E tests remain user-owned. Database asset organization
+and the further performance review remain later review work; original live-sync/quota
+phases remain deferred.

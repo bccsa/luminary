@@ -24,6 +24,10 @@ import { ChangeRequestRateLimiterService } from "./ratelimit/changeRequestRateLi
 import { SidecarRateLimiterService } from "./ratelimit/sidecarRateLimiter.service";
 import { UserDataDbService } from "./userData/userDataDb.service";
 import { UserDataService } from "./userData/userData.service";
+import { UserQueryService } from "./userData/userQuery.service";
+import { UserChangeRequestService } from "./userData/userChangeRequest.service";
+import { UserQueryController } from "./userData/userQuery.controller";
+import { QueryRequestService } from "./endpoints/queryRequest.service";
 
 let winstonTransport: winston.transport;
 if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
@@ -62,6 +66,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         AppController,
         ChangeRequestController,
         QueryController,
+        UserQueryController,
         FtsSearchController,
         StorageStatusController,
         EncoderConfigController,
@@ -70,6 +75,9 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
     providers: [
         UserDataDbService,
         UserDataService,
+        UserQueryService,
+        UserChangeRequestService,
+        QueryRequestService,
         DbService,
         Socketio,
         S3Service,

@@ -58,8 +58,9 @@ Writes go through `upsertDoc(doc)` which auto-generates `DeleteCmd` docs when `m
 
 `UserDataDbService` is independent of `DbService`: it has no change feed or database-creation
 loop. It enables only after both `DB_USERDATA_DATABASE` and `USER_DATA_ID_SECRET` are configured,
-the dedicated database is partitioned, and its indexes install. `UserDataService` owns the
-discriminated `UserActivityDto` validation and response id conversion; the API `DocType` enum
+the dedicated database is partitioned, and its indexes install. `UserQueryService` owns reads;
+`UserChangeRequestService` owns DTO validation and writes. `UserDataService` shares owner
+derivation and response id conversion between them; the API `DocType` enum
 does not include `UserActivity`. `auth/ownerKey.ts` authorizes all user-source paths from verified
 JWT issuer/subject. Every query uses `partitionedFind`; unknown sources never fall back to the
 shared dataset. Writes use activity-time comparison, server-set cursor timestamps and
@@ -67,8 +68,15 @@ conflict retries. Validation rejects are HTTP 200 acks; source/storage failures 
 HTTP errors. Keep owner keys and CouchDB bookmarks out of client responses. See `README.md`
 and ADR 0020 for provisioning and wire contracts. Current clients use `user-v2` with separate
 activity types and UUID ids; `user` adapts older clients to the same stored records. Startup
-migrates the server format before enabling either source. This requires a database backup
-and stopping older API instances before deployment; older clients remain supported.
+migrates the server format before enabling either source. Upgrading an existing legacy user
+database requires a backup and stopping older API instances; currently that database exists
+only locally. New, empty deployment databases need no legacy-data cutover.
+`UserQueryController` serves `/user/query`, defaulting to `user-v2`; `/query` retains source
+dispatch for compatibility. Both use `QueryRequestService` for validation, account rate
+limits, cost reporting and lean responses. `/changerequest` dispatches to separate shared
+and user services after its common authentication, throttling and multipart/JSON parsing.
+Preserve user validation acks versus retryable HTTP errors, and never route owner data to
+the shared service's rejection lookups. All services use Nest's default singleton scope.
 
 ### Schema upgrades (`src/db/schemaUpgrade/`)
 

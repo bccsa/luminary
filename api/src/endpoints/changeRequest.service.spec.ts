@@ -6,7 +6,6 @@ import { changeRequest_post } from "../test/changeRequestDocuments";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { JwtUserDetails } from "../auth/authIdentity.service";
 import { IdentityCacheService } from "../auth/identityCache.service";
-import { UserDataService } from "../userData/userData.service";
 
 describe("ChangeRequest service", () => {
     let service: DbService;
@@ -19,7 +18,6 @@ describe("ChangeRequest service", () => {
         changeRequestService = new ChangeRequestService(
             service,
             identityCacheService as unknown as IdentityCacheService,
-            { enabled: false } as UserDataService,
         );
 
         mockUserDetails = {

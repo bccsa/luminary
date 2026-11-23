@@ -5,6 +5,8 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { UserDataService } from "./userData.service";
+import { UserQueryService } from "./userQuery.service";
+import { UserChangeRequestService } from "./userChangeRequest.service";
 import { UserDataDbService } from "./userDataDb.service";
 import { MAX_HIGHLIGHT_TEXT_LENGTH } from "../dto/UserActivityDto";
 import { MAX_ACTIVITY_ID_LENGTH } from "../dto/LegacyUserActivityDto";
@@ -15,7 +17,7 @@ import {
 } from "./activityIdentity";
 import { ownerKey } from "../auth/ownerKey";
 
-describe("UserDataService", () => {
+describe("User-data services", () => {
     const user = { groups: [], jwtPayload: { iss: "https://issuer.example", sub: "subject-123" } };
     const owner = ownerKey(user, "secret");
     const activity = {
@@ -45,7 +47,8 @@ describe("UserDataService", () => {
         upsert: jest.Mock;
         partitionedFind: jest.Mock;
     };
-    let service: UserDataService;
+    let service: UserChangeRequestService;
+    let queries: UserQueryService;
 
     beforeEach(() => {
         db = {
@@ -54,10 +57,10 @@ describe("UserDataService", () => {
             upsert: jest.fn().mockImplementation(async (_owner, doc) => ({ stale: false, doc })),
             partitionedFind: jest.fn().mockResolvedValue({ docs: [] }),
         };
-        service = new UserDataService(
-            db as unknown as UserDataDbService,
-            new ConfigService({ userData: { idSecret: "secret" } }),
-        );
+        const config = new ConfigService({ userData: { idSecret: "secret" } });
+        const documents = new UserDataService(db as unknown as UserDataDbService, config);
+        service = new UserChangeRequestService(db as unknown as UserDataDbService, documents);
+        queries = new UserQueryService(db as unknown as UserDataDbService, config, documents);
     });
 
     it.each(["viewed", "liked", "highlighted"])(
@@ -140,7 +143,7 @@ describe("UserDataService", () => {
             docs: [{ ...doc, _id: `${owner}:${doc._id}` }],
             bookmark: "internal",
         });
-        const result = await service.query(
+        const result = await queries.query(
             { dataSource: USER_ACTIVITY_SOURCE, selector: { type: "highlighted" } },
             user,
         );
@@ -275,7 +278,7 @@ describe("UserDataService", () => {
     it("requires authentication for both reads and writes", async () => {
         const anonymous = { groups: [], anonymous: true as const };
         await expect(
-            service.query({ selector: { type: "userActivity" } }, anonymous),
+            queries.query({ selector: { type: "userActivity" } }, anonymous),
         ).rejects.toThrow(UnauthorizedException);
         await expect(service.changeRequest(activity, anonymous)).rejects.toThrow(
             UnauthorizedException,
@@ -288,7 +291,7 @@ describe("UserDataService", () => {
         db.assertEnabled.mockImplementation(() => {
             throw new ServiceUnavailableException("disabled");
         });
-        await expect(service.query({ selector: { type: "userActivity" } }, user)).rejects.toThrow(
+        await expect(queries.query({ selector: { type: "userActivity" } }, user)).rejects.toThrow(
             ServiceUnavailableException,
         );
         await expect(service.changeRequest({}, user)).rejects.toThrow(ServiceUnavailableException);
@@ -297,7 +300,7 @@ describe("UserDataService", () => {
     it.each([{}, { type: "user" }, { type: { $in: ["userActivity", "device"] } }])(
         "requires an exact userActivity type in queries",
         async (selector) => {
-            await expect(service.query({ selector }, user)).rejects.toThrow(BadRequestException);
+            await expect(queries.query({ selector }, user)).rejects.toThrow(BadRequestException);
             expect(db.partitionedFind).not.toHaveBeenCalled();
         },
     );
@@ -310,7 +313,7 @@ describe("UserDataService", () => {
                 docs: [{ ...canonical(activity), _id: `${owner}:${canonical(activity)._id}` }],
                 bookmark: `opaque:${owner}`,
             });
-            const result = await service.query(
+            const result = await queries.query(
                 { selector, dataSource: "user", identifier: "sync", limit: 100 },
                 user,
             );
@@ -331,7 +334,7 @@ describe("UserDataService", () => {
         db.partitionedFind.mockResolvedValue({
             docs: [{ ...activity, _id: "another-owner:liked:post" }],
         });
-        await expect(service.query({ selector: { type: "userActivity" } }, user)).rejects.toThrow(
+        await expect(queries.query({ selector: { type: "userActivity" } }, user)).rejects.toThrow(
             ServiceUnavailableException,
         );
     });
@@ -342,8 +345,8 @@ describe("UserDataService", () => {
         }));
         const otherUser = { ...user, jwtPayload: { ...user.jwtPayload, sub: "another-user" } };
         const query = { selector: { type: "userActivity" } };
-        expect((await service.query(query, user)).docs).toEqual([activity]);
-        expect((await service.query(query, otherUser)).docs).toEqual([activity]);
+        expect((await queries.query(query, user)).docs).toEqual([activity]);
+        expect((await queries.query(query, otherUser)).docs).toEqual([activity]);
         expect(db.partitionedFind.mock.calls[0][0]).not.toBe(db.partitionedFind.mock.calls[1][0]);
     });
 });

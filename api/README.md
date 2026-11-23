@@ -63,6 +63,12 @@ Correct the configuration and restart to retry initialization; the API never cre
 Current authenticated clients reuse `POST /query` and `POST /changerequest` with
 `dataSource: "user-v2"`. The legacy `user` source remains available for older clients.
 Omitting `dataSource` preserves the shared-dataset path; unknown sources return 400.
+Owner-scoped queries also have a dedicated `POST /user/query` controller. On that route,
+omitting `dataSource` selects `user-v2`; an explicit `user` selects the legacy format.
+The existing `/query` source routing remains supported, so clients need no URL changes.
+Both controllers use `QueryRequestService` for validation, account rate limits, cost logging
+and removal of execution statistics. User query validation stays mandatory even when the
+shared query validation bypass is enabled.
 Identity comes exclusively from the verified JWT's issuer and subject, even without a shared
 User document. The API derives the owner with HMAC-SHA256, adds `<ownerKey>:` to stored ids,
 queries through CouchDB's partition path, and strips that prefix from response documents.
@@ -95,11 +101,20 @@ and storage failures return an HTTP error so the client retains its queue for re
 change-request response status is unchanged. The change-request limiter uses the shared User id,
 otherwise a hash of verified issuer/subject, otherwise the caller IP.
 
+`ChangeRequestController` routes parsed JSON and multipart requests to either the shared
+`ChangeRequestService` or `UserChangeRequestService`. The shared service has no user-data
+dependency. `UserQueryService` and `UserChangeRequestService` reuse `UserDataService` for
+owner derivation and response conversion, and the same singleton `UserDataDbService` for
+storage. User validation acknowledgements intentionally remain separate from retryable
+HTTP errors; turning a storage failure into a rejected ack would discard the queued activity.
+
 On the first startup with this format, the API migrates existing user-data records in pages of
 100, preserving owner partitions and activity timestamps, then writes
 `_local/userActivityFormat-v2`. Interrupted migrations resume safely on restart. Source support
-is advertised only after migration succeeds. **Back up the database and stop all older API
-instances before this deployment.** Older clients remain supported through the legacy adapter;
+is advertised only after migration succeeds. When upgrading an existing legacy user database,
+back it up and stop older API instances before migration. In the current setup this applies
+only to the local user database; new, empty staging/production databases need no legacy-data
+cutover. Older clients remain supported through the legacy adapter;
 older API binaries cannot read the migrated format. Rolling back the API requires restoring the
 matching database backup. The device migration atomically converts stored activity and pending
 uploads before enabling transport, and starts fresh `syncList:v2` cursors.

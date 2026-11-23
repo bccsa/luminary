@@ -12,7 +12,8 @@ import { ConfigService } from "@nestjs/config";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { AuthGuard } from "../auth/auth.guard";
 import { FastifyReply, FastifyRequest } from "fastify";
-import { UserDataService } from "../userData/userData.service";
+import { UserQueryService } from "../userData/userQuery.service";
+import { QueryRequestService } from "./queryRequest.service";
 
 describe("QueryController", () => {
     let controller: QueryController;
@@ -63,7 +64,8 @@ describe("QueryController", () => {
         const module: TestingModule = await Test.createTestingModule({
             controllers: [QueryController],
             providers: [
-                { provide: UserDataService, useValue: userData },
+                { provide: UserQueryService, useValue: userData },
+                QueryRequestService,
                 { provide: QueryService, useValue: queryService },
                 { provide: ConfigService, useValue: configService },
                 { provide: QueryRateLimiterService, useValue: rateLimiter },

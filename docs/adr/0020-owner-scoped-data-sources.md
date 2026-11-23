@@ -27,6 +27,13 @@ in socket `clientConfig.dataSources`. Clients must not send source requests unti
 advertised: an older API can reject an unfamiliar document as a final acknowledgement
 and cause the queue to discard an otherwise valid edit.
 
+The controller split adds an owner-scoped `/user/query` route, defaulting to the current
+activity format. `/query` retains its existing source dispatch for compatibility. Both
+controllers share validation, account rate limits and cost reporting through
+`QueryRequestService`. User reads and writes live in `UserQueryService` and
+`UserChangeRequestService`; `/changerequest` dispatches after common request parsing.
+The shared change-request service has no dependency on user-data processing.
+
 Current user activity uses the wire name `user-v2`; `user` remains a compatibility adapter
 for older clients. Its target local database is
 `luminary-user-db`, with documents, outbound changes and cursor stored together.
@@ -45,8 +52,9 @@ Reference ids still accept existing non-UUID content identifiers.
 Device documents and pending uploads migrate in one transaction before transport starts.
 API startup migrates legacy records in bounded pages before advertising either source, with
 an idempotent completion marker. The compatibility adapter maps old envelopes and ids onto
-the same UUID records. This supports old clients, but requires a controlled backend cutover:
-back up the user database and stop older API instances before migration. An older backend
+the same UUID records. This supports old clients. Upgrading an existing legacy user database
+requires backing it up and stopping older API instances before migration; currently only the
+local setup has such a database. New, empty deployments need no legacy-data cutover. An older backend
 cannot serve the migrated database; rollback requires restoring its matching backup.
 
 The server stores activity in an ops-provisioned, partitioned CouchDB database.
