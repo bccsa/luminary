@@ -1618,16 +1618,19 @@ watch(
         coverBucketBaseUrl,
         () => storedArtworkPath(downloadsService.value, content.value),
     ],
-    async ([online]) => {
-        offlineArtwork.value = undefined;
+    async ([online, id], before) => {
+        // Only another item drops the picture: one kept across a network change shows with no stand-in between.
+        if (id !== before?.[1]) offlineArtwork.value = undefined;
         const shown = content.value;
-        if (online || !shown) return;
+        if (!shown) return;
+        // A download's stored picture is read ahead while online, so it is in hand the moment the network goes.
+        if (online && !storedArtworkPath(downloadsService.value, shown)) return;
         const made = await offlineCoverDataUrl(
             downloadsService.value,
             shown,
             coverBucketBaseUrl.value,
         );
-        if (content.value?._id === shown._id && !deviceOnline.value) offlineArtwork.value = made;
+        if (content.value?._id === shown._id && made) offlineArtwork.value = made;
     },
     { immediate: true },
 );

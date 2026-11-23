@@ -239,12 +239,15 @@ watch(
         imageBucketBaseUrl,
         () => storedArtworkPath(downloads.value, props.content),
     ],
-    async ([online]) => {
-        offlineArtwork.value = undefined;
+    async ([online, id], before) => {
+        // Only another item drops the picture: one kept across a network change shows with no stand-in between.
+        if (id !== before?.[1]) offlineArtwork.value = undefined;
         const content = props.content;
-        if (online || !content) return;
+        if (!content) return;
+        // A download's stored picture is read ahead while online, so it is in hand the moment the network goes.
+        if (online && !storedArtworkPath(downloads.value, content)) return;
         const made = await offlineCoverDataUrl(downloads.value, content, imageBucketBaseUrl.value);
-        if (props.content?._id === content._id && !deviceOnline.value) offlineArtwork.value = made;
+        if (props.content?._id === content._id && made) offlineArtwork.value = made;
     },
     { immediate: true },
 );
