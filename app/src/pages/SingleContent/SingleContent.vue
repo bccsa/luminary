@@ -160,12 +160,12 @@ if (!isPrerender()) {
 }
 
 const liveUrl = () => {
-    if (!content.value || !selectedLanguageCode.value) return "";
+    const lang = contentLanguage.value?.languageCode;
+    if (!content.value || !lang) return "";
 
     const docType = content.value.parentType;
     const subType = content.value.parentPostType || content.value.parentTagType;
     const id = content.value.parentId;
-    const lang = selectedLanguageCode.value;
     const baseUrl = cmsUrl.value;
     const url = baseUrl
         ? `${baseUrl}/${docType}/edit/${subType}/${id}/${lang}`
