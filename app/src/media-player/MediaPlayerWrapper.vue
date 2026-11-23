@@ -838,6 +838,7 @@ defineExpose({
     playingSource,
     streamOffersVideo: computed(() => streamOffersVideo.value),
     streamForVideo: () => streamForVideo(),
+    downloadForSound: () => downloadForSound(),
 });
 
 /**
@@ -1218,6 +1219,35 @@ function streamForVideo(): boolean {
     return true;
 }
 
+/** The item has a download that can play now: the stream that plays instead can hand back to it. */
+function downloadCanTakeOver(): boolean {
+    return (
+        !playback.value &&
+        !!downloadsPlayer() &&
+        playingThisContent() &&
+        !!downloads?.playableParentIds.value.has(props.content.parentId)
+    );
+}
+
+/**
+ * Sound asked for while the stream plays an item downloaded as sound: the download plays again from the same word,
+ * online or not, since it holds all the viewer now asks for.
+ */
+function downloadForSound(): boolean {
+    if (!downloadCanTakeOver()) return false;
+    if (downloads?.entryFor(props.content.parentId)?.selection.kind !== "audio") return false;
+    playOnlineOverride.value = null;
+    void chooseDownload();
+    return true;
+}
+
+// Offline the stream cannot play on: the download takes over at the same word, in the mode it was downloaded in.
+watch(online, (isOnline, wasOnline) => {
+    if (isOnline || !wasOnline || !downloadCanTakeOver()) return;
+    playOnlineOverride.value = null;
+    void chooseDownload();
+});
+
 /**
  * More of the item became playable: not playing, it switches at once and stays paused; playing, the viewer is asked,
  * and it switches at the next pause either way. Nothing is offered while Online is chosen or the position is in a
@@ -1293,6 +1323,10 @@ async function switchToDownload(chosen = false): Promise<boolean> {
         return superseded;
     }
     reloadAt(next, held ? next.timeline.resumeLocal(target) : local.local);
+    // A download of the sound alone has no camera: the stream's would name nothing in it.
+    if (hooks && downloads?.entryFor(content.parentId)?.selection.kind === "audio") {
+        startAngleId.value = AUDIO_ONLY_ANGLE_ID;
+    }
     if (held) holdSavedAt = holdFor(resumeAt.value);
     return true;
 }

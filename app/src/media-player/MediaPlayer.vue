@@ -1067,6 +1067,11 @@ async function showAudio() {
 
 /** The picture goes and the sound plays on, as the viewer's Audio does. */
 async function toSound() {
+    // The item was downloaded as sound: that copy plays, rather than the stream's sound.
+    if (engine.value?.downloadForSound?.()) {
+        videoOffByChoice.value = false;
+        return;
+    }
     if (audioMode.value) return;
     // The picture goes and the sound plays on: nothing loads, so there is no gap.
     if (handle.value?.canTurnVideoOff && state.value?.activeAngleId !== AUDIO_ONLY_ANGLE_ID) {

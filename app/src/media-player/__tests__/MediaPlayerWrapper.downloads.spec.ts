@@ -390,6 +390,7 @@ describe("MediaPlayerWrapper with downloads", () => {
         });
 
         describe("the picture asked for over a download of the sound only", () => {
+            let soundService: ReturnType<typeof downloadsServiceStub>;
             async function playingSoundDownload(online: boolean) {
                 const entry = {
                     ...entryOf(parentId, WIDE_CHAPTERS, [0, 1, 2, 3]),
@@ -400,11 +401,12 @@ describe("MediaPlayerWrapper with downloads", () => {
                     playable: [parentId],
                     network: { online, metered: false },
                 });
+                soundService = service;
                 service.hooks.open.mockResolvedValue(
                     playbackOf(timelineOf([{ fullStart: 0, fullEnd: 600, localStart: 0 }], 600)),
                 );
                 const wrapper = await mountWith(service);
-                state().activeAngleId = "audio-only";
+                state().activeAngleId = "__audio__";
                 await loaded(wrapper);
                 await at(wrapper, 120, 600);
                 return wrapper;
@@ -423,6 +425,41 @@ describe("MediaPlayerWrapper with downloads", () => {
                 expect(source.startPosition).toBe(120);
                 expect(source.startAngleId).toBeUndefined();
                 expect(playOnlineOverride.value).toBe(true);
+            });
+
+            it("hands back to the download of the sound when the network goes", async () => {
+                const wrapper = await playingSoundDownload(true);
+                (wrapper.vm as any).streamForVideo();
+                await flushPromises();
+                await loaded(wrapper);
+                state().activeAngleId = "angle_0";
+                await at(wrapper, 130, 600);
+                expect(native(wrapper).props("source").masterUrl).toContain("https://");
+
+                soundService.networkRef.value = { online: false, metered: false };
+                await flushPromises();
+
+                const source = native(wrapper).props("source");
+                expect(source.masterUrl).toContain("luminary://offline/");
+                expect(source.startAngleId).toBe("__audio__");
+                expect(source.startPosition).toBe(130);
+                expect(playOnlineOverride.value).toBeNull();
+            });
+
+            it("plays the download again when Audio is asked for over the stream's picture", async () => {
+                const wrapper = await playingSoundDownload(true);
+                const vm = wrapper.vm as any;
+                vm.streamForVideo();
+                await flushPromises();
+                await loaded(wrapper);
+                await at(wrapper, 140, 600);
+
+                expect(vm.downloadForSound()).toBe(true);
+                await flushPromises();
+
+                const source = native(wrapper).props("source");
+                expect(source.masterUrl).toContain("luminary://offline/");
+                expect(source.startPosition).toBe(140);
             });
 
             it("offline, offers no picture and keeps playing the download", async () => {
