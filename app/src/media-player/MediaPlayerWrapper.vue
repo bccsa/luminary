@@ -26,6 +26,7 @@ import {
 } from "@luminary-media-converter/player-web";
 import { LuminaryPlayer, type PlayerUpNextItem } from "@/media-player/player";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
+import { ensureFreshToken } from "@/auth";
 import LImage from "@/components/images/LImage.vue";
 import { useKnownTexts, usePlayerMessages } from "@/media-player/usePlayerMessages";
 import YouTubeWrapper from "./YouTubeWrapper.vue";
@@ -481,6 +482,7 @@ const keys = new Map<string, string>();
 async function keyFor(parentId: string): Promise<string | undefined> {
     const known = keys.get(parentId);
     if (known) return known;
+    await ensureFreshToken();
     const key = await fetchHlsKey(parentId);
     if (key) keys.set(parentId, key);
     return key;

@@ -21,6 +21,7 @@ import {
 } from "luminary-shared";
 import type { DownloadSource } from "@/build-time/contracts/downloads/contract";
 import { appLanguageAsRef } from "@/globalConfig";
+import { ensureFreshToken } from "@/auth";
 import { useNotificationStore } from "@/stores/notification";
 import { shareImageUrl } from "@/composables/useSocialShare";
 import type { DownloadsDeps } from "./deps";
@@ -77,6 +78,7 @@ async function resolveSource(content: ContentDto): Promise<DownloadSource | unde
 
     let keyHex: string | undefined;
     if (content.parentMedia?.hlsKey_id) {
+        await ensureFreshToken();
         const outcome = await fetchHlsKeyOutcome(content.parentId);
         if (outcome.outcome !== "key") throw new Error(`hls key: ${outcome.outcome}`);
         keyHex = outcome.keyHex;
@@ -153,7 +155,10 @@ export function createAppDeps(options: { app: App; router: Router }): DownloadsD
         getLocalDoc: (id) => localDoc(id),
         getLocalTranslations: localTranslations,
         queryTranslations,
-        fetchKey: (parentId) => fetchHlsKeyOutcome(parentId),
+        fetchKey: async (parentId) => {
+            await ensureFreshToken();
+            return fetchHlsKeyOutcome(parentId);
+        },
         resolveSource,
         pinRetention,
         unpinRetention,
