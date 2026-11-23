@@ -88,7 +88,7 @@ import {
     thumbHashOf,
     thumbHashTint,
 } from "./coverImage";
-import { deviceOnline, offlineArtworkDataUrl } from "./cachedArtwork";
+import { deviceOnline, offlineCoverDataUrl, storedArtworkPath } from "./cachedArtwork";
 import ThumbHashWash from "./wash/ThumbHashWash.vue";
 import { useKnownTexts, useNowPlayingDownloadTexts, usePlayerMessages } from "./usePlayerMessages";
 import { useAutoplayMode } from "./autoplayMode";
@@ -1609,15 +1609,24 @@ const screenArtwork = computed(() => {
         };
     return fallback ? { src: fallback } : null;
 });
-/** The cover as data while the device is offline, for the platform's screen; see `offlineArtworkDataUrl`. */
+/** The cover as data while the device is offline, for the platform's screen; see `offlineCoverDataUrl`. */
 const offlineArtwork = ref<string | undefined>(undefined);
 watch(
-    [deviceOnline, () => content.value?._id, coverBucketBaseUrl],
+    [
+        deviceOnline,
+        () => content.value?._id,
+        coverBucketBaseUrl,
+        () => storedArtworkPath(downloadsService.value, content.value),
+    ],
     async ([online]) => {
         offlineArtwork.value = undefined;
         const shown = content.value;
         if (online || !shown) return;
-        const made = await offlineArtworkDataUrl(shown, coverBucketBaseUrl.value);
+        const made = await offlineCoverDataUrl(
+            downloadsService.value,
+            shown,
+            coverBucketBaseUrl.value,
+        );
         if (content.value?._id === shown._id && !deviceOnline.value) offlineArtwork.value = made;
     },
     { immediate: true },

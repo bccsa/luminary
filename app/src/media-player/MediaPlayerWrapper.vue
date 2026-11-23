@@ -51,7 +51,7 @@ import {
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { recordMediaCompletion } from "./mediaCompletion";
 import { fallbackArtworkDataUrl } from "@/util/fallbackArtwork";
-import { deviceOnline, offlineArtworkDataUrl } from "./cachedArtwork";
+import { deviceOnline, offlineCoverDataUrl, storedArtworkPath } from "./cachedArtwork";
 import { audioLanguageFor, audioLanguagePreference } from "./audioLanguage";
 import { resolveMediaSource, mediaSourceFor } from "@/util/mediaSource";
 import { useBucketInfo } from "@/composables/useBucketInfo";
@@ -230,15 +230,20 @@ const nowPlaying = computed<VideoNowPlaying>(() => {
             : {}),
     };
 });
-/** The post's picture as data while the device is offline; see {@link offlineArtworkDataUrl}. */
+/** The post's picture as data while the device is offline; see `offlineCoverDataUrl`. */
 const offlineArtwork = ref<string | undefined>(undefined);
 watch(
-    [deviceOnline, () => props.content?._id, imageBucketBaseUrl],
+    [
+        deviceOnline,
+        () => props.content?._id,
+        imageBucketBaseUrl,
+        () => storedArtworkPath(downloads.value, props.content),
+    ],
     async ([online]) => {
         offlineArtwork.value = undefined;
         const content = props.content;
         if (online || !content) return;
-        const made = await offlineArtworkDataUrl(content, imageBucketBaseUrl.value);
+        const made = await offlineCoverDataUrl(downloads.value, content, imageBucketBaseUrl.value);
         if (props.content?._id === content._id && !deviceOnline.value) offlineArtwork.value = made;
     },
     { immediate: true },

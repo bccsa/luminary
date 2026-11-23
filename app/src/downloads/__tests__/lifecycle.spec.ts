@@ -805,6 +805,29 @@ describe("source checks", () => {
         expect(checkSource).toHaveBeenCalledTimes(1);
     });
 
+    it("checks downloads saved without a picture once as the connection comes back", async () => {
+        const { fake, service, docs, isConnected } = await setup();
+        docs.set("content-1", makeContent());
+        const checkSource = vi.spyOn(fake, "checkSource");
+        const entry = fake.entry("d1")!;
+        service.internals.state.applyEntry({
+            ...entry,
+            status: "complete",
+            content: { ...entry.content, artwork: undefined },
+            lastSourceCheckAt: Date.now(),
+        });
+        isConnected.value = false;
+        await flush();
+        isConnected.value = true;
+        await flush();
+        expect(checkSource).toHaveBeenCalledTimes(1);
+        isConnected.value = false;
+        await flush();
+        isConnected.value = true;
+        await flush();
+        expect(checkSource).toHaveBeenCalledTimes(1);
+    });
+
     it("leaves a recently checked download with a picture alone on open", async () => {
         const { fake, service, docs } = await setup();
         docs.set("content-1", makeContent());

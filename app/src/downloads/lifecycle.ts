@@ -496,6 +496,21 @@ export function createLifecycle(ctx: LifecycleContext): Lifecycle {
         void checkSource(entry).finally(() => checking.delete(entry.downloadId));
     }
 
+    /**
+     * Downloads saved without a picture (its host refused the request) are checked once a session as the network
+     * comes back, so the screens have the picture by the next time the device is offline.
+     */
+    function fetchMissingArtwork() {
+        if (!state.network.value.online) return;
+        for (const entry of state.entries.value) {
+            if (entry.status !== "complete" || entry.content.artwork) continue;
+            if (artworkAsked.has(entry.downloadId) || checking.has(entry.downloadId)) continue;
+            artworkAsked.add(entry.downloadId);
+            checking.add(entry.downloadId);
+            void checkSource(entry).finally(() => checking.delete(entry.downloadId));
+        }
+    }
+
     /** Every deferred download is retried, not only the one whose session ended. */
     function sessionClosed() {
         if (deferred.size > 0) retryDeferred();
@@ -575,7 +590,9 @@ export function createLifecycle(ctx: LifecycleContext): Lifecycle {
         scope.run(() => {
             watch(deps.accessMap, () => void checkAccess(), { deep: true });
             watch(deps.isConnected, (connected, was) => {
-                if (connected && !was) void recheck();
+                if (!connected || was) return;
+                void recheck();
+                fetchMissingArtwork();
             });
         });
         const every = setInterval(() => void recheckAll(), EXPIRY_REFRESH_MS);
@@ -627,6 +644,7 @@ export function createLifecycle(ctx: LifecycleContext): Lifecycle {
         await reconcilePins();
         await checkAccess();
         await recheckAll();
+        if (deps.isConnected.value) fetchMissingArtwork();
     }
 
     return {
