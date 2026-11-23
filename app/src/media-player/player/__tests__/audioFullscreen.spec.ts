@@ -1006,8 +1006,16 @@ describe("AudioFullscreen: badges, gear menu, end panel, tool slots", () => {
 
     const modePill = { "autoplay-mode": '<span data-test="modePill">Downloaded</span>' };
 
-    it("leaves the autoplay mode out beside the autoplay switch, whose menu already names it", () => {
+    it("puts the host's autoplay mode right after the autoplay switch", () => {
         const wrapper = mountScreen({ autoplay: true }, modePill);
+        const pills = wrapper.findAll('[data-test="modePill"]');
+        expect(pills).toHaveLength(1);
+        expect(find(wrapper, "afsAutoplay").element.nextElementSibling).toBe(pills[0]!.element);
+        wrapper.unmount();
+    });
+
+    it("shows no autoplay mode where there is no autoplay switch", () => {
+        const wrapper = mountScreen({}, modePill);
         expect(wrapper.find('[data-test="modePill"]').exists()).toBe(false);
         wrapper.unmount();
     });

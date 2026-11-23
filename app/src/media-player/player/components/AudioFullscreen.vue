@@ -78,7 +78,7 @@ import {
  * `stage` slot, full width, and the tools are a video's (subtitles, picture in picture, full screen) instead of a
  * listener's. `stageHole` leaves that place transparent, for a picture the platform draws behind the page. The
  * `top-end` slot fills the right of the top line (a switch between sound and picture, say). The `autoplay-mode` slot
- * names which items autoplay goes on to, in the end panel.
+ * names which items autoplay goes on to, beside the autoplay switch and in the end panel.
  */
 const props = withDefaults(
     defineProps<{
@@ -1172,6 +1172,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                     :size="24"
                                 />
                             </button>
+                            <slot v-if="autoplay !== undefined" name="autoplay-mode"></slot>
                             <button
                                 v-if="isVideo && canPictureInPicture"
                                 type="button"
