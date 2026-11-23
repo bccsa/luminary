@@ -4,9 +4,9 @@
  * the app can decide before any player exists.
  */
 
-/** `watch?v=`, `/v/`, `/e/`, `/embed/`, a channel-style path with a trailing id, and `youtu.be/`. */
+/** `watch?v=`, `/v/`, `/e/`, `/embed/`, `/live/`, `/shorts/`, a channel-style path with a trailing id, and `youtu.be/`. */
 const YOUTUBE_URL =
-    /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/;
+    /^(?:https?:\/\/)?(?:(?:www|m|music)\.)?(?:youtube(?:-nocookie)?\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?|live|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/;
 
 /** The 11-character video id, or undefined when the link is not a YouTube one. */
 export function youTubeIdOf(url: string | null | undefined): string | undefined {

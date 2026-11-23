@@ -29,6 +29,14 @@ describe("isYouTubeUrl", () => {
         expect(isYouTubeUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=120")).toBe(true);
     });
 
+    it("returns true for live, shorts, mobile and privacy-enhanced URLs", () => {
+        expect(isYouTubeUrl("https://www.youtube.com/live/dQw4w9WgXcQ?si=abc")).toBe(true);
+        expect(isYouTubeUrl("https://youtube.com/live/dQw4w9WgXcQ")).toBe(true);
+        expect(isYouTubeUrl("https://www.youtube.com/shorts/dQw4w9WgXcQ")).toBe(true);
+        expect(isYouTubeUrl("https://m.youtube.com/watch?v=dQw4w9WgXcQ")).toBe(true);
+        expect(isYouTubeUrl("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ")).toBe(true);
+    });
+
     it("returns true for URLs without protocol", () => {
         expect(isYouTubeUrl("youtube.com/watch?v=dQw4w9WgXcQ")).toBe(true);
     });
@@ -45,6 +53,12 @@ describe("extractYouTubeId", () => {
 
     it("extracts ID from standard watch URL", () => {
         expect(extractYouTubeId("https://www.youtube.com/watch?v=dQw4w9WgXcQ")).toBe("dQw4w9WgXcQ");
+    });
+
+    it("extracts ID from a live URL", () => {
+        expect(extractYouTubeId("https://www.youtube.com/live/dQw4w9WgXcQ?si=abc")).toBe(
+            "dQw4w9WgXcQ",
+        );
     });
 
     it("extracts ID from short URL", () => {

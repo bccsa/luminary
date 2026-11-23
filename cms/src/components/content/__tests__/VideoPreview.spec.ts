@@ -102,13 +102,26 @@ describe("VideoPreview", () => {
     describe("a YouTube link", () => {
         const YT = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
-        it("is handed to the player untouched", async () => {
-            // The player recognises it and switches to its YouTube mode; nothing
-            // here has to know that, so long as the URL is not rewritten. Media
-            // hosted elsewhere has no bucket to be relative to.
+        const embed = (wrapper: any) => wrapper.find('[data-test="video-preview-youtube"]');
+
+        it("plays in YouTube's embed, since the player only plays collections", async () => {
             const wrapper = await mountAndOpen({ hlsUrl: YT });
 
-            expect(player(wrapper).props("source").masterUrl).toBe(YT);
+            expect(player(wrapper).exists()).toBe(false);
+            expect(embed(wrapper).attributes("src")).toBe(
+                "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0",
+            );
+        });
+
+        it.each([
+            "https://www.youtube.com/live/dQw4w9WgXcQ?si=abc",
+            "https://youtu.be/dQw4w9WgXcQ",
+            "https://www.youtube.com/shorts/dQw4w9WgXcQ",
+            "https://m.youtube.com/watch?v=dQw4w9WgXcQ",
+        ])("embeds %s", async (url) => {
+            const wrapper = await mountAndOpen({ hlsUrl: url });
+
+            expect(embed(wrapper).attributes("src")).toContain("/embed/dQw4w9WgXcQ");
         });
 
         it("is offered a preview like any other source", async () => {
@@ -118,13 +131,10 @@ describe("VideoPreview", () => {
             expect(wrapper.find('[data-test="video-preview-load"]').exists()).toBe(true);
         });
 
-        it("is not resolved against the bucket even when one is configured", async () => {
-            // Prefixing the bucket would produce a URL that fetches nothing.
-            getBucketByIdMock.mockReturnValue({ publicUrl: "https://cdn.example.com/media" });
-
+        it("shows no encryption marker", async () => {
             const wrapper = await mountAndOpen({ hlsUrl: YT });
 
-            expect(player(wrapper).props("source").masterUrl).not.toContain("cdn.example.com");
+            expect(wrapper.find('[data-test="preview-encryption"]').exists()).toBe(false);
         });
 
         it("asks for no key", async () => {
