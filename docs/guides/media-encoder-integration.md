@@ -102,4 +102,7 @@ The encoder runs on the tester's machine, so "deploy to dev" only covers the API
   origins `https://localhost` and `capacitor://localhost`, for `GET`, `HEAD` and `OPTIONS`.
   `AllowedHeaders` must cover `Range` (byte-range HLS depends on it), `If-None-Match` and
   `If-Modified-Since` (a download's source check sends both), and a 304 must carry the CORS
-  headers too. `ExposeHeaders: ETag` is recommended.
+  headers too. So must a 404, or the 403 a bucket without list rights answers for a missing
+  object: a download reads a missing chapters file as "no chapters" only when it can read that
+  answer, so an item without chapters is otherwise never sized. `ExposeHeaders: ETag` is
+  recommended.
