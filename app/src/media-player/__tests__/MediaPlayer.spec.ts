@@ -1163,6 +1163,17 @@ describe("MediaPlayer", () => {
         });
         const screen = (wrapper: VueWrapper) => wrapper.findComponent({ name: "AudioFullscreen" });
 
+        it("puts the publish date under the title when the post shows it", async () => {
+            const wrapper = await playing();
+            expect(screen(wrapper).props("subtitle")).toMatch(/^ChatGPT · .+/);
+        });
+
+        it("leaves the publish date out when the post hides it", async () => {
+            openMediaPlayer({ ...mockEnglishContentDto, parentPublishDateVisible: false }, "en");
+            const wrapper = await mountPlayer();
+            expect(screen(wrapper).props("subtitle")).toBe("ChatGPT");
+        });
+
         it("shows one frame of the dragged time over the picture while the timeline is dragged, and no strip", async () => {
             engine.thumbnailsReady = true;
             const wrapper = await playing();
