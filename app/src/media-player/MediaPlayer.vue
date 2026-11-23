@@ -2026,7 +2026,7 @@ function formatTime(seconds: number): string {
 }
 
 const publishDate = computed(() =>
-    content.value?.publishDate
+    content.value?.publishDate && content.value.parentPublishDateVisible
         ? db.toDateTime(content.value.publishDate).toLocaleString(DateTime.DATE_MED)
         : "",
 );
