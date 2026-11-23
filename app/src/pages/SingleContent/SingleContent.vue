@@ -85,6 +85,7 @@ import { useTranslationSwitcher } from "@/composables/useTranslationSwitcher";
 import { useKeepScreenAwake } from "@/composables/useKeepScreenAwake";
 import { recoverSsgArticleText, takeSsgArticleTextSnapshot } from "@/util/ssgTextRecovery";
 import { isPrerender } from "@/ssg/isPrerender";
+import { contentParams, trackEvent } from "@/analytics";
 
 const router = useRouter();
 
@@ -299,6 +300,17 @@ const resolveNotFound = async () => {
 // tracker's onSessionEnd (registered further below, outside the client-only guard) to
 // score affinity by how deep the reader actually got.
 const contentTagsById = new Map<Uuid, Uuid[] | undefined>();
+
+// One view per translation opened; the prerender is not a reader.
+if (!isPrerender()) {
+    watch(
+        () => content.value?._id,
+        (id) => {
+            if (id && content.value) trackEvent("content_view", contentParams(content.value));
+        },
+        { immediate: true },
+    );
+}
 
 // Client-only (web + the normal SPA): redirect / not-found / loading wiring + retention. The Node prerender skips this — `content` is already populated and rendered via onServerPrefetch. Guarded on `isPrerender` (not a `window` check, since vite-ssg's mock makes `window` exist in Node too).
 if (!isPrerender()) {

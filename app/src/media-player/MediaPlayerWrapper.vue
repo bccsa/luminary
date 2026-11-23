@@ -8,16 +8,7 @@
  * to play, where the decryption key comes from, resume position, and the
  * engagement signals a finished video sends.
  */
-import {
-    computed,
-    inject,
-    nextTick,
-    onBeforeUnmount,
-    onMounted,
-    ref,
-    shallowRef,
-    watch,
-} from "vue";
+import { computed, inject, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import {
     AUDIO_ONLY_ANGLE_ID,
     findPreferredTrack,
@@ -601,40 +592,6 @@ function forgetProgress() {
     pendingProgress = undefined;
     savedProgress = undefined;
 }
-const playerWrapper = ref<HTMLElement | null>(null);
-
-/**
- * Hands the video to Matomo's Media Analytics once it is in the DOM.
- *
- * The scan reads `data-matomo-title` off the `<video>` itself, which is the
- * player's element rather than ours, so the title is set here rather than bound.
- * Watched rather than done once: video.js replaces the element when it swaps
- * techs, and a title the CMS edits while the same video plays has to follow.
- */
-watch(
-    [source, () => props.content.title],
-    async ([current]) => {
-        if (!current) return;
-        await nextTick();
-
-        // Best effort: the element belongs to the player, and video.js has not always
-        // put one in place by now.
-        playerWrapper.value
-            ?.querySelector("video")
-            ?.setAttribute("data-matomo-title", props.content.title);
-
-        // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
-        if (window._paq) {
-            // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
-            window._paq.push(
-                ["MediaAnalytics::enableMediaAnalytics"],
-                ["MediaAnalytics::scanForMedia", window.document],
-            );
-        }
-    },
-    { immediate: true },
-);
-
 /**
  * Where the video starts (the saved position, playing on its own) is for the first load only. The
  * player loads again for another angle, audio or video, or after a recovery, and those keep the
@@ -789,7 +746,7 @@ function onEnded() {
             :parent-image-bucket-id="content.parentImageBucketId"
         />
 
-        <div ref="playerWrapper" class="video-player absolute bottom-0 left-0 right-0 top-0">
+        <div class="video-player absolute bottom-0 left-0 right-0 top-0">
             <YouTubeWrapper
                 v-if="youtubeUrl"
                 ref="player"

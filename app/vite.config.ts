@@ -21,7 +21,6 @@ export const VIDEOJS_PACKAGES = [
     "@videojs/utils",
     "hls.js",
 ];
-import { viteStaticCopy } from "vite-plugin-static-copy";
 import { visualizer } from "rollup-plugin-visualizer";
 import { VitePWA } from "vite-plugin-pwa";
 // @ts-expect-error - JavaScript module without type declarations
@@ -81,14 +80,6 @@ export default defineConfig({
         youtubeEmbedPage(),
         visualizer({ open: false }), // Open visualiser when reviewing build bundle size
         vue({ template: { compilerOptions: { isCustomElement: isVideoJsElement } } }),
-        viteStaticCopy({
-            targets: [
-                {
-                    src: "src/analytics/service-worker.js",
-                    dest: "./src/analytics/",
-                },
-            ],
-        }),
         // Keep the installable PWA manifest and offline worker, but do not let
         // Workbox decide when to reload an active client. Deploy detection and
         // the user-facing reload prompt are handled by versionManifest below.

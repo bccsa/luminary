@@ -83,7 +83,6 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                     exitFullscreen: exitFullscreenMock,
                     inlineActive: true,
                 });
-                // A real `<video>`, so the Matomo scan has something to title.
                 return () => h("div", { class: "luminary-player-stub" }, [h("video")]);
             },
         }),
@@ -155,51 +154,6 @@ beforeEach(() => {
 });
 
 describe("MediaPlayerWrapper", () => {
-    describe("media analytics", () => {
-        it("hands the video to Matomo once the player has rendered", async () => {
-            const paq: unknown[][] = [];
-            (window as any)._paq = paq;
-
-            await mountPlayer();
-
-            expect(paq).toContainEqual(["MediaAnalytics::enableMediaAnalytics"]);
-            expect(paq.some((c) => c[0] === "MediaAnalytics::scanForMedia")).toBe(true);
-        });
-
-        it("titles the video element itself, which is what the scan reads", async () => {
-            (window as any)._paq = [];
-
-            const wrapper = await mountPlayer();
-
-            expect(wrapper.find("video").attributes("data-matomo-title")).toBe(
-                mockEnglishContentDto.title,
-            );
-        });
-
-        it("follows a title edited while the same video is playing", async () => {
-            // main bound the attribute on its own <video>, so a synced title change
-            // reapplied itself. The element is the player's now, so this has to.
-            (window as any)._paq = [];
-            const wrapper = await mountPlayer();
-
-            await wrapper.setProps({ content: content({ title: "Renamed in the CMS" }) });
-            await new Promise((resolve) => setTimeout(resolve, 0));
-
-            expect(wrapper.find("video").attributes("data-matomo-title")).toBe(
-                "Renamed in the CMS",
-            );
-        });
-
-        it("says nothing when there is no video to report on", async () => {
-            const paq: unknown[][] = [];
-            (window as any)._paq = paq;
-
-            await mountPlayer({ parentMedia: undefined });
-
-            expect(paq).toHaveLength(0);
-        });
-    });
-
     it("resolves a bucket-relative URL to a fetchable one", async () => {
         const wrapper = await mountPlayer();
 

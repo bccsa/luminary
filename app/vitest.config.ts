@@ -34,8 +34,6 @@ export default mergeConfig(
                     "postcss.config.js",
                     "tailwind.config.ts",
                     "src/main.ts",
-                    "src/analytics.ts",
-                    "src/analytics/**",
                     "src/assets/vite-plugins/**",
                     "src/guards/**",
                 ],

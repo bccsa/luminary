@@ -17,13 +17,21 @@ import { registerRouterGuards } from "./router";
 import { localizedStaticRoutes } from "./router/localizedRoutes";
 import { initI18n } from "./i18n";
 import { DocType, HttpReq, initHybridQuery, queryRemote, type LanguageDto } from "luminary-shared";
-import { apiUrl, appLanguageIdsAsRef, cmsLanguages, isAppLoading } from "./globalConfig";
+import {
+    apiUrl,
+    appLanguageIdsAsRef,
+    cmsLanguages,
+    isAppLoading,
+    userPreferencesAsRef,
+} from "./globalConfig";
 import { SSG_DISPLAY_LANGUAGES, ssgDisplayLanguages } from "./ssg/renderLanguage";
 import { applyServedLanguage } from "./ssg/hydrationLanguage";
 import { isPrerender } from "./ssg/isPrerender";
 import { captureSsgArticleTextSnapshot } from "./util/ssgTextRecovery";
 import { markAppReady } from "./util/renderState";
 import { installChunkReload } from "./util/chunkReload";
+import { startAnalytics } from "./analytics";
+import { WebAnalyticsService } from "./build-time/plugins/analytics/analytics-web";
 
 // Tag this query so the API's expensive-query logs can separate prerender build load
 // from normal app load.
@@ -127,6 +135,14 @@ export const createApp = ViteSSG(
         } else {
             // Client only: the guards read sessionStorage and the browser history.
             registerRouterGuards(router);
+
+            // The web entry provides no build-target services, so it builds the browser one itself.
+            startAnalytics(new WebAnalyticsService(), {
+                router,
+                platform: "web",
+                consented: () => userPreferencesAsRef.value.privacyPolicy?.status === "accepted",
+                languageCode: (id) => cmsLanguages.value.find((l) => l._id === id)?.languageCode,
+            });
 
             // Restore the per-slug snapshot BEFORE mount so the first client render
             // matches the prerendered HTML.

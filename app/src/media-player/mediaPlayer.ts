@@ -2,6 +2,7 @@ import { computed, ref, shallowRef, watch } from "vue";
 import type { ContentDto } from "luminary-shared";
 import type { SleepTimerOption } from "@luminary-media-converter/player-web";
 import { effectiveDataSaverLevel, type DataSaverLevel } from "@/globalConfig";
+import { contentParams, trackEvent } from "@/analytics";
 
 const CHOSEN_MODE_KEY = "mediaPlayerMode";
 
@@ -115,6 +116,10 @@ export function openMediaPlayer(
     const current = mediaPlayerItem.value;
     if (current?.content._id !== content._id) {
         mediaPlayerItem.value = { content, language, audio: options.audio };
+        trackEvent("media_play", {
+            ...contentParams(content),
+            media_mode: opensAsAudio({ audio: options.audio }) ? "audio" : "video",
+        });
     } else if (options.audio !== undefined) {
         mediaPlayerItem.value = { ...current, audio: options.audio };
     }

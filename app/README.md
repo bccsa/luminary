@@ -152,11 +152,17 @@ Sync downloads content for the user's **synced** languages **plus the last-resor
 
 Content browsing therefore depends on sync having populated IndexedDB — there is no full API-only content fetch; a fresh install shows content once initial sync fills the window.
 
-### Matomo analytics
+### Google Analytics
 
-`initAnalytics()` ([`src/analytics.ts`](src/analytics.ts)) tags each Matomo session with its display mode (`installed` vs `browser`) so install adoption and its effect on the sync window can be measured.
+Usage goes to one GA4 property. Browsers use gtag.js ([`src/build-time/plugins/analytics/`](src/build-time/plugins/analytics/)), and the packaged app uses the Firebase SDK, swapped in through `virtual:analytics`. Set `VITE_GA_MEASUREMENT_ID` to turn it on.
 
-To enable **per-pageview segmentation** in Matomo, create the custom dimension in Matomo admin and set `VITE_ANALYTICS_PWA_DIMENSION_ID` in the app's env. Until then the fallback `["trackEvent", "PWA", "displayMode", …]` event fires automatically — so the signal is captured either way, no config required to ship.
+- **Consent:** nothing is loaded or sent until the visitor accepts the privacy policy. "Necessary only" and withdrawing consent stop collection.
+- **What is sent** ([`src/analytics/index.ts`](src/analytics/index.ts)):
+    - `page_view` per route (path only, no query string);
+    - `content_view`, `media_play` (with `media_mode`) and `media_complete`, carrying `content_id` (the post), `content_title`, `content_language`, `content_author`, `content_copyright` and `content_type`;
+    - `share`, with `method`;
+    - a `platform` user property: `web` (the public SSG site), `pwa`, `pwa_installed`, `android` or `ios`.
+- To report on the `content_*` parameters, register them as event-scoped custom dimensions in GA4 admin.
 
 ## Build for production
 
