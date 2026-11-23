@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { nextTick } from "vue";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { rgbaToThumbHash } from "thumbhash";
@@ -16,6 +17,7 @@ import {
     chosenAudio,
     closeMediaPlayer,
     expandMediaPlayer,
+    MINI_AUDIO_DELAY_MS,
     mediaPlayerItem,
     minimiseMediaPlayer,
     mediaPlayerView,
@@ -41,6 +43,8 @@ const engine = vi.hoisted(() => ({
     thumbnailsReady: false,
     /** The packaged app's native player: it draws its own now-playing screen and turns the picture off in place. */
     native: false as boolean | null,
+    /** Whether the native player can turn the picture off in place, rather than reload an audio-only master. */
+    canTurnVideoOff: true,
 }));
 
 vi.mock("@luminary-media-converter/player-web", async () => {
@@ -290,7 +294,7 @@ vi.mock("@/media-player/MediaPlayerWrapper.vue", async () => {
                               showMiniPlayer: vi.fn(),
                               setMiniPlayerFrame: vi.fn(),
                               hideMiniPlayer: vi.fn(),
-                              canTurnVideoOff: true,
+                              canTurnVideoOff: engine.canTurnVideoOff,
                               setVideoOff: vi.fn(),
                           }
                         : { nativeNowPlaying: engine.native === false ? false : null }),
@@ -402,6 +406,7 @@ beforeEach(() => {
     engine.airPlayActive = false;
     engine.thumbnailsReady = false;
     engine.native = false;
+    engine.canTurnVideoOff = true;
     document.documentElement.classList.remove("lmc-inline-video");
     document.documentElement.classList.remove("lmc-player-dragging");
     closeMediaPlayer();
@@ -781,6 +786,92 @@ describe("MediaPlayer", () => {
                 await flushPromises();
                 expect(engine.controller.setAngle).toHaveBeenCalledWith(AUDIO);
             }));
+
+        describe("minimised, where the platform's bar shows the cover and the picture shows nowhere", () => {
+            async function minimisedFor(ms: number) {
+                vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+                minimiseMediaPlayer();
+                await nextTick();
+                vi.advanceTimersByTime(ms);
+                vi.useRealTimers();
+                await flushPromises();
+            }
+
+            it("turns the picture off, and on again once expanded, without full-screen", async () =>
+                narrow(async () => {
+                    await playing();
+                    await minimisedFor(MINI_AUDIO_DELAY_MS);
+                    expect(engine.handle.setVideoOff).toHaveBeenLastCalledWith(true);
+
+                    expandMediaPlayer();
+                    await flushPromises();
+                    expect(engine.handle.setVideoOff).toHaveBeenLastCalledWith(false);
+                    expect(engine.controller.setAngle).not.toHaveBeenCalled();
+                    expect(engine.handle.enterFullscreen).not.toHaveBeenCalled();
+                }));
+
+            it("keeps the picture for a glance at the page and back", async () =>
+                narrow(async () => {
+                    await playing();
+                    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+                    minimiseMediaPlayer();
+                    await nextTick();
+                    vi.advanceTimersByTime(MINI_AUDIO_DELAY_MS - 100);
+                    expandMediaPlayer();
+                    await nextTick();
+                    vi.advanceTimersByTime(MINI_AUDIO_DELAY_MS);
+                    vi.useRealTimers();
+                    await flushPromises();
+                    expect(engine.handle.setVideoOff).not.toHaveBeenCalled();
+                }));
+
+            it("leaves the sound the viewer chose as it is when expanded", async () =>
+                narrow(async () => {
+                    const wrapper = await playing();
+                    await find(wrapper, "mediaPlayerAudio").trigger("click");
+                    await flushPromises();
+                    await minimisedFor(MINI_AUDIO_DELAY_MS);
+                    expandMediaPlayer();
+                    await flushPromises();
+                    expect(engine.handle.setVideoOff).toHaveBeenCalledTimes(1);
+                    expect(engine.handle.setVideoOff).toHaveBeenLastCalledWith(true);
+                }));
+
+            it("keeps the picture off when expanded if Data Saver went to Strict meanwhile, and asks first", async () =>
+                narrow(async () => {
+                    dataSaverLevel.value = "off";
+                    const wrapper = await playing();
+                    await minimisedFor(MINI_AUDIO_DELAY_MS);
+                    dataSaverLevel.value = "strict";
+                    await flushPromises();
+                    expandMediaPlayer();
+                    await flushPromises();
+                    expect(engine.handle.setVideoOff).toHaveBeenCalledTimes(1);
+                    expect(engine.handle.setVideoOff).toHaveBeenLastCalledWith(true);
+
+                    await find(wrapper, "mediaPlayerVideo").trigger("click");
+                    await flushPromises();
+                    expect(wrapper.findComponent(LDialog).props("open")).toBe(true);
+                    expect(engine.handle.setVideoOff).toHaveBeenCalledTimes(1);
+                }));
+
+            it("keeps the picture where the platform cannot turn it off in place", async () =>
+                narrow(async () => {
+                    engine.canTurnVideoOff = false;
+                    await playing();
+                    await minimisedFor(MINI_AUDIO_DELAY_MS);
+                    expect(engine.handle.setVideoOff).not.toHaveBeenCalled();
+                    expect(engine.controller.setAngle).not.toHaveBeenCalled();
+                }));
+
+            it("keeps the picture while it plays on an AirPlay device", async () =>
+                narrow(async () => {
+                    engine.airPlayActive = true;
+                    await playing();
+                    await minimisedFor(MINI_AUDIO_DELAY_MS);
+                    expect(engine.handle.setVideoOff).not.toHaveBeenCalled();
+                }));
+        });
     });
 
     describe("drawing the player down", () => {
