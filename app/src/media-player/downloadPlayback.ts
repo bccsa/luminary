@@ -63,12 +63,14 @@ export function nowPlayingDownload(
     badge: DownloadBadge,
     source: "downloaded" | "online" | undefined,
     canPlayOnline: boolean,
+    disabled = false,
 ): VideoNowPlayingDownload {
     return {
         badge: badge.state,
         ...(badge.state === "progress" ? { percent: badge.percent } : {}),
         ...(source ? { source } : {}),
         canPlayOnline,
+        ...(disabled ? { disabled: true } : {}),
     };
 }
 

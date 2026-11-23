@@ -44,6 +44,17 @@ describe("downloadPlayback", () => {
         });
     });
 
+    it("marks the tool disabled only when asked", () => {
+        expect(nowPlayingDownload({ state: "none" }, undefined, false, true)).toEqual({
+            badge: "none",
+            canPlayOnline: false,
+            disabled: true,
+        });
+        expect(nowPlayingDownload({ state: "none" }, undefined, true)).not.toHaveProperty(
+            "disabled",
+        );
+    });
+
     it("hints the sheet with what plays: no angle or quality for sound alone", () => {
         expect(
             selectionOf({ audioOnly: true, angleId: "a", height: 720, audioLanguage: "en" }),

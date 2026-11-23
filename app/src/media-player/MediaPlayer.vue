@@ -1911,11 +1911,17 @@ const screenDownload = computed<VideoNowPlayingDownload | null>((before) => {
     if (!entry && !downloadable.value?.value) return null;
     const badge = service.badges.value.get(shown.parentId) ?? { state: "none" as const };
     // A stand-in made from the download alone names no stream.
-    const streams = service.network.value.online && !!mediaSourceFor(shown);
+    const online = service.network.value.online;
+    const streams = online && !!mediaSourceFor(shown);
+    // Disabled where the sheet could do nothing: its card is out, or nothing is saved and nothing can be fetched.
+    const disabled =
+        badge.state === "unavailable" ||
+        (!entry && (!online || engine.value?.keyUnavailable === true));
     const tool = nowPlayingDownload(
         badge,
         entry ? engine.value?.playingSource : undefined,
         streams,
+        disabled,
     );
     return before && JSON.stringify(before) === JSON.stringify(tool) ? before : tool;
 });

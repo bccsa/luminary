@@ -53,6 +53,7 @@ const engine = vi.hoisted(() => ({
     /** The download the engine plays from, and the copy it names, where it plays downloads. */
     playback: null as any,
     playingSource: undefined as "downloaded" | "online" | undefined,
+    keyUnavailable: false,
 }));
 
 vi.mock("@luminary-media-converter/player-web", async () => {
@@ -316,6 +317,9 @@ vi.mock("@/media-player/MediaPlayerWrapper.vue", async () => {
                     get playingSource() {
                         return engine.playingSource;
                     },
+                    get keyUnavailable() {
+                        return engine.keyUnavailable;
+                    },
                     player: engine.handle,
                     get inlineActive() {
                         return engine.inlineActive;
@@ -423,6 +427,7 @@ beforeEach(() => {
     engine.native = false;
     engine.playback = null;
     engine.playingSource = undefined;
+    engine.keyUnavailable = false;
     playerNotice.value = null;
     autoplayDownloadedOnly.value = false;
     document.documentElement.classList.remove("lmc-inline-video");
@@ -744,6 +749,55 @@ describe("MediaPlayer", () => {
                     expect(sent().download).toEqual({ badge: "none", canPlayOnline: true });
                 }));
 
+            it("disables the download tool offline when nothing is saved", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    const service = downloadsServiceStub({
+                        eligible: true,
+                        network: { online: false, metered: false },
+                    });
+                    await mountPlayer(withDownloads(service));
+                    expect(sent().download).toEqual({
+                        badge: "none",
+                        canPlayOnline: false,
+                        disabled: true,
+                    });
+                }));
+
+            it("disables the download tool when the stream's key could not be had", async () =>
+                narrow(async () => {
+                    engine.keyUnavailable = true;
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    await mountPlayer(withDownloads(downloadsServiceStub({ eligible: true })));
+                    expect(sent().download).toMatchObject({ badge: "none", disabled: true });
+                }));
+
+            it("disables the download tool while its storage card is out", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    const service = downloadsServiceStub({
+                        badges: { [parentId]: { state: "unavailable" } },
+                    });
+                    service.entriesRef.value = [{ parentId } as any];
+                    await mountPlayer(withDownloads(service));
+                    expect(sent().download).toMatchObject({
+                        badge: "unavailable",
+                        disabled: true,
+                    });
+                }));
+
+            it("keeps an offline download's tool enabled, to manage it", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    const service = downloadsServiceStub({
+                        badges: { [parentId]: { state: "downloaded", partial: false } },
+                        network: { online: false, metered: false },
+                    });
+                    service.entriesRef.value = [{ parentId } as any];
+                    await mountPlayer(withDownloads(service));
+                    expect(sent().download.disabled).toBeUndefined();
+                }));
+
             it("names the badge and the copy that plays for an item with a download", async () =>
                 narrow(async () => {
                     engine.playingSource = "downloaded";
@@ -883,7 +937,7 @@ describe("MediaPlayer", () => {
                 [{ state: "downloaded", partial: false }, { badge: "downloaded" }],
                 [{ state: "downloaded", partial: true }, { badge: "downloaded" }],
                 [{ state: "attention" }, { badge: "attention" }],
-                [{ state: "unavailable" }, { badge: "unavailable" }],
+                [{ state: "unavailable" }, { badge: "unavailable", disabled: true }],
                 [{ state: "none" }, { badge: "none" }],
             ] as const)("sends the service's badge %o for an item with a download", (badge, tool) =>
                 narrow(async () => {

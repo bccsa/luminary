@@ -646,6 +646,8 @@ const keyMissing = () =>
     !keyHex.value &&
     !!props.content?.parentId &&
     !!props.content?.parentMedia?.hlsKey_id;
+/** The stream is encrypted and its key could not be had: a download, which needs the same key, could not start either. */
+const keyUnavailable = computed(() => keyMissing());
 let keyRefetch: Promise<void> | null = null;
 function refetchKey(): void {
     if (!keyMissing() || keyRefetch) return;
@@ -841,6 +843,7 @@ defineExpose({
     streamOffersVideo: computed(() => streamOffersVideo.value),
     streamForVideo: () => streamForVideo(),
     downloadForSound: () => downloadForSound(),
+    keyUnavailable: computed(() => keyUnavailable.value),
 });
 
 /**

@@ -41,6 +41,8 @@ export type VideoNowPlayingDownload = {
     source?: "downloaded" | "online";
     /** A chapter the download does not hold offers "Play online": the network is up and the item may be streamed. */
     canPlayOnline?: boolean;
+    /** Dimmed, and a tap does nothing: nothing the sheet offers could be done now. */
+    disabled?: boolean;
 };
 
 /** A one-line notice on a platform's now-playing screen, until the page replaces or clears it. */
