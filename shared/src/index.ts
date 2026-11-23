@@ -4,6 +4,7 @@ export * from "./db/retention";
 export * from "./db/isSyncable";
 export * from "./db/deleteCmdStaleness";
 export * from "./types";
+export * from "./userActivity";
 export * from "./permissions/permissions";
 export * from "./socket/socketio";
 export * from "./socket/roomSubscriptions";

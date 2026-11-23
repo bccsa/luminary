@@ -9,6 +9,8 @@ import type {
     AclPermission,
     AckStatus,
     SidecarType,
+    UserActivityType,
+    UserActivityColor,
 } from "../types";
 import type { AffinityConfig } from "../recommendation/affinity";
 
@@ -22,7 +24,7 @@ export type ApiDataResponseDto = {
 export type BaseDocumentDto = {
     _id: string;
     _rev?: string;
-    type: DocType;
+    type: DocType | UserActivityType;
     updatedTimeUtc: number;
     memberOf?: Uuid[];
     docType?: DocType;
@@ -356,10 +358,10 @@ export type AutoGroupMappingsDto = ContentBaseDto & {
 };
 
 /** What a {@link UserActivityEntry} records the user as having done. */
-export type UserActivityType = "viewed" | "liked" | "highlighted";
+export type UserActivityKind = `${UserActivityType}`;
 
 /** The names a highlight can be coloured with, as persisted. */
-export type HighlightColor = "yellow" | "green" | "blue" | "pink" | "purple";
+export type HighlightColor = `${UserActivityColor}`;
 
 /**
  * A highlight as character offsets into a document's text. `text` is the quoted passage, used to
@@ -378,7 +380,7 @@ export type HighlightRange = { start: number; end: number; color: HighlightColor
  */
 export type UserActivityEntry = {
     _id: string;
-    type: UserActivityType;
+    type: UserActivityKind;
     /** The post the activity belongs to. */
     parentId: Uuid;
     /** The translation, for activity that applies to one translation rather than the post. */
@@ -390,15 +392,42 @@ export type UserActivityEntry = {
 };
 
 /**
- * Server-synced user-activity document (DocType.UserActivity). Distinct from
+ * Earlier server-synced envelope, retained only for compatibility conversions. Distinct from
  * {@link UserActivityEntry}, which is the legacy local side-table row shape.
  */
-export type UserActivityDto = BaseDocumentDto & {
+export type LegacyUserActivityDto = BaseDocumentDto & {
     type: DocType.UserActivity;
-    activityType: UserActivityType;
+    activityType: UserActivityKind;
     parentId: Uuid;
     contentId?: Uuid;
     activityTimeUtc: number;
     deleted?: boolean;
     payload?: { range: HighlightRange };
 };
+
+export type BaseUserActivityDto = Pick<BaseDocumentDto, "_id" | "_rev" | "updatedTimeUtc"> & {
+    type: UserActivityType;
+    parentId: Uuid;
+    activityTimeUtc: number;
+    deleted?: boolean;
+};
+
+export type ViewedActivityDto = BaseUserActivityDto & {
+    type: UserActivityType.Viewed;
+    contentId?: never;
+    range?: never;
+};
+
+export type LikedActivityDto = BaseUserActivityDto & {
+    type: UserActivityType.Liked;
+    contentId?: never;
+    range?: never;
+};
+
+export type HighlightedActivityDto = BaseUserActivityDto & {
+    type: UserActivityType.Highlighted;
+    contentId: Uuid;
+    range: Pick<HighlightRange, "start" | "end"> & Partial<Pick<HighlightRange, "color" | "text">>;
+};
+
+export type UserActivityDto = ViewedActivityDto | LikedActivityDto | HighlightedActivityDto;

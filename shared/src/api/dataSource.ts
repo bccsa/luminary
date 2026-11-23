@@ -1,7 +1,7 @@
 import { computed, effectScope, ref, watch, type EffectScope, type Ref } from "vue";
 import { openDatabase } from "../db/database";
 import { useDexieLiveQuery } from "../util";
-import type { BaseDocumentDto, LocalChangeDto, DocType } from "../types";
+import type { BaseDocumentDto, LocalChangeDto, DocType, UserActivityType } from "../types";
 import { dataSources, isConnected } from "../socket/socketio";
 import { sync } from "./sync";
 import { syncLocalChanges, type SyncLocalChangesHandle } from "./syncLocalChanges";
@@ -21,7 +21,8 @@ export type DataSourceConfig = {
     docsIndex?: string;
     /** Sync runner options, minus source. */
     sync: {
-        type: DocType;
+        type: DocType | UserActivityType;
+        types?: (DocType | UserActivityType)[];
         subType?: DocType;
         memberOf?: string[];
         languages?: string[];
@@ -115,21 +116,23 @@ export async function createDataSource(config: DataSourceConfig): Promise<DataSo
                 const pullGeneration = generation;
                 const isCancelled = () =>
                     disposed || pullGeneration !== generation || !isConnected.value || !ready.value;
-                await sync({
-                    type: config.sync.type,
-                    subType: config.sync.subType,
-                    memberOf: config.sync.memberOf ?? ["*"],
-                    languages: config.sync.languages,
-                    publishDateMin: config.sync.publishDateMin,
-                    publishDateMax: config.sync.publishDateMax,
-                    limit: config.sync.limit,
-                    cms: config.sync.cms,
-                    source: {
-                        ...source,
-                        isCancelled,
-                        put: (docs) => putPulledDocs(docs, isCancelled),
-                    },
-                });
+                for (const type of config.sync.types ?? [config.sync.type]) {
+                    await sync({
+                        type,
+                        subType: config.sync.subType,
+                        memberOf: config.sync.memberOf ?? ["*"],
+                        languages: config.sync.languages,
+                        publishDateMin: config.sync.publishDateMin,
+                        publishDateMax: config.sync.publishDateMax,
+                        limit: config.sync.limit,
+                        cms: config.sync.cms,
+                        source: {
+                            ...source,
+                            isCancelled,
+                            put: (docs) => putPulledDocs(docs, isCancelled),
+                        },
+                    });
+                }
             } while (pullQueued);
         })();
 

@@ -5,7 +5,7 @@ import { db } from "../../db/database";
 import { evictStaleBelowCutoff } from "../../db/retention";
 import { syncBatch } from "./syncBatch";
 import { syncList } from "./state";
-import { DocType } from "../../types";
+import { DocType, UserActivityType } from "../../types";
 import * as utils from "./utils";
 import { OPEN_MAX, OPEN_MIN } from "./utils";
 import { merge } from "./merge";
@@ -67,6 +67,15 @@ describe("sync module", () => {
     afterEach(() => {
         // Ensure cancelSync is reset after each test
         setCancelSync(false);
+    });
+
+    it("requires a dedicated source for activity types", async () => {
+        await initSync(mockHttpService);
+        await expect(sync({ type: UserActivityType.Liked, memberOf: ["*"] })).rejects.toThrow(
+            "Activity sync requires a dedicated source",
+        );
+        expect(syncBatch).not.toHaveBeenCalled();
+        expect(syncList.value).toEqual([]);
     });
 
     it("keeps source pulls out of the global default-source activity counter", async () => {

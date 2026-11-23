@@ -1,9 +1,11 @@
 import {
-    DocType,
+    normalizeUserActivityDocument,
+    userActivityDocumentId,
+    toLegacyUserActivityDocument,
     type HighlightRange,
     type UserActivityDto,
     type UserActivityEntry,
-    type UserActivityType,
+    type UserActivityKind,
     type Uuid,
 } from "luminary-shared";
 import {
@@ -27,36 +29,24 @@ export type ActivityRef =
     | { type: "liked" | "viewed"; parentId: Uuid }
     | { type: "highlighted"; contentId: Uuid; parentId: Uuid; range: HighlightRange };
 
-export const userActivityId = (activity: ActivityRef): string =>
-    activity.type === "highlighted"
-        ? `highlighted:${activity.contentId}:${activity.range.start}-${activity.range.end}`
-        : `${activity.type}:${activity.parentId}`;
+export const userActivityId = userActivityDocumentId;
 
 function toEntry(doc: UserActivityDto): ActivityEntry {
+    const legacy = toLegacyUserActivityDocument(doc);
     return {
         _id: doc._id,
-        type: doc.activityType,
+        type: doc.type,
         parentId: doc.parentId,
         contentId: doc.contentId,
         updatedTimeUtc: doc.updatedTimeUtc,
         activityTimeUtc: doc.activityTimeUtc,
         deleted: doc.deleted,
-        payload: doc.payload,
+        payload: legacy.payload,
     };
 }
 
 function toDoc(row: UserActivityEntry & { activityTimeUtc?: number }): UserActivityDto {
-    return {
-        _id: row._id,
-        type: DocType.UserActivity,
-        activityType: row.type,
-        parentId: row.parentId,
-        contentId: row.contentId,
-        activityTimeUtc: row.activityTimeUtc ?? row.updatedTimeUtc,
-        updatedTimeUtc: row.updatedTimeUtc,
-        deleted: row.deleted,
-        payload: row.payload,
-    };
+    return normalizeUserActivityDocument(row);
 }
 
 /** Migration/backfill writes never replace an existing row, including a tombstone. */
@@ -65,8 +55,9 @@ export async function addMissingUserActivity(rows: UserActivityEntry[]): Promise
     return source.db.transaction("rw", source.db.docs, source.db.localChanges, async () => {
         let added = 0;
         for (const row of rows) {
-            if (await source.db.docs.get(row._id)) continue;
-            await source.db.upsert({ doc: toDoc(row), overwriteLocalChanges: true });
+            const doc = toDoc(row);
+            if (await source.db.docs.get(doc._id)) continue;
+            await source.db.upsert({ doc, overwriteLocalChanges: true });
             added++;
         }
         if (added) notifyUserActivityChanged();
@@ -96,12 +87,14 @@ export async function recordUserActivity(
 }
 
 async function tombstone(doc: UserActivityDto): Promise<void> {
-    await upsertSourceUserActivityDoc({
+    const deleted = {
         ...doc,
         activityTimeUtc: Date.now(),
         deleted: true,
-        payload: undefined,
-    });
+    };
+    if (deleted.type === "highlighted")
+        deleted.range = { start: deleted.range.start, end: deleted.range.end };
+    await upsertSourceUserActivityDoc(deleted);
 }
 
 export async function removeUserActivity(activity: ActivityRef): Promise<void> {
@@ -119,7 +112,7 @@ export async function removeHighlightRange(
 }
 
 export async function getUserActivity(
-    type: UserActivityType,
+    type: UserActivityKind,
     limit?: number,
 ): Promise<ActivityEntry[]> {
     const rows = (await getAllUserActivity()).filter((row) => row.type === type);
@@ -154,7 +147,7 @@ export async function getViewedParentIds(): Promise<Set<Uuid>> {
 
 async function trimViewed(): Promise<void> {
     const viewed = (await listSourceUserActivityDocs())
-        .filter((doc) => doc.activityType === "viewed" && !doc.deleted)
+        .filter((doc) => doc.type === "viewed" && !doc.deleted)
         .sort((a, b) => b.activityTimeUtc - a.activityTimeUtc);
     for (const doc of viewed.slice(MAX_VIEWED)) await tombstone(doc);
 }

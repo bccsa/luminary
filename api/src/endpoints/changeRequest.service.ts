@@ -24,13 +24,17 @@ export class ChangeRequestService {
         // Hard rule independent of group ACLs: a misconfigured default group must never open writes to the public.
         // Returns a bare ack (no upsertDocAck) so a rejected anonymous request cannot read documents back.
         if (userDetails.anonymous) {
-            if (changeRequest?.dataSource === "user")
+            if (["user", "user-v2"].includes(changeRequest?.dataSource))
                 throw new UnauthorizedException("Authentication required");
             return { ack: AckStatus.Rejected, message: "Authentication required" };
         }
 
-        if (changeRequest?.dataSource === "user") {
-            return this.userData.changeRequest(changeRequest.doc, userDetails);
+        if (["user", "user-v2"].includes(changeRequest?.dataSource)) {
+            return this.userData.changeRequest(
+                changeRequest.doc,
+                userDetails,
+                changeRequest.dataSource,
+            );
         }
         if (changeRequest?.dataSource !== undefined)
             throw new BadRequestException("Unknown dataSource");

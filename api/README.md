@@ -6,8 +6,8 @@ API for Luminary, built with [Nest](https://github.com/nestjs/nest) and [CouchDB
 
 The following software is needed to run and/or test the Luminary API:
 
--   CouchDB (document database) - see https://couchdb.apache.org
--   S3 (compatible) storage, e.g. MinIO - see https://min.io
+- CouchDB (document database) - see https://couchdb.apache.org
+- S3 (compatible) storage, e.g. MinIO - see https://min.io
 
 ### CouchDB installation
 
@@ -55,11 +55,13 @@ Back up `USER_DATA_ID_SECRET` securely and **never rotate it**. It is independen
 `ENCRYPTION_KEY`; losing or changing it or an issuer's domain orphans the corresponding data.
 The database must differ from `DB_DATABASE`. Startup checks that it exists and is partitioned,
 then installs the design documents from `src/db/userDataDesignDocs/`. Only a successful check
-advertises `clientConfig.dataSources: ["user"]`. A missing database, incomplete settings or
+advertises `clientConfig.dataSources: ["user", "user-v2"]` after the activity-format migration.
+A missing database, incomplete settings or
 index-installation failure logs an error and leaves the source off without a retry loop.
 Correct the configuration and restart to retry initialization; the API never creates this database.
 
-Authenticated clients reuse `POST /query` and `POST /changerequest` with `dataSource: "user"`.
+Current authenticated clients reuse `POST /query` and `POST /changerequest` with
+`dataSource: "user-v2"`. The legacy `user` source remains available for older clients.
 Omitting `dataSource` preserves the shared-dataset path; unknown sources return 400.
 Identity comes exclusively from the verified JWT's issuer and subject, even without a shared
 User document. The API derives the owner with HMAC-SHA256, adds `<ownerKey>:` to stored ids,
@@ -72,12 +74,18 @@ query and FTS rate limits use the shared User id when available, otherwise an is
 and IP for anonymous callers. Token and session identifiers do not select owner partitions or
 reset an account's rate-limit allowance.
 
-User queries require `selector.type: "userActivity"`, use a separate index allowlist, and accept
-the sync engine's `updatedTimeUtc` bounds including zero and `Number.MAX_SAFE_INTEGER`.
-Change requests validate a standalone `UserActivityDto`: id up to 1,024 characters, parent/content
-ids up to 512, and highlighted text up to 10,000. Ids need their activity-type prefix and may
-contain colons or non-UUID content ids. A live highlight needs a content id and one valid passage;
-its tombstone may omit the passage. Client `_rev`, `updatedTimeUtc` and unknown fields are stripped.
+Current queries select one `UserActivityType` (`viewed`, `liked`, `highlighted`) and its
+`sync-<type>-index`. Each type has an independent client cursor. The legacy source accepts
+`selector.type: "userActivity"` and translates the stored records back to the earlier envelope.
+Both use a separate index allowlist and accept the sync engine's `updatedTimeUtc` bounds
+including zero and `Number.MAX_SAFE_INTEGER`.
+Change requests validate separate viewed, liked and highlighted DTOs, all extending a common
+base. The `type` field is the discriminator; current documents have no `activityType`.
+Ids are deterministic UUID v5 values (36 characters). Parent/content references retain a
+512-character limit because existing content also has non-UUID ids. Highlight text is bounded
+at 10,000 characters and its color is enum-validated. A live highlight has a content id and a
+root `range` containing offsets, color and quoted text; its tombstone retains offsets only.
+Client `_rev`, `updatedTimeUtc` and unknown fields are stripped.
 Future activity times are capped at the server clock. A later stored activity wins, including
 tombstones, and conflict retries re-check that comparison against the latest revision.
 
@@ -86,6 +94,15 @@ stored client-shaped document in `docs`. Accepted uploads also return HTTP 200. 
 and storage failures return an HTTP error so the client retains its queue for retry. The default
 change-request response status is unchanged. The change-request limiter uses the shared User id,
 otherwise a hash of verified issuer/subject, otherwise the caller IP.
+
+On the first startup with this format, the API migrates existing user-data records in pages of
+100, preserving owner partitions and activity timestamps, then writes
+`_local/userActivityFormat-v2`. Interrupted migrations resume safely on restart. Source support
+is advertised only after migration succeeds. **Back up the database and stop all older API
+instances before this deployment.** Older clients remain supported through the legacy adapter;
+older API binaries cannot read the migrated format. Rolling back the API requires restoring the
+matching database backup. The device migration atomically converts stored activity and pending
+uploads before enabling transport, and starts fresh `syncList:v2` cursors.
 
 This phase supports pull-based convergence. Owner live updates, per-account quotas and server
 tombstone cleanup remain separate follow-up work (ADR 0020). CouchDB/S3 integration tests and
@@ -255,7 +272,7 @@ update:
 
 ### Data minimization & the expiry edge case
 
-A non-CMS client only ever receives an expired Content doc so it can *prune* its stale local copy
+A non-CMS client only ever receives an expired Content doc so it can _prune_ its stale local copy
 (it never displays it), so the body must not cross the wire. `api/src/util/stripExpiredContent.ts`
 projects an expired doc down to a minimal cleanup stub (identity, grouping, status/expiry, sync
 cursor — no title/body/SEO/media/FTS). The same projection is applied in two places: the `/query`

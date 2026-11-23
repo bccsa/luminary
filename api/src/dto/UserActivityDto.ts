@@ -2,20 +2,25 @@ import { Expose, Type } from "class-transformer";
 import {
     Equals,
     IsBoolean,
-    IsIn,
+    IsEmpty,
+    IsEnum,
     IsInt,
     IsNotEmpty,
     IsObject,
     IsOptional,
     IsString,
-    Matches,
+    IsUUID,
     Max,
     MaxLength,
     Min,
     ValidateNested,
 } from "class-validator";
+import { UserActivityColor, UserActivityType } from "../enums";
+import { _baseDocumentDto } from "./_baseDocumentDto";
 
-export const MAX_ACTIVITY_ID_LENGTH = 1024;
+export const MAX_ACTIVITY_ID_LENGTH = 36;
+// Existing document references also include legacy non-UUID ids.
+export const MAX_ACTIVITY_REFERENCE_LENGTH = 512;
 export const MAX_HIGHLIGHT_TEXT_LENGTH = 10000;
 
 export class UserActivityRangeDto {
@@ -31,52 +36,33 @@ export class UserActivityRangeDto {
     @Expose()
     end: number;
 
-    @IsIn(["yellow", "green", "blue", "pink", "purple"])
+    @IsOptional()
+    @IsEnum(UserActivityColor)
     @Expose()
-    color: "yellow" | "green" | "blue" | "pink" | "purple";
-
-    @IsString()
-    @MaxLength(MAX_HIGHLIGHT_TEXT_LENGTH)
-    @Expose()
-    text: string;
-}
-
-export class UserActivityPayloadDto {
-    @IsObject()
-    @ValidateNested()
-    @Type(() => UserActivityRangeDto)
-    @Expose()
-    range: UserActivityRangeDto;
-}
-
-/** Independent mirror of shared UserActivityDto; never enters the shared-dataset DocType enum. */
-export class UserActivityDto {
-    @IsString()
-    @MaxLength(MAX_ACTIVITY_ID_LENGTH)
-    @Matches(/^(viewed|liked|highlighted):[^\r\n\0]+$/)
-    @Expose()
-    _id: string;
-
-    @Equals("userActivity")
-    @Expose()
-    type: "userActivity";
-
-    @IsIn(["viewed", "liked", "highlighted"])
-    @Expose()
-    activityType: "viewed" | "liked" | "highlighted";
-
-    @IsString()
-    @IsNotEmpty()
-    @MaxLength(512)
-    @Expose()
-    parentId: string;
+    color?: UserActivityColor;
 
     @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    @MaxLength(512)
+    @MaxLength(MAX_HIGHLIGHT_TEXT_LENGTH)
     @Expose()
-    contentId?: string;
+    text?: string;
+}
+
+export class BaseUserActivityDto extends _baseDocumentDto<UserActivityType> {
+    @IsUUID("5")
+    @MaxLength(MAX_ACTIVITY_ID_LENGTH)
+    @Expose()
+    _id: string;
+
+    @IsEnum(UserActivityType)
+    @Expose()
+    type: UserActivityType;
+
+    @IsString()
+    @IsNotEmpty()
+    @MaxLength(MAX_ACTIVITY_REFERENCE_LENGTH)
+    @Expose()
+    parentId: string;
 
     @IsInt()
     @Min(0)
@@ -89,17 +75,57 @@ export class UserActivityDto {
     @Expose()
     deleted?: boolean;
 
-    @IsOptional()
-    @IsObject()
-    @ValidateNested()
-    @Type(() => UserActivityPayloadDto)
-    @Expose()
-    payload?: UserActivityPayloadDto;
-
-    // Server-only fields have no validation decorators, so whitelist strips client values.
+    // Whitelist validation strips client-supplied server metadata.
     @Expose()
     _rev?: string;
 
     @Expose()
     updatedTimeUtc?: number;
 }
+
+export class ViewedActivityDto extends BaseUserActivityDto {
+    @Equals(UserActivityType.Viewed)
+    type: UserActivityType.Viewed;
+
+    @IsEmpty()
+    contentId?: never;
+
+    @IsEmpty()
+    range?: never;
+}
+
+export class LikedActivityDto extends BaseUserActivityDto {
+    @Equals(UserActivityType.Liked)
+    type: UserActivityType.Liked;
+
+    @IsEmpty()
+    contentId?: never;
+
+    @IsEmpty()
+    range?: never;
+}
+
+export class HighlightedActivityDto extends BaseUserActivityDto {
+    @Equals(UserActivityType.Highlighted)
+    type: UserActivityType.Highlighted;
+
+    @IsString()
+    @IsNotEmpty()
+    @MaxLength(MAX_ACTIVITY_REFERENCE_LENGTH)
+    @Expose()
+    contentId: string;
+
+    @IsObject()
+    @ValidateNested()
+    @Type(() => UserActivityRangeDto)
+    @Expose()
+    range: UserActivityRangeDto;
+}
+
+export type UserActivityDto = ViewedActivityDto | LikedActivityDto | HighlightedActivityDto;
+
+export const USER_ACTIVITY_DTO_CLASSES = {
+    [UserActivityType.Viewed]: ViewedActivityDto,
+    [UserActivityType.Liked]: LikedActivityDto,
+    [UserActivityType.Highlighted]: HighlightedActivityDto,
+} as const;

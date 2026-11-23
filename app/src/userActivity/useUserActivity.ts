@@ -1,5 +1,5 @@
 import { ref, watch, type Ref } from "vue";
-import type { UserActivityType, Uuid } from "luminary-shared";
+import type { UserActivityKind, Uuid } from "luminary-shared";
 import {
     type ActivityEntry,
     getAllUserActivity,
@@ -13,7 +13,7 @@ import {
  * IndexedDB has no reactivity of its own, so the list is re-read whenever an activity
  * is written.
  */
-export function useUserActivity(type: UserActivityType | "all"): Ref<ActivityEntry[]> {
+export function useUserActivity(type: UserActivityKind | "all"): Ref<ActivityEntry[]> {
     return useUserActivityWithState(type).rows;
 }
 
@@ -21,7 +21,7 @@ export function useUserActivity(type: UserActivityType | "all"): Ref<ActivityEnt
  * Like {@link useUserActivity}, plus `loaded`: false until the first read returns, so a
  * page can tell "not read yet" from "nothing stored".
  */
-export function useUserActivityWithState(type: UserActivityType | "all"): {
+export function useUserActivityWithState(type: UserActivityKind | "all"): {
     rows: Ref<ActivityEntry[]>;
     loaded: Ref<boolean>;
 } {

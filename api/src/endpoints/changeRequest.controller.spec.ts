@@ -137,30 +137,36 @@ describe("ChangeRequestController", () => {
         expect(mockRateLimiter.recordRequest.mock.calls[2][0]).not.toBe(first);
     });
 
-    it("returns a bad user document's rejected ack with HTTP 200", async () => {
-        mockChangeRequest.mockResolvedValue({
-            ack: "rejected",
-            message: "Invalid user activity document",
-        });
-        const response = await app.inject({
-            method: "POST",
-            url: "/changerequest",
-            payload: { dataSource: "user", doc: {} },
-        });
-        expect(response.statusCode).toBe(200);
-        expect(response.json().ack).toBe("rejected");
-    });
+    it.each(["user", "user-v2"])(
+        "returns a bad %s document's rejected ack with HTTP 200",
+        async (dataSource) => {
+            mockChangeRequest.mockResolvedValue({
+                ack: "rejected",
+                message: "Invalid user activity document",
+            });
+            const response = await app.inject({
+                method: "POST",
+                url: "/changerequest",
+                payload: { dataSource, doc: {} },
+            });
+            expect(response.statusCode).toBe(200);
+            expect(response.json().ack).toBe("rejected");
+        },
+    );
 
-    it("returns a disabled user source's HTTP 503 instead of a final ack", async () => {
-        mockChangeRequest.mockRejectedValueOnce(new ServiceUnavailableException("disabled"));
-        const response = await app.inject({
-            method: "POST",
-            url: "/changerequest",
-            payload: { dataSource: "user", doc: {} },
-        });
-        expect(response.statusCode).toBe(503);
-        expect(response.json()).not.toHaveProperty("ack");
-    });
+    it.each(["user", "user-v2"])(
+        "returns a disabled %s source's HTTP 503 instead of a final ack",
+        async (dataSource) => {
+            mockChangeRequest.mockRejectedValueOnce(new ServiceUnavailableException("disabled"));
+            const response = await app.inject({
+                method: "POST",
+                url: "/changerequest",
+                payload: { dataSource, doc: {} },
+            });
+            expect(response.statusCode).toBe(503);
+            expect(response.json()).not.toHaveProperty("ack");
+        },
+    );
 
     /**
      * Helper function to create a test file buffer
@@ -202,16 +208,25 @@ describe("ChangeRequestController", () => {
     };
 
     describe("LFormData binary handling", () => {
-        it("preserves the user source and returns HTTP 200 for multipart activity", async () => {
-            mockChangeRequest.mockResolvedValue({ ack: "accepted" });
-            const body = { dataSource: "user", doc: { _id: "liked:post-a", type: "userActivity" } };
-            const response = await createLFormDataRequest(body, []);
-            expect(response.status).toBe(200);
-            expect(mockChangeRequest).toHaveBeenCalledWith(
-                expect.objectContaining(body),
-                expect.anything(),
-            );
-        });
+        it.each(["user", "user-v2"])(
+            "preserves the %s source and returns HTTP 200 for multipart activity",
+            async (dataSource) => {
+                mockChangeRequest.mockResolvedValue({ ack: "accepted" });
+                const body = {
+                    dataSource,
+                    doc: {
+                        _id: "activity-id",
+                        type: dataSource === "user" ? "userActivity" : "liked",
+                    },
+                };
+                const response = await createLFormDataRequest(body, []);
+                expect(response.status).toBe(200);
+                expect(mockChangeRequest).toHaveBeenCalledWith(
+                    expect.objectContaining(body),
+                    expect.anything(),
+                );
+            },
+        );
 
         it("should handle image upload with LFormData format", async () => {
             const responseData = { success: true };

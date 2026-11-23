@@ -88,21 +88,24 @@ describe("QueryController", () => {
         expect(userData.query).not.toHaveBeenCalled();
     });
 
-    it("dispatches a user query exclusively to the user-data service with its own index registry", async () => {
-        configService.get.mockImplementation(configFor(false));
-        userData.query.mockResolvedValue({ docs: [] });
-        const body = {
-            dataSource: "user",
-            selector: {
-                type: "userActivity",
-                updatedTimeUtc: { $gte: 0, $lte: Number.MAX_SAFE_INTEGER },
-            },
-            use_index: "sync-userActivity-index",
-        };
-        await controller.processPostReq(body, mockRequest(), mockReply());
-        expect(userData.query).toHaveBeenCalledWith(body, mockUser);
-        expect(queryService.query).not.toHaveBeenCalled();
-    });
+    it.each(["user", "user-v2"])(
+        "dispatches a %s query exclusively to the user-data service with its own index registry",
+        async (dataSource) => {
+            configService.get.mockImplementation(configFor(false));
+            userData.query.mockResolvedValue({ docs: [] });
+            const body = {
+                dataSource,
+                selector: {
+                    type: dataSource === "user" ? "userActivity" : "liked",
+                    updatedTimeUtc: { $gte: 0, $lte: Number.MAX_SAFE_INTEGER },
+                },
+                use_index: dataSource === "user" ? "sync-userActivity-index" : "sync-liked-index",
+            };
+            await controller.processPostReq(body, mockRequest(), mockReply());
+            expect(userData.query).toHaveBeenCalledWith(body, mockUser);
+            expect(queryService.query).not.toHaveBeenCalled();
+        },
+    );
 
     it.each([false, true])(
         "rejects unknown sources even with validation bypass=%s",

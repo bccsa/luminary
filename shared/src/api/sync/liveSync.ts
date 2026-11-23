@@ -1,3 +1,4 @@
+import { isUserActivityType } from "../../userActivity";
 import { watch } from "vue";
 import {
     DocType,
@@ -26,7 +27,7 @@ function roomDocTypesFromSyncList(): DocType[] {
     const types = new Set<DocType>();
     for (const entry of syncList.value) {
         const { type, subType } = splitChunkTypeString(entry.chunkType);
-        if (type === DocType.DeleteCmd) continue;
+        if (type === DocType.DeleteCmd || isUserActivityType(type)) continue;
         if (type === DocType.Content) {
             if (subType) types.add(subType);
         } else {

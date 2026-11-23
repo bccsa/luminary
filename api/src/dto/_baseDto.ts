@@ -1,16 +1,12 @@
 import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
-import { DocType, Uuid } from "../enums";
+import { DocType } from "../enums";
 import { Expose } from "class-transformer";
+import { _baseDocumentDto } from "./_baseDocumentDto";
 
 /**
  * Base Data Transfer Object class for all database storable data transfer objects
  */
-export class _baseDto {
-    @IsNotEmpty()
-    @IsString()
-    @Expose()
-    _id: Uuid;
-
+export class _baseDto extends _baseDocumentDto<DocType> {
     @IsString()
     @IsOptional()
     _rev?: string;

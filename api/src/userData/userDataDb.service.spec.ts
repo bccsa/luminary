@@ -5,19 +5,27 @@ import { ConfigService } from "@nestjs/config";
 import { ServiceUnavailableException } from "@nestjs/common";
 import { UserDataDbService } from "./userDataDb.service";
 import { UserActivityDto } from "../dto/UserActivityDto";
+import { normalizeUserActivityDocument } from "./activityIdentity";
 
 describe("UserDataDbService (mocked nano)", () => {
     const missing = () => Object.assign(new Error("missing"), { statusCode: 404 });
     const conflict = () => Object.assign(new Error("conflict"), { statusCode: 409 });
-    const activity: UserActivityDto = {
+    const activity: UserActivityDto = normalizeUserActivityDocument({
         _id: "liked:page-privacy-policy",
         type: "userActivity",
         activityType: "liked",
         parentId: "page-privacy-policy",
         activityTimeUtc: 123,
-    };
+    });
     let docs: Map<string, any>;
-    let handle: { info: jest.Mock; get: jest.Mock; insert: jest.Mock; partitionedFind: jest.Mock };
+    let handle: {
+        info: jest.Mock;
+        get: jest.Mock;
+        insert: jest.Mock;
+        partitionedFind: jest.Mock;
+        list: jest.Mock;
+        destroy: jest.Mock;
+    };
     let config: ConfigService;
     let logger: any;
     let service: UserDataDbService;
@@ -26,6 +34,21 @@ describe("UserDataDbService (mocked nano)", () => {
         jest.clearAllMocks();
         docs = new Map();
         handle = {
+            list: jest.fn(async (options) => ({
+                rows: [...docs.entries()]
+                    .filter(
+                        ([id]) =>
+                            !id.startsWith("_local/") &&
+                            (!options.startkey || id > options.startkey),
+                    )
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .slice(0, options.limit)
+                    .map(([id, doc]) => ({ id, doc })),
+            })),
+            destroy: jest.fn(async (id) => {
+                docs.delete(id);
+                return { ok: true };
+            }),
             info: jest.fn().mockResolvedValue({ props: { partitioned: true } }),
             get: jest.fn(async (id) => {
                 if (!docs.has(id)) throw missing();
@@ -56,6 +79,42 @@ describe("UserDataDbService (mocked nano)", () => {
         expect(() => service.assertEnabled()).toThrow(ServiceUnavailableException);
     });
 
+    it("migrates legacy ids across pages without changing partitions or resurrecting removals", async () => {
+        for (let i = 0; i < 125; i++) {
+            const parentId = `post-${String(i).padStart(3, "0")}`;
+            const old = {
+                _id: `owner-a:liked:${parentId}`,
+                type: "userActivity",
+                activityType: "liked",
+                parentId,
+                activityTimeUtc: 100,
+                _rev: "1-old",
+            };
+            docs.set(old._id, old);
+        }
+        const kept = normalizeUserActivityDocument({
+            _id: "liked:post-000",
+            type: "userActivity",
+            activityType: "liked",
+            parentId: "post-000",
+            activityTimeUtc: 100,
+            deleted: true,
+        });
+        docs.set(`owner-a:${kept._id}`, { ...kept, _id: `owner-a:${kept._id}`, _rev: "2-new" });
+        await service.initialize();
+
+        expect(service.enabled).toBe(true);
+        const activities = [...docs.values()].filter((doc) => doc.type === "liked");
+        expect(activities).toHaveLength(125);
+        expect(activities.every((doc) => /^owner-a:[a-f0-9-]{36}$/.test(doc._id))).toBe(true);
+        expect(docs.get(`owner-a:${kept._id}`).deleted).toBe(true);
+        expect([...docs.values()].some((doc) => doc.type === "userActivity")).toBe(false);
+        expect(docs.get("_local/userActivityFormat-v2").format).toBe(2);
+        handle.list.mockClear();
+        await service.initialize();
+        expect(handle.list).not.toHaveBeenCalled();
+    });
+
     it.each([
         { database: "user-data" },
         { idSecret: "secret" },
@@ -66,6 +125,63 @@ describe("UserDataDbService (mocked nano)", () => {
         expect(service.enabled).toBe(false);
         expect(nano).not.toHaveBeenCalled();
         expect(logger.error).toHaveBeenCalled();
+    });
+
+    it("keeps migration failures disabled and resumes without mixing accounts", async () => {
+        for (const [owner, activityTimeUtc] of [
+            ["owner-a", 100],
+            ["owner-b", 200],
+        ] as const) {
+            const _id = `${owner}:liked:post-1`;
+            docs.set(_id, {
+                _id,
+                _rev: "1-old",
+                type: "userActivity",
+                activityType: "liked",
+                parentId: "post-1",
+                activityTimeUtc,
+            });
+        }
+        handle.destroy.mockRejectedValueOnce(new Error("interrupted"));
+        await service.initialize();
+        expect(service.enabled).toBe(false);
+        expect(docs.has("_local/userActivityFormat-v2")).toBe(false);
+        expect(docs.has("owner-a:liked:post-1")).toBe(true);
+
+        await service.initialize();
+        expect(service.enabled).toBe(true);
+        const canonical = [...docs.values()].filter((doc) => doc.type === "liked");
+        expect(canonical).toHaveLength(2);
+        expect(canonical.find((doc) => doc._id.startsWith("owner-a:")).activityTimeUtc).toBe(100);
+        expect(canonical.find((doc) => doc._id.startsWith("owner-b:")).activityTimeUtc).toBe(200);
+        expect(canonical[0]._id.split(":")[1]).toBe(canonical[1]._id.split(":")[1]);
+        expect([...docs.values()].some((doc) => doc.type === "userActivity")).toBe(false);
+    });
+
+    it("preserves a concurrent equal-time tombstone when migration retries a conflict", async () => {
+        const old = {
+            _id: "owner-a:liked:post-1",
+            _rev: "1-old",
+            type: "userActivity",
+            activityType: "liked",
+            parentId: "post-1",
+            activityTimeUtc: 100,
+        };
+        docs.set(old._id, old);
+        const insert = handle.insert.getMockImplementation()!;
+        let raced = false;
+        handle.insert.mockImplementation(async (doc) => {
+            if (doc.type === "liked" && !raced) {
+                raced = true;
+                docs.set(doc._id, { ...doc, deleted: true, _rev: "2-removal" });
+                throw conflict();
+            }
+            return insert(doc);
+        });
+        await service.initialize();
+        expect(service.enabled).toBe(true);
+        expect([...docs.values()].find((doc) => doc.type === "liked").deleted).toBe(true);
+        expect(docs.has(old._id)).toBe(false);
     });
 
     it("applies its partitioned design document before enabling the source", async () => {
@@ -124,19 +240,26 @@ describe("UserDataDbService (mocked nano)", () => {
         await service.initialize();
         const before = Date.now();
         const result = await service.upsert("owner-a", activity);
-        expect(result.doc._id).toBe("owner-a:liked:page-privacy-policy");
+        expect(result.doc._id).toBe(`owner-a:${activity._id}`);
         expect(result.doc.updatedTimeUtc).toBeGreaterThanOrEqual(before);
         expect(result.doc.activityTimeUtc).toBe(123);
-        expect(activity._id).toBe("liked:page-privacy-policy");
+        expect(activity._id).toMatch(/^[a-f0-9-]{36}$/);
     });
 
-    it("preserves ids containing several colons", async () => {
+    it("preserves legacy content references containing several colons", async () => {
         await service.initialize();
-        const result = await service.upsert("owner-a", {
-            ...activity,
+        const passage = normalizeUserActivityDocument({
             _id: "highlighted:content:a:1-20",
+            type: "userActivity",
+            activityType: "highlighted",
+            parentId: "post",
+            contentId: "content:a",
+            activityTimeUtc: 123,
+            payload: { range: { start: 1, end: 20, color: "blue", text: "passage" } },
         });
-        expect(result.doc._id).toBe("owner-a:highlighted:content:a:1-20");
+        const result = await service.upsert("owner-a", passage);
+        expect(result.doc._id).toBe(`owner-a:${passage._id}`);
+        expect(result.doc).toMatchObject({ contentId: "content:a" });
     });
 
     it("rejects an older activity and skips an identical retry", async () => {

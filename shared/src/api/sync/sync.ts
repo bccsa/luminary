@@ -1,3 +1,4 @@
+import { isUserActivityType } from "../../userActivity";
 import { DocType } from "../../types";
 import { db } from "../../db/database";
 import { HttpReq } from "../http";
@@ -171,7 +172,7 @@ async function resetDegenerateChunkTypes(source?: SyncSource): Promise<void> {
     degenerate.forEach((chunkType) => {
         const { type, subType } = splitChunkTypeString(chunkType);
         if (type !== DocType.DeleteCmd) {
-            toReset.add(getChunkTypeString(DocType.DeleteCmd, subType ?? type));
+            toReset.add(getChunkTypeString(DocType.DeleteCmd, (subType ?? type) as DocType));
         }
     });
     listRef.value = listRef.value.filter((entry) => !toReset.has(entry.chunkType));
@@ -271,6 +272,8 @@ let _activeRunners = 0;
 export async function sync(options: SyncRunnerOptions): Promise<void> {
     if (!_httpService) throw new Error("Sync module not initialized with HTTP service");
 
+    if (!options.source && isUserActivityType(options.type))
+        throw new Error("Activity sync requires a dedicated source");
     if (!options.source) {
         _activeRunners++;
         syncActive.value = true;
@@ -335,7 +338,9 @@ async function _runSync(options: SyncRunnerOptions): Promise<void> {
         }
     }
 
-    const deleteCmdSubType = options.type === DocType.Content ? options.subType : options.type;
+    const deleteCmdSubType = (
+        options.type === DocType.Content ? options.subType : options.type
+    ) as DocType;
 
     // Trim runs first so memberOf is clamped to options.memberOf, languages to options.languages,
     // and publishDate is raised when the configured content cutoff has moved forward since the
@@ -514,7 +519,9 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
     });
 
     if (options.includeDeleteCmds && syncResult) {
-        const deleteCmdSubType = options.type === DocType.Content ? options.subType : options.type;
+        const deleteCmdSubType = (
+            options.type === DocType.Content ? options.subType : options.type
+        ) as DocType;
 
         // DeleteCmd entries are intentionally always stored with an open publishDate range
         // so that deletes propagate regardless of the user's content cutoff. Use open bounds

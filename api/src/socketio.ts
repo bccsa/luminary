@@ -286,7 +286,7 @@ export class Socketio implements OnGatewayInit {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
             accessMap: socket.data.userDetails.accessMap,
         } as ClientConfig;
-        if (this.userData.enabled) clientConfig.dataSources = ["user"];
+        if (this.userData.enabled) clientConfig.dataSources = ["user", "user-v2"];
         socket.emit("clientConfig", clientConfig);
 
         // Record the connection mode (CMS vs app) for this socket. All subsequent room joins

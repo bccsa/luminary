@@ -1,3 +1,4 @@
+import { isUserActivityType } from "../userActivity";
 import Dexie, { Collection, IndexableType, type Table } from "dexie";
 import {
     AckStatus,
@@ -895,7 +896,9 @@ class Database extends Dexie {
         const chunkTypes = Array.from(new Set(syncList.value.map((e) => e.chunkType)));
         for (const chunkType of chunkTypes) {
             const { type, subType } = splitChunkTypeString(chunkType);
-            trim({ type, subType, memberOf: groupsPerDocType[subType ?? type] ?? [] });
+            const permissionType = subType ?? type;
+            if (isUserActivityType(permissionType)) continue;
+            trim({ type, subType, memberOf: groupsPerDocType[permissionType] ?? [] });
         }
 
         await this.setSyncList();

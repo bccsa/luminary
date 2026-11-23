@@ -59,13 +59,16 @@ Writes go through `upsertDoc(doc)` which auto-generates `DeleteCmd` docs when `m
 `UserDataDbService` is independent of `DbService`: it has no change feed or database-creation
 loop. It enables only after both `DB_USERDATA_DATABASE` and `USER_DATA_ID_SECRET` are configured,
 the dedicated database is partitioned, and its indexes install. `UserDataService` owns the
-standalone `UserActivityDto` validation and response id conversion; the API `DocType` enum
+discriminated `UserActivityDto` validation and response id conversion; the API `DocType` enum
 does not include `UserActivity`. `auth/ownerKey.ts` authorizes all user-source paths from verified
 JWT issuer/subject. Every query uses `partitionedFind`; unknown sources never fall back to the
 shared dataset. Writes use activity-time comparison, server-set cursor timestamps and
 conflict retries. Validation rejects are HTTP 200 acks; source/storage failures are retryable
 HTTP errors. Keep owner keys and CouchDB bookmarks out of client responses. See `README.md`
-and ADR 0020 for provisioning and wire contracts.
+and ADR 0020 for provisioning and wire contracts. Current clients use `user-v2` with separate
+activity types and UUID ids; `user` adapts older clients to the same stored records. Startup
+migrates the server format before enabling either source. This requires a database backup
+and stopping older API instances before deployment; older clients remain supported.
 
 ### Schema upgrades (`src/db/schemaUpgrade/`)
 
@@ -120,7 +123,7 @@ All endpoints use `AuthGuard` and validate `apiVersion` via `validation/apiVersi
 3. A doc-type-specific `process*Dto` finalizes the document (image processing, FTS indexing, language file generation, S3 uploads, etc.).
 4. `db.upsertDoc(doc)` writes and emits.
 
-`processContentDto` sanitizes `text` first (`util/sanitizeContentText.ts`, allowlist = what the CMS editor can produce) because the app renders it with `v-html`; `sanitize-html` is pinned to exactly 2.17.2 because later versions pull in an ESM-only `htmlparser2` that breaks Jest and Node 20 CommonJS. `util/ftsIndexing.ts` computes server-side trigram FTS for Content docs as part of `processContentDto`. **Boost/field config must stay identical** to `shared/src/fts/ftsSearch.ts` — when you change one, change both (ADR 0009). The same boosts and BM25 params are also reused by server-side FTS *search* in `util/ftsScoring.ts` (the `POST /fts` endpoint, see below), so the "change one, change all" rule spans three files now (ADR 0010).
+`processContentDto` sanitizes `text` first (`util/sanitizeContentText.ts`, allowlist = what the CMS editor can produce) because the app renders it with `v-html`; `sanitize-html` is pinned to exactly 2.17.2 because later versions pull in an ESM-only `htmlparser2` that breaks Jest and Node 20 CommonJS. `util/ftsIndexing.ts` computes server-side trigram FTS for Content docs as part of `processContentDto`. **Boost/field config must stay identical** to `shared/src/fts/ftsSearch.ts` — when you change one, change both (ADR 0009). The same boosts and BM25 params are also reused by server-side FTS _search_ in `util/ftsScoring.ts` (the `POST /fts` endpoint, see below), so the "change one, change all" rule spans three files now (ADR 0010).
 
 ### S3 (`src/s3/s3.service.ts`)
 

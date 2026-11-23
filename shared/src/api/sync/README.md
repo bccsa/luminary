@@ -129,7 +129,7 @@ await sync({
 
 // Source mode (e.g. user-data source)
 await sync({
-    type: "userActivity",
+    type: UserActivityType.Viewed,
     memberOf: ["*"],
     limit: 100,
     source: userSource,

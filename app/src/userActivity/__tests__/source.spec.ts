@@ -1,10 +1,10 @@
+import { activityId } from "@/tests/activityStorage";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick, type Ref } from "vue";
 import waitForExpect from "wait-for-expect";
 import {
     db,
     dataSources,
-    DocType,
     getRest,
     initSync,
     isConnected,
@@ -91,6 +91,7 @@ describe("activity source lifecycle", () => {
             docs: remoteDocs
                 .filter(
                     (doc) =>
+                        doc.type === body.selector.type &&
                         doc.updatedTimeUtc >= body.selector.updatedTimeUtc.$gte &&
                         doc.updatedTimeUtc <= body.selector.updatedTimeUtc.$lte,
                 )
@@ -106,9 +107,8 @@ describe("activity source lifecycle", () => {
     it("moves legacy data while signed out, keeping existing docs and queueing viewed last", async () => {
         const source = await getUserActivitySource();
         await source.db.docs.put({
-            _id: "liked:kept",
-            type: DocType.UserActivity,
-            activityType: "liked",
+            _id: activityId("liked:kept"),
+            type: "liked",
             parentId: "kept",
             activityTimeUtc: 1,
             updatedTimeUtc: 1,
@@ -121,10 +121,11 @@ describe("activity source lifecycle", () => {
         ]);
         await initUserActivitySource();
         expect(await db.userActivity.count()).toBe(0);
-        expect((await source.db.docs.get("liked:kept"))?.deleted).toBe(true);
-        expect(
-            (await queued()).map((change) => (change.doc as UserActivityDto).activityType),
-        ).toEqual(["liked", "viewed"]);
+        expect((await source.db.docs.get(activityId("liked:kept")))?.deleted).toBe(true);
+        expect((await queued()).map((change) => (change.doc as UserActivityDto).type)).toEqual([
+            "liked",
+            "viewed",
+        ]);
         expect(await owner()).toBeUndefined();
         expect(await getUserActivity("viewed")).toHaveLength(1);
         expect(requests).not.toHaveBeenCalled();
@@ -137,7 +138,7 @@ describe("activity source lifecycle", () => {
 
         expect(await getUserActivity("viewed")).toEqual([
             expect.objectContaining({
-                _id: `viewed:${mockEnglishContentDto.parentId}`,
+                _id: activityId(`viewed:${mockEnglishContentDto.parentId}`),
                 parentId: mockEnglishContentDto.parentId,
                 activityTimeUtc: 0,
             }),
@@ -154,7 +155,7 @@ describe("activity source lifecycle", () => {
         accept();
         signIn();
         isConnected.value = true;
-        dataSources.value = ["user"];
+        dataSources.value = ["user-v2"];
         requests.mockImplementation(async (form: FormData) => {
             expect(await owner()).toBe("https://issuer|one");
             return {
@@ -166,7 +167,7 @@ describe("activity source lifecycle", () => {
         await waitForExpect(async () => expect(await queued()).toHaveLength(0));
         expect(requests).toHaveBeenCalledTimes(1);
         expect(JSON.parse(requests.mock.calls[0][0].get("changeRequest__json")).dataSource).toBe(
-            "user",
+            "user-v2",
         );
         expect(localStorage.getItem("userActivityOwner")).toBeNull();
     });
@@ -176,7 +177,7 @@ describe("activity source lifecycle", () => {
         await recordUserActivity({ type: "liked", parentId: "held" });
         await setupUserActivitySync();
         isConnected.value = true;
-        dataSources.value = ["user"];
+        dataSources.value = ["user-v2"];
         const source = await getUserActivitySource();
         expect(await source.flush(10)).toBe(false);
         signIn();
@@ -192,6 +193,21 @@ describe("activity source lifecycle", () => {
         expect(query).not.toHaveBeenCalled();
     });
 
+    it("does not upload the new document format to an API advertising only the old source", async () => {
+        accept();
+        signIn();
+        await setupUserActivitySync();
+        await recordUserActivity({ type: "liked", parentId: "local" });
+        isConnected.value = true;
+        dataSources.value = ["user"];
+        const source = await getUserActivitySource();
+        expect(await source.flush(10)).toBe(false);
+        await source.pull();
+        expect(requests).not.toHaveBeenCalled();
+        expect(query).not.toHaveBeenCalled();
+        expect(await queued()).toHaveLength(1);
+    });
+
     it("retains owner and queued edits on session loss and resumes for the same account", async () => {
         accept();
         signIn();
@@ -204,7 +220,7 @@ describe("activity source lifecycle", () => {
         expect(await getUserActivity("liked")).toHaveLength(1);
         signIn();
         isConnected.value = true;
-        dataSources.value = ["user"];
+        dataSources.value = ["user-v2"];
         await waitForExpect(async () => expect(await queued()).toHaveLength(0));
         expect(await getUserActivity("liked")).toHaveLength(1);
     });
@@ -216,19 +232,19 @@ describe("activity source lifecycle", () => {
         await recordUserActivity({ type: "liked", parentId: "private-to-one" });
         await (
             await getUserActivitySource()
-        ).db.setLuminaryInternals("syncList", [{ stale: true }]);
+        ).db.setLuminaryInternals("syncList:v2", [{ stale: true }]);
         loseSession();
         await nextTick();
         signIn("two");
         isConnected.value = true;
-        dataSources.value = ["user"];
+        dataSources.value = ["user-v2"];
         await waitForExpect(async () => expect(await owner()).toBe("https://issuer|two"));
         expect(await getUserActivity("liked")).toEqual([]);
         expect(await queued()).toHaveLength(0);
         expect(requests).not.toHaveBeenCalled();
-        expect(await (await getUserActivitySource()).db.getLuminaryInternals("syncList")).toEqual(
-            [],
-        );
+        expect(
+            await (await getUserActivitySource()).db.getLuminaryInternals("syncList:v2"),
+        ).toEqual([]);
     });
 
     it("invalidates activity and highlight readers after a pull without redating history", async () => {
@@ -237,19 +253,18 @@ describe("activity source lifecycle", () => {
         await setupUserActivitySync();
         remoteDocs = [
             {
-                _id: "highlighted:content:0-5",
-                type: DocType.UserActivity,
-                activityType: "highlighted",
+                _id: activityId("highlighted:content:0-5"),
+                type: "highlighted",
                 parentId: "post",
                 contentId: "content",
                 activityTimeUtc: 10,
                 updatedTimeUtc: 5000,
-                payload: { range: { start: 0, end: 5, text: "hello", color: "yellow" } },
+                range: { start: 0, end: 5, text: "hello", color: "yellow" },
             } as UserActivityDto,
         ];
         const before = userActivityVersion.value;
         isConnected.value = true;
-        dataSources.value = ["user"];
+        dataSources.value = ["user-v2"];
         await waitForExpect(async () => {
             expect(await loadHighlightQueriesFor("content")).toEqual([
                 { query: "hello", updatedAt: 10 },
@@ -274,7 +289,9 @@ describe("activity source lifecycle", () => {
         await recordUserActivity({ type: "liked", parentId: "account" });
         await clearUserActivity();
         expect(await getUserActivity("liked")).toEqual([]);
-        expect(await (await getUserActivitySource()).db.docs.get("liked:account")).toMatchObject({
+        expect(
+            await (await getUserActivitySource()).db.docs.get(activityId("liked:account")),
+        ).toMatchObject({
             deleted: true,
         });
         expect((await queued())[0].doc).toMatchObject({ deleted: true });

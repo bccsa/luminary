@@ -27,12 +27,27 @@ in socket `clientConfig.dataSources`. Clients must not send source requests unti
 advertised: an older API can reject an unfamiliar document as a final acknowledgement
 and cause the queue to discard an otherwise valid edit.
 
-User activity uses the wire name `user`. Its target local database is
+Current user activity uses the wire name `user-v2`; `user` remains a compatibility adapter
+for older clients. Its target local database is
 `luminary-user-db`, with documents, outbound changes and cursor stored together.
-The shared `UserActivityDto` uses `type: "userActivity"`, `activityType`, an
-activity timestamp, and the server's `updatedTimeUtc` cursor timestamp. The API
-mirrors that DTO independently; its shared-dataset `DocType` enum must not gain
-`UserActivity`.
+`UserActivityDto` is a discriminated union with separate viewed, liked and highlighted DTOs.
+A dedicated `UserActivityType` enum supplies `type`; there is no second `activityType` field.
+The common base reuses minimal document identity without shared group metadata. The API
+mirrors these types; its shared-dataset `DocType` enum must not gain activity types.
+The source syncs each type with its own cursor, using `syncList:v2` on the device.
+
+Activity ids are UUID v5 values with namespace `94bcbde6-4392-5f66-8900-7d7aabc6a7a9`.
+The name is the JSON encoding of `[type, parentId]` for likes/views, or
+`[type, contentId, start, end]` for highlights. Color and quotation edits preserve identity.
+Highlights use a root `range`; tombstones preserve offsets but remove color and quoted text.
+Reference ids still accept existing non-UUID content identifiers.
+
+Device documents and pending uploads migrate in one transaction before transport starts.
+API startup migrates legacy records in bounded pages before advertising either source, with
+an idempotent completion marker. The compatibility adapter maps old envelopes and ids onto
+the same UUID records. This supports old clients, but requires a controlled backend cutover:
+back up the user database and stop older API instances before migration. An older backend
+cannot serve the migrated database; rollback requires restoring its matching backup.
 
 The server stores activity in an ops-provisioned, partitioned CouchDB database.
 The owner partition key is

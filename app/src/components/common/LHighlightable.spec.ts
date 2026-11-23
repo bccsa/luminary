@@ -1,3 +1,4 @@
+import { activityId } from "@/tests/activityStorage";
 import {
     activityDocs as activityTable,
     setupActivityTests,
@@ -658,16 +659,14 @@ describe("LHighlightable", () => {
             expect(marks(wrapper)).toEqual(["Some highlighted"]);
             expect(wrapper.emitted("highlighted")).toHaveLength(1);
 
-            const rows = await activityTable.where("activityType").equals("highlighted").toArray();
+            const rows = await activityTable.where("type").equals("highlighted").toArray();
             expect(rows).toHaveLength(1);
-            expect(rows[0]._id).toBe("highlighted:model-test:0-16");
-            expect(rows[0].payload).toEqual({
-                range: {
-                    start: 0,
-                    end: 16,
-                    color: "yellow",
-                    text: "Some highlighted",
-                },
+            expect(rows[0]._id).toBe(activityId("highlighted:model-test:0-16"));
+            expect(rows[0].range).toEqual({
+                start: 0,
+                end: 16,
+                color: "yellow",
+                text: "Some highlighted",
             });
             wrapper.unmount();
         });
@@ -686,7 +685,7 @@ describe("LHighlightable", () => {
             const wrapper = await mountWith();
             expect(marks(wrapper)).toEqual([]);
             await seedUserActivity({
-                _id: "highlighted:model-test:5-16",
+                _id: activityId("highlighted:model-test:5-16"),
                 type: "highlighted",
                 parentId: "post-test",
                 contentId: "model-test",
@@ -694,7 +693,9 @@ describe("LHighlightable", () => {
                 payload: { range: { start: 5, end: 16, color: "blue", text: "highlighted" } },
             });
             await waitForExpect(() => expect(marks(wrapper)).toEqual(["highlighted"]));
-            await activityTable.update("highlighted:model-test:5-16", { deleted: true });
+            await activityTable.update(activityId("highlighted:model-test:5-16"), {
+                deleted: true,
+            });
             await waitForExpect(() => expect(marks(wrapper)).toEqual([]));
             wrapper.unmount();
         });
@@ -712,7 +713,7 @@ describe("LHighlightable", () => {
             expect(wrapper.find(".prose").text()).toBe("Some highlighted text content.");
             expect(wrapper.emitted("highlightRemoved")).toHaveLength(1);
             expect(wrapper.emitted("highlighted")).toBeFalsy();
-            const row = await activityTable.get("highlighted:model-test:5-16");
+            const row = await activityTable.get(activityId("highlighted:model-test:5-16"));
             expect(row?.deleted).toBe(true);
             wrapper.unmount();
         });
@@ -746,10 +747,14 @@ describe("LHighlightable", () => {
             await select(wrapper, "Some", "Some");
             removeButton().click();
             await settle();
-            expect((await activityTable.get("highlighted:model-test:0-4"))?.deleted).toBe(true);
-            expect(await activityTable.get("highlighted:model-test:5-16")).toMatchObject({
+            expect(
+                (await activityTable.get(activityId("highlighted:model-test:0-4")))?.deleted,
+            ).toBe(true);
+            expect(
+                await activityTable.get(activityId("highlighted:model-test:5-16")),
+            ).toMatchObject({
                 updatedTimeUtc: 2,
-                payload: { range: { color: "blue" } },
+                range: { color: "blue" },
             });
             wrapper.unmount();
         });

@@ -3,12 +3,26 @@ import { ConfigService } from "@nestjs/config";
 import { instanceToPlain, plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { JwtUserDetails } from "../auth/authIdentity.service";
-import { UserActivityDto } from "../dto/UserActivityDto";
+import {
+    UserActivityDto,
+    BaseUserActivityDto,
+    USER_ACTIVITY_DTO_CLASSES,
+} from "../dto/UserActivityDto";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
-import { AckStatus } from "../enums";
+import { AckStatus, UserActivityType } from "../enums";
 import { ownerKey } from "../auth/ownerKey";
 import { UserDataDbService } from "./userDataDb.service";
 import { removeEmptyValues } from "../util/removeEmptyValues";
+import { LegacyUserActivityDto } from "../dto/LegacyUserActivityDto";
+import {
+    USER_ACTIVITY_SOURCE,
+    USER_ACTIVITY_TYPES,
+    isUserActivityType,
+    normalizeUserActivityDocument,
+    toLegacyUserActivityDocument,
+    userActivityDocumentId,
+} from "./activityIdentity";
+import type { ClassConstructor } from "class-transformer";
 
 @Injectable()
 export class UserDataService {
@@ -28,25 +42,40 @@ export class UserDataService {
     async query(query: any, user: JwtUserDetails) {
         const owner = this.owner(user);
         this.db.assertEnabled();
-        if (query?.selector?.type !== "userActivity") {
-            throw new BadRequestException("User-data queries require type userActivity");
+        const current = query.dataSource === USER_ACTIVITY_SOURCE;
+        if (
+            current
+                ? !isUserActivityType(query?.selector?.type)
+                : query?.selector?.type !== "userActivity"
+        ) {
+            throw new BadRequestException("User-data queries require a supported activity type");
         }
+        const selector = {
+            ...query.selector,
+            type: current ? query.selector.type : { $in: USER_ACTIVITY_TYPES },
+        };
         const result = await this.db.partitionedFind(owner, {
-            selector: query.selector,
+            selector,
             limit: query.limit ?? this.config.get<number>("query.maxLimit") ?? 500,
             sort: query.sort ?? [{ updatedTimeUtc: "desc" }],
-            use_index: query.use_index ?? "sync-userActivity-index",
+            use_index:
+                query.use_index ??
+                (current ? `sync-${query.selector.type}-index` : "sync-userActivity-index"),
             execution_stats: true,
         });
         // Bookmarks can encode stored ids. The sync protocol uses timestamps, not bookmarks.
         return {
-            docs: result.docs.map((doc) => this.toClient(owner, doc)),
+            docs: result.docs.map((doc) => this.toClient(owner, doc, current)),
             warning: result.warning,
             execution_stats: result.execution_stats,
         };
     }
 
-    async changeRequest(raw: unknown, user: JwtUserDetails): Promise<ChangeReqAckDto> {
+    async changeRequest(
+        raw: unknown,
+        user: JwtUserDetails,
+        source = "user",
+    ): Promise<ChangeReqAckDto> {
         const owner = this.owner(user);
         // An unavailable source must preserve the client's queue, including invalid queued docs.
         this.db.assertEnabled();
@@ -56,20 +85,37 @@ export class UserDataService {
         });
         if (!raw || typeof raw !== "object" || Array.isArray(raw))
             return rejected("Invalid user activity document");
-        const doc = plainToInstance(UserActivityDto, raw);
-        const errors = await validate(doc, { whitelist: true, forbidNonWhitelisted: false });
-        if (errors.length || !doc._id.startsWith(`${doc.activityType}:`)) {
-            return rejected("Invalid user activity document");
+        let input: unknown = raw;
+        const current = source === USER_ACTIVITY_SOURCE;
+        if (!current) {
+            const legacy = plainToInstance(LegacyUserActivityDto, raw);
+            const errors = await validate(legacy, { whitelist: true, forbidNonWhitelisted: false });
+            if (errors.length || !legacy._id.startsWith(`${legacy.activityType}:`))
+                return rejected("Invalid user activity document");
+            if (legacy.activityType !== "highlighted" && legacy.payload != null)
+                return rejected("Only highlights may carry a passage");
+            try {
+                input = normalizeUserActivityDocument(legacy);
+            } catch {
+                return rejected("Invalid highlight passage identity");
+            }
         }
-        if (doc.activityType === "highlighted") {
-            if (!doc.contentId || (!doc.deleted && !doc.payload?.range)) {
-                return rejected("A highlight requires a content id and passage");
-            }
-            if (doc.payload?.range && doc.payload.range.end <= doc.payload.range.start) {
+        const type = (input as { type?: unknown }).type;
+        if (!isUserActivityType(type)) return rejected("Invalid user activity type");
+        const dtoClass = USER_ACTIVITY_DTO_CLASSES[type] as ClassConstructor<BaseUserActivityDto>;
+        const doc = plainToInstance(dtoClass, input) as UserActivityDto;
+        const errors = await validate(doc, { whitelist: true, forbidNonWhitelisted: false });
+        if (errors.length) return rejected("Invalid user activity document");
+        if (doc.type === UserActivityType.Highlighted) {
+            if (doc.range.end <= doc.range.start)
                 return rejected("Invalid highlight passage offsets");
-            }
-        } else if (doc.payload != null) {
-            return rejected("Only highlights may carry a passage");
+            if (!doc.deleted && (doc.range.color == null || doc.range.text == null))
+                return rejected("A highlight requires a color and quoted text");
+        }
+        if (doc._id !== userActivityDocumentId(doc))
+            return rejected("Invalid user activity identity");
+        if (doc.type === UserActivityType.Highlighted && doc.deleted) {
+            doc.range = { start: doc.range.start, end: doc.range.end };
         }
         doc.activityTimeUtc = Math.min(doc.activityTimeUtc, Date.now());
         const clean = instanceToPlain(doc, { excludeExtraneousValues: true }) as UserActivityDto;
@@ -80,7 +126,7 @@ export class UserDataService {
                 ? {
                       ack: AckStatus.Rejected,
                       message: "A newer activity is already stored",
-                      docs: [this.toClient(owner, result.doc)],
+                      docs: [this.toClient(owner, result.doc, current)],
                   }
                 : { ack: AckStatus.Accepted };
         } catch {
@@ -89,11 +135,16 @@ export class UserDataService {
         }
     }
 
-    private toClient(owner: string, doc: UserActivityDto): UserActivityDto {
+    private toClient(
+        owner: string,
+        doc: UserActivityDto,
+        current: boolean,
+    ): UserActivityDto | LegacyUserActivityDto {
         const prefix = `${owner}:`;
         if (typeof doc._id !== "string" || !doc._id.startsWith(prefix)) {
             throw new ServiceUnavailableException("Invalid user-data database response");
         }
-        return { ...doc, _id: doc._id.slice(prefix.length) };
+        const client = { ...doc, _id: doc._id.slice(prefix.length) };
+        return current ? client : toLegacyUserActivityDocument(client);
     }
 }

@@ -1,3 +1,4 @@
+import { activityId } from "@/tests/activityStorage";
 import { getUserActivitySource } from "../source";
 import { activityDocs as activityTable, setupActivityTests } from "@/tests/activityStorage";
 setupActivityTests();
@@ -83,10 +84,9 @@ describe("userActivity", () => {
         it("keys likes and views on the post", async () => {
             await recordUserActivity({ type: "liked", parentId: "post-1" });
 
-            const row = await activityTable.get("liked:post-1");
+            const row = await activityTable.get(activityId("liked:post-1"));
             expect(row).toMatchObject({
-                type: "userActivity",
-                activityType: "liked",
+                type: "liked",
                 parentId: "post-1",
             });
             expect(row!.contentId).toBeUndefined();
@@ -104,13 +104,13 @@ describe("userActivity", () => {
                 { range: range("hi") },
             );
 
-            const row = await activityTable.get("highlighted:content-1:0-2");
+            const row = await activityTable.get(activityId("highlighted:content-1:0-2"));
             expect(row).toMatchObject({
-                activityType: "highlighted",
+                type: "highlighted",
                 contentId: "content-1",
                 parentId: "post-1",
             });
-            expect(row!.payload).toEqual({ range: range("hi") });
+            expect(row!.range).toEqual(range("hi"));
         });
 
         it("keeps two translations of one post as separate highlights", async () => {
@@ -185,7 +185,7 @@ describe("userActivity", () => {
             await removeUserActivity({ type: "liked", parentId: "post-1" });
 
             expect(await activityTable.count()).toBe(1);
-            expect((await activityTable.get("liked:post-1"))!.deleted).toBe(true);
+            expect((await activityTable.get(activityId("liked:post-1")))!.deleted).toBe(true);
             expect(await getUserActivity("liked")).toEqual([]);
             expect(await hasUserActivity({ type: "liked", parentId: "post-1" })).toBe(false);
         });
@@ -207,7 +207,9 @@ describe("userActivity", () => {
                 range: range("secret"),
             });
 
-            expect((await activityTable.get("highlighted:content-1:0-6"))!.payload).toBeUndefined();
+            expect(
+                (await activityTable.get(activityId("highlighted:content-1:0-6")))!.range?.text,
+            ).toBeUndefined();
         });
 
         it("revives a tombstoned activity when it is recorded again", async () => {
@@ -239,8 +241,12 @@ describe("userActivity", () => {
             at(5000);
             await removeHighlightRange(ref, first);
 
-            expect((await activityTable.get("highlighted:content-1:0-5"))!.deleted).toBe(true);
-            expect((await activityTable.get("highlighted:content-1:10-16"))!.deleted).toBeFalsy();
+            expect(
+                (await activityTable.get(activityId("highlighted:content-1:0-5")))!.deleted,
+            ).toBe(true);
+            expect(
+                (await activityTable.get(activityId("highlighted:content-1:10-16")))!.deleted,
+            ).toBeFalsy();
         });
 
         it("keeps the activity where it was in the feed", async () => {
@@ -250,9 +256,10 @@ describe("userActivity", () => {
             at(5000);
             await removeHighlightRange(ref, second);
 
-            expect((await activityTable.get("highlighted:content-1:10-16"))!.activityTimeUtc).toBe(
-                5000,
-            );
+            expect(
+                (await activityTable.get(activityId("highlighted:content-1:10-16")))!
+                    .activityTimeUtc,
+            ).toBe(5000);
         });
 
         it("removes the whole activity once its last passage goes", async () => {
@@ -260,7 +267,9 @@ describe("userActivity", () => {
 
             await removeHighlightRange(ref, first);
 
-            expect((await activityTable.get("highlighted:content-1:0-5"))!.deleted).toBe(true);
+            expect(
+                (await activityTable.get(activityId("highlighted:content-1:0-5")))!.deleted,
+            ).toBe(true);
             expect(await getUserActivity("highlighted")).toEqual([]);
         });
 
@@ -270,10 +279,12 @@ describe("userActivity", () => {
 
             await removeHighlightRange(ref, { ...first, start: 99, end: 104 });
 
-            expect((await activityTable.get("highlighted:content-1:0-5"))!.deleted).not.toBe(true);
-            expect((await activityTable.get("highlighted:content-1:10-16"))!.deleted).not.toBe(
-                true,
-            );
+            expect(
+                (await activityTable.get(activityId("highlighted:content-1:0-5")))!.deleted,
+            ).not.toBe(true);
+            expect(
+                (await activityTable.get(activityId("highlighted:content-1:10-16")))!.deleted,
+            ).not.toBe(true);
         });
 
         it("ignores an activity that was never recorded", async () => {
@@ -293,7 +304,7 @@ describe("userActivity", () => {
             const viewed = await getUserActivity("viewed");
             expect(viewed).toHaveLength(MAX_VIEWED);
             expect(viewed[0].parentId).toBe(`post-${MAX_VIEWED + 4}`);
-            expect((await activityTable.get("viewed:post-0"))?.deleted).toBe(true);
+            expect((await activityTable.get(activityId("viewed:post-0")))?.deleted).toBe(true);
         });
 
         it("does not cap likes or highlights", async () => {
@@ -329,8 +340,12 @@ describe("userActivity", () => {
     });
 
     it("builds ids from the type's own identity", () => {
-        expect(userActivityId({ type: "liked", parentId: "post-1" })).toBe("liked:post-1");
-        expect(userActivityId({ type: "viewed", parentId: "post-1" })).toBe("viewed:post-1");
+        expect(userActivityId({ type: "liked", parentId: "post-1" })).toBe(
+            activityId("liked:post-1"),
+        );
+        expect(userActivityId({ type: "viewed", parentId: "post-1" })).toBe(
+            activityId("viewed:post-1"),
+        );
         expect(
             userActivityId({
                 type: "highlighted",
@@ -338,6 +353,6 @@ describe("userActivity", () => {
                 parentId: "post-1",
                 range: { start: 0, end: 5, color: "yellow", text: "first" },
             }),
-        ).toBe("highlighted:content-1:0-5");
+        ).toBe(activityId("highlighted:content-1:0-5"));
     });
 });

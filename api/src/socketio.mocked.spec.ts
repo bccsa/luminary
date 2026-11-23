@@ -89,7 +89,7 @@ describe("Socketio (mocked)", () => {
         gateway.clientConfigReq({ cms: false, docTypes: [] }, socket);
         expect(socket.emit).toHaveBeenCalledWith(
             "clientConfig",
-            expect.objectContaining({ dataSources: ["user"] }),
+            expect.objectContaining({ dataSources: ["user", "user-v2"] }),
         );
     });
 

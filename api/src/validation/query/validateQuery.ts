@@ -138,7 +138,7 @@ export function validateQuery(query: any, options: ValidateQueryOptions = {}): V
     }
 
     // identifier — optional observability label.
-    if (query.dataSource !== undefined && query.dataSource !== "user") {
+    if (query.dataSource !== undefined && !["user", "user-v2"].includes(query.dataSource)) {
         return fail("Unknown dataSource");
     }
 

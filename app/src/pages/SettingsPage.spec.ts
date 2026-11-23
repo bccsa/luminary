@@ -1,4 +1,8 @@
-import { activityDocs as activityTable, setupActivityTests } from "@/tests/activityStorage";
+import {
+    activityDocs as activityTable,
+    activityId,
+    setupActivityTests,
+} from "@/tests/activityStorage";
 setupActivityTests();
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -330,7 +334,7 @@ describe("SettingsPage data saver", () => {
         const dialog = wrapper.findComponent(LDialog);
         expect(dialog.props("description")).toContain("all devices");
         await dialog.props("primaryAction")();
-        expect((await activityTable.get("liked:account-post"))?.deleted).toBe(true);
+        expect((await activityTable.get(activityId("liked:account-post")))?.deleted).toBe(true);
         const queued = await (
             await activitySource.getUserActivitySource()
         ).db.localChanges.toArray();

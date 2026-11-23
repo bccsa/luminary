@@ -52,12 +52,16 @@ There is no Vuex/Pinia-managed document cache. Documents come from `luminary-sha
 ### User activity (`src/userActivity/`)
 
 `source.ts` owns `luminary-user-db`, its consent/auth gate, and the `iss|sub` owner marker
-inside that database. The source's wire name is `user`. Components read/write through
+inside that database. The source's wire name is `user-v2`. Components read/write through
 `store.ts`; only migrations touch the legacy `db.userActivity` table. UI grouping uses
 `activityTimeUtc`, independently of the server cursor. `state.ts` supplies invalidation
 signals for source pulls, acknowledgements and local changes. See `README.md` for consent,
 logout, clear activity and progress-backfill behavior. The API source is a separate rollout;
 absence of its advertised capability must keep data local and queued.
+Stored documents use `UserActivityType` as their discriminator, deterministic UUID ids and
+a root `range` for highlights. UI history entries retain their existing presentation shape
+through store adapters. `migrateActivityFormat.ts` atomically converts stored documents and
+queued uploads before transport starts; `syncList:v2` tracks each activity type independently.
 
 ### Auth (`src/auth.ts`)
 

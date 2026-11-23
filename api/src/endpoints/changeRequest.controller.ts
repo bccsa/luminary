@@ -142,7 +142,7 @@ export class ChangeRequestController {
                 changeRequest.apiVersion = apiVersion;
             }
 
-            if (changeRequest.dataSource === "user") reply.code(200);
+            if (["user", "user-v2"].includes(changeRequest.dataSource)) reply.code(200);
 
             const result = await this.changeRequestService.changeRequest(
                 changeRequest,
@@ -156,7 +156,7 @@ export class ChangeRequestController {
         await validateApiVersion(body.apiVersion);
         // Clean prototype pollution from the body before processing
         const cleanedBody = removeDangerousKeys(body);
-        if (cleanedBody.dataSource === "user") reply.code(200);
+        if (["user", "user-v2"].includes(cleanedBody.dataSource)) reply.code(200);
         const result = await this.changeRequestService.changeRequest(cleanedBody, request.user);
 
         return result;

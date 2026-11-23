@@ -6,7 +6,13 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { UserDataService } from "./userData.service";
 import { UserDataDbService } from "./userDataDb.service";
-import { MAX_ACTIVITY_ID_LENGTH, MAX_HIGHLIGHT_TEXT_LENGTH } from "../dto/UserActivityDto";
+import { MAX_HIGHLIGHT_TEXT_LENGTH } from "../dto/UserActivityDto";
+import { MAX_ACTIVITY_ID_LENGTH } from "../dto/LegacyUserActivityDto";
+import {
+    normalizeUserActivityDocument,
+    USER_ACTIVITY_TYPES,
+    USER_ACTIVITY_SOURCE,
+} from "./activityIdentity";
 import { ownerKey } from "../auth/ownerKey";
 
 describe("UserDataService", () => {
@@ -18,6 +24,7 @@ describe("UserDataService", () => {
         activityType: "liked",
         parentId: "page-privacy-policy",
         activityTimeUtc: 123,
+        updatedTimeUtc: 0,
     };
     const highlight = {
         ...activity,
@@ -25,6 +32,12 @@ describe("UserDataService", () => {
         activityType: "highlighted",
         contentId: "content:a",
         payload: { range: { start: 0, end: 10, color: "yellow", text: "some text" } },
+    };
+    const canonical = (input: any) => {
+        const doc = normalizeUserActivityDocument(input);
+        delete doc._rev;
+        delete doc.updatedTimeUtc;
+        return doc;
     };
     let db: {
         enabled: boolean;
@@ -47,6 +60,102 @@ describe("UserDataService", () => {
         );
     });
 
+    it.each(["viewed", "liked", "highlighted"])(
+        "accepts the v2 %s DTO and stores no activityType",
+        async (type) => {
+            const raw = type === "highlighted" ? highlight : { ...activity, activityType: type };
+            const doc = canonical(raw);
+            expect(
+                (
+                    await service.changeRequest(
+                        {
+                            ...doc,
+                            _rev: "forged",
+                            updatedTimeUtc: 999,
+                            updatedBy: "forged",
+                            deleteReq: 1,
+                            memberOf: ["admins"],
+                        },
+                        user,
+                        USER_ACTIVITY_SOURCE,
+                    )
+                ).ack,
+            ).toBe("accepted");
+            expect(db.upsert).toHaveBeenCalledWith(owner, doc);
+            expect(db.upsert.mock.calls[0][1]).not.toHaveProperty("activityType");
+            expect(db.upsert.mock.calls[0][1]._id).toHaveLength(36);
+        },
+    );
+
+    it("requires a UUID tied to the activity identity", async () => {
+        const doc = canonical(activity);
+        const wrong = canonical({ ...activity, parentId: "other" });
+        expect(
+            (await service.changeRequest({ ...doc, _id: wrong._id }, user, USER_ACTIVITY_SOURCE))
+                .ack,
+        ).toBe("rejected");
+        expect(
+            (await service.changeRequest({ ...doc, _id: activity._id }, user, USER_ACTIVITY_SOURCE))
+                .ack,
+        ).toBe("rejected");
+        expect(db.upsert).not.toHaveBeenCalled();
+    });
+
+    it("does not accept an unknown discriminator or an old envelope on the v2 source", async () => {
+        for (const doc of [activity, { ...canonical(activity), type: "device" }]) {
+            expect((await service.changeRequest(doc, user, USER_ACTIVITY_SOURCE)).ack).toBe(
+                "rejected",
+            );
+        }
+        expect(db.upsert).not.toHaveBeenCalled();
+    });
+
+    it("validates passage fields and retains only offsets in a removed highlight", async () => {
+        const doc = canonical(highlight);
+        for (const range of [
+            { start: 0, end: 10 },
+            { start: 0, end: 10, color: "orange", text: "hello" },
+            { start: 10, end: 0, color: "blue", text: "hello" },
+        ]) {
+            expect(
+                (await service.changeRequest({ ...doc, range }, user, USER_ACTIVITY_SOURCE)).ack,
+            ).toBe("rejected");
+        }
+        expect(
+            (await service.changeRequest({ ...doc, deleted: true }, user, USER_ACTIVITY_SOURCE))
+                .ack,
+        ).toBe("accepted");
+        expect(db.upsert.mock.calls[0][1].range).toEqual({ start: 0, end: 10 });
+    });
+
+    it("maps legacy and v2 uploads to the same persisted activity", async () => {
+        await service.changeRequest(activity, user);
+        await service.changeRequest(canonical(activity), user, USER_ACTIVITY_SOURCE);
+        expect(db.upsert.mock.calls[0]).toEqual(db.upsert.mock.calls[1]);
+    });
+
+    it("returns UUID documents and typed queries to a v2 client", async () => {
+        const doc = { ...canonical(highlight), updatedTimeUtc: 1000 };
+        db.partitionedFind.mockResolvedValue({
+            docs: [{ ...doc, _id: `${owner}:${doc._id}` }],
+            bookmark: "internal",
+        });
+        const result = await service.query(
+            { dataSource: USER_ACTIVITY_SOURCE, selector: { type: "highlighted" } },
+            user,
+        );
+        expect(result.docs).toEqual([doc]);
+        expect(result.docs[0]).not.toHaveProperty("activityType");
+        expect(result).not.toHaveProperty("bookmark");
+        expect(db.partitionedFind).toHaveBeenCalledWith(
+            owner,
+            expect.objectContaining({
+                selector: { type: "highlighted" },
+                use_index: "sync-highlighted-index",
+            }),
+        );
+    });
+
     it("accepts non-UUID content ids and strips client server-fields and arbitrary properties", async () => {
         const result = await service.changeRequest(
             {
@@ -60,7 +169,7 @@ describe("UserDataService", () => {
             user,
         );
         expect(result.ack).toBe("accepted");
-        expect(db.upsert).toHaveBeenCalledWith(owner, activity);
+        expect(db.upsert).toHaveBeenCalledWith(owner, canonical(activity));
     });
 
     it("accepts and sanitizes one passage", async () => {
@@ -72,7 +181,7 @@ describe("UserDataService", () => {
                 )
             ).ack,
         ).toBe("accepted");
-        expect(db.upsert).toHaveBeenCalledWith(owner, highlight);
+        expect(db.upsert).toHaveBeenCalledWith(owner, canonical(highlight));
     });
 
     it("accepts a highlight tombstone without a payload, as sent by the app", async () => {
@@ -144,8 +253,8 @@ describe("UserDataService", () => {
         db.upsert.mockResolvedValue({
             stale: true,
             doc: {
-                ...activity,
-                _id: `${owner}:${activity._id}`,
+                ...canonical(activity),
+                _id: `${owner}:${canonical(activity)._id}`,
                 activityTimeUtc: 999,
                 updatedTimeUtc: 1000,
             },
@@ -198,7 +307,7 @@ describe("UserDataService", () => {
         async (bound) => {
             const selector = { type: "userActivity", updatedTimeUtc: { $gte: 0, $lte: bound } };
             db.partitionedFind.mockResolvedValue({
-                docs: [{ ...activity, _id: `${owner}:${activity._id}` }],
+                docs: [{ ...canonical(activity), _id: `${owner}:${canonical(activity)._id}` }],
                 bookmark: `opaque:${owner}`,
             });
             const result = await service.query(
@@ -207,7 +316,10 @@ describe("UserDataService", () => {
             );
             expect(db.partitionedFind).toHaveBeenCalledWith(
                 owner,
-                expect.objectContaining({ selector, limit: 100 }),
+                expect.objectContaining({
+                    selector: { ...selector, type: { $in: USER_ACTIVITY_TYPES } },
+                    limit: 100,
+                }),
             );
             expect(result.docs).toEqual([activity]);
             expect(result).not.toHaveProperty("bookmark");
@@ -226,7 +338,7 @@ describe("UserDataService", () => {
 
     it("reads the same client id independently for two authenticated owners", async () => {
         db.partitionedFind.mockImplementation(async (partition) => ({
-            docs: [{ ...activity, _id: `${partition}:${activity._id}` }],
+            docs: [{ ...canonical(activity), _id: `${partition}:${canonical(activity)._id}` }],
         }));
         const otherUser = { ...user, jwtPayload: { ...user.jwtPayload, sub: "another-user" } };
         const query = { selector: { type: "userActivity" } };

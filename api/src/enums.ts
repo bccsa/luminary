@@ -7,6 +7,20 @@
  */
 export type Uuid = string;
 
+export enum UserActivityType {
+    Viewed = "viewed",
+    Liked = "liked",
+    Highlighted = "highlighted",
+}
+
+export enum UserActivityColor {
+    Yellow = "yellow",
+    Green = "green",
+    Blue = "blue",
+    Pink = "pink",
+    Purple = "purple",
+}
+
 /**
  * Document types
  */

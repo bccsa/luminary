@@ -40,13 +40,19 @@ describe("change-request source dispatch (mocked)", () => {
         expect(userData.changeRequest).not.toHaveBeenCalled();
     });
 
-    it("never sends a user-source request to shared processing or rejection lookups", async () => {
-        const doc = { _id: "liked:post-a", type: "userActivity" };
-        await service.changeRequest({ dataSource: "user", doc }, user);
-        expect(userData.changeRequest).toHaveBeenCalledWith(doc, user);
-        expect(processChangeRequest).not.toHaveBeenCalled();
-        expect(db.getDoc).not.toHaveBeenCalled();
-    });
+    it.each(["user", "user-v2"])(
+        "never sends a %s request to shared processing or rejection lookups",
+        async (dataSource) => {
+            const doc = {
+                _id: "activity-id",
+                type: dataSource === "user" ? "userActivity" : "liked",
+            };
+            await service.changeRequest({ dataSource, doc }, user);
+            expect(userData.changeRequest).toHaveBeenCalledWith(doc, user, dataSource);
+            expect(processChangeRequest).not.toHaveBeenCalled();
+            expect(db.getDoc).not.toHaveBeenCalled();
+        },
+    );
 
     it("preserves retryable source-off errors", async () => {
         userData.changeRequest.mockRejectedValue(new ServiceUnavailableException("disabled"));

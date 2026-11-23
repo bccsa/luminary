@@ -1,3 +1,4 @@
+import { activityId } from "@/tests/activityStorage";
 import { activityDocs as activityTable, setupActivityTests } from "@/tests/activityStorage";
 setupActivityTests();
 import "fake-indexeddb/auto";
@@ -71,9 +72,9 @@ describe("migration to userActivity", () => {
         } as any);
         await migrateUserActivityOnStartup();
         expect(await db.userActivity.get("highlighted:old-content")).toBeUndefined();
-        expect(await activityTable.get("highlighted:old-content:0-5")).toMatchObject({
+        expect(await activityTable.get(activityId("highlighted:old-content:0-5"))).toMatchObject({
             updatedTimeUtc: 123,
-            payload: { range: range("saved") },
+            range: range("saved"),
         });
         expect(localStorage.getItem(USER_ACTIVITY_MIGRATION_KEY)).toBe("true");
     });
@@ -98,10 +99,12 @@ describe("migration to userActivity", () => {
                 selector: { type: DocType.Content, _id: { $in: ["content-remote"] } },
             }),
         );
-        expect(await activityTable.get("highlighted:content-remote:0-6")).toMatchObject({
-            parentId: "post-remote",
-            updatedTimeUtc: 17,
-        });
+        expect(await activityTable.get(activityId("highlighted:content-remote:0-6"))).toMatchObject(
+            {
+                parentId: "post-remote",
+                updatedTimeUtc: 17,
+            },
+        );
         expect(await db.luminaryInternals.get("highlights")).toBeUndefined();
         expect(localStorage.getItem(USER_ACTIVITY_MIGRATION_KEY)).toBe("true");
     });
@@ -191,7 +194,7 @@ describe("migration to userActivity", () => {
             const liked = await getUserActivity("liked");
             expect(liked.map((row) => row.parentId)).toEqual(["post-2", "post-1"]);
             expect(liked[1].updatedTimeUtc).toBe(1000);
-            expect(await activityTable.get("liked:post-1")).toBeDefined();
+            expect(await activityTable.get(activityId("liked:post-1"))).toBeDefined();
         });
 
         it("stays safe to re-run on the same likes", async () => {
@@ -226,13 +229,13 @@ describe("migration to userActivity", () => {
 
             expect(await migrateHighlightsToUserActivity()).toBe(1);
 
-            const first = await activityTable.get("highlighted:content-1:0-2");
+            const first = await activityTable.get(activityId("highlighted:content-1:0-2"));
             expect(first).toMatchObject({
-                activityType: "highlighted",
+                type: "highlighted",
                 contentId: "content-1",
                 parentId: "post-1",
                 updatedTimeUtc: 1234,
-                payload: { range: range("hi") },
+                range: range("hi"),
             });
         });
 
@@ -243,7 +246,9 @@ describe("migration to userActivity", () => {
 
             expect(await migrateHighlightsToUserActivity()).toBe(1);
 
-            expect((await activityTable.get("highlighted:content-1:0-2"))!.parentId).toBe("post-1");
+            expect(
+                (await activityTable.get(activityId("highlighted:content-1:0-2")))!.parentId,
+            ).toBe("post-1");
         });
 
         it("skips an entry whose post cannot be found, leaving it to a later run", async () => {
@@ -257,9 +262,9 @@ describe("migration to userActivity", () => {
             // The source is untouched, so the entry is picked up once its document syncs.
             await db.docs.bulkPut([contentDoc("content-unsynced", "post-9")]);
             expect(await migrateHighlightsToUserActivity()).toBe(1);
-            expect((await activityTable.get("highlighted:content-unsynced:0-2"))!.parentId).toBe(
-                "post-9",
-            );
+            expect(
+                (await activityTable.get(activityId("highlighted:content-unsynced:0-2")))!.parentId,
+            ).toBe("post-9");
         });
 
         it("converts a legacy HTML snapshot to ranges and sorts it last", async () => {
@@ -270,9 +275,9 @@ describe("migration to userActivity", () => {
 
             await migrateHighlightsToUserActivity();
 
-            const row = await activityTable.get("highlighted:content-legacy:7-10");
+            const row = await activityTable.get(activityId("highlighted:content-legacy:7-10"));
             expect(row!.updatedTimeUtc).toBe(0);
-            expect(row!.payload?.range.text).toBe("old");
+            expect(row!.range?.text).toBe("old");
         });
 
         it("removes migrated source entries and stays safe to re-run", async () => {
@@ -308,8 +313,10 @@ describe("migration to userActivity", () => {
 
             expect(await migrateLegacyHighlightRowsToPassages()).toBe(2);
             expect(await db.userActivity.get("highlighted:content-1")).toBeUndefined();
-            expect(await activityTable.get("highlighted:content-1:0-5")).toBeDefined();
-            expect(await activityTable.get("highlighted:content-1:10-16")).toBeDefined();
+            expect(await activityTable.get(activityId("highlighted:content-1:0-5"))).toBeDefined();
+            expect(
+                await activityTable.get(activityId("highlighted:content-1:10-16")),
+            ).toBeDefined();
         });
     });
 

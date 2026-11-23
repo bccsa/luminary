@@ -376,6 +376,8 @@ Manual check, two browsers on one account against an API with the source on:
 ## 13. Review refactor progress
 
 These follow-up phases are separate from the original implementation phases above.
+Where the activity DTO/wire format differs, Review Phase 2 below supersedes the original
+`user` / `userActivity` format described in sections 2–8.
 
 ### Review Phase 1 — authentication and identity
 
@@ -399,3 +401,37 @@ it does not contain a separate Luminary session-token authentication flow.
 A future session-token resolver must supply the same account identity through the auth boundary.
 The activity DTO/UUID migration, service/controller split, database assets and performance work
 remain in the later review phases.
+
+### Review Phase 2 — activity DTOs and document identity
+
+Implemented across API, shared and app:
+
+- Extracted the existing `_id`/`type` identity fields into `_baseDocumentDto`, reused by
+  the shared-data base and `BaseUserActivityDto`, without inheriting group permissions.
+- Added separate viewed, liked and highlighted DTOs discriminated by `UserActivityType`.
+  Current documents no longer need `activityType`. Highlight colors use `UserActivityColor`.
+- Replaced prefixed ids with deterministic 36-character UUID v5 ids. Likes/views use
+  `[type, parentId]`; highlights use `[type, contentId, start, end]`. Both implementations
+  share fixed vectors and namespace `94bcbde6-4392-5f66-8900-7d7aabc6a7a9`.
+  Parent/content references retain the existing 512-character bound because valid legacy
+  content identifiers are not all UUIDs.
+- Highlight passages move to a root `range`; tombstones retain identity offsets while
+  discarding quoted text/color. Each activity type has a partitioned timestamp index and
+  an independent source cursor.
+- Current clients require the advertised `user-v2` capability. Older APIs advertising
+  only `user` leave current activity local and queued. The updated API retains the `user`
+  adapter for older clients, converting legacy envelopes/ids onto the same UUID records.
+- An atomic local migration converts stored documents and pending uploads, preserves owner
+  metadata and starts fresh `syncList:v2` cursors. The API migrates server records in pages
+  of 100 before advertising either source, with an idempotent completion marker.
+
+Deployment requires backing up the user database and stopping older API instances before
+the server migration. Older clients remain supported, but older API binaries cannot read
+the migrated database; rollback requires its matching database backup. Live database and
+two-browser integration checks remain user-owned. The later controller/service split,
+database asset organization and further performance review are not part of this phase.
+
+Verification: shared build and full unit suite, app full unit suite, mocked API DTO/query/
+change-request/socket/migration tests (including JSON/multipart requests), CMS sync unit
+tests, API/app/CMS type checks and lint on changed code. The API build includes all three
+new partitioned indexes. Live CouchDB/S3 and browser E2E tests were not run.

@@ -1,3 +1,4 @@
+import { activityId } from "@/tests/activityStorage";
 import { activityDocs as activityTable, setupActivityTests } from "@/tests/activityStorage";
 setupActivityTests();
 import "fake-indexeddb/auto";
@@ -119,7 +120,7 @@ describe("mirroring content progress into history", () => {
 
         await flush();
 
-        expect(await activityTable.get("viewed:post-1")).toMatchObject({
+        expect(await activityTable.get(activityId("viewed:post-1"))).toMatchObject({
             deleted: true,
         });
         expect(await viewedPosts()).toEqual([]);

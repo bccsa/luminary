@@ -3,13 +3,17 @@ import type { Table } from "dexie";
 import {
     createDataSource,
     db,
-    DocType,
+    UserActivityType,
+    USER_ACTIVITY_SOURCE,
+    USER_ACTIVITY_TYPES,
+    isUserActivityType,
     reportError,
     useDexieLiveQuery,
     type DataSourceHandle,
     type UserActivityDto,
 } from "luminary-shared";
 import { notifyUserActivityChanged } from "./state";
+import { migrateActivityFormat } from "./migrateActivityFormat";
 
 type UserActivityDatabase = Omit<DataSourceHandle["db"], "docs"> & {
     docs: Table<UserActivityDto, string>;
@@ -36,16 +40,26 @@ let ownerGeneration = 0;
 export async function getUserActivitySource(): Promise<UserActivitySource> {
     if (!openPromise) {
         openPromise = createDataSource({
-            name: "user",
+            name: USER_ACTIVITY_SOURCE,
             databaseName: "luminary-user-db",
-            syncListKey: "syncList",
-            docsIndex:
-                "activityType,activityTimeUtc,deleted,contentId,[activityType+activityTimeUtc]",
-            sync: { type: DocType.UserActivity, memberOf: ["*"], limit: 100 },
+            syncListKey: "syncList:v2",
+            docsIndex: "activityTimeUtc,deleted,contentId,[type+activityTimeUtc]",
+            sync: {
+                type: UserActivityType.Viewed,
+                types: USER_ACTIVITY_TYPES,
+                memberOf: ["*"],
+                limit: 100,
+            },
             ready: computed(() => transportEnabled.value && !suspended.value),
             paceMs: 300,
         })
-            .then((source) => {
+            .then(async (source) => {
+                try {
+                    await migrateActivityFormat(source.db);
+                } catch (error) {
+                    await source.dispose();
+                    throw error;
+                }
                 // Keep the shared database generic and type this source's activity-only table.
                 const activitySource: UserActivitySource = {
                     ...source,
@@ -56,14 +70,9 @@ export async function getUserActivitySource(): Promise<UserActivitySource> {
                 sourceHandle = activitySource;
                 observationScope = effectScope(true);
                 observationScope.run(() => {
-                    const docs = useDexieLiveQuery(
-                        async () =>
-                            activitySource.db.docs
-                                .where("type")
-                                .equals(DocType.UserActivity)
-                                .toArray(),
-                        { initialValue: [] },
-                    );
+                    const docs = useDexieLiveQuery(async () => activitySource.db.docs.toArray(), {
+                        initialValue: [],
+                    });
                     watch(docs, notifyUserActivityChanged);
                 });
                 return activitySource;
@@ -176,13 +185,13 @@ export async function clearLocalUserActivity(): Promise<void> {
 
 export async function listSourceUserActivityDocs(): Promise<UserActivityDto[]> {
     const source = await getUserActivitySource();
-    return source.db.docs.where("type").equals(DocType.UserActivity).toArray();
+    return (await source.db.docs.toArray()).filter((doc) => isUserActivityType(doc.type));
 }
 
 export async function getSourceUserActivityDoc(id: string): Promise<UserActivityDto | undefined> {
     const source = await getUserActivitySource();
     const doc = await source.db.docs.get(id);
-    return doc?.type === DocType.UserActivity ? doc : undefined;
+    return doc && isUserActivityType(doc.type) ? doc : undefined;
 }
 
 export async function getSourceUserActivityDocs(

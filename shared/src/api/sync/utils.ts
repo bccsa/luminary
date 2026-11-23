@@ -1,4 +1,4 @@
-import { DocType } from "../../types";
+import { DocType, type UserActivityType } from "../../types";
 import { syncListOf, syncTolerance } from "./state";
 import type { SyncBaseOptions, SyncListEntry, SyncSource } from "./types";
 
@@ -102,7 +102,7 @@ export function subtractRanges(target: DateRange, covered: DateRange[]): DateRan
  * logic in `_sync` to detect when a new publishDate window needs its own runner.
  */
 export function getPublishDateRanges(options: {
-    type: DocType;
+    type: DocType | UserActivityType;
     subType?: DocType;
     alwaysOffline?: boolean;
     source?: SyncSource;
@@ -130,7 +130,7 @@ export function getPublishDateRanges(options: {
  * Initial sync starts ahead of the latest known blockStart, while regular sync continues from the latest known blockEnd
  */
 export function calcChunk(options: {
-    type: DocType;
+    type: DocType | UserActivityType;
     subType?: DocType;
     memberOf: string[];
     initialSync: boolean;
@@ -160,7 +160,7 @@ export function calcChunk(options: {
  * Get the list of memberOf groups used in the syncList for a given document type
  */
 export function getGroups(options: {
-    type: DocType;
+    type: DocType | UserActivityType;
     subType?: DocType;
     source?: SyncSource;
 }): string[] {
@@ -179,7 +179,7 @@ export function getGroups(options: {
  * Get the list of unique language group sets used in the syncList for a given document type, selected languages and optional subType.
  */
 export function getLanguageSets(options: {
-    type: DocType;
+    type: DocType | UserActivityType;
     subType?: DocType;
     languages?: string[];
     source?: SyncSource;
@@ -208,7 +208,7 @@ export function getLanguageSets(options: {
  * Get the list of unique memberOf group sets used in the syncList for a given document type (and optional subType).
  */
 export function getGroupSets(options: {
-    type: DocType;
+    type: DocType | UserActivityType;
     subType?: DocType;
     memberOf: string[];
     source?: SyncSource;
@@ -301,7 +301,7 @@ export function arraysEqual(arr1: string[], arr2: string[]): boolean {
  * Split a combined chunk type string into its document type and optional subtype (parentType for content documents or docType for delete commands).
  */
 export function splitChunkTypeString(type: string): {
-    type: DocType;
+    type: DocType | UserActivityType;
     subType?: DocType;
     alwaysOffline?: boolean;
 } {
@@ -315,7 +315,7 @@ export function splitChunkTypeString(type: string): {
  * Get the chunk type string for a given document type and optional subtype (parentType for content documents or docType for delete commands).
  */
 export function getChunkTypeString(
-    type: DocType,
+    type: DocType | UserActivityType,
     subType?: DocType,
     alwaysOffline?: boolean,
 ): string {

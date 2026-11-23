@@ -1,4 +1,4 @@
-import { DocType } from "../../types";
+import { DocType, type UserActivityType } from "../../types";
 import { syncListOf } from "./state";
 import {
     filterByTypeMemberOf,
@@ -78,7 +78,7 @@ export function mergeVertical(options: SyncBaseOptions) {
  * This combines different memberOf groups and languages that have complete data for overlapping time ranges.
  */
 export function mergeHorizontal(options: {
-    type: DocType;
+    type: DocType | UserActivityType;
     subType?: DocType;
     source?: SyncBaseOptions["source"];
 }) {

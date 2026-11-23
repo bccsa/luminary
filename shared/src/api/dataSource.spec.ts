@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import waitForExpect from "wait-for-expect";
-import { DocType, type BaseDocumentDto } from "../types";
+import { DocType, UserActivityType, type BaseDocumentDto } from "../types";
 import { initConfig } from "../config";
 import { initDatabase } from "../db/database";
 import { dataSources, isConnected } from "../socket/socketio";
@@ -104,6 +104,47 @@ describe("createDataSource", () => {
         expect(payload.dataSource).toBe("user");
         expect(http.post.mock.calls[0][1]).toMatchObject({ dataSource: "user" });
         expect(http.post.mock.calls[0][1].selector).not.toHaveProperty("memberOf");
+    });
+
+    it("keeps independent cursors for every type in a multi-type source", async () => {
+        const docs = Object.values(UserActivityType).map((type, i) => ({
+            ...makeDoc(type, 100 + i),
+            type,
+        }));
+        http.post.mockImplementation(async (_path, body) => ({
+            docs: docs
+                .filter(
+                    (doc) =>
+                        doc.type === body.selector.type &&
+                        doc.updatedTimeUtc >= body.selector.updatedTimeUtc.$gte &&
+                        doc.updatedTimeUtc <= body.selector.updatedTimeUtc.$lte,
+                )
+                .sort((a, b) => b.updatedTimeUtc - a.updatedTimeUtc)
+                .slice(0, body.limit),
+        }));
+        const source = await createDataSource({
+            name: "user-v2",
+            databaseName: `multi-type-source-${++databaseNumber}`,
+            syncListKey: "syncList:v2",
+            sync: {
+                type: UserActivityType.Viewed,
+                types: Object.values(UserActivityType),
+                limit: 2,
+            },
+        });
+        handles.push(source);
+        isConnected.value = true;
+        dataSources.value = ["user-v2"];
+        await source.pull();
+
+        expect(new Set(http.post.mock.calls.map(([, body]) => body.selector.type))).toEqual(
+            new Set(Object.values(UserActivityType)),
+        );
+        const cursors = (await source.db.getLuminaryInternals("syncList:v2")) as any[];
+        expect(new Set(cursors.map((column) => column.chunkType))).toEqual(
+            new Set(Object.values(UserActivityType)),
+        );
+        expect(defaultSyncList.value).toEqual([]);
     });
 
     it("persists a page before interruption and resumes the real engine after reopening", async () => {

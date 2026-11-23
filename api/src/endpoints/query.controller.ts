@@ -68,10 +68,10 @@ export class QueryController {
         const maxLimit = this.configService.get<number>("query.maxLimit") ?? 500;
         const maxLanguages = this.configService.get<number>("query.maxLanguages") ?? 4;
 
-        if (body?.dataSource !== undefined && body.dataSource !== "user") {
+        if (body?.dataSource !== undefined && !["user", "user-v2"].includes(body.dataSource)) {
             throw new BadRequestException("Unknown dataSource");
         }
-        const isUserData = body?.dataSource === "user";
+        const isUserData = ["user", "user-v2"].includes(body?.dataSource);
 
         let validationResult = { valid: true, error: "" };
         if (isUserData || !bypassValidation)

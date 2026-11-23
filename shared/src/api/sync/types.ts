@@ -1,4 +1,4 @@
-import { BaseDocumentDto, DocType } from "../../types";
+import { BaseDocumentDto, DocType, UserActivityType } from "../../types";
 import { HttpReq } from "../http";
 import type { Ref } from "vue";
 
@@ -22,7 +22,7 @@ export type SyncBaseOptions = {
     /**
      * Document type
      */
-    type: DocType;
+    type: DocType | UserActivityType;
     /**
      * Sub type (parentType for content documents or docType for delete commands)
      */
