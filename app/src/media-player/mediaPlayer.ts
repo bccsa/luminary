@@ -33,6 +33,18 @@ watch(
     { flush: "sync" },
 );
 
+/**
+ * The copy the viewer picked for the item playing (true: online, false: the download), from the download sheet's
+ * source switch or a chapter's "Play online"; null follows the downloads' own pick. Cleared whenever another item
+ * starts, as the Data Saver override is.
+ */
+export const playOnlineOverride = ref<boolean | null>(null);
+watch(
+    () => mediaPlayerItem.value?.content._id,
+    () => (playOnlineOverride.value = null),
+    { flush: "sync" },
+);
+
 /** The Data Saver level playback follows: the quality menu's override, else Settings'. */
 export const playbackDataSaverLevel = computed<DataSaverLevel>(() => {
     const override = dataSaverOverride.value;

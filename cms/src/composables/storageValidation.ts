@@ -23,6 +23,14 @@ function validate<T>(
     validation.isValid = callback(value);
 }
 
+/** The encoder accepts block lengths from 0 (off) to this many seconds. */
+export const MAX_BLOCK_SECONDS = 600;
+
+/** Whether a bucket's block length is one the encoder accepts; absent leaves the encoder's default. */
+export function isValidBlockSeconds(seconds: number | undefined): boolean {
+    return seconds === undefined || (seconds >= 0 && seconds <= MAX_BLOCK_SECONDS);
+}
+
 export function storageValidation(
     bucket: Ref<StorageDto | undefined>,
     localCredentials: Ref<S3CredentialDto>,
@@ -122,6 +130,14 @@ export function storageValidation(
                     if (!path) return true; // Skip if empty (handled by required validation)
                     return path.startsWith("http://") || path.startsWith("https://");
                 },
+            );
+
+            validate(
+                `Block length must be between 0 and ${MAX_BLOCK_SECONDS} seconds`,
+                "mediaBlockSeconds",
+                validations.value,
+                b,
+                (bkt) => isValidBlockSeconds(bkt.mediaEncoderSettings?.blockSeconds),
             );
 
             // Validate credentials for new buckets

@@ -5,6 +5,8 @@ export {
     initHybridQuery,
     queryLocal,
     queryRemote,
+    queryRemoteOutcome,
+    type RemoteQueryOutcome,
 } from "./HybridQuery";
 export {
     useHybridQuery,

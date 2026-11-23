@@ -6,6 +6,8 @@ import {
     IsNumber,
     IsOptional,
     IsString,
+    Max,
+    Min,
     ValidateNested,
 } from "class-validator";
 import { Expose, Type } from "class-transformer";
@@ -35,6 +37,17 @@ export class MediaEncodeSettingsDto {
     @Expose()
     /** Max size of one byte-range chunk file in MB, video and audio alike. Absent = encoder default. */
     chunkSizeMB?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    @Max(600)
+    @Expose()
+    /**
+     * Seconds of content per block in byte-range chunks; within a block each stream's segments
+     * sit together, so an offline download needs fewer requests. 0 = off. Absent = encoder default.
+     */
+    blockSeconds?: number;
 }
 
 /**

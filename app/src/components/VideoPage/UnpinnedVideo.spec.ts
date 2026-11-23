@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import { defineComponent } from "vue";
+import { defineComponent, h, Suspense } from "vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
@@ -400,5 +400,81 @@ describe("UnpinnedVideo", () => {
             expect(wrapper.text()).toContain("Video One");
             expect(wrapper.text()).not.toContain("Vidéo en français");
         });
+    });
+});
+
+describe("UnpinnedVideo filtered to downloaded parents", () => {
+    const mountFiltered = (parentIds: string[]) =>
+        mount(
+            defineComponent({
+                setup: () => () =>
+                    h(Suspense, null, { default: () => h(UnpinnedVideo, { parentIds }) }),
+            }),
+        );
+    const cacheEntries = () =>
+        Object.fromEntries(
+            Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)!)
+                .filter((key) => key.startsWith("hqcache:"))
+                .map((key) => [key, localStorage.getItem(key)]),
+        );
+
+    beforeEach(async () => {
+        await db.docs.clear();
+        await db.docs.bulkPut([
+            mockLanguageDtoEng,
+            mockUnpinnedCategoryContent,
+            mockUnpinnedCategoryContent2,
+            mockVideoContent1,
+            mockVideoContent2,
+        ]);
+        appLanguageIdsAsRef.value = [mockLanguageDtoEng._id];
+        localStorage.clear();
+        setActivePinia(createTestingPinia());
+    });
+
+    afterEach(async () => {
+        vi.clearAllMocks();
+        await db.docs.clear();
+        localStorage.clear();
+    });
+
+    it("shows only the given parents, and hides the categories left empty", async () => {
+        const wrapper = mountFiltered(["post-video1"]);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Category 1");
+            expect(wrapper.text()).toContain("Video One");
+        });
+        expect(wrapper.text()).not.toContain("Video Two");
+        expect(wrapper.text()).not.toContain("Category 2");
+        expect(wrapper.findAllComponents(HorizontalContentTileCollection)).toHaveLength(1);
+    });
+
+    it("renders nothing when no parent is given", async () => {
+        const wrapper = mountFiltered([]);
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(wrapper.findAllComponents(HorizontalContentTileCollection)).toHaveLength(0);
+    });
+
+    it("leaves the full feed's cached results untouched", async () => {
+        const full = mountWithSuspense();
+        await waitForExpect(() => {
+            expect(full.text()).toContain("Video Two");
+        });
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        full.unmount();
+        const before = cacheEntries();
+        expect(Object.keys(before).length).toBeGreaterThan(0);
+
+        const filtered = mountFiltered(["post-video1"]);
+        await waitForExpect(() => {
+            expect(filtered.text()).toContain("Video One");
+        });
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        const after = cacheEntries();
+        for (const [key, value] of Object.entries(before)) expect(after[key]).toBe(value);
+        expect(Object.keys(after).length).toBeGreaterThan(Object.keys(before).length);
     });
 });

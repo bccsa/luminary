@@ -1,5 +1,12 @@
 import type { Component } from "vue";
-import type { PlayerControllerApi, PlayerState } from "@luminary-media-converter/player-web";
+import type {
+    Chapter,
+    PlayerControllerApi,
+    PlayerState,
+} from "@luminary-media-converter/player-web";
+
+/** A chapter as the page hands it to a player that plays downloads: one the download does not hold is not `available`. */
+export type VideoChapter = Chapter & { available?: boolean };
 
 /** What the lock screen and the notification show for a video. */
 export type VideoNowPlaying = {
@@ -21,6 +28,31 @@ export type VideoBackgroundProgress = {
     duration: number;
     /** `Date.now()` time it was kept at. */
     savedAt: number;
+    /** It played to the end of what was loaded; for a download, `position` and `duration` are already full-item time. */
+    ended?: boolean;
+};
+
+/** The download tool on a platform's now-playing screen: the item's badge, and what the page knows of its sources. */
+export type VideoNowPlayingDownload = {
+    badge: "none" | "progress" | "downloaded" | "attention" | "unavailable";
+    /** A whole number from 0 to 100, with `progress`. */
+    percent?: number;
+    /** Which copy plays now; absent while the item has no download. */
+    source?: "downloaded" | "online";
+    /** A chapter the download does not hold offers "Play online": the network is up and the item may be streamed. */
+    canPlayOnline?: boolean;
+    /** Dimmed, and a tap does nothing: nothing the sheet offers could be done now. */
+    disabled?: boolean;
+};
+
+/** A one-line notice on a platform's now-playing screen, until the page replaces or clears it. */
+export type VideoNowPlayingNotice = {
+    /** Handed back with the `notice` and `noticeDismiss` download actions; a new id is a new notice. */
+    id: string;
+    text: string;
+    /** The button's label; absent, the notice has no button. */
+    action?: string;
+    dismissible: boolean;
 };
 
 /** What a platform's own now-playing screen shows besides the player's state. */
@@ -50,6 +82,16 @@ export type VideoNowPlayingScreen = {
     dataSaver?: "off" | "light" | "strict";
     /** Whether the end counts down to the next item and plays it, for the gear menu and the end panel. */
     autoplay?: boolean;
+    /** The download tool; absent or null leaves it out. A tap comes back as the `download` download action. */
+    download?: VideoNowPlayingDownload | null;
+    notice?: VideoNowPlayingNotice | null;
+    /** Which items the end may count down to; absent, the screen shows no choice. */
+    autoplayMode?: "all" | "downloaded";
+    /**
+     * The mode is forced (offline): it shows, and the choice is dimmed. Sent as an explicit boolean whenever
+     * `autoplayMode` is.
+     */
+    autoplayModeLocked?: boolean;
 };
 
 /** The words of a platform's now-playing screen, in the page's language; any left out stay English. */
@@ -110,7 +152,21 @@ export type VideoNowPlayingTexts = Partial<
         | "dataSaverStrict"
         | "autoplay"
         | "autoplayOn"
-        | "autoplayOff",
+        | "autoplayOff"
+        | "download"
+        | "downloadProgress"
+        | "downloaded"
+        | "downloadAttention"
+        | "downloadUnavailable"
+        | "sourceDownloaded"
+        | "sourceOnline"
+        | "chapterNotDownloaded"
+        | "chapterOnline"
+        | "chapterDownload"
+        | "autoplayMode"
+        | "autoplayModeAll"
+        | "autoplayModeDownloaded"
+        | "closeNotice",
         string
     >
 >;
@@ -122,6 +178,22 @@ export type VideoNowPlayingTexts = Partial<
  */
 export type VideoNowPlayingAction =
     "minimise" | "read" | "audio" | "video" | "sleep" | "tag" | "dataSaver" | "autoplay";
+
+/**
+ * What the viewer did with a downloads control of a platform's now-playing screen, raised as `downloadaction` with
+ * this one argument. `chapterOnline` and `chapterDownload` carry the index of a chapter in the `chapters` the page
+ * passed; `autoplayMode` carries `all` or `downloaded`; `notice` and `noticeDismiss` carry the notice's id.
+ */
+export type VideoDownloadAction = {
+    action:
+        | "download"
+        | "chapterOnline"
+        | "chapterDownload"
+        | "autoplayMode"
+        | "notice"
+        | "noticeDismiss";
+    value?: string;
+};
 
 /** What a platform's own minimised player shows of the item, as the page's bar does. */
 export type VideoMiniPlayerBar = {
@@ -181,6 +253,12 @@ export type VideoPlayerService = {
      * once; null when nothing was. A platform whose page saves on its own leaves it out.
      */
     takeBackgroundProgress?: () => Promise<VideoBackgroundProgress | null>;
+    /**
+     * Reactive: true once the component can play a `luminary://offline/` master. It then takes `chapters` items with
+     * `available` and `upNext` items with `downloaded`, and raises `downloadaction` ({@link VideoDownloadAction}).
+     * A player that does not is only ever given the online source.
+     */
+    playsDownloads?: boolean;
 };
 
 /** What a template ref to the player reaches. */
@@ -200,8 +278,29 @@ export type VideoPlayerHandle = {
     readonly canPictureInPicture?: boolean;
     /** AirPlay devices are around to send playback to; the page draws its control only then. */
     readonly airPlayAvailable?: boolean;
-    /** Playback is going to an AirPlay device. */
+    /** Playback is going to an AirPlay video device; an AirPlay or Bluetooth audio route does not raise it. */
     readonly airPlayActive?: boolean;
+    /**
+     * A cast or AirPlay video device was chosen while a download plays, and the player kept playing the download; false
+     * again when the route returns to the phone, the local load ends, or on iOS the sound alone starts playing (below).
+     * A stream playing to a cast or AirPlay video device stays on the stream: more being ready is neither switched to
+     * nor offered, with the picture or the sound alone (the device fetches the media itself and cannot reach the
+     * phone's files, and a load from disk ends a cast).
+     * A cast or AirPlay video device chosen while a download plays loads the online source at the same position when
+     * online, with the picture or the sound alone, and tells the viewer casting is not available offline otherwise. A
+     * Bluetooth or wired audio route is not such a device: it raises neither `airPlayActive` nor `castHeldLocal`, and a
+     * download keeps playing through it, online or offline. An AirPlay route chosen while a download plays on iOS
+     * follows the iOS rule below.
+     *
+     * On iOS a load from disk plays with external playback off, so an AirPlay route chosen during it carries the
+     * phone's sound only, and no public signal tells an AirPlay speaker from an AirPlay video device. While the picture
+     * plays, every AirPlay route counts as a device and raises `castHeldLocal`; while the sound alone plays (an
+     * audio-only download, or the viewer turned the picture off), none does, since the route already plays the download
+     * as it is. iOS tells the page only once it knows which: a load from disk whose tracks are not yet known raises
+     * nothing, and a change between the picture and the sound alone tells the page again. Bluetooth and wired routes
+     * never count.
+     */
+    readonly castHeldLocal?: boolean;
     /** A Chromecast or AirPlay device is around, found by the browser's player; the page draws its control only then. */
     readonly castAvailable?: boolean;
     /** Opens the browser player's device list (Chromecast or AirPlay). */

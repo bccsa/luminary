@@ -23,6 +23,7 @@ import type { ContentDto, FtsSearchResult } from "luminary-shared";
 import { useI18n } from "vue-i18n";
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
+import { useDownloads } from "@/build-time/contracts/downloads/token";
 import {
     recordSearchQuery,
     loadRecentSearches,
@@ -120,6 +121,7 @@ const showPartialHint = computed(
 );
 
 const searchResultsContainerRef = ref<HTMLElement | null>(null);
+const downloads = useDownloads();
 
 // In page mode the results flow in BasePage's scrolling <main> (provided below), so infinite
 // scroll watches that; in modal mode the results scroll inside the overlay's own container.
@@ -836,6 +838,12 @@ defineExpose({
                                     >
                                 </div>
                             </div>
+                            <component
+                                v-if="downloads"
+                                :is="downloads.ui.DownloadBadge"
+                                :parent-id="result.parentId"
+                                class="self-center"
+                            />
                             <div
                                 class="flex flex-shrink-0 items-center pt-0.5 text-zinc-400 dark:text-slate-500"
                                 :class="{

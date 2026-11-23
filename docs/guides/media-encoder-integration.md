@@ -98,5 +98,8 @@ The encoder runs on the tester's machine, so "deploy to dev" only covers the API
   dialog for the dev origin. Accept it once.
 - The dev API needs `GET /storage/encoderconfig`, and the media bucket needs a `publicUrl` and
   credentials with write access.
-- The dev bucket needs CORS allowing the app and CMS origins, including the `Range` header —
-  byte-range HLS depends on it.
+- The dev bucket needs CORS allowing the app and CMS origins, and the native apps' web view
+  origins `https://localhost` and `capacitor://localhost`, for `GET`, `HEAD` and `OPTIONS`.
+  `AllowedHeaders` must cover `Range` (byte-range HLS depends on it), `If-None-Match` and
+  `If-Modified-Since` (a download's source check sends both), and a 304 must carry the CORS
+  headers too. `ExposeHeaders: ETag` is recommended.

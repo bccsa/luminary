@@ -6,6 +6,15 @@ import HorizontalContentTileCollection from "@/components/content/HorizontalCont
 import { useContentQuery } from "@/composables/useContentQuery";
 import { hasVideoSelector } from "@/util/mediaSource";
 
+type Props = {
+    /** Shows only these parents, under cache entries of their own, leaving the full feed's alone. */
+    parentIds?: readonly string[];
+};
+const props = defineProps<Props>();
+// Fixed for the life of the list: a query takes its cache entry when it is made, so the page
+// remounts the list to change it.
+const filtered = props.parentIds !== undefined;
+
 const newest100Content = useContentQuery(
     () => [
         // Only include content that has a video, is not page content, and is either untagged or tagged with a topic.
@@ -17,8 +26,14 @@ const newest100Content = useContentQuery(
             ],
         },
         { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
+        ...(filtered ? [{ parentId: { $in: [...(props.parentIds ?? [])] } }] : []),
     ],
-    { sort: [{ publishDate: "desc" }], limit: 100, cache: true },
+    {
+        sort: [{ publishDate: "desc" }],
+        limit: 100,
+        cache: true,
+        ...(filtered ? { cacheId: "watch-unpinned-downloaded" } : {}),
+    },
 );
 
 const categoryIds = computed(() =>
@@ -39,7 +54,11 @@ const categories = useContentQuery(
     ],
     // The category set grows with the content query above it — keep the rows already
     // rendered rather than blanking them on each widening.
-    { cache: true, keepPreviousResult: true },
+    {
+        cache: true,
+        keepPreviousResult: true,
+        ...(filtered ? { cacheId: "watch-unpinned-categories-downloaded" } : {}),
+    },
 );
 
 const unpinnedNewestContentByCategory = contentByTag(newest100Content, categories);

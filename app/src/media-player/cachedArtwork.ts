@@ -1,5 +1,6 @@
 import { ref } from "vue";
 import type { ContentDto } from "luminary-shared";
+import type { DownloadsService } from "@/build-time/contracts/downloads/contract";
 import { imageFileUrls } from "./coverImage";
 import { fallbackArtworkDataUrl } from "@/util/fallbackArtwork";
 
@@ -63,4 +64,29 @@ function readAsDataUrl(blob: Blob): Promise<string> {
         reader.onerror = () => reject(reader.error);
         reader.readAsDataURL(blob);
     });
+}
+
+/** The picture a download of the post stored, if it holds one. */
+export function storedArtworkPath(
+    downloads: DownloadsService | undefined,
+    content: ContentDto | undefined,
+): string | undefined {
+    return content ? downloads?.entryFor(content.parentId)?.content?.artwork : undefined;
+}
+
+/**
+ * The cover offline: the picture a download of the post stored, read from disk, else {@link offlineArtworkDataUrl}.
+ * A download's open session names its picture only when it had one as it opened.
+ */
+export async function offlineCoverDataUrl(
+    downloads: DownloadsService | undefined,
+    content: ContentDto,
+    bucketBaseUrl: string | undefined,
+): Promise<string | undefined> {
+    const entry = downloads?.entryFor(content.parentId);
+    if (entry?.content?.artwork) {
+        const stored = await downloads!.artwork(entry.downloadId).catch(() => undefined);
+        if (stored) return stored;
+    }
+    return offlineArtworkDataUrl(content, bucketBaseUrl);
 }

@@ -18,6 +18,7 @@ import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
+import { createDownloadsServiceStub, provideDownloadsStub } from "@/tests/downloadsServiceStub";
 
 vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 vi.mock("vue-router");
@@ -89,6 +90,25 @@ describe("HomePage.vue", () => {
                 expect(wrapper.text()).toContain("Catégorie 1");
                 expect(wrapper.text()).toContain("Poste 1");
             });
+        });
+    });
+
+    describe("Downloads resume banner", () => {
+        it("renders no banner, nor anything of downloads, without the downloads service", () => {
+            const wrapper = mount(HomePage);
+
+            expect(wrapper.find("[data-test='stub-resume-banner']").exists()).toBe(false);
+            expect(wrapper.html()).not.toContain("download");
+        });
+
+        it("puts the banner at the top of Home", () => {
+            const wrapper = mount(HomePage, {
+                global: { provide: provideDownloadsStub(createDownloadsServiceStub()) },
+            });
+
+            const banner = wrapper.get("[data-test='stub-resume-banner']");
+            expect(banner.element.previousElementSibling).toBeNull();
+            expect(banner.classes()).toEqual(expect.arrayContaining(["mx-4", "mt-4"]));
         });
     });
 });

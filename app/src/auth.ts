@@ -598,6 +598,21 @@ export async function refreshTokenSilently(opts?: {
     return (await refreshTokenWithOutcome(opts)) === "refreshed";
 }
 
+/** A token this close to its expiry is renewed before a request that needs it. */
+const TOKEN_EXPIRY_MARGIN_S = 30;
+
+/**
+ * Renews a signed-in session whose token has run out before a REST request that depends on it.
+ * Only the socket's auth failure renews it otherwise, and a socket that stays connected never
+ * fails, so a request sent an hour later carries a dead token and is refused.
+ */
+export async function ensureFreshToken(): Promise<void> {
+    const expiresIn = oidcUser.value?.expires_in;
+    if (expiresIn === undefined || expiresIn > TOKEN_EXPIRY_MARGIN_S) return;
+    // The stored user may not count as expired yet, and would only be handed back.
+    await refreshTokenSilently({ ignoreCache: true });
+}
+
 /** Start an OIDC authorization-code + PKCE redirect for a selected provider. */
 export async function loginWithProvider(
     provider: ProviderConfig,

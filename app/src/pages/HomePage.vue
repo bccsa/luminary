@@ -10,6 +10,9 @@ import { isMdScreen } from "@/globalConfig";
 import { nextTick, onActivated, ref } from "vue";
 import { markPageReady } from "@/util/renderState";
 import { useLocalizedStaticHead } from "@/seo/contentHead";
+import { useDownloads } from "@/build-time/contracts/downloads/token";
+
+const downloads = useDownloads();
 
 const pinnedResolved = ref(false);
 const newestResolved = ref(false);
@@ -30,6 +33,7 @@ useLocalizedStaticHead("/");
 <template>
     <BasePage>
         <IgnorePagePadding ignoreTop>
+            <component v-if="downloads" :is="downloads.ui.ResumeBanner" class="mx-4 mt-4" />
             <Suspense
                 @resolve="
                     pinnedResolved = true;

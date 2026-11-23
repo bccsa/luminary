@@ -122,6 +122,7 @@ permission check and the absence of a bulk read path do.*
 - **Offline playback of encrypted media** is out of scope here. Persisting keys client-side is the
   only way an offline-first app plays encrypted downloads offline, and it partly undoes the
   no-bulk-extraction property.
+  Superseded by [ADR 0020](0020-client-held-keys-for-offline-downloads.md), which holds keys on the client for offline downloads.
 - **~~No end-to-end verification yet.~~** Resolved after this ADR was accepted. The consumer landed
   (`MediaPlayerWrapper.vue` renders `LuminaryPlayer`, which decrypts LMCENC playlists and takes the key
   from this endpoint), and encryption is requested again in `useMediaEncoder.ts`. Verified against a

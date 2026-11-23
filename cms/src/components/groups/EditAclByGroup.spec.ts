@@ -177,6 +177,24 @@ describe("EditAclByGroup.vue", () => {
         expect(entry.permission).not.toContain(AclPermission.View);
     });
 
+    it("abbreviates Delete and Download apart in the permission summary", async () => {
+        const group = _.cloneDeep(mockGroupDtoPublicContent);
+        group.acl = [
+            {
+                groupId: mockGroupDtoPublicUsers._id,
+                type: DocType.Post,
+                permission: [AclPermission.View, AclPermission.Delete, AclPermission.Download],
+            },
+        ];
+        const wrapper = await createWrapper(group, mockGroupDtoPublicUsers, group, [], true);
+
+        const abbreviations = wrapper
+            .findAll('[data-test="permissionAbbreviation"]')
+            .map((s) => s.text());
+
+        expect(abbreviations).toEqual(["V", "D", "Dl"]);
+    });
+
     it("correctly duplicates an ACL group", async () => {
         const wrapper = mount(DuplicateGroupAclButton, {
             props: {

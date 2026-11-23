@@ -77,6 +77,11 @@ export enum AclPermission {
     Share = "share",
 
     /**
+     * Access to download published media for offline use in the native apps
+     */
+    Download = "download",
+
+    /**
      * Access to view documents in the CMS, including drafts and expired content.
      * Gates all CMS-scoped (cms:true) reads/sync; the app uses plain View (published only).
      */

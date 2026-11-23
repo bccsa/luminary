@@ -147,7 +147,6 @@ V8 counts generated Vue `<script setup>` functions separately, which can depress
 | File | What was added |
 | ---- | -------------- |
 | `src/util/sortByName.spec.ts` | Equal names case, reverse order case |
-| `src/util/string.spec.ts` | `getTheFirstLetter()` tests |
 | `src/components/button/LButton.spec.ts` | Segmented button, main/right-click, actions, disabled, tooltip |
 | `src/auth.spec.ts` | Provider persistence, callback cleanup, silent refresh, provider-scoped token handling, cache clearing, and logout |
 | `src/components/modals/ConfirmBeforeLeavingModal.spec.ts` | Stay/discard actions, dialog text verification |

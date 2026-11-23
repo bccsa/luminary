@@ -1,5 +1,5 @@
 import { DocType, LocalChangeDto, PublishStatus } from "../types";
-import { HttpReq } from "./http";
+import { HttpReq, type HttpStatusResponse } from "./http";
 import { config } from "../config";
 import { LFormData } from "../util/LFormData";
 import { db } from "../db/database";
@@ -90,6 +90,7 @@ export type EncoderConfigResponse = {
     byteRange?: boolean;
     byteRangeMaxFileSizeMB?: number;
     audioByteRangeMaxFileSizeMB?: number;
+    byteRangeBlockSeconds?: number;
 };
 
 /**
@@ -174,6 +175,23 @@ class RestApi {
         opts: { cms?: boolean } = {},
     ): Promise<SidecarResponse | undefined> {
         return await this.http.getWithQueryParams("sidecar", {
+            parentId,
+            sidecarType,
+            ...(opts.cms ? { cms: "true" } : {}),
+            apiVersion: "0.0.0",
+        });
+    }
+
+    /**
+     * `getSidecar` with the response status kept, for a caller that must tell "not yours to
+     * see" apart from a failed request.
+     */
+    async getSidecarWithStatus(
+        parentId: string,
+        sidecarType: string,
+        opts: { cms?: boolean } = {},
+    ): Promise<HttpStatusResponse<SidecarResponse>> {
+        return await this.http.getWithStatus<SidecarResponse>("sidecar", {
             parentId,
             sidecarType,
             ...(opts.cms ? { cms: "true" } : {}),

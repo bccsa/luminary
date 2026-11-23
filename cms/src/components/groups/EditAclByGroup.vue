@@ -3,8 +3,13 @@ import { toRaw, computed, ref, onMounted } from "vue";
 import EditAclEntry from "./EditAclEntry.vue";
 import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
 import { type GroupDto, AclPermission, type GroupAclEntryDto } from "luminary-shared";
-import { capitaliseFirstLetter, getTheFirstLetter } from "@/util/string";
-import { validDocTypes, isPermissionAvailable, toggleAclEntry } from "./permissions";
+import { capitaliseFirstLetter } from "@/util/string";
+import {
+    validDocTypes,
+    isPermissionAvailable,
+    toggleAclEntry,
+    permissionAbbreviations,
+} from "./permissions";
 import _ from "lodash";
 import { isMobileScreen } from "@/globalConfig";
 import DisplayCard from "@/components/common/DisplayCard.vue";
@@ -158,8 +163,9 @@ onMounted(() => {
                             (<span
                                 v-for="permission in activePermissions(aclEntry)"
                                 :key="permission"
+                                data-test="permissionAbbreviation"
                             >
-                                {{ getTheFirstLetter(capitaliseFirstLetter(permission)) }} </span
+                                {{ permissionAbbreviations[permission] }} </span
                             >)
                         </span>
                     </div>

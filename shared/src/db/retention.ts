@@ -18,6 +18,10 @@
  * side table (not on `docs`) so stamping never rewrites a document — no liveQuery
  * self-churn, no corpus recompute, and a sync/socket doc-rewrite can't clobber a stamp.
  *
+ * A doc can also be **pinned** (`pinRetention`): eviction spares it until `unpinRetention`.
+ * A pin is a row of its own beside the doc's keep-alive stamp, so stamping never overwrites
+ * it, and an unpinned doc is retained exactly as if it had never been pinned.
+ *
  * Distinct from the response cache (`responseCache.ts`): that persists a query's last
  * *window* to localStorage for first-paint; this persists *documents* to IndexedDB for
  * offline durability.
@@ -30,6 +34,12 @@ import { reportError } from "../diagnostics";
 import { DocType, type ContentDto } from "../types";
 import { OPEN_MIN } from "../api/sync/utils";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
+
+/** `retainUntil` of a pin row: no deadline, so the expired-row sweep never reaches it. */
+const PINNED_UNTIL = Number.MAX_SAFE_INTEGER;
+// The NUL prefix keeps a pin row's key from ever colliding with a real doc id.
+const PIN_KEY_PREFIX = "\u0000pin:";
+const pinKey = (docId: string): string => PIN_KEY_PREFIX + docId;
 
 /** How often the pending batch is written to the `retention` table. */
 const FLUSH_INTERVAL_MS = 10_000;
@@ -100,6 +110,50 @@ export async function flushRetention(): Promise<void> {
 }
 
 /**
+ * Keep the given docs with no deadline until they are unpinned, whatever eviction would
+ * otherwise decide. A pin is not counted: one `unpinRetention` releases it. An eviction pass
+ * already under way when the pin lands may still delete the doc; the pin itself stays.
+ */
+export async function pinRetention(ids: readonly string[]): Promise<void> {
+    if (!ids.length) return;
+    await db.retention.bulkPut(
+        ids.map((docId) => ({ docId: pinKey(docId), retainUntil: PINNED_UNTIL })),
+    );
+}
+
+/**
+ * Release pins set by `pinRetention`. Each doc keeps the keep-alive deadline its touches gave
+ * it, pinned or not, so it is then retained like any other doc.
+ */
+export async function unpinRetention(ids: readonly string[]): Promise<void> {
+    if (!ids.length) return;
+    await db.retention.bulkDelete(ids.map(pinKey));
+}
+
+/**
+ * The ids of every pinned doc, in no particular order. A pin never expires on its own, so this
+ * lets a caller release pins it no longer wants.
+ */
+export async function getPinnedRetentionIds(): Promise<string[]> {
+    const keys = (await db.retention
+        .where("retainUntil")
+        .equals(PINNED_UNTIL)
+        .primaryKeys()) as string[];
+    return keys
+        .filter((key) => key.startsWith(PIN_KEY_PREFIX))
+        .map((key) => key.slice(PIN_KEY_PREFIX.length));
+}
+
+/**
+ * Each doc's retention deadline, in the order given: `Number.MAX_SAFE_INTEGER` when pinned,
+ * its keep-alive stamp otherwise, or `undefined` when it has neither.
+ */
+export async function getRetainUntil(ids: readonly string[]): Promise<(number | undefined)[]> {
+    const rows = await db.retention.bulkGet([...ids, ...ids.map(pinKey)]);
+    return ids.map((_id, i) => (rows[ids.length + i] ? PINNED_UNTIL : rows[i]?.retainUntil));
+}
+
+/**
  * Delete below-cutoff Content whose retention deadline has passed (or was never set).
  * Covers both supplement-persisted docs and content that slid out of the sync window.
  * Inert in CMS / when no cutoff is configured. Call only while online (it runs after a
@@ -130,13 +184,17 @@ export async function evictStaleBelowCutoff(): Promise<void> {
         .primaryKeys()) as string[];
     if (!ids.length) return;
 
-    const stamps = await db.retention.bulkGet(ids);
-    const stale = ids.filter((_id, i) => (stamps[i]?.retainUntil ?? 0) <= now);
-    if (!stale.length) return;
+    if (await deleteStale(ids, now)) scheduleCorpusStatsRecompute();
+}
 
+/** Delete the docs among `ids` with no live deadline, with their stamps. */
+async function deleteStale(ids: string[], now: number): Promise<boolean> {
+    const deadlines = await getRetainUntil(ids);
+    const stale = ids.filter((_id, i) => (deadlines[i] ?? 0) <= now);
+    if (!stale.length) return false;
     await db.docs.bulkDelete(stale);
     await db.retention.bulkDelete(stale);
-    scheduleCorpusStatsRecompute();
+    return true;
 }
 
 /**
@@ -161,13 +219,7 @@ export async function pruneUnsyncedLanguageContent(languageIds: readonly string[
             .primaryKeys()) as string[];
         if (!ids.length) continue;
 
-        const stamps = await db.retention.bulkGet(ids);
-        const stale = ids.filter((_id, i) => (stamps[i]?.retainUntil ?? 0) <= now);
-        if (!stale.length) continue;
-
-        await db.docs.bulkDelete(stale);
-        await db.retention.bulkDelete(stale);
-        deletedAny = true;
+        if (await deleteStale(ids, now)) deletedAny = true;
     }
     if (deletedAny) scheduleCorpusStatsRecompute();
 }

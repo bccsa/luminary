@@ -46,6 +46,16 @@ async function handleResponse(res: Response) {
     return undefined;
 }
 
+/**
+ * Outcome of a request whose caller acts on the status code. `status` is `0` when no
+ * response arrived (network failure, aborted request). `body` is the parsed JSON, or
+ * `undefined` when there was none or it did not parse.
+ */
+export type HttpStatusResponse<B = unknown> = {
+    status: number;
+    body?: B;
+};
+
 export class HttpReq<T> {
     private apiUrl: string;
 
@@ -71,6 +81,55 @@ export class HttpReq<T> {
             return await handleResponse(res);
         } catch (err) {
             console.log(err);
+        }
+    }
+
+    /**
+     * GET that reports the status code instead of collapsing every failure to `undefined`.
+     * It leaves reporting to the caller, so a 5xx is not signalled through `serverError`.
+     */
+    async getWithStatus<B = unknown>(
+        endpoint: string,
+        params: Record<string, string>,
+    ): Promise<HttpStatusResponse<B>> {
+        let res: Response;
+        try {
+            const queryParams = new URLSearchParams(params);
+            res = await fetch(`${this.getUrl()}/${endpoint}?${queryParams}`, {
+                method: "GET",
+                headers: { ...customHeaders },
+            });
+        } catch {
+            return { status: 0 };
+        }
+
+        try {
+            return { status: res.status, body: await res.json() };
+        } catch {
+            return { status: res.status };
+        }
+    }
+
+    /**
+     * JSON POST that reports the status code instead of collapsing every failure to `undefined`.
+     * It leaves reporting to the caller, so a 5xx is not signalled through `serverError`.
+     */
+    async postWithStatus<B = unknown>(endpoint: string, body: T): Promise<HttpStatusResponse<B>> {
+        let res: Response;
+        try {
+            res = await fetch(`${this.getUrl()}/${endpoint}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", ...customHeaders },
+                body: JSON.stringify(body),
+            });
+        } catch {
+            return { status: 0 };
+        }
+
+        try {
+            return { status: res.status, body: await res.json() };
+        } catch {
+            return { status: res.status };
         }
     }
 

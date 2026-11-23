@@ -18,6 +18,11 @@ export type ContentProgressWatching = {
     mediaId: string;
     progress: number;
     duration: number;
+    /**
+     * Played to the end of a partial download while below the finished line: the Continue row leaves it out, while
+     * every other view keeps the real percentage. The next progress write that is not an end clears it.
+     */
+    completed?: boolean;
 };
 
 export type ContentProgressReading = {
@@ -55,6 +60,15 @@ export const isContentProgressFinished = (entry: ContentProgressEntry): boolean 
     return (
         (!entry.reading || isReadingFinished(entry.reading.progress)) &&
         (!entry.watching || isWatchingFinished(entry.watching))
+    );
+};
+
+/** Nothing is left to continue: finished, or its watching part played to the end of a partial download. */
+export const isContentProgressDone = (entry: ContentProgressEntry): boolean => {
+    if (!entry.reading && !entry.watching) return false;
+    return (
+        (!entry.reading || isReadingFinished(entry.reading.progress)) &&
+        (!entry.watching || entry.watching.completed === true || isWatchingFinished(entry.watching))
     );
 };
 
@@ -257,7 +271,7 @@ export const getMediaDuration = (mediaId: string, contentId: Uuid): number => {
 };
 
 /**
- * Set the playback progress of a media item.
+ * Set the playback progress of a media item. Not an end, so it clears the completed mark.
  * @param mediaId - The media unique identifier
  * @param contentId - The content document ID.
  * @param progress - Playback progress in seconds
@@ -276,6 +290,32 @@ export const setMediaProgress = (
     evictOverflowingContentProgress();
     applyContentProgressList([..._contentProgress]);
     persistContentProgress();
+};
+
+/**
+ * Records that playback reached the end of what a partial download holds, at `progress` of the full item. Below the
+ * finished line the entry is marked `completed`; at or above it this is an ordinary write, the item being finished.
+ */
+export const markMediaCompleted = (
+    mediaId: string,
+    contentId: Uuid,
+    progress: number,
+    duration: number,
+) => {
+    if (duration === Infinity) return;
+    const watching: ContentProgressWatching = { mediaId, progress, duration };
+    if (!isWatchingFinished(watching)) watching.completed = true;
+    const entry = touchContentProgressEntry(contentId);
+    entry.watching = watching;
+    evictOverflowingContentProgress();
+    applyContentProgressList([..._contentProgress]);
+    persistContentProgress();
+};
+
+/** Whether this media carries the completed mark: played to the end of a partial download, below the finished line. */
+export const isMediaCompleted = (mediaId: string, contentId: Uuid): boolean => {
+    const watching = findTrackedContentProgressEntry(contentId)?.watching;
+    return !!watching && watching.mediaId === mediaId && watching.completed === true;
 };
 
 /**
@@ -354,6 +394,8 @@ export function applyBackgroundMediaProgress(record: {
     position: number;
     duration: number;
     savedAt: number;
+    /** It played to the end of what was loaded: short of the finished line, a partial download's end. */
+    ended?: boolean;
 }): { contentId: Uuid; from: number; to: number; duration: number } | undefined {
     let mediaId: unknown;
     let contentId: unknown;
@@ -368,6 +410,7 @@ export function applyBackgroundMediaProgress(record: {
     if (entry && entry.updatedAt >= record.savedAt) return undefined;
     const from = getMediaProgress(mediaId, contentId);
     const to = Math.min(record.position, record.duration);
-    setMediaProgress(mediaId, contentId, to, record.duration);
+    if (record.ended) markMediaCompleted(mediaId, contentId, to, record.duration);
+    else setMediaProgress(mediaId, contentId, to, record.duration);
     return { contentId, from, to, duration: record.duration };
 }

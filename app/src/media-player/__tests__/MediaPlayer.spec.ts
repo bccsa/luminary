@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
+import { defineComponent, h, reactive } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { rgbaToThumbHash } from "thumbhash";
 import type { ContentDto } from "luminary-shared";
@@ -21,6 +22,14 @@ import {
     mediaPlayerView,
     openMediaPlayer,
 } from "../mediaPlayer";
+import { playerNotice, showPlayerNotice } from "../playerNotice";
+import { useNotificationStore } from "@/stores/notification";
+import NotificationBanner from "@/components/notifications/NotificationBanner.vue";
+import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
+import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import { AppPromoKey } from "@/build-time/contracts/app-promo/token";
+import { downloadsServiceStub } from "./downloadsStub";
+import { autoplayDownloadedOnly } from "../autoplayMode";
 
 const AUDIO = "__audio__";
 
@@ -41,6 +50,10 @@ const engine = vi.hoisted(() => ({
     thumbnailsReady: false,
     /** The packaged app's native player: it draws its own now-playing screen and turns the picture off in place. */
     native: false as boolean | null,
+    /** The download the engine plays from, and the copy it names, where it plays downloads. */
+    playback: null as any,
+    playingSource: undefined as "downloaded" | "online" | undefined,
+    keyUnavailable: false,
 }));
 
 vi.mock("@luminary-media-converter/player-web", async () => {
@@ -128,6 +141,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                         ]),
                         props.title,
                         slots["under-title"]?.(),
+                        slots["autoplay-mode"]?.(),
                         slots.sheet?.({ close: () => {} }),
                         slots["audio-tool"]?.(),
                         slots.cast?.(),
@@ -297,6 +311,15 @@ vi.mock("@/media-player/MediaPlayerWrapper.vue", async () => {
                 });
                 expose({
                     syncDataSaverCap: (engine.syncDataSaverCap = vi.fn(() => true)),
+                    get playback() {
+                        return engine.playback;
+                    },
+                    get playingSource() {
+                        return engine.playingSource;
+                    },
+                    get keyUnavailable() {
+                        return engine.keyUnavailable;
+                    },
                     player: engine.handle,
                     get inlineActive() {
                         return engine.inlineActive;
@@ -402,6 +425,11 @@ beforeEach(() => {
     engine.airPlayActive = false;
     engine.thumbnailsReady = false;
     engine.native = false;
+    engine.playback = null;
+    engine.playingSource = undefined;
+    engine.keyUnavailable = false;
+    playerNotice.value = null;
+    autoplayDownloadedOnly.value = false;
     document.documentElement.classList.remove("lmc-inline-video");
     document.documentElement.classList.remove("lmc-player-dragging");
     closeMediaPlayer();
@@ -560,6 +588,114 @@ describe("MediaPlayer", () => {
         });
     });
 
+    describe("notices about what plays, where no platform screen is up", () => {
+        it("go to the app's notifications, with the service's told they were not shown", async () => {
+            openMediaPlayer(mockEnglishContentDto, "en");
+            const service = downloadsServiceStub();
+            await mountPlayer({
+                [VideoPlayerKey as symbol]: {
+                    component: {},
+                    acceptsNowPlaying: true,
+                    playsDownloads: true,
+                },
+                [DownloadsKey as symbol]: service,
+            });
+
+            expect(service.hooks.notice("Shown elsewhere")).toBe(false);
+            const run = vi.fn();
+            showPlayerNotice({
+                text: "More chapters are ready.",
+                action: { label: "Switch now", run },
+            });
+            await flushPromises();
+            // The store adds a notification a moment later.
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
+            const banner = useNotificationStore().notifications.find(
+                (n) => n.title === "More chapters are ready.",
+            );
+            expect(banner?.type).toBe("banner");
+            const shown = mount(NotificationBanner, { props: { notification: banner! } });
+            expect(shown.text()).toContain("Switch now");
+            await shown.get("[data-test='notification-banner'] .flex.w-full").trigger("click");
+            expect(run).toHaveBeenCalledTimes(1);
+            expect(playerNotice.value).toBeNull();
+            await flushPromises();
+            expect(
+                useNotificationStore().notifications.some(
+                    (n) => n.title === "More chapters are ready.",
+                ),
+            ).toBe(false);
+        });
+
+        it("show one without a button as a toast, once", async () => {
+            await playing();
+            showPlayerNotice({ text: "Playing online: the download could not be played" });
+            await flushPromises();
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
+            const toasts = useNotificationStore().notifications.filter(
+                (n) => n.title === "Playing online: the download could not be played",
+            );
+            expect(toasts.map((n) => n.type)).toEqual(["toast"]);
+            expect(playerNotice.value).toBeNull();
+        });
+
+        it("close the notice when the viewer closes its banner", async () => {
+            await playing();
+            const onDismiss = vi.fn();
+            const run = vi.fn();
+            showPlayerNotice({
+                text: "More chapters are ready.",
+                action: { label: "Switch now", run },
+                onDismiss,
+            });
+            await flushPromises();
+            await new Promise((resolve) => setTimeout(resolve, 150));
+            const store = useNotificationStore();
+            const banner = store.notifications.find((n) => n.title === "More chapters are ready.");
+
+            store.dismissNotification(banner!.id!);
+            await flushPromises();
+
+            expect(onDismiss).toHaveBeenCalledTimes(1);
+            expect(run).not.toHaveBeenCalled();
+            expect(playerNotice.value).toBeNull();
+        });
+
+        it("are dropped when another item plays", async () => {
+            await playing();
+            const id = showPlayerNotice({
+                text: "More chapters are ready.",
+                action: { label: "Switch now", run: vi.fn() },
+            });
+            await flushPromises();
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
+            openMediaPlayer({ ...mockEnglishContentDto, _id: "other-item" } as ContentDto, "en");
+            await flushPromises();
+
+            expect(playerNotice.value).toBeNull();
+            expect(useNotificationStore().notifications.some((n) => n.id === id)).toBe(false);
+        });
+
+        it("take the banner away when the notice is withdrawn", async () => {
+            await playing();
+            const id = showPlayerNotice({
+                text: "More chapters are ready.",
+                action: { label: "Switch now", run: vi.fn() },
+            });
+            await flushPromises();
+            await new Promise((resolve) => setTimeout(resolve, 150));
+            expect(useNotificationStore().notifications.some((n) => n.id === id)).toBe(true);
+
+            playerNotice.value = null;
+            await flushPromises();
+
+            expect(useNotificationStore().notifications.some((n) => n.id === id)).toBe(false);
+        });
+    });
+
     describe("in the packaged app, where the player draws its own now-playing screen", () => {
         beforeEach(() => {
             vi.stubEnv("VITE_BUILD_TARGET", "native");
@@ -573,6 +709,458 @@ describe("MediaPlayer", () => {
             (find(wrapper, "mediaPlayerNowPlaying").element as HTMLElement).style.display ===
             "none";
 
+        describe("with downloads", () => {
+            const parentId = mockEnglishContentDto.parentId;
+            const withDownloads = (service: ReturnType<typeof downloadsServiceStub>) => ({
+                [VideoPlayerKey as symbol]: {
+                    component: {},
+                    acceptsNowPlaying: true,
+                    playsDownloads: true,
+                },
+                [DownloadsKey as symbol]: service,
+            });
+            const sent = () => engine.handle.showNowPlaying.mock.calls.at(-1)[0];
+
+            it("sends nothing of downloads without a service", async () =>
+                narrow(async () => {
+                    await playing();
+                    expect(sent().download).toBeUndefined();
+                    expect(sent().notice).toBeUndefined();
+                    expect(
+                        engine.handle.showNowPlaying.mock.calls.at(-1)[1].download,
+                    ).toBeUndefined();
+                }));
+
+            it("sends nothing of downloads to a player that plays none", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    const service = downloadsServiceStub({ eligible: true });
+                    await mountPlayer({
+                        [VideoPlayerKey as symbol]: { component: {}, acceptsNowPlaying: true },
+                        [DownloadsKey as symbol]: service,
+                    });
+                    expect(sent().download).toBeUndefined();
+                }));
+
+            it("shows the download tool for an item that may be downloaded", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    await mountPlayer(withDownloads(downloadsServiceStub({ eligible: true })));
+                    expect(sent().download).toEqual({ badge: "none", canPlayOnline: true });
+                }));
+
+            it("disables the download tool offline when nothing is saved", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    const service = downloadsServiceStub({
+                        eligible: true,
+                        network: { online: false, metered: false },
+                    });
+                    await mountPlayer(withDownloads(service));
+                    expect(sent().download).toEqual({
+                        badge: "none",
+                        canPlayOnline: false,
+                        disabled: true,
+                    });
+                }));
+
+            it("disables the download tool when the stream's key could not be had", async () =>
+                narrow(async () => {
+                    engine.keyUnavailable = true;
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    await mountPlayer(withDownloads(downloadsServiceStub({ eligible: true })));
+                    expect(sent().download).toMatchObject({ badge: "none", disabled: true });
+                }));
+
+            it("disables the download tool while its storage card is out", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    const service = downloadsServiceStub({
+                        badges: { [parentId]: { state: "unavailable" } },
+                    });
+                    service.entriesRef.value = [{ parentId } as any];
+                    await mountPlayer(withDownloads(service));
+                    expect(sent().download).toMatchObject({
+                        badge: "unavailable",
+                        disabled: true,
+                    });
+                }));
+
+            it("keeps an offline download's tool enabled, to manage it", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    const service = downloadsServiceStub({
+                        badges: { [parentId]: { state: "downloaded", partial: false } },
+                        network: { online: false, metered: false },
+                    });
+                    service.entriesRef.value = [{ parentId } as any];
+                    await mountPlayer(withDownloads(service));
+                    expect(sent().download.disabled).toBeUndefined();
+                }));
+
+            it("names the badge and the copy that plays for an item with a download", async () =>
+                narrow(async () => {
+                    engine.playingSource = "downloaded";
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    const service = downloadsServiceStub({
+                        badges: { [parentId]: { state: "progress", percent: 40 } },
+                        network: { online: false, metered: false },
+                    });
+                    service.entriesRef.value = [{ parentId } as any];
+                    await mountPlayer(withDownloads(service));
+                    expect(sent().download).toEqual({
+                        badge: "progress",
+                        percent: 40,
+                        source: "downloaded",
+                        canPlayOnline: false,
+                    });
+                }));
+
+            it("shows the download's own artwork on the screen", async () =>
+                narrow(async () => {
+                    engine.playback = { artworkUrl: "luminary://offline/pb/item/art/cover.jpg" };
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    await mountPlayer(withDownloads(downloadsServiceStub()));
+                    expect(sent().artworkUrl).toBe("luminary://offline/pb/item/art/cover.jpg");
+                }));
+
+            it("shows the download's own artwork on the platform's bar", async () =>
+                narrow(async () => {
+                    engine.playback = { artworkUrl: "luminary://offline/pb/item/art/cover.jpg" };
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    await mountPlayer(withDownloads(downloadsServiceStub()));
+                    minimiseMediaPlayer();
+                    await flushPromises();
+
+                    expect(engine.handle.showMiniPlayer.mock.calls.at(-1)[0].cover).toBe(
+                        "luminary://offline/pb/item/art/cover.jpg",
+                    );
+                }));
+
+            it("shows the service's notices on the screen while it is up, and says so", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    const service = downloadsServiceStub();
+                    await mountPlayer(withDownloads(service));
+
+                    expect(
+                        service.hooks.notice("Some chapters changed and will download again"),
+                    ).toBe(true);
+                    await flushPromises();
+                    expect(sent().notice).toEqual({
+                        id: expect.any(String),
+                        text: "Some chapters changed and will download again",
+                        dismissible: true,
+                    });
+                }));
+
+            it("holds a service notice raised while the screen is about to rise, and shows it there", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    const service = downloadsServiceStub();
+                    await mountPlayer(withDownloads(service));
+                    // The player has not said yet whether it draws the screen, as while a download opens.
+                    engine.handle.nativeNowPlaying = null;
+                    await flushPromises();
+
+                    expect(
+                        service.hooks.notice("Playing online: the download could not be played"),
+                    ).toBe(true);
+                    engine.handle.nativeNowPlaying = true;
+                    await flushPromises();
+
+                    expect(sent().notice).toMatchObject({
+                        text: "Playing online: the download could not be played",
+                    });
+                    expect(useNotificationStore().notifications).toHaveLength(0);
+                }));
+
+            it("shows the player's own notice with its button", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    await mountPlayer(withDownloads(downloadsServiceStub()));
+                    showPlayerNotice({
+                        text: "More chapters are ready.",
+                        action: { label: "Switch now", run: () => undefined },
+                    });
+                    await flushPromises();
+                    expect(sent().notice).toMatchObject({
+                        text: "More chapters are ready.",
+                        action: "Switch now",
+                    });
+                }));
+
+            it("marks the items up next that are on the device", async () =>
+                narrow(async () => {
+                    upNextDocs.value = [
+                        { ...mockEnglishContentDto, _id: "next-1", parentId: "post-next-1" },
+                        { ...mockEnglishContentDto, _id: "next-2", parentId: "post-next-2" },
+                    ] as any;
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    await mountPlayer(
+                        withDownloads(downloadsServiceStub({ playable: ["post-next-2"] })),
+                    );
+                    await flushPromises();
+                    const marked = (engine.props.upNext as any[]).filter(
+                        (entry) => entry.downloaded,
+                    );
+                    expect(marked.map((entry) => entry.id)).toEqual(["next-2"]);
+                }));
+        });
+
+        describe("the download tool, the autoplay mode and the screen's download words", () => {
+            const parentId = mockEnglishContentDto.parentId;
+            const withDownloads = (service: ReturnType<typeof downloadsServiceStub>) => ({
+                [VideoPlayerKey as symbol]: {
+                    component: {},
+                    acceptsNowPlaying: true,
+                    playsDownloads: true,
+                },
+                [DownloadsKey as symbol]: service,
+            });
+            const sent = () => engine.handle.showNowPlaying.mock.calls.at(-1)[0];
+            const sentTexts = () => engine.handle.showNowPlaying.mock.calls.at(-1)[1];
+            const withEntry = (service: ReturnType<typeof downloadsServiceStub>) => {
+                service.entriesRef.value = [{ parentId } as any];
+                return service;
+            };
+
+            it.each([
+                [
+                    { state: "progress", percent: 0 },
+                    { badge: "progress", percent: 0 },
+                ],
+                [
+                    { state: "progress", percent: 99 },
+                    { badge: "progress", percent: 99 },
+                ],
+                [{ state: "downloaded", partial: false }, { badge: "downloaded" }],
+                [{ state: "downloaded", partial: true }, { badge: "downloaded" }],
+                [{ state: "attention" }, { badge: "attention" }],
+                [{ state: "unavailable" }, { badge: "unavailable", disabled: true }],
+                [{ state: "none" }, { badge: "none" }],
+            ] as const)("sends the service's badge %o for an item with a download", (badge, tool) =>
+                narrow(async () => {
+                    engine.playingSource = "online";
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    const service = withEntry(
+                        downloadsServiceStub({ badges: { [parentId]: badge as any } }),
+                    );
+                    await mountPlayer(withDownloads(service));
+                    expect(sent().download).toEqual({
+                        ...tool,
+                        source: "online",
+                        canPlayOnline: true,
+                    });
+                }),
+            );
+
+            it("leaves the tool out for an item that may not be downloaded and has no download", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    await mountPlayer(withDownloads(downloadsServiceStub({ eligible: false })));
+                    expect(sent()).toBeTruthy();
+                    expect(sent().download).toBeUndefined();
+                }));
+
+            it("describes the screen again for a progress tick only when the badge changes", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    const service = withEntry(
+                        downloadsServiceStub({
+                            badges: { [parentId]: { state: "progress", percent: 10 } },
+                        }),
+                    );
+                    await mountPlayer(withDownloads(service));
+                    const calls = () => engine.handle.showNowPlaying.mock.calls.length;
+                    const before = calls();
+                    const badges = service.badges as any;
+
+                    // Another item's tick, and this one's at the same whole percent, make a new map each.
+                    badges.value = new Map([
+                        [parentId, { state: "progress", percent: 10 }],
+                        ["post-other", { state: "progress", percent: 55 }],
+                    ]);
+                    await flushPromises();
+                    badges.value = new Map([[parentId, { state: "progress", percent: 10 }]]);
+                    await flushPromises();
+                    expect(calls()).toBe(before);
+
+                    badges.value = new Map([[parentId, { state: "progress", percent: 11 }]]);
+                    await flushPromises();
+                    expect(calls()).toBe(before + 1);
+                    expect(sent().download).toMatchObject({ badge: "progress", percent: 11 });
+                }));
+
+            it("sends the screen's download words the language has, read like the player's other texts", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    await mountPlayer(withDownloads(downloadsServiceStub({ eligible: true })));
+                    expect(sentTexts()).toMatchObject({
+                        download: "Download",
+                        chapterOnline: "Play online",
+                    });
+                    // One the language lacks stays the platform's English.
+                    expect(sentTexts().closeNotice).toBeUndefined();
+                }));
+
+            it("sends no download words, autoplay mode or tool without a service", async () =>
+                narrow(async () => {
+                    await playing();
+                    expect(sentTexts().download).toBeUndefined();
+                    expect(sent().autoplayMode).toBeUndefined();
+                    expect(sent().autoplayModeLocked).toBeUndefined();
+                }));
+
+            it.each([
+                [false, true, "all", false],
+                [true, true, "downloaded", false],
+                [false, false, "downloaded", true],
+                [true, false, "downloaded", true],
+            ] as const)(
+                "downloaded only %s, online %s: sends the mode %s, locked %s",
+                (downloadedOnly, online, mode, locked) =>
+                    narrow(async () => {
+                        autoplayDownloadedOnly.value = downloadedOnly;
+                        openMediaPlayer(mockEnglishContentDto, "en");
+                        await mountPlayer(
+                            withDownloads(
+                                downloadsServiceStub({ network: { online, metered: false } }),
+                            ),
+                        );
+                        expect(sent().autoplayMode).toBe(mode);
+                        expect(sent().autoplayModeLocked).toBe(locked);
+                    }),
+            );
+
+            it("takes the mode the viewer picks on the screen, unless offline forces it", async () =>
+                narrow(async () => {
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    const service = downloadsServiceStub();
+                    await mountPlayer(withDownloads(service));
+
+                    engine.emit("downloadaction", { action: "autoplayMode", value: "downloaded" });
+                    await flushPromises();
+                    expect(autoplayDownloadedOnly.value).toBe(true);
+                    expect(sent().autoplayMode).toBe("downloaded");
+
+                    service.networkRef.value = { online: false, metered: false };
+                    engine.emit("downloadaction", { action: "autoplayMode", value: "all" });
+                    await flushPromises();
+                    expect(autoplayDownloadedOnly.value).toBe(true);
+                    expect(sent()).toMatchObject({
+                        autoplayMode: "downloaded",
+                        autoplayModeLocked: true,
+                    });
+                }));
+
+            it("counts down only to items on the device in downloaded mode", async () =>
+                narrow(async () => {
+                    upNextDocs.value = [
+                        { ...mockEnglishContentDto, _id: "next-1", parentId: "post-next-1" },
+                        { ...mockEnglishContentDto, _id: "next-2", parentId: "post-next-2" },
+                    ] as any;
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    await mountPlayer(
+                        withDownloads(downloadsServiceStub({ playable: ["post-next-2"] })),
+                    );
+                    await flushPromises();
+                    const nextIds = () => (engine.props.nextUp as any[]).map((entry) => entry.id);
+                    expect(nextIds()).toEqual(["next-1", "next-2"]);
+
+                    autoplayDownloadedOnly.value = true;
+                    await flushPromises();
+                    expect(nextIds()).toEqual(["next-2"]);
+                    expect((engine.props.nextUp as any[])[0].downloaded).toBe(true);
+                    // The browse panel still lists everything.
+                    expect((engine.props.upNext as any[]).map((entry) => entry.id)).toEqual([
+                        "next-1",
+                        "next-2",
+                    ]);
+                }));
+
+            it("shows the mode pill beside the page screen's autoplay switch; tapped, it switches mode", async () =>
+                narrow(async () => {
+                    engine.native = false;
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    const service = downloadsServiceStub();
+                    service.ui.AutoplayModePill = defineComponent({
+                        props: { mode: String },
+                        setup: (props) => () => h("span", { "data-test": "pill" }, props.mode),
+                    });
+                    const wrapper = await mountPlayer(withDownloads(service));
+                    const button = find(wrapper, "mediaPlayerAutoplayMode");
+                    expect(button.text()).toBe("all");
+                    expect(button.attributes("aria-label")).toBe("Autoplay plays: All videos");
+
+                    await button.trigger("click");
+                    expect(autoplayDownloadedOnly.value).toBe(true);
+                    expect(find(wrapper, "mediaPlayerAutoplayMode").text()).toBe("downloaded");
+
+                    service.networkRef.value = { online: false, metered: false };
+                    await flushPromises();
+                    expect(
+                        find(wrapper, "mediaPlayerAutoplayMode").attributes("disabled"),
+                    ).toBeDefined();
+                }));
+
+            it("shows no mode pill without a service", async () =>
+                narrow(async () => {
+                    engine.native = false;
+                    const wrapper = await playing();
+                    expect(find(wrapper, "mediaPlayerAutoplayMode").exists()).toBe(false);
+                }));
+
+            it("takes up downloads when the player says it plays them after it was set up", async () =>
+                narrow(async () => {
+                    upNextDocs.value = [
+                        { ...mockEnglishContentDto, _id: "next-1", parentId: "post-next-1" },
+                        { ...mockEnglishContentDto, _id: "next-2", parentId: "post-next-2" },
+                    ] as any;
+                    autoplayDownloadedOnly.value = true;
+                    const videoPlayer = reactive({
+                        component: {},
+                        acceptsNowPlaying: true,
+                        playsDownloads: false,
+                    });
+                    openMediaPlayer(mockEnglishContentDto, "en");
+                    await mountPlayer({
+                        [VideoPlayerKey as symbol]: videoPlayer,
+                        [DownloadsKey as symbol]: downloadsServiceStub({
+                            playable: ["post-next-2"],
+                            eligible: true,
+                        }),
+                    });
+                    await flushPromises();
+                    const nextIds = () => (engine.props.nextUp as any[]).map((entry) => entry.id);
+                    expect(nextIds()).toEqual(["next-1", "next-2"]);
+                    expect(sent().download).toBeUndefined();
+
+                    videoPlayer.playsDownloads = true;
+                    await flushPromises();
+
+                    expect(nextIds()).toEqual(["next-2"]);
+                    expect(sent()).toMatchObject({
+                        autoplayMode: "downloaded",
+                        download: { badge: "none" },
+                    });
+                }));
+
+            it("plays anything next without a service, whatever the setting", async () =>
+                narrow(async () => {
+                    autoplayDownloadedOnly.value = true;
+                    upNextDocs.value = [
+                        { ...mockEnglishContentDto, _id: "next-1", parentId: "post-next-1" },
+                    ] as any;
+                    await playing();
+                    await flushPromises();
+                    expect((engine.props.nextUp as any[]).map((entry) => entry.id)).toEqual([
+                        "next-1",
+                    ]);
+                    expect((engine.props.nextUp as any[])[0].downloaded).toBeUndefined();
+                }));
+        });
+
         it("keeps the page's screen out of the way, also while it is minimised", async () =>
             narrow(async () => {
                 const wrapper = await playing();
@@ -584,6 +1172,54 @@ describe("MediaPlayer", () => {
                 await flushPromises();
                 if (find(wrapper, "mediaPlayerNowPlaying").exists())
                     expect(nowPlayingHidden(wrapper)).toBe(true);
+            }));
+
+        it("raises a notice as a banner while the player is minimised on a phone", async () =>
+            narrow(async () => {
+                await playing();
+                minimiseMediaPlayer();
+                await flushPromises();
+
+                const id = showPlayerNotice({
+                    text: "More chapters are ready.",
+                    action: { label: "Switch now", run: vi.fn() },
+                });
+                await flushPromises();
+                await new Promise((resolve) => setTimeout(resolve, 150));
+
+                const banner = useNotificationStore().notifications.find((n) => n.id === id);
+                expect(banner?.type).toBe("banner");
+            }));
+
+        it("raises a notice without a button as a toast while the player is minimised on a phone", async () =>
+            narrow(async () => {
+                await playing();
+                minimiseMediaPlayer();
+                await flushPromises();
+
+                showPlayerNotice({ text: "Casting is not available offline" });
+                await flushPromises();
+                await new Promise((resolve) => setTimeout(resolve, 150));
+
+                const toasts = useNotificationStore().notifications.filter(
+                    (n) => n.title === "Casting is not available offline",
+                );
+                expect(toasts.map((n) => n.type)).toEqual(["toast"]);
+                expect(playerNotice.value).toBeNull();
+            }));
+
+        it("keeps a notice for the platform's screen while the player is expanded on a phone", async () =>
+            narrow(async () => {
+                await playing();
+                showPlayerNotice({ text: "Casting is not available offline" });
+                await flushPromises();
+                await new Promise((resolve) => setTimeout(resolve, 150));
+
+                expect(
+                    useNotificationStore().notifications.some(
+                        (n) => n.title === "Casting is not available offline",
+                    ),
+                ).toBe(false);
             }));
 
         it.each([
@@ -1162,6 +1798,28 @@ describe("MediaPlayer", () => {
             screenWide = false;
         });
         const screen = (wrapper: VueWrapper) => wrapper.findComponent({ name: "AudioFullscreen" });
+
+        it("leaves the promotion placement in its tools empty without a promotion", async () => {
+            const wrapper = await playing();
+
+            expect(wrapper.findComponent({ name: "AppPromoSlot" }).exists()).toBe(true);
+            expect(find(wrapper, "playerDownloadPromo").exists()).toBe(false);
+        });
+
+        it("shows the promotion for the download placement in its tools", async () => {
+            const Promo = defineComponent({
+                setup: () => () => h("a", { "data-test": "playerDownloadPromo" }),
+            });
+            openMediaPlayer(mockEnglishContentDto, "en");
+            const wrapper = await mountPlayer({
+                [AppPromoKey as symbol]: {
+                    component: (placement: string) =>
+                        placement === "player-download" ? Promo : undefined,
+                },
+            });
+
+            expect(screen(wrapper).find("[data-test='playerDownloadPromo']").exists()).toBe(true);
+        });
 
         it("shows one frame of the dragged time over the picture while the timeline is dragged, and no strip", async () => {
             engine.thumbnailsReady = true;

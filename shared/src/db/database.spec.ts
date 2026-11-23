@@ -17,13 +17,14 @@ import {
     AckStatus,
     AclPermission,
     DeleteCmdDto,
+    DeleteReason,
     DocType,
     TagType,
     type ContentDto,
     type PostDto,
     type TagDto,
 } from "../types";
-import { db, getDbVersion, initDatabase } from "../db/database";
+import { db, getDbVersion, initDatabase, onDocsDeletedByCommand } from "../db/database";
 import { syncList } from "../api/sync/state";
 import { accessMap } from "../permissions/permissions";
 import { isConnected } from "../socket/socketio";
@@ -1685,6 +1686,237 @@ describe("Database", async () => {
 
             const deletedContent2 = await db.get<ContentDto>(mockFrenchContentDto._id);
             expect(deletedContent2).toBeUndefined();
+        });
+    });
+
+    describe("docs deleted by command", () => {
+        const listener = vi.fn();
+        let unsubscribe: () => void;
+
+        const deleteCmd = (docId: string, overrides: Partial<DeleteCmdDto> = {}) =>
+            ({
+                _id: `delete-cmd-${docId}`,
+                type: DocType.DeleteCmd,
+                docId,
+                docType: DocType.Content,
+                deleteReason: DeleteReason.Deleted,
+                updatedTimeUtc: mockEnglishContentDto.updatedTimeUtc + 1,
+                memberOf: ["group-public-content"],
+                ...overrides,
+            }) as DeleteCmdDto;
+
+        beforeEach(() => {
+            config.cms = false;
+            listener.mockReset();
+            unsubscribe = onDocsDeletedByCommand(listener);
+        });
+
+        afterEach(() => {
+            unsubscribe();
+            config.cms = true;
+            accessMap.value = {};
+        });
+
+        it("reports a removed document with the parent and language of the stored copy", async () => {
+            await db.bulkPut([deleteCmd(mockEnglishContentDto._id)]);
+
+            expect(listener).toHaveBeenCalledTimes(1);
+            expect(listener).toHaveBeenCalledWith([
+                {
+                    docId: mockEnglishContentDto._id,
+                    docType: DocType.Content,
+                    deleteReason: DeleteReason.Deleted,
+                    parentId: mockEnglishContentDto.parentId,
+                    parentType: DocType.Post,
+                    language: "lang-eng",
+                },
+            ]);
+        });
+
+        it("omits the fields the stored copy does not carry", async () => {
+            await db.bulkPut([
+                deleteCmd(mockPostDto._id, {
+                    docType: DocType.Post,
+                    deleteReason: DeleteReason.StatusChange,
+                    updatedTimeUtc: mockPostDto.updatedTimeUtc + 1,
+                }),
+            ]);
+
+            expect(listener).toHaveBeenCalledWith([
+                {
+                    docId: mockPostDto._id,
+                    docType: DocType.Post,
+                    deleteReason: DeleteReason.StatusChange,
+                },
+            ]);
+        });
+
+        it("reports the groups a permission change moves the document to", async () => {
+            await db.bulkPut([
+                deleteCmd(mockEnglishContentDto._id, {
+                    deleteReason: DeleteReason.PermissionChange,
+                    newMemberOf: ["inaccessible-group"],
+                }),
+            ]);
+
+            expect(listener).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    docId: mockEnglishContentDto._id,
+                    deleteReason: DeleteReason.PermissionChange,
+                    newMemberOf: ["inaccessible-group"],
+                }),
+            ]);
+        });
+
+        it("reports a batch once, and a document named by two commands once", async () => {
+            await db.bulkPut([
+                deleteCmd(mockEnglishContentDto._id),
+                { ...deleteCmd(mockEnglishContentDto._id), _id: "delete-cmd-duplicate" },
+                deleteCmd(mockFrenchContentDto._id, {
+                    deleteReason: DeleteReason.PermissionChange,
+                    newMemberOf: ["inaccessible-group"],
+                }),
+            ]);
+
+            expect(listener).toHaveBeenCalledTimes(1);
+            expect(listener.mock.calls[0][0].map((d: { docId: string }) => d.docId)).toEqual([
+                mockEnglishContentDto._id,
+                mockFrenchContentDto._id,
+            ]);
+        });
+
+        it("does not report a command that matches no stored document", async () => {
+            await db.bulkPut([deleteCmd("content-not-stored")]);
+
+            expect(listener).not.toHaveBeenCalled();
+        });
+
+        it("does not report a command superseded by a newer stored copy", async () => {
+            await db.bulkPut([
+                deleteCmd(mockEnglishContentDto._id, {
+                    updatedTimeUtc: mockEnglishContentDto.updatedTimeUtc,
+                }),
+            ]);
+
+            expect(await db.get(mockEnglishContentDto._id)).toBeDefined();
+            expect(listener).not.toHaveBeenCalled();
+        });
+
+        it("reports only the applied command in a batch that also holds a superseded one", async () => {
+            await db.bulkPut([
+                deleteCmd(mockEnglishContentDto._id),
+                deleteCmd(mockFrenchContentDto._id, {
+                    updatedTimeUtc: mockFrenchContentDto.updatedTimeUtc,
+                }),
+            ]);
+
+            expect(listener).toHaveBeenCalledTimes(1);
+            expect(listener.mock.calls[0][0].map((d: { docId: string }) => d.docId)).toEqual([
+                mockEnglishContentDto._id,
+            ]);
+            expect(await db.get(mockEnglishContentDto._id)).toBeUndefined();
+            expect(await db.get(mockFrenchContentDto._id)).toBeDefined();
+        });
+
+        it("reports once when the batch is retried after a transient write error", async () => {
+            const spy = vi
+                .spyOn(db.docs, "bulkPut")
+                .mockRejectedValueOnce(new DOMException("Transaction aborted", "AbortError"));
+
+            try {
+                await db.bulkPut([
+                    deleteCmd(mockEnglishContentDto._id),
+                    { ...mockPostDto, updatedTimeUtc: mockPostDto.updatedTimeUtc + 1 },
+                ]);
+
+                expect(spy).toHaveBeenCalledTimes(2);
+                expect(listener).toHaveBeenCalledTimes(1);
+                expect(listener.mock.calls[0][0].map((d: { docId: string }) => d.docId)).toEqual([
+                    mockEnglishContentDto._id,
+                ]);
+            } finally {
+                spy.mockRestore();
+            }
+        });
+
+        it("does not report a command the client does not act on", async () => {
+            config.cms = true;
+
+            await db.bulkPut([
+                deleteCmd(mockEnglishContentDto._id, { deleteReason: DeleteReason.StatusChange }),
+                deleteCmd(mockFrenchContentDto._id, { deleteReason: DeleteReason.SlugChange }),
+            ]);
+
+            expect(await db.get(mockEnglishContentDto._id)).toBeDefined();
+            expect(listener).not.toHaveBeenCalled();
+        });
+
+        it("does not report an expired document dropped by bulkPut", async () => {
+            await db.bulkPut([{ ...mockEnglishContentDto, expiryDate: Date.now() - 1000 }]);
+
+            expect(await db.get(mockEnglishContentDto._id)).toBeUndefined();
+            expect(listener).not.toHaveBeenCalled();
+        });
+
+        it("does not report deleteExpired", async () => {
+            await db.docs.put({ ...mockEnglishContentDto, expiryDate: Date.now() - 1000 });
+
+            await db.deleteExpired();
+
+            expect(await db.get(mockEnglishContentDto._id)).toBeUndefined();
+            expect(listener).not.toHaveBeenCalled();
+        });
+
+        it("does not report deleteRevoked", async () => {
+            accessMap.value = {
+                "group-unrelated": { [DocType.Post]: { [AclPermission.View]: true } },
+            };
+
+            await db.deleteRevoked();
+
+            expect(await db.get(mockPostDto._id)).toBeUndefined();
+            expect(listener).not.toHaveBeenCalled();
+        });
+
+        it("does not report purge", async () => {
+            await db.purge();
+
+            expect(await db.docs.count()).toBe(0);
+            expect(listener).not.toHaveBeenCalled();
+        });
+
+        it("stops reporting once unsubscribed", async () => {
+            unsubscribe();
+
+            await db.bulkPut([deleteCmd(mockEnglishContentDto._id)]);
+
+            expect(listener).not.toHaveBeenCalled();
+        });
+
+        it("keeps notifying other listeners and finishes the batch when one throws", async () => {
+            const error = vi.spyOn(console, "error").mockImplementation(() => {});
+            const other = vi.fn();
+            const unsubscribeThrowing = onDocsDeletedByCommand(() => {
+                throw new Error("listener failed");
+            });
+            const unsubscribeOther = onDocsDeletedByCommand(other);
+
+            try {
+                await db.bulkPut([
+                    deleteCmd(mockEnglishContentDto._id),
+                    { ...mockPostDto, updatedTimeUtc: mockPostDto.updatedTimeUtc + 1 },
+                ]);
+
+                expect(other).toHaveBeenCalledTimes(1);
+                expect(error).toHaveBeenCalled();
+                expect((await db.get(mockPostDto._id))?.updatedTimeUtc).toBe(
+                    mockPostDto.updatedTimeUtc + 1,
+                );
+            } finally {
+                unsubscribeThrowing();
+                unsubscribeOther();
+                error.mockRestore();
+            }
         });
     });
 });

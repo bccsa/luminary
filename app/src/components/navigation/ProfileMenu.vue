@@ -7,6 +7,7 @@ import {
     ArrowLeftEndOnRectangleIcon,
     HeartIcon as FilledHeartIcon,
     Cog6ToothIcon as FilledCog6ToothIcon,
+    ArrowDownTrayIcon as FilledArrowDownTrayIcon,
 } from "@heroicons/vue/20/solid";
 import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
@@ -38,6 +39,7 @@ import DropdownMenu from "../common/DropdownMenu.vue";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { useAppUpdate } from "@/composables/useAppUpdate";
+import { useDownloads } from "@/build-time/contracts/downloads/token";
 
 type Trigger = "avatar" | "bars" | "sidebar";
 type Props = {
@@ -68,6 +70,7 @@ const menuLabel = computed(() => t("profile_menu.title"));
 const navigationItems = computed(() => getNavigationItems(t));
 const { isSearchOpen, openSearch } = useSearchOverlay();
 const { isUpdateAvailable, applyUpdate } = useAppUpdate();
+const downloads = useDownloads();
 const isItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.value;
 
 // The search modal is desktop-only; mobile gets the /search page, as from the bottom menu.
@@ -434,6 +437,50 @@ const sidebarNavigation = computed(() =>
                             aria-hidden="true"
                         />
                         <span class="text-sm font-medium">{{ t("profile_menu.activity") }}</span>
+                    </span>
+                </RouterLink>
+
+                <!-- My Downloads -->
+                <RouterLink
+                    v-if="downloads"
+                    :to="{ name: 'downloads' }"
+                    v-slot="{ isActive, navigate }"
+                    custom
+                >
+                    <span
+                        class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
+                        :class="
+                            isActive
+                                ? 'text-yellow-700 dark:text-yellow-400'
+                                : 'text-zinc-600 dark:text-slate-100'
+                        "
+                        data-test="menu-downloads"
+                        @click="
+                            navigate();
+                            close();
+                        "
+                    >
+                        <component
+                            :is="isActive ? FilledArrowDownTrayIcon : ArrowDownTrayIcon"
+                            class="h-5 w-5 flex-shrink-0"
+                            aria-hidden="true"
+                        />
+                        <span class="flex-1 text-sm font-medium">{{
+                            t("profile_menu.downloads")
+                        }}</span>
+                        <span
+                            v-if="downloads.attentionCount.value > 0"
+                            class="min-w-5 rounded-full bg-red-500 px-1.5 text-center text-xs font-semibold leading-5 text-white"
+                            :aria-label="
+                                t('downloads.menu.attention', {
+                                    count: downloads.attentionCount.value,
+                                })
+                            "
+                            role="img"
+                            data-test="menu-downloads-attention"
+                        >
+                            {{ downloads.attentionCount.value }}
+                        </span>
                     </span>
                 </RouterLink>
 

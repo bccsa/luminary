@@ -24,6 +24,8 @@ type Props = {
     /** Per-stage progress, which is the only thing that distinguishes uploading. */
     pipelineProgress?: EncoderPipelineProgress;
     error?: string;
+    /** Running, but too old for this bucket's encode settings, so nothing was opened. */
+    needsUpdate?: boolean;
 };
 const props = defineProps<Props>();
 
@@ -88,7 +90,7 @@ const percentage = computed(() => {
 
 <template>
     <div
-        v-if="error || status || outdated || availability != 'available'"
+        v-if="error || status || needsUpdate || outdated || availability != 'available'"
         class="flex flex-col gap-2 py-1"
     >
         <div v-if="status" data-test="encoder-status">
@@ -123,6 +125,19 @@ const percentage = computed(() => {
 
         <MediaNotice v-if="error" state="error" data-test="encoder-error">
             {{ shownError }}
+        </MediaNotice>
+
+        <MediaNotice v-else-if="needsUpdate" state="error" data-test="encoder-needs-update">
+            This bucket groups media in blocks for offline downloads, which needs a newer Luminary
+            Media Convert.
+            <a
+                :href="ENCODER_DOWNLOAD_URL"
+                target="_blank"
+                rel="noopener"
+                class="font-medium underline underline-offset-2 hover:text-red-900 dark:hover:text-red-200"
+                data-test="encoder-download"
+                >Download the current version</a
+            >, install it over the old one, then try again.
         </MediaNotice>
 
         <!-- Outdated outranks the availability notices: the encoder answered, so

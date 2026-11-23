@@ -28,6 +28,7 @@ import { isConnected } from "../socket/socketio";
 import { changeReqErrors, changeReqInfo, changeReqWarnings } from "../config";
 import { cloneDeep } from "lodash-es";
 import { retryOnTransientIndexedDbError } from "./transientRetry";
+import { reportError } from "../diagnostics";
 
 const dbName: string = "luminary-db";
 
@@ -49,14 +50,54 @@ type LuminaryInternals = {
 
 /**
  * A row in the `retention` side table: the keep-alive deadline for a below-cutoff
- * Content doc. Stored separately from `docs` so stamping never rewrites a document
- * (no liveQuery self-churn / corpus recompute) and a sync/socket doc-rewrite can't
- * clobber the stamp. See `db/retention.ts`.
+ * Content doc, or a pin keyed apart from the doc's own id. Stored
+ * separately from `docs` so stamping never rewrites a document (no liveQuery self-churn
+ * / corpus recompute) and a sync/socket doc-rewrite can't clobber the stamp. See `db/retention.ts`.
  */
 export type RetentionEntry = {
     docId: string;
     retainUntil: number;
 };
+
+/**
+ * A stored document removed by an incoming delete command. The parent and language fields are
+ * read from the stored copy, so they are present only when that copy carried them.
+ */
+export type DocDeletedByCommand = {
+    docId: Uuid;
+    docType: DocType;
+    deleteReason: DeleteReason;
+    parentId?: Uuid;
+    parentType?: DocType;
+    language?: Uuid;
+    /** The groups the document moved to, when the command carries them (a permission change). */
+    newMemberOf?: Uuid[];
+};
+
+export type DocsDeletedByCommandListener = (deleted: DocDeletedByCommand[]) => void;
+
+const docsDeletedByCommandListeners = new Set<DocsDeletedByCommandListener>();
+
+/**
+ * Be told when `db.bulkPut` applies delete commands that remove stored documents, once per
+ * batch. Local clean-up (`purge`, `deleteExpired`, `deleteRevoked`, retention eviction) is
+ * not reported, so a document reported here was removed at the server's instruction.
+ * Returns a function that unregisters the listener.
+ */
+export function onDocsDeletedByCommand(listener: DocsDeletedByCommandListener): () => void {
+    docsDeletedByCommandListeners.add(listener);
+    return () => docsDeletedByCommandListeners.delete(listener);
+}
+
+function notifyDocsDeletedByCommand(deleted: DocDeletedByCommand[]): void {
+    for (const listener of Array.from(docsDeletedByCommandListeners)) {
+        try {
+            listener(deleted);
+        } catch (e) {
+            reportError(e, { area: "db", op: "docs-deleted-by-command-listener" });
+        }
+    }
+}
 
 type dbIndex = {
     docs: string;
@@ -301,12 +342,31 @@ class Database extends Dexie {
             if (d) existingById.set(d._id, d);
         }
 
-        const toDeleteIds = candidateDeleteCmds
-            .filter((cmd) => !isDeleteCmdSuperseded(cmd, existingById.get(cmd.docId)))
-            .map((cmd) => cmd.docId);
+        const applicableCmds = candidateDeleteCmds.filter(
+            (cmd) => !isDeleteCmdSuperseded(cmd, existingById.get(cmd.docId)),
+        );
+        const toDeleteIds = applicableCmds.map((cmd) => cmd.docId);
 
         if (toDeleteIds.length > 0) {
             await this.docs.bulkDelete(toDeleteIds);
+
+            // Reported straight after the delete: a retry after a later failure finds these docs
+            // gone and would not report them again.
+            const deleted = new Map<Uuid, DocDeletedByCommand>();
+            for (const cmd of applicableCmds) {
+                const stored = existingById.get(cmd.docId) as Partial<ContentDto> | undefined;
+                if (!stored || deleted.has(cmd.docId)) continue;
+                deleted.set(cmd.docId, {
+                    docId: cmd.docId,
+                    docType: stored.type ?? cmd.docType,
+                    deleteReason: cmd.deleteReason,
+                    ...(stored.parentId !== undefined && { parentId: stored.parentId }),
+                    ...(stored.parentType !== undefined && { parentType: stored.parentType }),
+                    ...(stored.language !== undefined && { language: stored.language }),
+                    ...(cmd.newMemberOf !== undefined && { newMemberOf: [...cmd.newMemberOf] }),
+                });
+            }
+            if (deleted.size > 0) notifyDocsDeletedByCommand(Array.from(deleted.values()));
         }
 
         const nonDeleteDocs = docs.filter((doc) => doc.type !== DocType.DeleteCmd);

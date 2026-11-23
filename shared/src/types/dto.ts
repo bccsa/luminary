@@ -231,6 +231,11 @@ export type MediaEncodeSettingsDto = {
     byteRange?: boolean;
     /** Max size of one byte-range chunk file in MB, video and audio alike. Absent = encoder default. */
     chunkSizeMB?: number;
+    /**
+     * Seconds of content per block in byte-range chunks (0 to 600); within a block each stream's
+     * segments sit together, so an offline download needs fewer requests. 0 = off. Absent = encoder default.
+     */
+    blockSeconds?: number;
 };
 
 export type StorageDto = ContentBaseDto & {

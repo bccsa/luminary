@@ -41,10 +41,13 @@ export function imageSrcsetFor(doc: ContentDto, bucketUrl: string | undefined): 
  * The videos the player offers at the end of the current one: the next in its series, then
  * related, without repeats. Returned as the documents (to navigate to) and as the player's plain items.
  * The browse panel gets its own list: the whole series with the playing one marked, then related.
+ * While `playableOnly` gives a set of parent ids, the end offers only those (autoplay of downloads alone); the
+ * browse panel still lists everything.
  */
 export function useNextUp(
     upNext: Ref<UpNext>,
     currentId: () => Uuid | undefined = () => undefined,
+    playableOnly: () => ReadonlySet<string> | undefined = () => undefined,
 ): {
     nextContents: ComputedRef<ContentDto[]>;
     nextUp: ComputedRef<PlayerUpNextItem[]>;
@@ -86,14 +89,17 @@ export function useNextUp(
 
     const seriesHeading = () => upNext.value.seriesTitle || t("media_player.in_series");
 
-    const sections = computed(() =>
-        collect([
+    const sections = computed(() => {
+        const playable = playableOnly();
+        return collect([
             [upNext.value.next, t("media_player.next_in_series")],
             [upNext.value.related, t("media_player.related")],
             // The last of a series has nothing after it: its earlier parts still follow rather than nothing.
             [upNext.value.series.filter((doc) => doc.parentId !== currentId()), seriesHeading()],
-        ]).slice(0, NEXT_UP_LIMIT),
-    );
+        ])
+            .filter(({ doc }) => !playable || playable.has(doc.parentId))
+            .slice(0, NEXT_UP_LIMIT);
+    });
     const browseSections = computed(() =>
         collect([
             [upNext.value.series, seriesHeading()],

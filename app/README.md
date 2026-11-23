@@ -93,6 +93,7 @@ The following query string parameters are supported:
 - autoplay=true — Auto plays video when opening a post / tag with video content
 - autofullscreen=true — Automatically switches to full screen video player mode on play
 - affinityDebug — Shows a floating debug overlay with the local recommendation affinity profile (dev/QA tool, works on any environment). Stays on across navigation and reloads for the rest of the browser-tab session; switch it off with `affinityDebug=false`.
+- fakeDownloads — Development server only (`npm run dev`): installs an in-memory downloads engine, so the downloads UI (My Downloads at `/downloads`, the tile badges, the download sheet) can be tried in a browser, with a corner panel that stands in for the platform's download sheet and drives network, mobile data and storage card changes. It arrives just after the app starts, so a component set up before it sees no downloads. Ignored by every build, which carries none of it.
 
 _Note: When navigating directly to a video post / tag URL, autoplay and autofullscreen will only work if playing without user interaction is enabled in the browser settings._
 
@@ -174,6 +175,10 @@ docker run -e ENABLE_GZIP=false --rm -it -p 8080:80 luminary-app
 ```
 
 This will run the app on port 8080 on the host machine.
+
+### Web implementation directory (`VITE_WEB_IMPL_DIR`)
+
+Optional. Set it at build time to a directory holding `<name>.ts` implementations of the **optional** build-time plugins (today `app-promo` and `downloads`) for the web builds. The SPA build (`npm run build`) installs both; the SSG site (`npm run build:web`) installs only `app-promo`, so a `downloads.ts` there has no effect on it. A name whose file is in the directory resolves there; any other name, and every required plugin, keeps its in-app entry. Unset, the web builds are unchanged. A packaged-app build (`VITE_NATIVE_IMPL_DIR` set) ignores it. The directory must be readable by the build, so when building the Docker image it has to sit inside the build context. See [Optional plugins](docs/vue-plugin-architecture/README.md#optional-plugins).
 
 ### Update-detection cache TTL (CDN tuneable)
 

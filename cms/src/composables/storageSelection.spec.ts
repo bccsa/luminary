@@ -158,6 +158,23 @@ describe("useBucketValidation", () => {
         });
     });
 
+    describe("Block Length Validation", () => {
+        it.each([
+            [undefined, true],
+            [0, true],
+            [600, true],
+            [-1, false],
+            [601, false],
+        ])("judges a block length of %j valid: %j", (blockSeconds, valid) => {
+            bucket.value!.mediaEncoderSettings = { blockSeconds };
+
+            const { validations } = storageValidation(bucket, localCredentials, isEditing);
+
+            const validation = validations.value.find((v) => v.id === "mediaBlockSeconds");
+            expect(validation?.isValid).toBe(valid);
+        });
+    });
+
     describe("Credentials Validation - New Bucket", () => {
         it("should require credentials for new buckets", () => {
             bucket.value!.name = "Test";

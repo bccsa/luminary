@@ -16,6 +16,7 @@ import { XCircleIcon } from "@heroicons/vue/20/solid";
 import LSelect from "../forms/LSelect.vue";
 import LToggle from "../forms/LToggle.vue";
 import { capitaliseFirstLetter } from "@/util/string";
+import { MAX_BLOCK_SECONDS, isValidBlockSeconds } from "@/composables/storageValidation";
 
 const props = defineProps<{
     isVisible: boolean;
@@ -52,12 +53,17 @@ const availableStorageType = Object.values(StorageType);
 const storageTypeValue = computed({
     get: () => props.bucket?.storageType ?? StorageType.Image,
     set: (value: StorageType) => {
-        if (props.bucket) {
-            emit("update:bucket", {
-                ...props.bucket,
-                storageType: value,
-            } as StorageDto);
-        }
+        if (!props.bucket) return;
+        const settings = props.bucket.mediaEncoderSettings;
+        emit("update:bucket", {
+            ...props.bucket,
+            storageType: value,
+            // A hidden block length is never sent, and must not block the save either.
+            ...(settings &&
+                value !== StorageType.Media && {
+                    mediaEncoderSettings: { ...settings, blockSeconds: undefined },
+                }),
+        } as StorageDto);
     },
 });
 
@@ -83,7 +89,9 @@ const mediaEncrypted = computed({
 
 const mediaByteRange = computed({
     get: () => props.bucket?.mediaEncoderSettings?.byteRange !== false,
-    set: (value: boolean) => patchMediaSettings({ byteRange: value }),
+    // The block length only applies to byte-range output, and its field hides with it.
+    set: (value: boolean) =>
+        patchMediaSettings({ byteRange: value, ...(!value && { blockSeconds: undefined }) }),
 });
 
 const mediaChunkSizeMB = computed({
@@ -94,6 +102,20 @@ const mediaChunkSizeMB = computed({
         patchMediaSettings({ chunkSizeMB: size >= 1 ? size : undefined });
     },
 });
+
+// Stored as typed, so the field never shows a number other than the one saved; one out of
+// range is flagged and blocks the save.
+const mediaBlockSeconds = computed({
+    get: () => props.bucket?.mediaEncoderSettings?.blockSeconds ?? null,
+    set: (value: string | number | null) => {
+        const seconds = value === null || value === "" ? NaN : Number(value);
+        patchMediaSettings({ blockSeconds: Number.isNaN(seconds) ? undefined : seconds });
+    },
+});
+
+const mediaBlockSecondsValid = computed(() =>
+    isValidBlockSeconds(props.bucket?.mediaEncoderSettings?.blockSeconds),
+);
 
 // Determine if we should show credentials section
 const shouldShowCredentialsSection = computed(() => {
@@ -330,6 +352,28 @@ function handleDelete() {
                         />
                         <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-300">
                             Largest size of one chunk file. Leave empty for the encoder's default.
+                        </p>
+                    </div>
+
+                    <div v-if="mediaByteRange">
+                        <LInput
+                            v-model="mediaBlockSeconds"
+                            name="mediaBlockSeconds"
+                            label="Block length (seconds)"
+                            type="number"
+                            min="0"
+                            :max="MAX_BLOCK_SECONDS"
+                            placeholder="Encoder default (off)"
+                            :state="mediaBlockSecondsValid ? 'default' : 'error'"
+                            :disabled="isLoading"
+                            data-test="media-block-seconds"
+                        />
+                        <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-300">
+                            Groups each stream's segments in blocks of this many seconds, so offline
+                            downloads need fewer requests. 30 to 60 is the intended range, up to
+                            {{ MAX_BLOCK_SECONDS }}. Leave empty for the encoder's default (off).
+                            Needs the current Luminary Media Convert; editors with an older one are
+                            asked to update before encoding.
                         </p>
                     </div>
                 </div>

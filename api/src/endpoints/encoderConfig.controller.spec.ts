@@ -104,6 +104,7 @@ describe("EncoderConfigController", () => {
         expect(res.body).not.toHaveProperty("byteRange");
         expect(res.body).not.toHaveProperty("byteRangeMaxFileSizeMB");
         expect(res.body).not.toHaveProperty("audioByteRangeMaxFileSizeMB");
+        expect(res.body).not.toHaveProperty("byteRangeBlockSeconds");
     });
 
     it("sends one chunk size as both the video and the audio limit", async () => {
@@ -114,6 +115,46 @@ describe("EncoderConfigController", () => {
         expect(res.body.byteRange).toBe(true);
         expect(res.body.byteRangeMaxFileSizeMB).toBe(100);
         expect(res.body.audioByteRangeMaxFileSizeMB).toBe(100);
+    });
+
+    it("sends the block length in the encoder's field name", async () => {
+        mockGetDoc.mockResolvedValue(bucket({ byteRange: true, blockSeconds: 60 }));
+
+        const res = await get().expect(200);
+
+        expect(res.body.byteRangeBlockSeconds).toBe(60);
+    });
+
+    it("sends a block length of 0, which turns blocks off", async () => {
+        mockGetDoc.mockResolvedValue(bucket({ byteRange: true, blockSeconds: 0 }));
+
+        const res = await get().expect(200);
+
+        expect(res.body.byteRangeBlockSeconds).toBe(0);
+    });
+
+    it("sends the block length when byte-range is left at its default", async () => {
+        mockGetDoc.mockResolvedValue(bucket({ blockSeconds: 0 }));
+
+        const res = await get().expect(200);
+
+        expect(res.body.byteRangeBlockSeconds).toBe(0);
+    });
+
+    it("omits the block length when byte-range is off", async () => {
+        mockGetDoc.mockResolvedValue(bucket({ byteRange: false, blockSeconds: 60 }));
+
+        const res = await get().expect(200);
+
+        expect(res.body).not.toHaveProperty("byteRangeBlockSeconds");
+    });
+
+    it("omits a stored null block length like an unset one", async () => {
+        mockGetDoc.mockResolvedValue(bucket({ byteRange: true, blockSeconds: null }));
+
+        const res = await get().expect(200);
+
+        expect(res.body).not.toHaveProperty("byteRangeBlockSeconds");
     });
 
     it("still hands out the credentials and public URL beside the settings", async () => {

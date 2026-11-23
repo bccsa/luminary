@@ -77,6 +77,7 @@ import {
     clearAuthCache,
     closeProviderModal,
     currentReturnTo,
+    ensureFreshToken,
     hasPersistedSession,
     isAuthenticated,
     isAuthPluginInstalled,
@@ -563,6 +564,36 @@ describe("auth", () => {
             } finally {
                 vi.useRealTimers();
             }
+        });
+
+        describe("ensureFreshToken", () => {
+            it("leaves a token with time left alone", async () => {
+                mockGetUser.mockResolvedValue({ ...user, expires_in: 3600 });
+                await refreshTokenSilently();
+                mockSigninSilent.mockReset();
+
+                await ensureFreshToken();
+                expect(mockSigninSilent).not.toHaveBeenCalled();
+            });
+
+            it("renews a token that has run out before a request carries it", async () => {
+                mockGetUser.mockResolvedValue({ ...user, expires_in: -10 });
+                await refreshTokenSilently();
+                mockSigninSilent.mockResolvedValue({ ...user, access_token: "fresh-token" });
+
+                await ensureFreshToken();
+                expect(mockSigninSilent).toHaveBeenCalledTimes(1);
+                expect(mockSetCustomHeader).toHaveBeenCalledWith(
+                    "Authorization",
+                    "Bearer fresh-token",
+                );
+            });
+
+            it("does nothing without a session", async () => {
+                clearAuthCache();
+                await ensureFreshToken();
+                expect(mockSigninSilent).not.toHaveBeenCalled();
+            });
         });
 
         it("uses the existing unexpired user on the normal boot path", async () => {

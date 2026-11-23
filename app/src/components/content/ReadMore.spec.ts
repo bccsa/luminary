@@ -7,6 +7,7 @@ import ReadMore, { summaryClampFor } from "./ReadMore.vue";
 import waitForExpect from "wait-for-expect";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
 import { appLanguageIdsAsRef } from "@/globalConfig";
+import { createDownloadsServiceStub, provideDownloadsStub } from "@/tests/downloadsServiceStub";
 
 const revealedCount = vi.hoisted(() => ({ saved: 0, save: vi.fn() }));
 vi.mock("@/composables/useScrollMemory", () => ({ useRevealedCount: () => revealedCount }));
@@ -237,6 +238,37 @@ describe("ReadMore", () => {
             await wrapper.setProps({ items: makeItems(25) });
 
             expect(wrapper.findAll("li")).toHaveLength(8);
+        });
+    });
+});
+
+describe("ReadMore download badge", () => {
+    it("renders no badge and leaves the thumbnail as it is without the downloads service", () => {
+        const wrapper = mountList([makeItem()]);
+
+        expect(wrapper.find("[data-test='stub-download-badge']").exists()).toBe(false);
+        const thumbnail = wrapper.get("a > div");
+        expect(thumbnail.classes()).not.toContain("relative");
+        expect(wrapper.html()).not.toContain("download");
+    });
+
+    it("shows each item's badge on both the mobile row and the card", () => {
+        const service = createDownloadsServiceStub({
+            badges: { "post-1": { state: "downloaded", partial: true } },
+        });
+        const wrapper = mount(ReadMore, {
+            props: { items: [makeItem()] },
+            global: {
+                provide: provideDownloadsStub(service),
+                stubs: { RouterLink: { template: "<a><slot /></a>" }, LImage: true },
+            },
+        });
+
+        const badges = wrapper.findAll("[data-test='stub-download-badge']");
+        expect(badges).toHaveLength(2);
+        badges.forEach((badge) => {
+            expect(badge.attributes("data-parent-id")).toBe("post-1");
+            expect(badge.attributes("data-state")).toBe("downloaded");
         });
     });
 });

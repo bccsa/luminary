@@ -1004,6 +1004,40 @@ describe("AudioFullscreen: badges, gear menu, end panel, tool slots", () => {
         wrapper.unmount();
     });
 
+    const modePill = { "autoplay-mode": '<span data-test="modePill">Downloaded</span>' };
+
+    it("puts the host's autoplay mode right after the autoplay switch", () => {
+        const wrapper = mountScreen({ autoplay: true }, modePill);
+        const pills = wrapper.findAll('[data-test="modePill"]');
+        expect(pills).toHaveLength(1);
+        expect(find(wrapper, "afsAutoplay").element.nextElementSibling).toBe(pills[0]!.element);
+        wrapper.unmount();
+    });
+
+    it("shows no autoplay mode where there is no autoplay switch", () => {
+        const wrapper = mountScreen({}, modePill);
+        expect(wrapper.find('[data-test="modePill"]').exists()).toBe(false);
+        wrapper.unmount();
+    });
+
+    it("shows the autoplay mode in the end panel while the next video is offered", async () => {
+        const next = { id: "next", title: "Next one" };
+        const wrapper = mountScreen({ ended: true, autoplay: true, nextUp: next }, modePill);
+        await wrapper.vm.$nextTick();
+        expect(find(wrapper, "afsEndPanel").find('[data-test="modePill"]').exists()).toBe(true);
+        wrapper.unmount();
+    });
+
+    it("adds nothing beside the switch or in the end panel without the host's mode", async () => {
+        const next = { id: "next", title: "Next one" };
+        const wrapper = mountScreen({ ended: true, autoplay: true, nextUp: next });
+        await wrapper.vm.$nextTick();
+        const toggle = find(wrapper, "afsAutoplay");
+        expect(toggle.element.nextElementSibling?.getAttribute("data-test")).not.toBe("modePill");
+        expect(find(wrapper, "afsEndPanel").find('[data-test="modePill"]').exists()).toBe(false);
+        wrapper.unmount();
+    });
+
     it("offers the cameras in portrait when there is more than one", async () => {
         const wrapper = mountScreen({
             stage: "video",

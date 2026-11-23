@@ -29,17 +29,27 @@ export const ENCODER_DOWNLOAD_URL =
 export const MIN_ENCODER_VERSION = "0.0.1";
 
 /**
- * Whether a reported encoder version is older than {@link MIN_ENCODER_VERSION}.
+ * The oldest encoder that accepts `byteRangeBlockSeconds`. Older ones refuse any
+ * session body naming it, so a bucket with a block length asks their editors to
+ * update instead, while every other bucket keeps working with them.
+ */
+export const BLOCK_SECONDS_MIN_ENCODER_VERSION = "0.0.2";
+
+/**
+ * Whether a reported encoder version is older than `required`.
  * An unknown or unparsable version is not called outdated — the health check
  * answered, and a false alarm would nag every working install.
  */
-export function isEncoderOutdated(version: string | undefined): boolean {
+export function isEncoderOutdated(
+    version: string | undefined,
+    required: string = MIN_ENCODER_VERSION,
+): boolean {
     if (!version) return false;
     const parse = (v: string) => v.trim().replace(/^v/, "").split(".").map(Number);
-    const [reported, required] = [parse(version), parse(MIN_ENCODER_VERSION)];
+    const [reported, minimum] = [parse(version), parse(required)];
     if (reported.some(isNaN) || reported.length < 3) return false;
     for (let i = 0; i < 3; i++) {
-        if (reported[i] !== required[i]) return reported[i] < required[i];
+        if (reported[i] !== minimum[i]) return reported[i] < minimum[i];
     }
     return false;
 }
@@ -88,10 +98,11 @@ export type CreateEncoderSessionRequest = {
     s3: EncoderS3Config;
     publicBaseUrl: string;
     encryption?: { required: boolean };
-    /** Byte-range HLS and its chunk sizing, from the bucket's media settings. */
+    /** Byte-range HLS, its chunk sizing and block length, from the bucket's media settings. */
     byteRange?: boolean;
     byteRangeMaxFileSizeMB?: number;
     audioByteRangeMaxFileSizeMB?: number;
+    byteRangeBlockSeconds?: number;
     existingMedia?: { hlsUrl: string; hlsKey?: string };
     /** `edit` opens `existingMedia` to change its chapters and audio tracks; it never encodes. */
     mode?: "encode" | "edit";

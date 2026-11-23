@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { capitaliseFirstLetter, getTheFirstLetter } from "./string";
+import { capitaliseFirstLetter } from "./string";
 
 describe("string utils", () => {
     test("capitaliseFirstLetter works", () => {
@@ -8,21 +8,5 @@ describe("string utils", () => {
         const result = capitaliseFirstLetter(lowerCaseString);
 
         expect(result).toBe("String With VARIOUS capitalization");
-    });
-
-    test("getTheFirstLetter returns the first character", () => {
-        expect(getTheFirstLetter("Hello")).toBe("H");
-    });
-
-    test("getTheFirstLetter returns empty string for empty input", () => {
-        expect(getTheFirstLetter("")).toBe("");
-    });
-});
-
-describe("getTheFirstLetter", () => {
-    test("returns the first character of a string", () => {
-        expect(getTheFirstLetter("Hello")).toBe("H");
-        expect(getTheFirstLetter("world")).toBe("w");
-        expect(getTheFirstLetter("123abc")).toBe("1");
     });
 });

@@ -275,6 +275,8 @@ describe("SidecarController", () => {
             sidecarType: SidecarType.HlsEncryptionKey,
         });
         expect(res.status).toBe(404);
+        // Clients tell this refusal from a proxy's 404 by its exact body
+        expect(res.body).toEqual({ statusCode: 404, message: "Not found" });
     });
 
     it("returns 404 for an unknown parentId", async () => {

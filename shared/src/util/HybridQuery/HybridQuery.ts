@@ -114,6 +114,42 @@ export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> 
         );
     }
 
+    const res = await _httpService.post("query", remoteQueryPayload(query) as any);
+    return (res?.docs ?? []) as T[];
+}
+
+/**
+ * Result of {@link queryRemoteOutcome}. `ok: false` carries the HTTP `status` when a response
+ * arrived; it is absent for a network failure or when the HTTP service is not wired.
+ */
+export type RemoteQueryOutcome<T> = { ok: true; docs: T[] } | { ok: false; status?: number };
+
+/**
+ * {@link queryRemote} that tells an empty result from a failed request: `ok: true` only for a
+ * successful response carrying a document list. Never throws, including when
+ * `initHybridQuery` has not wired an HTTP service.
+ */
+export async function queryRemoteOutcome<T = unknown>(
+    query: MangoQuery,
+): Promise<RemoteQueryOutcome<T>> {
+    if (!_httpService) return { ok: false };
+    try {
+        const res = await _httpService.postWithStatus<{ docs?: unknown }>(
+            "query",
+            remoteQueryPayload(query) as any,
+        );
+        if (!res.status) return { ok: false };
+        const docs = res.body?.docs;
+        if (res.status >= 200 && res.status < 300 && Array.isArray(docs)) {
+            return { ok: true, docs: docs as T[] };
+        }
+        return { ok: false, status: res.status };
+    } catch {
+        return { ok: false };
+    }
+}
+
+function remoteQueryPayload(query: MangoQuery): Record<string, unknown> {
     const payload: Record<string, unknown> = {
         selector: query.selector,
         // Callers outside the app's live queries override this so their load is separable in
@@ -137,9 +173,7 @@ export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> 
     // Opt-in only: without it the API filters expired Content out of the response, hiding
     // exactly the docs a caller watching for expiry crossings needs to see.
     if (query.includeExpired === true) payload.includeExpired = true;
-
-    const res = await _httpService.post("query", payload as any);
-    return (res?.docs ?? []) as T[];
+    return payload;
 }
 
 /**

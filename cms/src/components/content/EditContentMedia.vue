@@ -94,6 +94,7 @@ const {
     progress,
     pipelineProgress,
     error,
+    needsUpdate,
     refreshAvailability,
     watchForEncoder,
     start,
@@ -408,6 +409,7 @@ watch(
                 :progress="progress"
                 :pipelineProgress="pipelineProgress"
                 :error="error"
+                :needsUpdate="needsUpdate"
             />
 
             <EditContentVideo v-if="showVideo" bare :disabled="disabled" v-model:parent="parent" />

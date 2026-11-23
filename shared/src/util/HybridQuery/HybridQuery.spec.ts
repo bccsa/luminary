@@ -120,6 +120,7 @@ import {
     HybridQuery,
     initHybridQuery,
     queryRemote,
+    queryRemoteOutcome,
 } from "./HybridQuery";
 import {
     useSharedHybridQuery,
@@ -3262,5 +3263,95 @@ describe("queryRemote", () => {
 
         const payload = postHttpMock.mock.calls[0][1];
         expect(payload).not.toHaveProperty("cms");
+    });
+});
+
+describe("queryRemoteOutcome", () => {
+    let postWithStatus: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+        _resetHybridQueryForTests();
+        postWithStatus = vi.fn();
+        mocks.config.cms = false;
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    function init() {
+        initHybridQuery({ postWithStatus } as any);
+    }
+
+    it("returns ok:false without a status when initHybridQuery has not been called", async () => {
+        expect(await queryRemoteOutcome({ selector: { type: "post" } })).toEqual({ ok: false });
+    });
+
+    it("returns the documents and sends the same payload as queryRemote", async () => {
+        postWithStatus.mockResolvedValueOnce({ status: 200, body: { docs: [{ _id: "x" }] } });
+        init();
+
+        const outcome = await queryRemoteOutcome({ selector: { type: "post" }, $limit: 1000 });
+
+        expect(postWithStatus).toHaveBeenCalledWith("query", {
+            selector: { type: "post" },
+            identifier: "hybridQuery",
+            limit: DEFAULT_REMOTE_QUERY_LIMIT,
+        });
+        expect(outcome).toEqual({ ok: true, docs: [{ _id: "x" }] });
+    });
+
+    it("returns ok:true with an empty list when nothing matched", async () => {
+        postWithStatus.mockResolvedValueOnce({ status: 200, body: { docs: [] } });
+        init();
+
+        expect(await queryRemoteOutcome({ selector: { type: "post" } })).toEqual({
+            ok: true,
+            docs: [],
+        });
+    });
+
+    it("returns ok:false when a successful response carries no document list", async () => {
+        postWithStatus.mockResolvedValueOnce({ status: 200, body: {} });
+        init();
+
+        expect(await queryRemoteOutcome({ selector: { type: "post" } })).toEqual({
+            ok: false,
+            status: 200,
+        });
+    });
+
+    it.each([403, 429, 500])("returns ok:false with status %i", async (status) => {
+        postWithStatus.mockResolvedValueOnce({ status, body: { message: "no" } });
+        init();
+
+        expect(await queryRemoteOutcome({ selector: { type: "post" } })).toEqual({
+            ok: false,
+            status,
+        });
+    });
+
+    it("returns ok:false for an error status even when the body carries a document list", async () => {
+        postWithStatus.mockResolvedValueOnce({ status: 500, body: { docs: [{ _id: "x" }] } });
+        init();
+
+        expect(await queryRemoteOutcome({ selector: { type: "post" } })).toEqual({
+            ok: false,
+            status: 500,
+        });
+    });
+
+    it("returns ok:false without a status when no response arrived", async () => {
+        postWithStatus.mockResolvedValueOnce({ status: 0 });
+        init();
+
+        expect(await queryRemoteOutcome({ selector: { type: "post" } })).toEqual({ ok: false });
+    });
+
+    it("returns ok:false without a status when the request rejects", async () => {
+        postWithStatus.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+        init();
+
+        expect(await queryRemoteOutcome({ selector: { type: "post" } })).toEqual({ ok: false });
     });
 });

@@ -7,6 +7,7 @@ import { accessMap, AclPermission, db, DocType, type GroupAclEntryDto } from "lu
 import {
     hasChangedPermission,
     isPermissionAvailable,
+    permissionAbbreviations,
     toggleAclEntry,
     validateAclEntry,
     validDocTypes,
@@ -329,9 +330,9 @@ describe("Group editor permissions (permissions.ts)", () => {
     });
 });
 
-describe("Share permission", () => {
+describe.each([AclPermission.Share, AclPermission.Download])("%s permission", (permission) => {
     it.each([DocType.Post, DocType.Tag])("is available on %s", (docType) => {
-        expect(isPermissionAvailable.value(docType, AclPermission.Share)).toBe(true);
+        expect(isPermissionAvailable.value(docType, permission)).toBe(true);
     });
 
     it.each([
@@ -343,14 +344,14 @@ describe("Share permission", () => {
         DocType.AuthProvider,
         DocType.AutoGroupMappings,
     ])("is not available on %s", (docType) => {
-        expect(isPermissionAvailable.value(docType, AclPermission.Share)).toBe(false);
+        expect(isPermissionAvailable.value(docType, permission)).toBe(false);
     });
 
     it("does not imply CmsView", () => {
         const aclEntry: GroupAclEntryDto = {
             groupId: "group-public-users",
             type: DocType.Post,
-            permission: [AclPermission.View, AclPermission.Share],
+            permission: [AclPermission.View, permission],
         };
 
         const prevAclEntry: GroupAclEntryDto = {
@@ -361,24 +362,38 @@ describe("Share permission", () => {
 
         validateAclEntry(aclEntry, prevAclEntry);
 
-        expect(aclEntry.permission).toEqual([AclPermission.View, AclPermission.Share]);
+        expect(aclEntry.permission).toEqual([AclPermission.View, permission]);
     });
 
     it("is cleared when no visibility permission remains", () => {
         const aclEntry: GroupAclEntryDto = {
             groupId: "group-public-users",
             type: DocType.Post,
-            permission: [AclPermission.Share],
+            permission: [permission],
         };
 
         const prevAclEntry: GroupAclEntryDto = {
             groupId: "group-public-users",
             type: DocType.Post,
-            permission: [AclPermission.View, AclPermission.Share],
+            permission: [AclPermission.View, permission],
         };
 
         validateAclEntry(aclEntry, prevAclEntry);
 
         expect(aclEntry.permission).toEqual([]);
+    });
+});
+
+describe("permissionAbbreviations", () => {
+    it("has an abbreviation for every permission", () => {
+        for (const permission of Object.values(AclPermission)) {
+            expect(permissionAbbreviations[permission]).toBeTruthy();
+        }
+    });
+
+    it("gives every permission a unique abbreviation", () => {
+        const abbreviations = Object.values(AclPermission).map((p) => permissionAbbreviations[p]);
+
+        expect(new Set(abbreviations).size).toBe(abbreviations.length);
     });
 });

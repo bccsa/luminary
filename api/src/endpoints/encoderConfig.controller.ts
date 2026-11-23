@@ -39,6 +39,7 @@ export type EncoderConfigResponseDto = {
     byteRange?: boolean;
     byteRangeMaxFileSizeMB?: number;
     audioByteRangeMaxFileSizeMB?: number;
+    byteRangeBlockSeconds?: number;
 };
 
 /**
@@ -194,6 +195,12 @@ export class EncoderConfigController {
                 byteRangeMaxFileSizeMB: settings.chunkSizeMB,
                 audioByteRangeMaxFileSizeMB: settings.chunkSizeMB,
             }),
+            // 0 is sent too, since it turns blocks off where absent leaves the encoder's
+            // default; blocks only apply to byte-range output.
+            ...(settings.byteRange !== false &&
+                settings.blockSeconds != null && {
+                    byteRangeBlockSeconds: settings.blockSeconds,
+                }),
         };
     }
 }

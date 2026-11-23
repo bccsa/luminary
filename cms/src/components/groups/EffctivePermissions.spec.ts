@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { mount } from "@vue/test-utils";
 import { AclPermission, DocType, type GroupDto } from "luminary-shared";
 import { buildEffectivePermissionsReport } from "./EffectivePermissions";
+import EffectivePermissions from "./EffectivePermissions.vue";
 
 describe("buildEffectivePermissionsReport", () => {
     it("builds a report with direct and inherited permissions", () => {
@@ -116,5 +118,29 @@ describe("buildEffectivePermissionsReport", () => {
         const report = buildEffectivePermissionsReport("a", groups);
 
         expect(report.length).toBeGreaterThan(0);
+    });
+});
+
+describe("EffectivePermissions.vue", () => {
+    it("abbreviates Delete and Download apart in the permission summary", () => {
+        const wrapper = mount(EffectivePermissions, {
+            props: {
+                entry: {
+                    accessorGroupId: "group-a",
+                    accessorGroupName: "Group A",
+                    source: "direct",
+                    permissionsByDocType: {
+                        [DocType.Post]: [AclPermission.Delete, AclPermission.Download],
+                    },
+                    path: ["group-a"],
+                },
+            },
+        });
+
+        const abbreviations = wrapper
+            .findAll('[data-test="permissionAbbreviation"]')
+            .map((s) => s.text());
+
+        expect(abbreviations).toEqual(["D", "Dl"]);
     });
 });

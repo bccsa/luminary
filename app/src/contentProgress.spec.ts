@@ -16,6 +16,9 @@ import {
     watchContentProgressStorage,
     applyBackgroundMediaProgress,
     mediaProgressKey,
+    markMediaCompleted,
+    isMediaCompleted,
+    isContentProgressDone,
 } from "@/contentProgress";
 
 describe("contentProgress.ts", () => {
@@ -170,6 +173,72 @@ describe("contentProgress.ts", () => {
                 savedAt: Date.now(),
             });
             expect(hasContentProgress("contentId")).toBe(false);
+        });
+    });
+
+    describe("the completed mark", () => {
+        it("is set at the end of a partial download below the finished line, keeping full-item time", () => {
+            markMediaCompleted("mediaId", "contentId", 500, 600);
+
+            expect(isMediaCompleted("mediaId", "contentId")).toBe(true);
+            expect(isMediaFinished("mediaId", "contentId")).toBe(false);
+            expect(getMediaProgress("mediaId", "contentId")).toBe(500);
+            expect(getMediaDuration("mediaId", "contentId")).toBe(600);
+        });
+
+        it("is not set at or past the finished line: the item is finished", () => {
+            markMediaCompleted("mediaId", "contentId", 580, 600);
+
+            expect(isMediaCompleted("mediaId", "contentId")).toBe(false);
+            expect(isMediaFinished("mediaId", "contentId")).toBe(true);
+        });
+
+        it("is cleared by the next progress write that is not an end", () => {
+            markMediaCompleted("mediaId", "contentId", 500, 600);
+            setMediaProgress("mediaId", "contentId", 510, 600);
+
+            expect(isMediaCompleted("mediaId", "contentId")).toBe(false);
+        });
+
+        it("leaves the entry with nothing to continue, while it is not finished", () => {
+            markMediaCompleted("mediaId", "contentId", 500, 600);
+            const entry = contentProgressAsRef.value[0];
+
+            expect(isContentProgressDone(entry)).toBe(true);
+            expect(isContentProgressFinished(entry)).toBe(false);
+        });
+
+        it("still has something to continue while its reading is unfinished", () => {
+            markMediaCompleted("mediaId", "contentId", 500, 600);
+            setReadingProgress("contentId", 40);
+
+            expect(isContentProgressDone(contentProgressAsRef.value[0])).toBe(false);
+        });
+
+        it("is set from a background record that reached the end below the finished line", () => {
+            applyBackgroundMediaProgress({
+                key: mediaProgressKey("mediaId", "contentId"),
+                position: 500,
+                duration: 600,
+                savedAt: Date.now(),
+                ended: true,
+            });
+
+            expect(isMediaCompleted("mediaId", "contentId")).toBe(true);
+            expect(getMediaProgress("mediaId", "contentId")).toBe(500);
+        });
+
+        it("is not set by a background record that did not reach the end", () => {
+            markMediaCompleted("mediaId", "contentId", 400, 600);
+            const savedAt = contentProgressAsRef.value[0].updatedAt + 1;
+            applyBackgroundMediaProgress({
+                key: mediaProgressKey("mediaId", "contentId"),
+                position: 450,
+                duration: 600,
+                savedAt,
+            });
+
+            expect(isMediaCompleted("mediaId", "contentId")).toBe(false);
         });
     });
 
