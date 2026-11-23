@@ -7,12 +7,12 @@ import ContinueProgress from "@/components/HomePage/ContinueProgress.vue";
 import RecommendedForYou from "@/components/HomePage/RecommendedForYou.vue";
 import HomePageSearch from "@/components/HomePage/HomePageSearch.vue";
 import { isMdScreen } from "@/globalConfig";
-import { inject, nextTick, onActivated, ref } from "vue";
+import { nextTick, onActivated, ref } from "vue";
 import { markPageReady } from "@/util/renderState";
 import { useLocalizedStaticHead } from "@/seo/contentHead";
-import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import { useDownloads } from "@/build-time/contracts/downloads/token";
 
-const downloads = inject(DownloadsKey, undefined);
+const downloads = useDownloads();
 
 const pinnedResolved = ref(false);
 const newestResolved = ref(false);

@@ -23,7 +23,7 @@ import type { ContentDto, FtsSearchResult } from "luminary-shared";
 import { useI18n } from "vue-i18n";
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
-import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import { useDownloads } from "@/build-time/contracts/downloads/token";
 import {
     recordSearchQuery,
     loadRecentSearches,
@@ -121,7 +121,7 @@ const showPartialHint = computed(
 );
 
 const searchResultsContainerRef = ref<HTMLElement | null>(null);
-const downloads = inject(DownloadsKey, undefined);
+const downloads = useDownloads();
 
 // In page mode the results flow in BasePage's scrolling <main> (provided below), so infinite
 // scroll watches that; in modal mode the results scroll inside the overlay's own container.

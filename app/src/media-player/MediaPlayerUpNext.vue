@@ -4,7 +4,7 @@
  * image-left row with the title, the summary and the categories. A tap plays it here instead of
  * opening its page.
  */
-import { computed, inject } from "vue";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { PlayIcon } from "@heroicons/vue/24/solid";
 import { ListBulletIcon } from "@heroicons/vue/24/outline";
@@ -12,7 +12,7 @@ import type { ContentDto, Uuid } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import LImage from "@/components/images/LImage.vue";
 import type { UpNextTag } from "./useUpNext";
-import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import { useDownloads } from "@/build-time/contracts/downloads/token";
 
 const props = defineProps<{
     /** The whole series, the playing one in it: it is marked where it stands, and does nothing when tapped. */
@@ -29,7 +29,8 @@ const props = defineProps<{
 }>();
 const { t } = useI18n();
 /** Where there are downloads, each item carries its badge, as the app's other tiles do. */
-const DownloadBadge = inject(DownloadsKey, undefined)?.ui.DownloadBadge;
+const downloads = useDownloads();
+const DownloadBadge = computed(() => downloads.value?.ui.DownloadBadge);
 
 const sections = computed(() =>
     [

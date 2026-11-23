@@ -12,7 +12,7 @@ import {
 import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useRouter } from "vue-router";
-import { computed, inject, onMounted, ref, type ComputedRef } from "vue";
+import { computed, onMounted, ref, type ComputedRef } from "vue";
 import {
     ArrowDownTrayIcon,
     ShieldCheckIcon,
@@ -39,7 +39,7 @@ import DropdownMenu from "../common/DropdownMenu.vue";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { useAppUpdate } from "@/composables/useAppUpdate";
-import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import { useDownloads } from "@/build-time/contracts/downloads/token";
 
 type Trigger = "avatar" | "bars" | "sidebar";
 type Props = {
@@ -70,7 +70,7 @@ const menuLabel = computed(() => t("profile_menu.title"));
 const navigationItems = computed(() => getNavigationItems(t));
 const { isSearchOpen, openSearch } = useSearchOverlay();
 const { isUpdateAvailable, applyUpdate } = useAppUpdate();
-const downloads = inject(DownloadsKey, undefined);
+const downloads = useDownloads();
 const isItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.value;
 
 // The search modal is desktop-only; mobile gets the /search page, as from the bottom menu.

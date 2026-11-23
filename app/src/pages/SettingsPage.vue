@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import LDialog from "@/components/common/LDialog.vue";
@@ -25,7 +25,7 @@ import AppVersionCard from "@/components/appUpdate/AppVersionCard.vue";
 import { triggerSync } from "@/sync";
 import { markPageReady } from "@/util/renderState";
 import { clearUserActivity } from "@/userActivity/store";
-import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import { useDownloads } from "@/build-time/contracts/downloads/token";
 import { useKnownTexts } from "@/media-player/usePlayerMessages";
 import { autoplayDownloadedOnly, useAutoplayMode } from "@/media-player/autoplayMode";
 
@@ -92,11 +92,11 @@ const clearActivity = async () => {
     });
 };
 
-const downloads = inject(DownloadsKey, undefined);
+const downloads = useDownloads();
 /** What deleting the downloads left: the ids still on the device, and the one of them kept for being played. */
 type RemoveAllOutcome = { kept: string[]; playing?: string };
 /** Where there are downloads, autoplay can be kept to them; offline it is, whatever the choice. */
-const autoplayMode = useAutoplayMode(downloads);
+const autoplayMode = computed(() => useAutoplayMode(downloads.value));
 const showDeleteLocalDataDialog = ref(false);
 const alsoDeleteDownloads = ref(false);
 
@@ -111,7 +111,7 @@ const notifyOffline = () =>
 /** With downloads on the device, the viewer first chooses whether they go too. */
 const requestDeleteLocalData = () => {
     if (!isConnected.value) return notifyOffline();
-    if (!downloads?.entries.value.length) return deleteLocalData();
+    if (!downloads.value?.entries.value.length) return deleteLocalData();
     alsoDeleteDownloads.value = false;
     showDeleteLocalDataDialog.value = true;
 };
@@ -143,16 +143,17 @@ const deleteLocalData = async (withDownloads = false) => {
     if (!isConnected.value) return notifyOffline();
 
     isClearing.value = true;
+    const service = downloads.value;
     try {
         let removedAll = false;
         let outcome: RemoveAllOutcome = { kept: [] };
-        if (downloads && withDownloads) {
+        if (service && withDownloads) {
             try {
-                outcome = await downloads.lifecycle.removeAll();
+                outcome = await service.lifecycle.removeAll();
                 removedAll = true;
             } catch (error) {
                 console.error(error);
-                outcome = { kept: downloads.entries.value.map((entry) => entry.downloadId) };
+                outcome = { kept: service.entries.value.map((entry) => entry.downloadId) };
             }
         }
         await db.purge();
@@ -162,8 +163,8 @@ const deleteLocalData = async (withDownloads = false) => {
         triggerSync();
         // The purge clears the retention pins that keep a download's docs; the re-check puts them back.
         // It also runs by itself on the next connect, so a failure here is not the viewer's concern.
-        if (downloads && (!removedAll || outcome.kept.length > 0)) {
-            downloads.lifecycle.recheck().catch(() => undefined);
+        if (service && (!removedAll || outcome.kept.length > 0)) {
+            service.lifecycle.recheck().catch(() => undefined);
         }
 
         addNotification({

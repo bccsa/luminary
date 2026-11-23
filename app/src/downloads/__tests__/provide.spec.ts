@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp, inject } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
-import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import {
+    DownloadsKey,
+    providedDownloads,
+    useDownloads,
+} from "@/build-time/contracts/downloads/token";
 import { installDownloads } from "@/build-time/plugins/downloads/index";
 import { provideDownloads, provideFakeDownloads } from "@/build-time/plugins/downloads/provide";
 import { createFakeEngine } from "../fakeEngine";
@@ -84,6 +88,27 @@ describe("provideDownloads", () => {
         expect(app.runWithContext(() => inject(DownloadsKey, undefined))).toBe(service);
         expect(router.resolve("/downloads").name).toBe("downloads");
         expect(router.resolve("/downloads").meta.title).toBe("downloads.title");
+        (service as unknown as { dispose(): void }).dispose();
+    });
+
+    it("reaches components set up before the engine answered", async () => {
+        providedDownloads.value = undefined;
+        let seen: ReturnType<typeof useDownloads> | undefined;
+        const app = createApp({
+            setup() {
+                seen = useDownloads();
+                return () => null;
+            },
+        });
+        app.mount(document.createElement("div"));
+        expect(seen?.value).toBeUndefined();
+
+        const { deps } = makeDeps();
+        const service = provideDownloads(app, createFakeEngine(), { router: testRouter(), deps });
+        expect(seen?.value).toBe(service);
+
+        app.unmount();
+        providedDownloads.value = undefined;
         (service as unknown as { dispose(): void }).dispose();
     });
 

@@ -1,7 +1,7 @@
 import type { App } from "vue";
 import type { Router } from "vue-router";
 import appRouter from "@/router";
-import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import { DownloadsKey, providedDownloads } from "@/build-time/contracts/downloads/token";
 import type { DownloadsEngine, DownloadsService } from "@/build-time/contracts/downloads/contract";
 import { createDownloadsService } from "@/downloads/service";
 import { createAppDeps } from "@/downloads/appDeps";
@@ -34,6 +34,7 @@ export function provideDownloads(
         });
     }
     app.provide(DownloadsKey, service);
+    providedDownloads.value = service;
     return service;
 }
 

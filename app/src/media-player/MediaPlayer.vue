@@ -64,7 +64,7 @@ import type {
     VideoNowPlayingTexts,
 } from "@/build-time/contracts/video-player/contract";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
-import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import { useDownloads } from "@/build-time/contracts/downloads/token";
 import { useNotificationStore } from "@/stores/notification";
 import { nowPlayingDownload } from "./downloadPlayback";
 import {
@@ -175,17 +175,17 @@ const upNextTag = ref<Uuid | null>(null);
 const upNext = useUpNext(content, upNextTag);
 
 const videoPlayerService = inject(VideoPlayerKey, undefined);
-const downloadsInjected = inject(DownloadsKey, undefined);
+const downloadsProvided = useDownloads();
 /**
  * Downloads, where a service is there and the player plays them; without them nothing of downloads shows. The
  * player's answer can arrive after this is set up, so it is followed as it changes.
  */
 const downloadsService = computed(() =>
-    videoPlayerService?.playsDownloads ? downloadsInjected : undefined,
+    videoPlayerService?.playsDownloads ? downloadsProvided.value : undefined,
 );
-const autoplayWithDownloads = useAutoplayMode(downloadsInjected);
+const autoplayWithDownloads = computed(() => useAutoplayMode(downloadsProvided.value));
 /** Which items autoplay carries on to; undefined without downloads, where it is any. */
-const autoplay = computed(() => (downloadsService.value ? autoplayWithDownloads : undefined));
+const autoplay = computed(() => (downloadsService.value ? autoplayWithDownloads.value : undefined));
 const { nextContents, nextUp, browseContents, browseUpNext } = useNextUp(
     upNext,
     () => content.value?.parentId,
@@ -1898,7 +1898,7 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
 // --- downloads on the platform's screen -------------------------------------------------------------
 
 /** Whether the item may be downloaded now, for the download tool. */
-const downloadable = downloadsInjected?.eligibility(() => content.value);
+const downloadable = computed(() => downloadsProvided.value?.eligibility(() => content.value));
 /**
  * The download tool: shown for an item that may be downloaded or has a download. A progress tick that leaves the
  * tool as it was hands back the same object, so the screen is not described again for it.
@@ -1908,7 +1908,7 @@ const screenDownload = computed<VideoNowPlayingDownload | null>((before) => {
     const shown = content.value;
     if (!service || !shown) return null;
     const entry = service.entryFor(shown.parentId);
-    if (!entry && !downloadable?.value) return null;
+    if (!entry && !downloadable.value?.value) return null;
     const badge = service.badges.value.get(shown.parentId) ?? { state: "none" as const };
     // A stand-in made from the download alone names no stream.
     const streams = service.network.value.online && !!mediaSourceFor(shown);
@@ -1972,16 +1972,21 @@ watch(
     () => content.value?._id,
     () => (playerNotice.value = null),
 );
-if (downloadsInjected) {
-    const stop = downloadsInjected.player.onNotice((text) => {
-        // One raised while the screen is about to rise waits for it, as the player's own notices do.
-        if (!downloadsService.value || (!nativeScreen.value && !noticeWaitsForScreen.value))
-            return false;
-        showPlayerNotice({ text });
-        return true;
-    });
-    onBeforeUnmount(stop);
-}
+watch(
+    downloadsProvided,
+    (service, _before, onCleanup) => {
+        if (!service) return;
+        const stop = service.player.onNotice((text) => {
+            // One raised while the screen is about to rise waits for it, as the player's own notices do.
+            if (!downloadsService.value || (!nativeScreen.value && !noticeWaitsForScreen.value))
+                return false;
+            showPlayerNotice({ text });
+            return true;
+        });
+        onCleanup(stop);
+    },
+    { immediate: true },
+);
 /** The screen's own words; the player adds those it shares with its other controls. */
 const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
     Object.fromEntries(
@@ -2079,7 +2084,7 @@ function onNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
 }
 
 /** The pill naming the autoplay mode on the page's own screen; tapped, it switches mode, unless offline forces it. */
-const AutoplayModePill = downloadsInjected?.ui.AutoplayModePill;
+const AutoplayModePill = computed(() => downloadsProvided.value?.ui.AutoplayModePill);
 const autoplayModeShown = computed(() => autoplay.value?.mode.value);
 const autoplayModeLocked = computed(() => autoplay.value?.locked.value === true);
 const autoplayModeLabel = computed(() => {

@@ -64,7 +64,7 @@ import type {
     VideoMiniPlayerAction,
     VideoPlayerHandle,
 } from "@/build-time/contracts/video-player/contract";
-import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import { useDownloads } from "@/build-time/contracts/downloads/token";
 import type {
     DownloadPlayback,
     DownloadPlaybackCloseReason,
@@ -143,12 +143,12 @@ const videoPlayer = inject(VideoPlayerKey, {
 });
 const player = ref<VideoPlayerHandle | null>(null);
 
-const downloads = inject(DownloadsKey, undefined);
+const downloads = useDownloads();
 /**
  * The downloads' hooks for the player, where there is a downloads service and a player that plays downloads; without
  * them every item streams. Read at each use: the player can say it plays downloads after this wrapper was set up.
  */
-const downloadsPlayer = () => (videoPlayer.playsDownloads ? downloads?.player : undefined);
+const downloadsPlayer = () => (videoPlayer.playsDownloads ? downloads.value?.player : undefined);
 /** The download the content plays from; null while it streams. */
 const playback = shallowRef<DownloadPlayback | null>(null);
 /** The session the engine closed itself: its load is stopped, and nothing more of it is booked. */
@@ -298,7 +298,7 @@ const playerExtras = computed(() => ({
 const shownChapters = computed(() => {
     const local = playback.value;
     if (!local || !playingThisContent()) return undefined;
-    return downloadChapters(downloads?.entryFor(props.content.parentId), local.timeline);
+    return downloadChapters(downloads.value?.entryFor(props.content.parentId), local.timeline);
 });
 
 /**
@@ -310,7 +310,7 @@ const shownChapters = computed(() => {
 const mediaId = computed(
     () =>
         mediaSourceFor(props.content) ??
-        downloads?.entryFor(props.content.parentId)?.content.mediaId,
+        downloads.value?.entryFor(props.content.parentId)?.content.mediaId,
 );
 
 const autoPlay = queryParams.get("autoplay") === "true";
@@ -997,7 +997,7 @@ function onEnded() {
 // --- downloads ------------------------------------------------------------
 
 function online(): boolean {
-    return downloads?.network.value.online ?? deviceOnline.value;
+    return downloads.value?.network.value.online ?? deviceOnline.value;
 }
 
 /** Online is chosen for the item: by the viewer here, else on the download sheet. */
@@ -1010,7 +1010,8 @@ function prefersOnline(): boolean {
 /** A download is likely to play, so the stream's playlists are not warmed for it. */
 function likelyPlaysDownload(content: ContentDto): boolean {
     return (
-        !!downloads?.playableParentIds.value.has(content.parentId) && !(prefersOnline() && online())
+        !!downloads.value?.playableParentIds.value.has(content.parentId) &&
+        !(prefersOnline() && online())
     );
 }
 
@@ -1207,7 +1208,7 @@ const streamOffersVideo = computed(
         !!playback.value &&
         online() &&
         !!mediaSource.value &&
-        downloads?.entryFor(props.content.parentId)?.selection.kind === "audio",
+        downloads.value?.entryFor(props.content.parentId)?.selection.kind === "audio",
 );
 
 /** Video asked for over a download of the sound alone: the stream loads at the same word, on its default camera. */
@@ -1225,7 +1226,7 @@ function downloadCanTakeOver(): boolean {
         !playback.value &&
         !!downloadsPlayer() &&
         playingThisContent() &&
-        !!downloads?.playableParentIds.value.has(props.content.parentId)
+        !!downloads.value?.playableParentIds.value.has(props.content.parentId)
     );
 }
 
@@ -1235,7 +1236,7 @@ function downloadCanTakeOver(): boolean {
  */
 function downloadForSound(): boolean {
     if (!downloadCanTakeOver()) return false;
-    if (downloads?.entryFor(props.content.parentId)?.selection.kind !== "audio") return false;
+    if (downloads.value?.entryFor(props.content.parentId)?.selection.kind !== "audio") return false;
     playOnlineOverride.value = null;
     void chooseDownload();
     return true;
@@ -1280,7 +1281,7 @@ function switchable(): boolean {
     // A stream sent to a cast or AirPlay video device stays there, with the picture or the sound alone: the device
     // cannot reach the phone's files, and a load from disk ends a cast.
     if (!playback.value && player.value?.airPlayActive) return false;
-    const entry = downloads?.entryFor(props.content.parentId);
+    const entry = downloads.value?.entryFor(props.content.parentId);
     return !!entry && holdsPosition(entry, viewerPosition());
 }
 
@@ -1324,7 +1325,7 @@ async function switchToDownload(chosen = false): Promise<boolean> {
     }
     reloadAt(next, held ? next.timeline.resumeLocal(target) : local.local);
     // A download of the sound alone has no camera: the stream's would name nothing in it.
-    if (hooks && downloads?.entryFor(content.parentId)?.selection.kind === "audio") {
+    if (hooks && downloads.value?.entryFor(content.parentId)?.selection.kind === "audio") {
         startAngleId.value = AUDIO_ONLY_ANGLE_ID;
     }
     if (held) holdSavedAt = holdFor(resumeAt.value);
@@ -1495,17 +1496,17 @@ function playingSelection() {
 function onDownloadAction(action: VideoDownloadAction) {
     const index = Number(action.value);
     const chapter = Number.isInteger(index)
-        ? downloads?.entryFor(props.content.parentId)?.chapters[index]
+        ? downloads.value?.entryFor(props.content.parentId)?.chapters[index]
         : undefined;
     if (action.action === "notice") actOnPlayerNotice(action.value);
     else if (action.action === "noticeDismiss") dismissPlayerNotice(action.value);
     else if (action.action === "download")
-        void downloads?.openSheet(props.content, {
+        void downloads.value?.openSheet(props.content, {
             context: "player",
             selection: playingSelection(),
         });
     else if (action.action === "chapterDownload" && chapter)
-        void downloads?.openSheet(props.content, {
+        void downloads.value?.openSheet(props.content, {
             context: "player",
             chapter: index,
             selection: playingSelection(),
@@ -1516,21 +1517,26 @@ function onDownloadAction(action: VideoDownloadAction) {
 }
 
 // Listened to whenever there is a service, since the player can say it plays downloads later.
-if (downloads) {
-    const stops = [
-        downloads.player.onMoreReady(onMoreReady),
-        downloads.player.onClosed(onClosed),
-        downloads.player.onSourceChosen(onSourceChosen),
-    ];
-    onBeforeUnmount(() => {
-        unmounted = true;
-        stops.forEach((stop) => stop());
-        // A session handed to the player is released with it; one it never loaded is closed here.
-        void unloadedSession()
-            ?.close()
-            .catch(() => undefined);
-    });
-}
+watch(
+    downloads,
+    (service, _before, onCleanup) => {
+        if (!service) return;
+        const stops = [
+            service.player.onMoreReady(onMoreReady),
+            service.player.onClosed(onClosed),
+            service.player.onSourceChosen(onSourceChosen),
+        ];
+        onCleanup(() => stops.forEach((stop) => stop()));
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => {
+    unmounted = true;
+    // A session handed to the player is released with it; one it never loaded is closed here.
+    void unloadedSession()
+        ?.close()
+        .catch(() => undefined);
+});
 </script>
 
 <template>

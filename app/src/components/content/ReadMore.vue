@@ -7,17 +7,17 @@ export const summaryClampFor = (mobileTitleLines: number): string =>
 </script>
 
 <script setup lang="ts">
-import { computed, inject, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import { type ContentDto } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import LImage from "../images/LImage.vue";
 import { useRevealedCount } from "@/composables/useScrollMemory";
-import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import { useDownloads } from "@/build-time/contracts/downloads/token";
 
 const props = defineProps<{ items: ContentDto[] }>();
 
-const downloads = inject(DownloadsKey, undefined);
+const downloads = useDownloads();
 
 const summaryText = (content: ContentDto): string => content.summary?.trim() ?? "";
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
@@ -38,13 +38,13 @@ import {
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import { useHydrated } from "@/composables/useHydrated";
-import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import { useDownloads } from "@/build-time/contracts/downloads/token";
 
 const { t } = useI18n();
 const { openSearch, isSearchOpen } = useSearchOverlay();
 const { collapsed, toggleCollapsed } = useDesktopSidebar();
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
-const downloads = inject(DownloadsKey, undefined);
+const downloads = useDownloads();
 
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 const LOGO_DARK = import.meta.env.VITE_LOGO_DARK || defaultLogoDark;

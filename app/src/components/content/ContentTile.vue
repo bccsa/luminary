@@ -5,16 +5,16 @@ import LImage from "../images/LImage.vue";
 import { type AspectRatio, type ImageSize } from "../images/LImageProvider.vue";
 import { PlayIcon } from "@heroicons/vue/24/solid";
 import { getMediaDuration, getMediaProgress, getReadingProgress } from "@/contentProgress";
-import { computed, inject } from "vue";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { cmsLanguages, cmsDefaultLanguage } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
 import { hasMediaSource, mediaSourceFor } from "@/util/mediaSource";
-import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import { useDownloads } from "@/build-time/contracts/downloads/token";
 
 const { t } = useI18n();
 // The badge reads its own state, so a progress tick re-renders the badge alone, never the tile.
-const downloads = inject(DownloadsKey, undefined);
+const downloads = useDownloads();
 
 // The locale of the content's own language, not the visitor's browser locale — matches
 // the article page's `formatPublishDate` so a tile and the article it opens agree. The
