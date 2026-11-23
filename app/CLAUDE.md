@@ -83,7 +83,7 @@ Page-level components are in `src/pages/` and feature components in `src/compone
 
 ### i18n
 
-UI strings live in CouchDB Language documents, loaded at runtime (`src/i18n.ts`). English seed is `../api/src/db/seedingDocs/lang-eng.json`. See `../docs/guides/translations.md` for the workflow.
+UI strings live in CouchDB Language documents, loaded at runtime (`src/i18n.ts`). English seed is `../api/src/db/seedingDocs/content/lang-eng.json`. See `../docs/guides/translations.md` for the workflow.
 
 Reading progress (segments, gates, homepage row): `docs/reading-progress-tracker/README.md`.
 

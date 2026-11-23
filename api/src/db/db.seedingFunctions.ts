@@ -1,53 +1,27 @@
 import { DbService } from "./db.service";
 import * as fs from "fs";
 import * as path from "path";
+import { CONTENT_DESIGN_DOCS_DIR, CONTENT_SEED_DOCS_DIR } from "./databaseAssets";
 
-let db;
-
-/**
- * Function to insert or update database documents from a directory with JSON formatted documents
- * @param {string} directory - relative path to directory
- */
-function upsertFromDir(directory: string): Promise<any> {
-    // Read directory.
-    // Note: Custom assets must be declared in nest-cli.json for inclusion in the build output (dist directory)
-    const p = path.join(__dirname, directory);
-    const dir = fs.readdirSync(p);
-    const pList: Array<Promise<any>> = [];
-
-    dir.forEach((file) => {
-        // Read file fom disk
-        const doc = JSON.parse(fs.readFileSync(path.join(p, file)).toString());
-
-        // Update / insert in DB
-        pList.push(db.upsertDoc(doc));
-    });
-
-    return Promise.all(pList);
+/** Load only the explicit database directory; do not recurse into other sources. */
+function upsertFromDir(db: DbService, directory: string): Promise<any[]> {
+    const files = fs
+        .readdirSync(directory, { withFileTypes: true })
+        .filter((file) => file.isFile() && file.name.endsWith(".json"));
+    return Promise.all(
+        files.map((file) => {
+            const doc = JSON.parse(fs.readFileSync(path.join(directory, file.name), "utf8"));
+            return db.upsertDoc(doc);
+        }),
+    );
 }
 
-/**
- * Insert or update design documents
- */
-export function upsertDesignDocs(dbService: DbService): Promise<any> {
-    if (!db) {
-        db = dbService;
-    }
-
-    return upsertFromDir("designDocs");
+/** Install only the shared/content database's design documents. */
+export function upsertDesignDocs(db: DbService): Promise<any[]> {
+    return upsertFromDir(db, CONTENT_DESIGN_DOCS_DIR);
 }
 
-/**
- * Insert or update database seeding documents (for unit testing or initial application installation)
- */
-export function upsertSeedingDocs(dbService: DbService): Promise<any> {
-    if (!db) {
-        db = dbService;
-    }
-
-    return upsertFromDir("seedingDocs");
-}
-
-export function destroyAllDocs() {
-    return db.destroyAllDocs();
+/** Seed only shared/content documents; owner activity has no shared seed data. */
+export function upsertSeedingDocs(db: DbService): Promise<any[]> {
+    return upsertFromDir(db, CONTENT_SEED_DOCS_DIR);
 }

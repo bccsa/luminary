@@ -1,7 +1,7 @@
 /**
  * Writes the AuthProvider and AutoGroupMappings docs the fake issuer needs
  * straight into CouchDB. These are environment wiring, not fixtures shipped with
- * the product, so they deliberately do not live in `api/src/db/seedingDocs/`.
+ * the product, so they deliberately do not live in `api/src/db/seedingDocs/content/`.
  */
 
 import { couchFetch, type CouchConfig } from "./couch";
@@ -119,7 +119,7 @@ export async function seedDefaultGroupMapping(couch: CouchConfig): Promise<void>
 }
 
 /**
- * Written here rather than into `api/src/db/seedingDocs/`, which ships as
+ * Written here rather than into `api/src/db/seedingDocs/content/`, which ships as
  * installation data — this user exists only for the E2E suite.
  */
 export async function seedScopedUser(couch: CouchConfig): Promise<void> {

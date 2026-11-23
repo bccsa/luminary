@@ -6,17 +6,17 @@
         "deleteOutDir": true,
         "assets": [
             {
-                "include": "db/userDataDesignDocs/*.json",
+                "include": "db/designDocs/user/*.json",
                 "outDir": "dist/src",
                 "watchAssets": true
             },
             {
-                "include": "db/designDocs/*.json",
+                "include": "db/designDocs/content/*.json",
                 "outDir": "dist/src",
                 "watchAssets": true
             },
             {
-                "include": "db/seedingDocs/*.json",
+                "include": "db/seedingDocs/content/*.json",
                 "outDir": "dist/src",
                 "watchAssets": true
             }

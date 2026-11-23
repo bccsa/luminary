@@ -76,6 +76,14 @@ anonymous requests use IP. A future session-token resolver must retain the origi
 orphans the corresponding user data. The source is served and advertised only
 when its configuration and partitioned database are available.
 
+Database assets have explicit targets: `db/designDocs/content/` and
+`db/seedingDocs/content/` belong to the shared database; `db/designDocs/user/` belongs to
+the partitioned user database. Registries and loaders use the same paths, preserved in
+build output. Content seeding uses the database supplied to each call; user activity has
+no seeds. The user database service shares one initialization promise and connection per
+Nest singleton. Request processing never initializes clients or scans asset directories.
+Fresh revision reads and conflict retries remain necessary for ordering across API instances.
+
 Each liked or viewed post has one deterministic document; each highlighted passage
 has its own document. Undo writes a tombstone. The later `activityTimeUtc` wins per
 document, with future timestamps capped at the server clock. The server assigns

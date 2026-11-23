@@ -32,6 +32,13 @@ describe("reconcileLanguageTranslationSeeds", () => {
         jest.restoreAllMocks();
     });
 
+    it("reads the shipped content language seeds from the default asset directory", () => {
+        const translations = readSeedLanguageTranslations();
+        expect(Object.keys(translations).sort()).toEqual(["lang-eng", "lang-fra"]);
+        expect(Object.keys(translations["lang-eng"]).length).toBeGreaterThan(0);
+        expect(Object.keys(translations["lang-fra"]).length).toBeGreaterThan(0);
+    });
+
     it("dynamically discovers lang-*.json seed files and ignores other files", () => {
         const dir = fs.mkdtempSync(path.join(os.tmpdir(), "seed-"));
         try {

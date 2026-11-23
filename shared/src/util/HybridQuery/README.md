@@ -613,7 +613,7 @@ The API validator
 accepts a `use_index` only if it names a real Mango index — the allowlist is the
 registry built at boot from the design-doc JSON files
 ([`api/src/db/indexNameRegistry.ts`](../../../../api/src/db/indexNameRegistry.ts)),
-e.g. [`content-publishDate-index`](../../../../api/src/db/designDocs/content-publishDate-index.json).
+e.g. [`content-publishDate-index`](../../../../api/src/db/designDocs/content/content-publishDate-index.json).
 Any unknown value 400s (`Unknown index`). To add a new index: just create the
 design doc — the registry picks it up automatically (no separate allowlist edit).
 
@@ -627,7 +627,7 @@ caller MUST account for this:
 
 - **If the caller sorts by `publishDate`** (the common case): your index's
   leading field should be `publishDate` — like
-  [`content-publishDate-index.json`](../../../../api/src/db/designDocs/content-publishDate-index.json).
+  [`content-publishDate-index.json`](../../../../api/src/db/designDocs/content/content-publishDate-index.json).
   The partial filter selector should still include `type === "content"` so the
   picker only considers it for Content queries.
 - **If the caller sorts by something else** (e.g. `slug`, `parentPinned`): the

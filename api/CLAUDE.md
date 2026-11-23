@@ -18,7 +18,7 @@ Run from `api/`:
 
 - `npm run start:dev` (or `npm run dev`) — Nest watch mode, default port 3000
 - `npm run start:prod` — production mode (logs go to a tailable `api.log` instead of stdout)
-- `npm run seed` — runs `main.ts` with `seed` arg: applies design docs and seeding docs from `src/db/seedingDocs/*.json`, then exits
+- `npm run seed` — runs `main.ts` with `seed` arg: applies design docs and seeding docs from `src/db/seedingDocs/content/*.json`, then exits
 - `npm run auth-setup` — interactive script to add/modify auth providers (see `AUTH_SETUP.md`)
 - `npm run test` — Jest via `dotenv-cli` loading `.env.test`. Targeted runs: `npm test -- src/path/file.spec.ts -t "name"`. Use `npm run test:detect` to find open handles.
 - `npm run test:cov` — coverage; `db/schemaUpgrade/` and `test/` are excluded
@@ -33,7 +33,7 @@ Node 22 (`.node-version`). `tsconfig.json` has `strictNullChecks: false` and `no
 
 Order-sensitive — read `main.ts` before reordering anything:
 
-1. `upsertDesignDocs(dbService)` — pushes CouchDB views/indexes from `src/db/designDocs/*.json`. New indexes go here. Immediately after, `warmIndexNameRegistry()` (`db/indexNameRegistry.ts`) loads the set of valid `use_index` names from those same JSON files; `/query` validation rejects any `use_index` not in that registry.
+1. `upsertDesignDocs(dbService)` — pushes CouchDB views/indexes from `src/db/designDocs/content/*.json`. New indexes go here. Immediately after, `warmIndexNameRegistry()` (`db/indexNameRegistry.ts`) loads the set of valid `use_index` names from those same JSON files; `/query` validation rejects any `use_index` not in that registry.
    `UserDataDbService.initialize()` separately checks the optional partitioned database and installs its own design documents. Failure leaves that source disabled and does not block shared-dataset startup.
 2. If invoked with `seed` arg: `upsertSeedingDocs`, then `process.exit(0)` — the rest of bootstrap is skipped.
 3. `PermissionSystem.init(dbService)` — builds the in-memory permission graph from Group docs and subscribes to `groupUpdate` events.
@@ -77,6 +77,10 @@ limits, cost reporting and lean responses. `/changerequest` dispatches to separa
 and user services after its common authentication, throttling and multipart/JSON parsing.
 Preserve user validation acks versus retryable HTTP errors, and never route owner data to
 the shared service's rejection lookups. All services use Nest's default singleton scope.
+`UserDataDbService.initialize()` shares one promise and one connection per service instance;
+even failed initialization is not retried until restart. Enabled request paths perform no filesystem
+reads or startup scans. Keep the fresh revision read on writes and conflict retries: caching
+activity documents would break ordering when another API instance writes to the same owner.
 
 ### Schema upgrades (`src/db/schemaUpgrade/`)
 
@@ -143,7 +147,12 @@ There is a separate audio-bucket S3 config (`S3_MEDIA_*` or fallback `S3_*` env 
 
 `createTestingModule(testName)` creates a fresh `luminary-test-<testName>` CouchDB DB per test file, seeds it, mocks `AuthIdentityService` to default to anonymous, and provides a real `DbService`, `Socketio`, and `S3Service`. Use this rather than hand-rolling test modules. Tests share the prefix `DB_DATABASE_PREFIX` (default `luminary-test`).
 
-`nest-cli.json` ensures `designDocs/*.json`, `userDataDesignDocs/*.json` and `seedingDocs/*.json` are copied into `dist/src/` on build so production startup can find them. Owner-source tests use hand-built mocks instead of the CouchDB-backed helper.
+`nest-cli.json` copies `db/designDocs/content/*.json`, `db/designDocs/user/*.json` and
+`db/seedingDocs/content/*.json` into the same layout under `dist/src/`. `databaseAssets.ts`
+defines those directories for the loaders and index registries. Shared bootstrap and language
+reconciliation read only content assets; the user database installs only user design documents.
+Seed loaders always use the supplied database instead of caching a database globally.
+Owner-source tests use hand-built mocks instead of the CouchDB-backed helper.
 
 ## Conventions
 

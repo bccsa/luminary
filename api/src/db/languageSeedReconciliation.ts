@@ -4,6 +4,7 @@ import { Logger } from "@nestjs/common";
 import { DbService } from "./db.service";
 import { LanguageDto } from "../dto/LanguageDto";
 import { DocType } from "../enums";
+import { CONTENT_SEED_DOCS_DIR } from "./databaseAssets";
 
 const logger = new Logger("LanguageTranslationSeedReconciliation");
 
@@ -23,7 +24,7 @@ function readTranslations(seedDir: string, fileName: string): Record<string, str
 // Each filename stem is the language doc _id it seeds (lang-eng.json → lang-eng), so adding
 // a new language seed file is picked up automatically here — no code change needed.
 export function readSeedLanguageTranslations(
-    seedDir = path.join(__dirname, "seedingDocs"),
+    seedDir = CONTENT_SEED_DOCS_DIR,
 ): Record<string, Record<string, string>> {
     const seedTranslations: Record<string, Record<string, string>> = {};
     for (const file of fs.readdirSync(seedDir)) {

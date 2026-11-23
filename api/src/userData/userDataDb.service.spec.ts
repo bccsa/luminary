@@ -111,6 +111,7 @@ describe("UserDataDbService (mocked nano)", () => {
         expect([...docs.values()].some((doc) => doc.type === "userActivity")).toBe(false);
         expect(docs.get("_local/userActivityFormat-v2").format).toBe(2);
         handle.list.mockClear();
+        service = new UserDataDbService(config, logger);
         await service.initialize();
         expect(handle.list).not.toHaveBeenCalled();
     });
@@ -148,6 +149,7 @@ describe("UserDataDbService (mocked nano)", () => {
         expect(docs.has("_local/userActivityFormat-v2")).toBe(false);
         expect(docs.has("owner-a:liked:post-1")).toBe(true);
 
+        service = new UserDataDbService(config, logger);
         await service.initialize();
         expect(service.enabled).toBe(true);
         const canonical = [...docs.values()].filter((doc) => doc.type === "liked");
@@ -202,6 +204,7 @@ describe("UserDataDbService (mocked nano)", () => {
     it("leaves an existing identical design document untouched", async () => {
         await service.initialize();
         handle.insert.mockClear();
+        service = new UserDataDbService(config, logger);
         await service.initialize();
         expect(handle.insert).not.toHaveBeenCalled();
         expect(service.enabled).toBe(true);
@@ -304,5 +307,63 @@ describe("UserDataDbService (mocked nano)", () => {
         handle.get.mockRejectedValue(new Error("connection failed"));
         await expect(service.upsert("owner-a", activity)).rejects.toThrow("connection failed");
         expect(handle.insert).not.toHaveBeenCalled();
+    });
+
+    it("shares one initialization and one connection across concurrent calls and activity requests", async () => {
+        let ready: (info: any) => void;
+        handle.info.mockReturnValue(
+            new Promise((resolve) => {
+                ready = resolve;
+            }),
+        );
+        const starts = Array.from({ length: 20 }, () => service.initialize());
+        expect(starts.every((start) => start === starts[0])).toBe(true);
+        expect(nano).toHaveBeenCalledTimes(1);
+        expect(handle.info).toHaveBeenCalledTimes(1);
+        expect(service.enabled).toBe(false);
+        expect(() => service.assertEnabled()).toThrow(ServiceUnavailableException);
+        ready({ props: { partitioned: true } });
+        await Promise.all(starts);
+        handle.list.mockClear();
+        handle.get.mockClear();
+        handle.insert.mockClear();
+
+        await Promise.all(
+            Array.from({ length: 100 }, async (_, i) => {
+                const doc = normalizeUserActivityDocument({
+                    _id: `viewed:post-${i}`,
+                    type: "userActivity",
+                    activityType: "viewed",
+                    parentId: `post-${i}`,
+                    activityTimeUtc: i,
+                });
+                await service.upsert("owner-a", doc);
+                await service.partitionedFind("owner-a", {
+                    selector: { type: "viewed" },
+                    use_index: "sync-viewed-index",
+                });
+            }),
+        );
+        await service.initialize();
+        expect(nano).toHaveBeenCalledTimes(1);
+        expect(handle.info).toHaveBeenCalledTimes(1);
+        expect(handle.list).not.toHaveBeenCalled();
+        expect(handle.get).toHaveBeenCalledTimes(100);
+        expect(handle.insert).toHaveBeenCalledTimes(100);
+        expect(handle.partitionedFind).toHaveBeenCalledTimes(100);
+    });
+
+    it("retries failed initialization only on a new service instance", async () => {
+        handle.info.mockRejectedValueOnce(missing());
+        await service.initialize();
+        await service.initialize();
+        expect(service.enabled).toBe(false);
+        expect(nano).toHaveBeenCalledTimes(1);
+        expect(handle.info).toHaveBeenCalledTimes(1);
+
+        service = new UserDataDbService(config, logger);
+        await service.initialize();
+        expect(service.enabled).toBe(true);
+        expect(nano).toHaveBeenCalledTimes(2);
     });
 });

@@ -65,7 +65,7 @@ app/
 
 ## Internationalisation
 
-UI strings are stored in CouchDB language documents and loaded at runtime via `src/i18n.ts` using [vue-i18n](https://vue-i18n.intlify.dev/). The default English strings are seeded from `api/src/db/seedingDocs/lang-eng.json`.
+UI strings are stored in CouchDB language documents and loaded at runtime via `src/i18n.ts` using [vue-i18n](https://vue-i18n.intlify.dev/). The default English strings are seeded from `api/src/db/seedingDocs/content/lang-eng.json`.
 
 See [docs/guides/translations.md](../docs/guides/translations.md) for details on:
 

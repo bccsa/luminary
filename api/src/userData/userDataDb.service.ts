@@ -10,17 +10,18 @@ import { UserActivityDto } from "../dto/UserActivityDto";
 import { isEqualDoc } from "../util/isEqualDoc";
 import { loadIndexNames } from "../db/indexNameRegistry";
 import { normalizeUserActivityDocument } from "./activityIdentity";
+import { USER_DESIGN_DOCS_DIR } from "../db/databaseAssets";
 
-const DESIGN_DOC_DIR = path.join(__dirname, "../db/userDataDesignDocs");
 let indexNames: ReadonlySet<string>;
 export function getUserDataIndexNames(): ReadonlySet<string> {
-    return (indexNames ??= loadIndexNames(DESIGN_DOC_DIR));
+    return (indexNames ??= loadIndexNames(USER_DESIGN_DOCS_DIR));
 }
 
 @Injectable()
 export class UserDataDbService {
     private connection: nano.DocumentScope<UserActivityDto>;
     private available = false;
+    private initialization?: Promise<void>;
 
     constructor(
         private readonly config: ConfigService,
@@ -32,7 +33,11 @@ export class UserDataDbService {
     }
 
     /** One startup attempt, with no change feed, database creation or background retry loop. */
-    async initialize(): Promise<void> {
+    initialize(): Promise<void> {
+        return (this.initialization ??= this.initializeSource());
+    }
+
+    private async initializeSource(): Promise<void> {
         this.available = false;
         const settings = this.config.get<UserDataConfig>("userData");
         if (!settings?.database && !settings?.idSecret) return;
@@ -67,8 +72,12 @@ export class UserDataDbService {
             if (!getUserDataIndexNames().has("sync-userActivity-index")) {
                 throw new Error("Missing user-data design documents");
             }
-            for (const file of fs.readdirSync(DESIGN_DOC_DIR).filter((f) => f.endsWith(".json"))) {
-                const design = JSON.parse(fs.readFileSync(path.join(DESIGN_DOC_DIR, file), "utf8"));
+            for (const file of fs
+                .readdirSync(USER_DESIGN_DOCS_DIR)
+                .filter((f) => f.endsWith(".json"))) {
+                const design = JSON.parse(
+                    fs.readFileSync(path.join(USER_DESIGN_DOCS_DIR, file), "utf8"),
+                );
                 await this.upsertDesignDoc(design);
             }
             await this.migrateActivityFormat();

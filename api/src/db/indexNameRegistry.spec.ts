@@ -1,4 +1,6 @@
 import * as path from "path";
+import { CONTENT_DESIGN_DOCS_DIR } from "./databaseAssets";
+import { getUserDataIndexNames } from "../userData/userDataDb.service";
 import {
     loadIndexNames,
     getIndexNameRegistry,
@@ -6,7 +8,7 @@ import {
     _resetIndexNameRegistryForTests,
 } from "./indexNameRegistry";
 
-const DESIGN_DOCS_DIR = path.join(__dirname, "designDocs");
+const DESIGN_DOCS_DIR = CONTENT_DESIGN_DOCS_DIR;
 
 describe("indexNameRegistry", () => {
     afterEach(() => {
@@ -46,6 +48,20 @@ describe("indexNameRegistry", () => {
     });
 
     describe("getIndexNameRegistry", () => {
+        it("keeps user and content index registries separate and memoized", () => {
+            const content = getIndexNameRegistry();
+            const user = getUserDataIndexNames();
+            expect([...user].sort()).toEqual([
+                "sync-highlighted-index",
+                "sync-liked-index",
+                "sync-userActivity-index",
+                "sync-viewed-index",
+            ]);
+            expect([...user].every((name) => !content.has(name))).toBe(true);
+            expect(user.has("sync-user-index")).toBe(false);
+            expect(getUserDataIndexNames()).toBe(user);
+            expect(getIndexNameRegistry()).toBe(content);
+        });
         it("memoizes — returns the same instance across calls", () => {
             const a = getIndexNameRegistry();
             const b = getIndexNameRegistry();

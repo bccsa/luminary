@@ -1,10 +1,10 @@
 # Translation Strings
 
-Luminary's UI strings are stored as `translations` objects in language documents in CouchDB (seeded from `api/src/db/seedingDocs/lang-eng.json` and equivalent files for other languages). At runtime, `app/src/i18n.ts` loads these into [vue-i18n](https://vue-i18n.intlify.dev/) and falls back to the default language for any missing keys.
+Luminary's UI strings are stored as `translations` objects in language documents in CouchDB (seeded from `api/src/db/seedingDocs/content/lang-eng.json` and equivalent files for other languages). At runtime, `app/src/i18n.ts` loads these into [vue-i18n](https://vue-i18n.intlify.dev/) and falls back to the default language for any missing keys.
 
 ## Adding or updating translation strings
 
-1. Add the new key and its English string to `api/src/db/seedingDocs/lang-eng.json`.
+1. Add the new key and its English string to `api/src/db/seedingDocs/content/lang-eng.json`.
 2. Add the same key (with translated text) to every other `lang-*.json` seed file.
 3. Use the key in a Vue component with `t("your.key")` (or with interpolation parameters — see below).
 

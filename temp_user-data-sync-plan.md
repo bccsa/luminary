@@ -378,6 +378,7 @@ Manual check, two browsers on one account against an API with the source on:
 These follow-up phases are separate from the original implementation phases above.
 Where the activity DTO/wire format differs, Review Phase 2 below supersedes the original
 `user` / `userActivity` format described in sections 2–8.
+Review Phase 4 below supersedes the earlier database asset paths in this document.
 
 ### Review Phase 1 — authentication and identity
 
@@ -463,3 +464,31 @@ databases: 253 tests passed across 14 suites. API build, type checking and lint 
 code also passed. Live database and browser E2E tests remain user-owned. Database asset organization
 and the further performance review remain later review work; original live-sync/quota
 phases remain deferred.
+
+### Review Phase 4 — database assets and connection lifetime
+
+- Content indexes/views now live in `api/src/db/designDocs/content/`; partitioned user
+  indexes live in `api/src/db/designDocs/user/`. Content seeds, including language documents,
+  live in `api/src/db/seedingDocs/content/`. User activity has no seed documents.
+- All 100 JSON assets moved without byte changes: 47 content design docs, four user design
+  docs and 49 content seeds. CouchDB ids/index names and stored data formats are unchanged.
+- `databaseAssets.ts` centralizes loader/registry paths. Nest build assets preserve the same
+  directories in production output; content and user registries remain isolated and memoized.
+  Language reconciliation, guides, agent instructions and fixture documentation use the new paths.
+- Removed the seed loader's module-global first-database cache. Each invocation seeds its
+  supplied database, and shared bootstrap reads only content assets. Removed the unused
+  `destroyAllDocs` wrapper, which referenced a method that does not exist on `DbService`.
+- User database initialization now shares one promise per singleton, even for concurrent or
+  repeated calls. A failure remains disabled until restart; migration recovery tests create
+  a new service instance to model that restart accurately.
+- Mocked concurrent checks verify one nano client/initialization for 100 writes and 100
+  partitioned reads, with one revision read and one insert per uncontended write and no
+  repeated startup scan. Existing tests retain stale/identical-write suppression and conflict
+  re-reads. No activity-document cache is introduced that could become stale across API instances.
+
+Live CouchDB/S3 tests, throughput measurements and browser E2E remain user-owned. Original
+Phase 4 (live owner updates) and Phase 5 (quotas/tombstone cleanup) remain deferred.
+
+Verification: 249 mock-only tests passed across 16 suites, plus API build/type checking and
+lint/format checks on changed API code. All 100 relocated JSON assets match their original
+bytes and the compiled copies. Build output contains no assets at the old root paths.

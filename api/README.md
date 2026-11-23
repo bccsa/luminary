@@ -54,7 +54,7 @@ USER_DATA_ID_SECRET=<a dedicated secret generated once with openssl rand -hex 32
 Back up `USER_DATA_ID_SECRET` securely and **never rotate it**. It is independent of
 `ENCRYPTION_KEY`; losing or changing it or an issuer's domain orphans the corresponding data.
 The database must differ from `DB_DATABASE`. Startup checks that it exists and is partitioned,
-then installs the design documents from `src/db/userDataDesignDocs/`. Only a successful check
+then installs the design documents from `src/db/designDocs/user/`. Only a successful check
 advertises `clientConfig.dataSources: ["user", "user-v2"]` after the activity-format migration.
 A missing database, incomplete settings or
 index-installation failure logs an error and leaves the source off without a retry loop.
@@ -107,6 +107,27 @@ dependency. `UserQueryService` and `UserChangeRequestService` reuse `UserDataSer
 owner derivation and response conversion, and the same singleton `UserDataDbService` for
 storage. User validation acknowledgements intentionally remain separate from retryable
 HTTP errors; turning a storage failure into a rejected ack would discard the queued activity.
+
+Database assets are separated by target:
+
+```text
+src/db/designDocs/content/   Shared/content database indexes and views
+src/db/designDocs/user/      Partitioned user-activity indexes
+src/db/seedingDocs/content/  Shared/content seed documents, including languages
+```
+
+`src/db/databaseAssets.ts` defines the paths used by bootstrap, language reconciliation and
+the two index registries; the build preserves this layout under `dist/src/db/`. Content
+seeding always uses the supplied database, never the user source. User activity has no seed
+documents. Moving these files changes neither document contents nor CouchDB index names.
+
+User database initialization shares a single promise per Nest singleton, including concurrent
+or repeated calls. It creates one `nano` client and database handle; configuration/connection
+failures remain disabled until restart. Once enabled, queries use `partitionedFind` and the
+per-type indexes, with no repeated initialization, filesystem reads or startup scan. An
+uncontended activity write reads the current revision then writes once; stale or identical
+retries skip the write. Conflicts still re-read to preserve activity-time ordering across API
+instances. Mocked request-count checks verify this behavior; live throughput has not been measured.
 
 On the first startup with this format, the API migrates existing user-data records in pages of
 100, preserving owner partitions and activity timestamps, then writes
@@ -199,7 +220,7 @@ $ npm run test:unit
 $ npm run test:cov
 ```
 
-Jest (included with NestJS) is used for automated API unit testing. Each test file gets a fresh, seeded CouchDB database via `createTestingModule` (see `src/test/testingModule.ts`), seeded from [`src/db/designDocs`](src/db/designDocs) and [`src/db/seedingDocs`](src/db/seedingDocs).
+Jest (included with NestJS) is used for automated API unit testing. Each test file gets a fresh, seeded CouchDB database via `createTestingModule` (see `src/test/testingModule.ts`), seeded from [`src/db/designDocs/content`](src/db/designDocs/content) and [`src/db/seedingDocs/content`](src/db/seedingDocs/content).
 
 The Jest unit testing currently does not include teardown logic. Destroying documents does not delete them from the CouchDB database, it marks them as deleted — this does not work well with testing where we reuse the testing database (i.e. local testing on your computer), since CouchDB / nano complains that the document is deleted and hence cannot be recreated. In real-life scenarios recreating a deleted document should never occur, and if it does this would be an exception that should be logged to an error log instead of being processed. It therefore does not work to destroy our testing data set for local testing — the developer can rather delete the testing database on their computer once in a while if it gets too big.
 

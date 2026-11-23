@@ -9,7 +9,7 @@ Adding a sync target touches three places. Miss any one and either (a) the API r
 
 ## The three places
 
-1. **Design doc** in `api/src/db/designDocs/sync-<type>-index.json` (and usually a sibling `sync-<type>-deleteCmd-index.json` for the delete-cmd column). This file is also what makes the `use_index` name valid: `validation/query/validateQuery.ts` checks `use_index` against the registry built from these design-doc files at boot (`db/indexNameRegistry.ts`), so adding the JSON is what lets clients pin the index.
+1. **Design doc** in `api/src/db/designDocs/content/sync-<type>-index.json` (and usually a sibling `sync-<type>-deleteCmd-index.json` for the delete-cmd column). This file is also what makes the `use_index` name valid: `validation/query/validateQuery.ts` checks `use_index` against the registry built from these design-doc files at boot (`db/indexNameRegistry.ts`), so adding the JSON is what lets clients pin the index.
 2. **Consumer syncList** — register the doc type in `shared/`'s init config (passed in via `app/src/main.ts` / `cms/src/main.ts`).
 3. **Watcher** in `app/src/sync.ts` or `cms/src/sync.ts` — adds the actual `sync({...})` call gated on permissions/connectivity.
 
@@ -28,7 +28,7 @@ Establish before writing files:
 
 ### 2. Add the design doc(s)
 
-Use `api/src/db/designDocs/sync-tag-index.json` as the canonical template:
+Use `api/src/db/designDocs/content/sync-tag-index.json` as the canonical template:
 
 ```json
 {
@@ -109,7 +109,7 @@ For DeleteCmd: this is **not** a separate `sync()` call from the consumer. `Cont
 
 Run these in parallel via the shell:
 
-- Confirm the new design doc(s) parse: `python3 -c "import json; json.load(open('api/src/db/designDocs/sync-<type>-index.json'))"` (or `jq . <file>` if jq is available).
+- Confirm the new design doc(s) parse: `python3 -c "import json; json.load(open('api/src/db/designDocs/content/sync-<type>-index.json'))"` (or `jq . <file>` if jq is available).
 - Grep for the new DocType in `app/src/sync.ts` / `cms/src/sync.ts` to confirm the watcher is registered.
 - Grep for the new use_index name in the sync code to confirm it matches the file name exactly.
 
