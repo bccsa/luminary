@@ -7,18 +7,19 @@ import { useDesktopSidebar } from "@/composables/useDesktopSidebar";
 import { sidebarSectionExpanded } from "@/globalConfig";
 
 // Hoisted so the auth mock below can expose it and the tests can assert on it.
-const { logoutMock } = vi.hoisted(() => ({
+const { logoutMock, currentRoute } = vi.hoisted(() => ({
     logoutMock: vi.fn(),
+    // Plain object (not a ref): tests set `.value` before mounting, so no reactivity is needed.
+    currentRoute: { value: { name: "dashboard", params: {} } as { name: string; params: object } },
 }));
 
 vi.mock("vue-router", async (importOriginal) => {
-    const { ref } = await import("vue");
     const actual = await importOriginal();
     return {
         ...(actual as any),
         useRouter: () => ({
             push: vi.fn(),
-            currentRoute: ref({ name: "dashboard" }),
+            currentRoute,
         }),
     };
 });
@@ -66,6 +67,7 @@ describe("SideBar", () => {
     beforeEach(() => {
         accessMap.value = superAdminAccessMap;
         logoutMock.mockClear();
+        currentRoute.value = { name: "dashboard", params: {} };
         // Reset shared (module-singleton) sidebar state so tests don't leak into each other.
         useDesktopSidebar().collapsed.value = false;
         sidebarSectionExpanded.value = { posts: false, tags: false, access: false };
@@ -233,5 +235,47 @@ describe("SideBar", () => {
         // clearAuthCache() is now logout()'s own internal responsibility (see
         // auth.spec.ts) — SideBar just needs to call logout().
         expect(logoutMock).toHaveBeenCalled();
+    });
+
+    describe("section highlight on detail routes", () => {
+        // Detail pages are sibling routes of their list route, so RouterLink alone never marks the section active.
+        const isHighlighted = (label: string) => {
+            sidebarSectionExpanded.value = { posts: true, tags: true, access: false };
+            const wrapper = mount(SideBar);
+            const link = wrapper.findAll("a").find((a) => a.text() === label);
+            expect(link).toBeDefined();
+            return link!.classes().includes("bg-zinc-200");
+        };
+
+        it("highlights the post type of the content being edited", () => {
+            currentRoute.value = {
+                name: "edit",
+                params: { docType: "post", tagOrPostType: "blog", id: "post-1" },
+            };
+
+            expect(isHighlighted("Blog")).toBe(true);
+        });
+
+        it("does not highlight a tag type when editing a post", () => {
+            currentRoute.value = {
+                name: "edit",
+                params: { docType: "post", tagOrPostType: "blog", id: "post-1" },
+            };
+
+            expect(isHighlighted("Category")).toBe(false);
+        });
+
+        it("highlights Languages on a language detail route", () => {
+            currentRoute.value = { name: "language", params: { id: "lang-eng" } };
+
+            expect(isHighlighted("Languages")).toBe(true);
+        });
+
+        it("highlights nothing on a route that is not a detail route", () => {
+            currentRoute.value = { name: "dashboard", params: {} };
+
+            expect(isHighlighted("Blog")).toBe(false);
+            expect(isHighlighted("Languages")).toBe(false);
+        });
     });
 });
