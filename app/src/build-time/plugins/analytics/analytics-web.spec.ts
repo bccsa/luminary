@@ -42,6 +42,28 @@ describe("WebAnalyticsService", () => {
         expect(pageViews[0][2]).toMatchObject({ page_path: "/a", page_title: "A" });
     });
 
+    it("reports later events against the path only, never the browser's query string", () => {
+        window.history.replaceState(null, "", "/an-article?code=secret&state=x");
+        const analytics = new WebAnalyticsService(ID);
+        analytics.setEnabled(true);
+        analytics.pageView({ path: "/an-article", title: "An article" });
+        const calls = (window.dataLayer as IArguments[]).map((args) => Array.from(args));
+
+        const config = calls.find(([command]) => command === "config");
+        const set = calls.find(
+            ([command, value]) => command === "set" && typeof value === "object",
+        );
+        expect(config?.[2]).toMatchObject({
+            page_location: `${window.location.origin}/an-article`,
+        });
+        expect(set?.[1]).toEqual({
+            page_location: `${window.location.origin}/an-article`,
+            page_title: "An article",
+        });
+        expect(JSON.stringify(calls)).not.toContain("secret");
+        window.history.replaceState(null, "", "/");
+    });
+
     it("sends events only while enabled", () => {
         const analytics = new WebAnalyticsService(ID);
         analytics.setEnabled(true);

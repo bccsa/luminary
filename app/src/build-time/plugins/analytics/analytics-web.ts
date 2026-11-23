@@ -65,7 +65,10 @@ export class WebAnalyticsService implements AnalyticsService {
         };
         window.gtag("js", new Date());
         // Page views are sent from the router, so the SPA's navigations are counted.
-        window.gtag("config", this.measurementId, { send_page_view: false });
+        window.gtag("config", this.measurementId, {
+            send_page_view: false,
+            page_location: pageLocation(window.location.pathname),
+        });
         if (this.platform) window.gtag("set", "user_properties", { platform: this.platform });
 
         const script = document.createElement("script");
@@ -75,13 +78,15 @@ export class WebAnalyticsService implements AnalyticsService {
     }
 
     private sendPageView({ path, title }: PageView): void {
-        window.gtag?.("event", "page_view", {
-            page_location: window.location.origin + path,
-            page_path: path,
-            page_title: title,
-        });
+        const page = { page_location: pageLocation(path), page_title: title };
+        // Every later event reports this page too: gtag would otherwise read the browser's URL,
+        // query string (search terms, sign-in codes) included.
+        window.gtag?.("set", page);
+        window.gtag?.("event", "page_view", { ...page, page_path: path });
     }
 }
+
+const pageLocation = (path: string) => window.location.origin + path;
 
 /** Drops the GA client-id cookies, so a reader who withdraws consent is no longer identifiable. */
 function clearGaCookies(): void {
