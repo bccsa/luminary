@@ -317,6 +317,12 @@ describe("isEncoderOutdated", () => {
         expect(isEncoderOutdated(undefined)).toBe(false);
         expect(isEncoderOutdated("dev")).toBe(false);
     });
+
+    it("measures against a stated minimum when given one", () => {
+        expect(isEncoderOutdated("0.0.1", "0.0.2")).toBe(true);
+        expect(isEncoderOutdated("0.0.2", "0.0.2")).toBe(false);
+        expect(isEncoderOutdated("0.1.0", "0.0.2")).toBe(false);
+    });
 });
 
 describe("ackEncoderSession", () => {

@@ -22,6 +22,14 @@ describe("installVideoPlayer", () => {
         );
     });
 
+    it("plays no downloads: every item streams in the browser", () => {
+        const provide = vi.fn();
+
+        installVideoPlayer({ provide } as never);
+
+        expect(provide.mock.calls[0][1].playsDownloads).toBeUndefined();
+    });
+
     it("hands it the videos up next, for its panel and for the strip near the end", () => {
         // The page hands a player only the lists it says it takes.
         const provide = vi.fn();

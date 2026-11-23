@@ -21,6 +21,7 @@ import {
     rememberEncoderSession,
     isEncoderOutdated,
     subscribeToEncoderSession,
+    BLOCK_SECONDS_MIN_ENCODER_VERSION,
     type EncoderPipelineProgress,
     type EncoderSessionEvent,
     type EncoderSessionHandle,
@@ -70,6 +71,16 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
     const progress = ref<number>();
     const pipelineProgress = ref<EncoderPipelineProgress>();
     const error = ref<string>();
+    /** An encode or edit of this document was refused for the encoder's version. */
+    const refusedForVersion = ref(false);
+    /**
+     * The encoder is too old for this bucket's encode settings, so nothing was opened. Held
+     * only while that encoder is still the one running: closed, the editor needs the launch
+     * notice instead, and an updated one takes the encode.
+     */
+    const needsUpdate = computed(
+        () => refusedForVersion.value && availability.value === "available" && !blockSecondsKnown(),
+    );
     /** An encode of this document is running. An edit session opens finished, so it never counts. */
     const encoding = computed(() => status.value != undefined && !isFinished(status.value));
     const sessionId = ref<string>();
@@ -89,6 +100,22 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
      */
     let lost: { documentId: string; onMediaReady: MediaReadyHandler } | undefined;
     let pickingUp = false;
+    /**
+     * Counts the caller's start, edit, stop and resume calls, so an answer that arrives
+     * after the caller has moved on is not shown against the document it moved to.
+     */
+    let currentCall = 0;
+    /** The document of the latest start or edit, which a resume of it must not overtake. */
+    let callDocument: string | undefined;
+    /**
+     * The document the caller has on screen, until it stops. A start or edit of it answered
+     * after a later call is still that document's session, and nothing else would follow it.
+     */
+    let servedDocument: string | undefined;
+    /** The call whose start or edit failed, so a resume sharing it does not clear its error. */
+    let failedCall: number | undefined;
+    /** The newest start or edit that stored a session, per document. */
+    const storedBy = new Map<string, number>();
 
     // The awaits in start/resume/publish can outlive the component (the encoder's
     // trust prompt, a slow key fetch); nothing after them may touch a dead instance.
@@ -160,7 +187,7 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
         if (!session || followed || pickingUp || busy.value || disposed) return;
         pickingUp = true;
         try {
-            await resume(session);
+            await resumeSession(session, currentCall);
             if (lost === session && !recallEncoderSession(session.documentId)) lost = undefined;
         } finally {
             pickingUp = false;
@@ -211,8 +238,13 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
 
     /** Stop following for good: the caller has moved on from this document. */
     function stop() {
+        currentCall++;
+        // A start or edit still in flight is no longer current, so it will not clear this.
+        busy.value = false;
         drop();
         lost = undefined;
+        servedDocument = undefined;
+        refusedForVersion.value = false;
     }
 
     /**
@@ -241,6 +273,72 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
         acknowledgeIfStored();
     }
 
+    /** Whether the running encoder accepts `byteRangeBlockSeconds` in a session body. */
+    function blockSecondsKnown(): boolean {
+        return !isEncoderOutdated(encoderVersion.value, BLOCK_SECONDS_MIN_ENCODER_VERSION);
+    }
+
+    /**
+     * Whether the running encoder would reject this session body as naming a field it
+     * does not know, so the editor is asked to update rather than shown its raw 400.
+     * A block length of 0 never counts: see {@link sessionSettings}.
+     */
+    function encoderTooOldFor(config: { byteRangeBlockSeconds?: number | null }): boolean {
+        return (config.byteRangeBlockSeconds ?? 0) > 0 && !blockSecondsKnown();
+    }
+
+    /**
+     * The session body for this bucket's config. An encoder that does not know the block
+     * length packs segments in arrival order, which is what 0 asks for, so a 0 is left out
+     * for it rather than have the session refused.
+     */
+    function sessionSettings<T extends { byteRangeBlockSeconds?: number | null }>(config: T) {
+        const { byteRangeBlockSeconds, ...rest } = config;
+        if (byteRangeBlockSeconds == undefined) return rest;
+        return byteRangeBlockSeconds === 0 && !blockSecondsKnown() ? rest : config;
+    }
+
+    /**
+     * Whether a session a replaced start or edit has just opened for `documentId` is still
+     * to be followed: the caller is back on that document and follows nothing else. Only
+     * the session is taken up; the replaced call's error, refusal and busy state are not.
+     */
+    function adoptable(documentId: string): boolean {
+        return servedDocument === documentId && !followed;
+    }
+
+    /** Whether a start or edit has stored a session for `documentId` other than `handle`. */
+    function storedOther(documentId: string, handle: EncoderSessionHandle): boolean {
+        const stored = recallEncoderSession(documentId);
+        // Nothing stored is not another session: a browser that refuses storage still
+        // follows the session its edit has just opened.
+        return stored != undefined && stored.sessionId !== handle.sessionId;
+    }
+
+    /**
+     * Store the session a start or edit opened, unless a newer one has stored its own for the
+     * document meanwhile: answers can arrive out of order, and the newer session is the one a
+     * reload or a dropped stream must find.
+     */
+    function storeSession(documentId: string, handle: EncoderSessionHandle, call: number): boolean {
+        if ((storedBy.get(documentId) ?? 0) > call) return false;
+        storedBy.set(documentId, call);
+        rememberEncoderSession(documentId, handle);
+        return true;
+    }
+
+    /**
+     * Clear what is shown before a start or edit follows its session: a resume that shared or
+     * followed its call may have written the state of the session this one replaces. A failure
+     * of the current call stays.
+     */
+    function clearReplacedState() {
+        status.value = undefined;
+        progress.value = undefined;
+        pipelineProgress.value = undefined;
+        if (failedCall !== currentCall) error.value = undefined;
+    }
+
     /**
      * Open an encoder session for this document and follow it.
      *
@@ -254,7 +352,10 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
         mediaBucketId: string;
         onMediaReady: MediaReadyHandler;
     }): Promise<void> {
+        const call = ++currentCall;
+        callDocument = servedDocument = options.documentId;
         error.value = undefined;
+        refusedForVersion.value = false;
         status.value = undefined;
         progress.value = undefined;
         pipelineProgress.value = undefined;
@@ -272,6 +373,10 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
             if (!config) {
                 throw new Error("Could not read the storage configuration for this bucket.");
             }
+            if (encoderTooOldFor(config)) {
+                if (call === currentCall) refusedForVersion.value = true;
+                return;
+            }
 
             // The response is shaped as the encoder's session body — the bucket's
             // encode settings (encryption, byte range, chunk size) travel inside it,
@@ -279,7 +384,7 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
             const session = await createEncoderSession({
                 documentId: options.documentId,
                 title: options.title,
-                ...config,
+                ...sessionSettings(config),
             });
 
             const handle: EncoderSessionHandle = {
@@ -292,14 +397,18 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
             };
             // Stored before the first event, so a reload during the encode can
             // find it again — and so a page that has since moved on can resume it.
-            rememberEncoderSession(options.documentId, handle);
+            if (!storeSession(options.documentId, handle, call)) return;
 
-            if (disposed) return;
+            if (disposed || (call !== currentCall && !adoptable(options.documentId))) return;
+            clearReplacedState();
             follow(handle, options.documentId, options.onMediaReady);
         } catch (err: any) {
-            error.value = err?.message ?? String(err);
+            if (call === currentCall) {
+                failedCall = call;
+                error.value = err?.message ?? String(err);
+            }
         } finally {
-            busy.value = false;
+            if (call === currentCall) busy.value = false;
         }
     }
 
@@ -317,7 +426,10 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
         hlsUrl: string;
         onMediaReady: MediaReadyHandler;
     }): Promise<void> {
+        const call = ++currentCall;
+        callDocument = servedDocument = options.documentId;
         error.value = undefined;
+        refusedForVersion.value = false;
         busy.value = true;
         try {
             if (!(await refreshAvailability())) {
@@ -332,13 +444,17 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
             if (!config) {
                 throw new Error("Could not read the storage configuration for this bucket.");
             }
+            if (encoderTooOldFor(config)) {
+                if (call === currentCall) refusedForVersion.value = true;
+                return;
+            }
             // The encoder reads the video's playlists with it when they are encrypted;
             // none back is a video that never was.
             const hlsKey = await fetchHlsKey(options.documentId, { cms: true });
             const session = await createEncoderSession({
                 documentId: options.documentId,
                 title: options.title,
-                ...config,
+                ...sessionSettings(config),
                 mode: "edit",
                 existingMedia: { hlsUrl: options.hlsUrl, ...(hlsKey ? { hlsKey } : {}) },
             });
@@ -351,16 +467,29 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
                 // bucket's current setting says nothing about a video encoded before it.
                 encryptionRequired: Boolean(hlsKey),
             };
-            rememberEncoderSession(options.documentId, handle);
+            if (!storeSession(options.documentId, handle, call)) return;
 
-            if (disposed) return;
+            if (disposed || (call !== currentCall && !adoptable(options.documentId))) return;
+            // A resume sharing this call may follow the session this one replaces: its stream
+            // is closed here, or an event it sends during the catch-up's key read is shown.
+            drop();
+            clearReplacedState();
             // The session may have opened a newer version than the document holds,
             // when an edit was saved that never reached it.
-            await catchUp(handle, options.documentId, session.hlsUrl, options.onMediaReady);
+            await catchUp(
+                handle,
+                options.documentId,
+                session.hlsUrl,
+                options.onMediaReady,
+                currentCall,
+            );
         } catch (err: any) {
-            error.value = err?.message ?? String(err);
+            if (call === currentCall) {
+                failedCall = call;
+                error.value = err?.message ?? String(err);
+            }
         } finally {
-            busy.value = false;
+            if (call === currentCall) busy.value = false;
         }
     }
 
@@ -373,8 +502,9 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
      * keeps whichever `hlsKey_id` it already had, and that key does not open this
      * collection.
      *
-     * `stillWanted` is asked once the key is in: a newer version published meanwhile
-     * is handed over instead, and an older one arriving after it must not replace it.
+     * `stillWanted` is asked once the key read settles: a newer version published
+     * meanwhile is handed over instead, and an older one arriving after it must neither
+     * replace it nor report its own failure over it.
      */
     /** The error a failed key read left, cleared once a later read succeeds. */
     let keyError: string | undefined;
@@ -392,7 +522,7 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
             // unencrypted. Anything else throws.
             hlsKey = await fetchEncoderSessionKey(handle.sessionId, handle.readToken);
         } catch (err: any) {
-            if (disposed) return false;
+            if (disposed || !stillWanted()) return false;
             error.value = keyError = `Could not read the encryption key for this encode: ${
                 err?.message ?? String(err)
             } The media was not written to the document.`;
@@ -432,6 +562,9 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
         sessionId.value = handle.sessionId;
         followed = handle;
         lost = { documentId, onMediaReady };
+        // A stream picked up again on the same document keeps the call, so its handovers
+        // still land; one the caller has moved on from does not report into the next.
+        const call = currentCall;
 
         // The URL handed over, or being handed over.
         let claimed = handedOver;
@@ -442,7 +575,15 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
             // released again when the attempt did not write anything.
             claimed = hlsUrl;
             retryHandOver = undefined;
-            const stillWanted = () => claimed === hlsUrl;
+            // A resume sharing an Edit's call keeps its call number once the edit replaces its
+            // session, so the session followed decides; while none is, the store does. A start
+            // or edit answered late can store its own and still leave this one followed.
+            const stillWanted = () =>
+                claimed === hlsUrl &&
+                call === currentCall &&
+                (followed
+                    ? followed.sessionId === handle.sessionId
+                    : !storedOther(documentId, handle));
             void publish(handle, documentId, hlsUrl, onMediaReady, stillWanted).then(
                 (published) => {
                     if (published || !stillWanted()) return;
@@ -454,6 +595,9 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
 
         unsubscribe = subscribeToEncoderSession(handle.eventsUrl, {
             onEvent: (event: EncoderSessionEvent) => {
+                // A message already queued when the stream was let go must not write over
+                // the state of whatever replaced it.
+                if (followed !== handle) return;
                 status.value = event.status;
                 progress.value = event.progress;
                 pipelineProgress.value = event.pipelineProgress;
@@ -467,7 +611,7 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
                 // The stream drops when the encoder quits, the machine sleeps or the
                 // session ends. Anything already saved stands, and the session is
                 // followed again once the encoder answers, if it still holds it.
-                drop();
+                if (followed === handle) drop();
             },
         });
     }
@@ -476,18 +620,24 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
      * Hand over the URL a session already has, then follow it. An encoder from before
      * versioned playlists opens its stream with nothing, so a reload would otherwise
      * lose the URL the encoder is already writing to.
+     *
+     * `call` is the caller's call number: once another call has replaced it, or another
+     * session has been stored for the document, nothing of this one is handed over or
+     * followed.
      */
     async function catchUp(
         handle: EncoderSessionHandle,
         documentId: string,
         hlsUrl: string | undefined,
         onMediaReady: MediaReadyHandler,
+        call: number,
     ): Promise<boolean> {
+        const current = () => call === currentCall && !storedOther(documentId, handle);
         const handedOver =
-            hlsUrl && (await publish(handle, documentId, hlsUrl, onMediaReady))
+            hlsUrl && (await publish(handle, documentId, hlsUrl, onMediaReady, current))
                 ? hlsUrl
                 : undefined;
-        if (disposed) return false;
+        if (disposed || !current()) return false;
 
         follow(handle, documentId, onMediaReady, handedOver);
         if (hlsUrl) announce(hlsUrl);
@@ -509,12 +659,41 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
         documentId: string;
         onMediaReady: MediaReadyHandler;
     }): Promise<boolean> {
+        // A start or edit of this same document still in flight is the caller's latest
+        // word on it: its answer, a refusal included, must still land.
+        if (!(busy.value && options.documentId === callDocument)) {
+            currentCall++;
+            busy.value = false;
+            refusedForVersion.value = false;
+        }
+        servedDocument = options.documentId;
+        return resumeSession(options, currentCall);
+    }
+
+    /**
+     * {@link resume} without settling a refusal: picking a dropped stream up again on the
+     * same document leaves the reason its last encode was refused standing. Gives up once
+     * a call other than `call` has replaced it, or a start or edit has stored another
+     * session for the document.
+     */
+    async function resumeSession(
+        options: {
+            documentId: string;
+            onMediaReady: MediaReadyHandler;
+        },
+        call: number,
+    ): Promise<boolean> {
         const handle = recallEncoderSession(options.documentId);
         if (!handle) return false;
-        if (!(await refreshAvailability()) || disposed) return false;
+        // The handle came from the store, so one gone from it was forgotten or replaced.
+        const stale = () =>
+            disposed ||
+            call !== currentCall ||
+            recallEncoderSession(options.documentId)?.sessionId !== handle.sessionId;
+        if (!(await refreshAvailability()) || stale()) return false;
 
         const session = await fetchEncoderSessionStatus(handle.sessionId, handle.readToken);
-        if (disposed) return false;
+        if (stale()) return false;
         if (!session) {
             forgetEncoderSession(options.documentId);
             return false;
@@ -530,9 +709,9 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
         status.value = session.status;
         progress.value = session.progress;
         pipelineProgress.value = session.pipelineProgress;
-        error.value = session.error;
+        if (failedCall !== call) error.value = session.error;
 
-        return catchUp(handle, options.documentId, session.hlsUrl, options.onMediaReady);
+        return catchUp(handle, options.documentId, session.hlsUrl, options.onMediaReady, call);
     }
 
     onUnmounted(() => {
@@ -555,6 +734,7 @@ export function useMediaEncoder({ storedHlsUrl }: UseMediaEncoderOptions = {}) {
         progress,
         pipelineProgress,
         error,
+        needsUpdate,
         sessionId,
         refreshAvailability,
         watchForEncoder,

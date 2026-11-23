@@ -22,7 +22,10 @@ vi.mock("vite-ssg", () => ({
 }));
 vi.mock("@/App.vue", () => ({ default: {} }));
 vi.mock("@/i18n", () => ({ initI18n: () => ({ install: () => undefined }) }));
-vi.mock("@/ssg/clientRuntime", () => ({ initSsgClient: vi.fn(async () => undefined) }));
+vi.mock("@/ssg/clientRuntime", () => ({
+    initSsgClient: vi.fn(async () => undefined),
+    installSsgAppPromo: vi.fn(),
+}));
 vi.mock("@/auth", () => ({ setupAuth: vi.fn(async () => undefined) }));
 vi.mock("@/util/ssgTextRecovery", () => ({ captureSsgArticleTextSnapshot: vi.fn() }));
 vi.mock("@/ssg/hydrationLanguage", () => ({ applyServedLanguage: vi.fn() }));

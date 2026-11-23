@@ -14,6 +14,7 @@ import { db, type ContentDto, DocType, PostType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import {
+    markMediaCompleted,
     setMediaProgress,
     setReadingProgress,
     syncContentProgressFromStorage,
@@ -60,6 +61,34 @@ describe("ContinueProgress", () => {
 
         await new Promise((resolve) => setTimeout(resolve, 50));
         expect(wrapper.text()).not.toContain(mockEnglishContentDto.title);
+    });
+
+    it("hides content played to the end of a partial download, though below 95%", async () => {
+        await db.docs.bulkPut([mockEnglishContentDto]);
+        markMediaCompleted(
+            `media-${mockEnglishContentDto._id}`,
+            mockEnglishContentDto._id,
+            200,
+            300,
+        );
+
+        const wrapper = mount(ContinueProgress);
+
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(wrapper.text()).not.toContain(mockEnglishContentDto.title);
+    });
+
+    it("shows it again once playback carries on past the mark", async () => {
+        await db.docs.bulkPut([mockEnglishContentDto]);
+        const mediaId = `media-${mockEnglishContentDto._id}`;
+        markMediaCompleted(mediaId, mockEnglishContentDto._id, 200, 300);
+        setMediaProgress(mediaId, mockEnglishContentDto._id, 210, 300);
+
+        const wrapper = mount(ContinueProgress);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+        });
     });
 
     it("shows only the 10 most recent unfinished items", async () => {

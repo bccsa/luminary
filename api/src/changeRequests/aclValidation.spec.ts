@@ -137,43 +137,45 @@ describe("validateAcl", () => {
         expect(result[0].permission).toContain(AclPermission.View);
     });
 
-    // Share is app-facing and assignable on the content-bearing doc types only.
-    it.each([DocType.Post, DocType.Tag])("should accept Share on doc type %s", (docType) => {
-        const acl = [createEntry(docType, "g1", [AclPermission.View, AclPermission.Share])];
-        const result = validateAcl(acl);
+    // Share and Download are app-facing and assignable on the content-bearing doc types only.
+    describe.each([AclPermission.Share, AclPermission.Download])("%s", (permission) => {
+        it.each([DocType.Post, DocType.Tag])("should be accepted on doc type %s", (docType) => {
+            const acl = [createEntry(docType, "g1", [AclPermission.View, permission])];
+            const result = validateAcl(acl);
 
-        expect(result[0].permission).toContain(AclPermission.Share);
-        expect(result[0].permission).toContain(AclPermission.View);
-    });
+            expect(result[0].permission).toContain(permission);
+            expect(result[0].permission).toContain(AclPermission.View);
+        });
 
-    it.each([
-        DocType.Group,
-        DocType.Language,
-        DocType.User,
-        DocType.Redirect,
-        DocType.Storage,
-        DocType.AuthProvider,
-        DocType.AutoGroupMappings,
-    ])("should strip Share from doc type %s", (docType) => {
-        const acl = [createEntry(docType, "g1", [AclPermission.View, AclPermission.Share])];
-        const result = validateAcl(acl);
+        it.each([
+            DocType.Group,
+            DocType.Language,
+            DocType.User,
+            DocType.Redirect,
+            DocType.Storage,
+            DocType.AuthProvider,
+            DocType.AutoGroupMappings,
+        ])("should be stripped from doc type %s", (docType) => {
+            const acl = [createEntry(docType, "g1", [AclPermission.View, permission])];
+            const result = validateAcl(acl);
 
-        expect(result[0].permission).not.toContain(AclPermission.Share);
-        expect(result[0].permission).toContain(AclPermission.View);
-    });
+            expect(result[0].permission).not.toContain(permission);
+            expect(result[0].permission).toContain(AclPermission.View);
+        });
 
-    it("should not auto-add CmsView for Share", () => {
-        const acl = [createEntry(DocType.Post, "g1", [AclPermission.View, AclPermission.Share])];
-        const result = validateAcl(acl);
+        it("should not auto-add CmsView", () => {
+            const acl = [createEntry(DocType.Post, "g1", [AclPermission.View, permission])];
+            const result = validateAcl(acl);
 
-        expect(result[0].permission).not.toContain(AclPermission.CmsView);
-    });
+            expect(result[0].permission).not.toContain(AclPermission.CmsView);
+        });
 
-    it("should remove a Share-only entry", () => {
-        const acl = [createEntry(DocType.Post, "g1", [AclPermission.Share])];
-        const result = validateAcl(acl);
+        it("should remove an entry holding only this permission", () => {
+            const acl = [createEntry(DocType.Post, "g1", [permission])];
+            const result = validateAcl(acl);
 
-        expect(result).toHaveLength(0);
+            expect(result).toHaveLength(0);
+        });
     });
 
     it("should strip CmsView from a doc type not in availablePermissionsPerDocType", () => {

@@ -7,9 +7,12 @@ import ContinueProgress from "@/components/HomePage/ContinueProgress.vue";
 import RecommendedForYou from "@/components/HomePage/RecommendedForYou.vue";
 import HomePageSearch from "@/components/HomePage/HomePageSearch.vue";
 import { isMdScreen } from "@/globalConfig";
-import { nextTick, onActivated, ref } from "vue";
+import { inject, nextTick, onActivated, ref } from "vue";
 import { markPageReady } from "@/util/renderState";
 import { useLocalizedStaticHead } from "@/seo/contentHead";
+import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+
+const downloads = inject(DownloadsKey, undefined);
 
 const pinnedResolved = ref(false);
 const newestResolved = ref(false);
@@ -30,6 +33,7 @@ useLocalizedStaticHead("/");
 <template>
     <BasePage>
         <IgnorePagePadding ignoreTop>
+            <component v-if="downloads" :is="downloads.ui.ResumeBanner" class="mx-4 mt-4" />
             <Suspense
                 @resolve="
                     pinnedResolved = true;

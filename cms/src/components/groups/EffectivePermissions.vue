@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { capitaliseFirstLetter, getTheFirstLetter } from "@/util/string";
+import { capitaliseFirstLetter } from "@/util/string";
+import { permissionAbbreviations } from "./permissions";
 import DisplayCard from "@/components/common/DisplayCard.vue";
 import type { AccessorReport } from "./EffectivePermissions";
 import { isMobileScreen } from "@/globalConfig";
@@ -42,10 +43,12 @@ defineProps<{
                         >
                             <span>{{ capitaliseFirstLetter(type) }}</span>
                             <span class="ml-0.5 text-[9px]">
-                                (<span v-for="permission in permissions" :key="permission">
-                                    {{
-                                        getTheFirstLetter(capitaliseFirstLetter(permission))
-                                    }} </span
+                                (<span
+                                    v-for="permission in permissions"
+                                    :key="permission"
+                                    data-test="permissionAbbreviation"
+                                >
+                                    {{ permissionAbbreviations[permission] }} </span
                                 >)
                             </span>
                         </div>

@@ -4,7 +4,7 @@
  * image-left row with the title, the summary and the categories. A tap plays it here instead of
  * opening its page.
  */
-import { computed } from "vue";
+import { computed, inject } from "vue";
 import { useI18n } from "vue-i18n";
 import { PlayIcon } from "@heroicons/vue/24/solid";
 import { ListBulletIcon } from "@heroicons/vue/24/outline";
@@ -12,6 +12,7 @@ import type { ContentDto, Uuid } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import LImage from "@/components/images/LImage.vue";
 import type { UpNextTag } from "./useUpNext";
+import { DownloadsKey } from "@/build-time/contracts/downloads/token";
 
 const props = defineProps<{
     /** The whole series, the playing one in it: it is marked where it stands, and does nothing when tapped. */
@@ -27,6 +28,8 @@ const props = defineProps<{
     selectedTag?: Uuid | null;
 }>();
 const { t } = useI18n();
+/** Where there are downloads, each item carries its badge, as the app's other tiles do. */
+const DownloadBadge = inject(DownloadsKey, undefined)?.ui.DownloadBadge;
 
 const sections = computed(() =>
     [
@@ -164,6 +167,9 @@ const tagsFor = (content: ContentDto): ContentDto[] => {
                             <div v-else class="absolute inset-0 flex items-center justify-center">
                                 <PlayIcon class="h-7 w-7 text-black blur-sm" />
                                 <PlayIcon class="absolute h-7 w-7 text-white" />
+                            </div>
+                            <div v-if="DownloadBadge" class="absolute right-1 top-1">
+                                <component :is="DownloadBadge" :parent-id="item.parentId" />
                             </div>
                         </div>
 

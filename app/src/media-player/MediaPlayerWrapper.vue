@@ -27,19 +27,22 @@ import {
 import { LuminaryPlayer, type PlayerUpNextItem } from "@/media-player/player";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "@/components/images/LImage.vue";
-import { usePlayerMessages } from "@/media-player/usePlayerMessages";
+import { useKnownTexts, usePlayerMessages } from "@/media-player/usePlayerMessages";
 import YouTubeWrapper from "./YouTubeWrapper.vue";
 import { warmFetch, warmPlaylists } from "./playlistWarm";
 import { isYouTubeLink } from "@/util/youtube";
 import { appLanguagesPreferredAsRef, isDarkTheme, queryParams } from "@/globalConfig";
-import { playbackDataSaverLevel, playbackDataSaverOn } from "./mediaPlayer";
+import { playbackDataSaverLevel, playbackDataSaverOn, playOnlineOverride } from "./mediaPlayer";
 import {
     connectionSpeed,
     hasMeasuredConnectionSpeed,
 } from "@/composables/useNetworkSpeedEstimator";
 import {
+    FINISHED_PROGRESS_PERCENT,
     getMediaProgress,
+    isMediaCompleted,
     isMediaFinished,
+    markMediaCompleted,
     MIN_MEDIA_PROGRESS_SECONDS,
     mediaProgressKey,
     setMediaProgress,
@@ -55,11 +58,31 @@ import { createMediaWatchTracker } from "@/recommendation/mediaWatchTracker";
 import { shareImageUrl } from "@/composables/useSocialShare";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import type {
+    VideoDownloadAction,
     VideoNowPlaying,
     VideoNowPlayingAction,
     VideoMiniPlayerAction,
     VideoPlayerHandle,
 } from "@/build-time/contracts/video-player/contract";
+import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import type {
+    DownloadPlayback,
+    DownloadPlaybackCloseReason,
+    DownloadsPlayer,
+} from "@/build-time/contracts/downloads/contract";
+import {
+    closedNoticeKey,
+    downloadChapters,
+    holdsMaterialAfter,
+    holdsPosition,
+    selectionOf,
+} from "./downloadPlayback";
+import {
+    actOnPlayerNotice,
+    clearPlayerNotice,
+    dismissPlayerNotice,
+    showPlayerNotice,
+} from "./playerNotice";
 
 type Props = {
     content: ContentDto;
@@ -95,6 +118,8 @@ const emit = defineEmits<{
     nowplayingaction: [action: VideoNowPlayingAction, value?: string];
     /** What the viewer did on the platform's own minimised player. */
     miniplayeraction: [action: VideoMiniPlayerAction];
+    /** A downloads control of the platform's now-playing screen that only the page can act on. */
+    downloadaction: [action: VideoDownloadAction];
 }>();
 
 /**
@@ -118,6 +143,54 @@ const videoPlayer = inject(VideoPlayerKey, {
 });
 const player = ref<VideoPlayerHandle | null>(null);
 
+const downloads = inject(DownloadsKey, undefined);
+/**
+ * The downloads' hooks for the player, where there is a downloads service and a player that plays downloads; without
+ * them every item streams. Read at each use: the player can say it plays downloads after this wrapper was set up.
+ */
+const downloadsPlayer = () => (videoPlayer.playsDownloads ? downloads?.player : undefined);
+/** The download the content plays from; null while it streams. */
+const playback = shallowRef<DownloadPlayback | null>(null);
+/** The session the engine closed itself: its load is stopped, and nothing more of it is booked. */
+let closedPlaybackId: string | null = null;
+/** A start in a part the download does not hold: the saved position stays until playback moves off this point. */
+let holdSavedAt: number | undefined;
+/** A switch of copy is loading: the old load's last times are not this one's. */
+let reloading = false;
+/** Whether to play once the switched copy has loaded. */
+let playAfterReload = false;
+/** More is ready while playing: the viewer was asked, and the switch happens at the next pause anyway. */
+let switchAsked: string | undefined;
+/** The download the viewer picked on the sheet, while it opens: a second open would supersede the pick. */
+let chosenSwitch: Promise<boolean> | undefined;
+/** The item more became ready for while {@link chosenSwitch} opened, decided once the pick has settled. */
+let readyDuringChoice: string | undefined;
+/**
+ * The last position known, in full-item time. A load resets the player's state to 0 and paused until it reports a
+ * time, so until then the position is the one the load was given.
+ */
+let lastFull: number | undefined;
+/** The current load has reported a time: the player's state holds this load's position. */
+let timeReported = false;
+/**
+ * A download played from its start: the local time its first minute counts from, carried across a switch of copy.
+ * Nothing is booked before that minute has played, whatever its full time.
+ */
+let topBase: number | undefined;
+/** The last local time reported, on the current copy's timeline: while a load has not reported, where it was sent. */
+let lastLocal = 0;
+/** Playback was asked to play or is playing: a load just told to play still reads as paused until it starts. */
+let playIntent = false;
+/** Drops a play asked for that never started; see {@link PLAY_INTENT_GRACE_MS}. */
+let playIntentTimer: ReturnType<typeof setTimeout> | undefined;
+/** Where a session the engine closed had got to, for the stream that may replace it. */
+let closedAt: number | undefined;
+/** The session a fallback to the stream replaced: the engine's close of it still tells the viewer why. */
+let replacedPlaybackId: string | null = null;
+let unmounted = false;
+/** A string the language may not have yet: its English shows rather than the bare key. */
+const { textOr } = useKnownTexts();
+
 // The media bucket, so a stored relative URL can be resolved to a fetchable
 // one — see resolveMediaSource.
 const mediaBucketIdRef = computed(() => props.content?.parentMediaBucketId);
@@ -139,10 +212,13 @@ const fallbackArtworkUrl = ref<string | undefined>(undefined);
  * post's image, the one a share of it would carry.
  */
 const nowPlaying = computed<VideoNowPlaying>(() => {
-    // Offline, native cannot fetch from the bucket: the picture goes as data, from what the browser holds.
-    const artworkUrl = deviceOnline.value
-        ? shareImageUrl(props.content, imageBucketBaseUrl.value)
-        : offlineArtwork.value;
+    // Offline, native cannot fetch from the bucket: the picture goes as data, from what the browser holds. A download
+    // carries its own.
+    const artworkUrl =
+        playback.value?.artworkUrl ??
+        (deviceOnline.value
+            ? shareImageUrl(props.content, imageBucketBaseUrl.value)
+            : offlineArtwork.value);
     return {
         title: props.content.title,
         ...(props.content.author ? { subtitle: props.content.author } : {}),
@@ -215,14 +291,27 @@ const playerExtras = computed(() => ({
     ...(props.captionsHidden ? { captionsHidden: true } : {}),
     ...(videoPlayer.acceptsBrowse && props.upNext?.length ? { upNext: props.upNext } : {}),
     ...(videoPlayer.acceptsNextUp && props.nextUp?.length ? { nextUp: props.nextUp } : {}),
+    // A download's built master names only what it holds; the list shows every chapter, those it lacks unavailable.
+    ...(shownChapters.value ? { chapters: shownChapters.value } : {}),
 }));
+
+const shownChapters = computed(() => {
+    const local = playback.value;
+    if (!local || !playingThisContent()) return undefined;
+    return downloadChapters(downloads?.entryFor(props.content.parentId), local.timeline);
+});
 
 /**
  * What the progress store calls this video. The stored URL rather than the resolved
  * one, because ContentTile knows only the stored form, and a bucket re-pointed or
- * renamed must not lose the viewer's position.
+ * renamed must not lose the viewer's position. Content with no media of its own (a download's stand-in for a doc not
+ * on the device) goes by the address the download kept: only progress is keyed by it, nothing streams from it.
  */
-const mediaId = computed(() => mediaSourceFor(props.content));
+const mediaId = computed(
+    () =>
+        mediaSourceFor(props.content) ??
+        downloads?.entryFor(props.content.parentId)?.content.mediaId,
+);
 
 const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
@@ -306,14 +395,30 @@ const DATA_SAVER_MAX_HEIGHT = 360;
 const MIN_RESUME_SECONDS = MIN_MEDIA_PROGRESS_SECONDS;
 /** Resuming lands slightly before where the viewer left, to re-establish context. */
 const RESUME_REWIND_SECONDS = 30;
-/** Where a part-watched video picks up, read when it opens; undefined from the start or once finished. */
+/**
+ * Where a part-watched video picks up, read when it opens; undefined from the start or once finished. A download maps
+ * the saved full-item position onto its own timeline; one that holds nothing after a completed item's position starts
+ * over, as a finished item does.
+ */
 function resumePoint(): number | undefined {
     const id = mediaId.value;
     if (!id || !props.content) return undefined;
     const progress = getMediaProgress(id, props.content._id);
-    return progress > MIN_RESUME_SECONDS && !isMediaFinished(id, props.content._id)
-        ? progress - RESUME_REWIND_SECONDS
-        : undefined;
+    if (!(progress > MIN_RESUME_SECONDS) || isMediaFinished(id, props.content._id))
+        return undefined;
+    const timeline = playback.value?.timeline;
+    if (!timeline) return progress - RESUME_REWIND_SECONDS;
+    if (isMediaCompleted(id, props.content._id) && !holdsMaterialAfter(timeline, progress))
+        return undefined;
+    return timeline.resumeLocal(progress);
+}
+
+/** A download starting away from the saved position, which it does not hold, keeps that position until it moves. */
+function holdFor(resume: number | undefined): number | undefined {
+    const id = mediaId.value;
+    const timeline = playback.value?.timeline;
+    if (resume === undefined || !id || !timeline) return undefined;
+    return timeline.toLocal(getMediaProgress(id, props.content._id))?.exact ? undefined : resume;
 }
 /**
  * The saved position the first load starts from. Loaded there, not sought to after the start: a seek during the
@@ -406,6 +511,7 @@ const delay = (ms: number) =>
 watch(
     [playbackDataSaverOn, () => player.value?.controller ?? null] as const,
     ([on, controller]) => {
+        if (playback.value) return;
         controller?.setMaxHeight?.(on ? DATA_SAVER_MAX_HEIGHT : null);
     },
 );
@@ -415,7 +521,8 @@ watch(
  * loading the same content again in place, on the angle it is on. False when the cap already matches.
  */
 function syncDataSaverCap(): boolean {
-    if (player.value?.controller?.canCapInPlace || !props.content) return false;
+    // A download holds the one quality it was saved in.
+    if (player.value?.controller?.canCapInPlace || !props.content || playback.value) return false;
     const cap = playbackDataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : undefined;
     if (maxHeight.value === cap) return false;
     startAngleId.value = player.value?.state?.activeAngleId ?? startAngleId.value;
@@ -425,6 +532,19 @@ function syncDataSaverCap(): boolean {
 }
 
 const source = computed<PlayerSource | null>(() => {
+    const local = playback.value;
+    if (local && keyResolved.value) {
+        // The built master names the stored chapters itself, already on the download's timeline.
+        return {
+            masterUrl: local.masterUrl,
+            ...(local.keyHex ? { keyHex: local.keyHex } : {}),
+            startAngleId: startAngleId.value,
+            ...(preservePosition.value ? { preservePosition: true } : {}),
+            ...(resumeAt.value !== undefined ? { startPosition: resumeAt.value } : {}),
+            bandwidthEstimate: bandwidthEstimate.value,
+            sidecars: local.thumbnailsUrl ? { thumbnails: { url: local.thumbnailsUrl } } : {},
+        };
+    }
     const url = mediaSource.value;
     if (!url || !keyResolved.value) return null;
     return {
@@ -447,19 +567,41 @@ watch(
         keyHex.value = undefined;
         keyResolved.value = false;
         fallbackArtworkUrl.value = undefined;
-        const contentId = props.content?._id;
-        const artwork = fallbackArtworkDataUrl(props.content?.parentId);
-        // The playlists are fetched while the key is, rather than after it.
+        forgetDownload();
+        lastFull = undefined;
+        lastLocal = 0;
+        timeReported = false;
+        topBase = undefined;
+        dropPlayIntent();
+        const content = props.content;
+        const contentId = content?._id;
+        const artwork = fallbackArtworkDataUrl(content?.parentId);
+        // The playlists are fetched while the key is, rather than after it; a download about to play needs neither.
         const masterUrl = mediaSource.value;
-        if (masterUrl && !isYouTubeUrl(masterUrl)) warmPlaylists(masterUrl);
+        const hooks = downloadsPlayer();
+        const opens = !!hooks && !!content && !isYouTubeLink(masterUrl);
+        if (masterUrl && !isYouTubeUrl(masterUrl) && !(opens && likelyPlaysDownload(content)))
+            warmPlaylists(masterUrl);
         startAngleId.value = props.startAudio ? AUDIO_ONLY_ANGLE_ID : undefined;
         maxHeight.value = playbackDataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : undefined;
         preservePosition.value = false;
+        const opened = opens && hooks && content ? await openDownload(hooks, content) : null;
+        if (unmounted || (opens && props.content?._id !== contentId)) {
+            // Another item took the player while this one opened, or the player went: it never loads the session.
+            void opened?.close().catch(() => undefined);
+            return;
+        }
+        playback.value = opened;
         resumeAt.value = resumePoint();
+        holdSavedAt = holdFor(resumeAt.value);
+        lastFull = fullAt(resumeAt.value);
+        lastLocal = resumeAt.value ?? 0;
+        topBase = opened && resumeAt.value === undefined ? 0 : undefined;
         bandwidthEstimate.value = startingBandwidth();
         try {
             const parentId = props.content?.parentId;
-            if (parentId && props.content?.parentMedia?.hlsKey_id) {
+            // A download carries its own key; no online key is fetched for it.
+            if (!opened && parentId && props.content?.parentMedia?.hlsKey_id) {
                 keyHex.value = await keyFor(parentId);
             }
         } catch (error) {
@@ -476,7 +618,7 @@ watch(
             // The stand-in artwork goes with the load when it is quick; a slow one (up to its own give-up time) must
             // not hold the video back, so it follows as an update of what plays.
             const made = await Promise.race([artwork, delay(ARTWORK_WAIT_MS)]);
-            // Another post may have taken the player while this one was being made.
+            // Another post may have taken the player while this one was being made: its own run answers for it.
             if (props.content?._id === contentId) {
                 if (made) fallbackArtworkUrl.value = made;
                 else
@@ -484,8 +626,8 @@ watch(
                         if (late && props.content?._id === contentId)
                             fallbackArtworkUrl.value = late;
                     });
+                keyResolved.value = true;
             }
-            keyResolved.value = true;
         }
     },
     { immediate: true },
@@ -498,6 +640,7 @@ watch(
  */
 const keyMissing = () =>
     keyResolved.value &&
+    !playback.value &&
     !keyHex.value &&
     !!props.content?.parentId &&
     !!props.content?.parentMedia?.hlsKey_id;
@@ -539,7 +682,7 @@ watch(
         if (current) {
             heldSource.value = current;
             heldContentId.value = props.content?._id;
-        } else if (!mediaSource.value) {
+        } else if (!mediaSource.value && !playback.value) {
             heldSource.value = null;
             heldContentId.value = undefined;
         }
@@ -655,8 +798,11 @@ function onLoadedMetadata() {
     completed = false;
     watchTracker.reset();
     forgetProgress();
-    const id = mediaId.value;
-    if (!id) return;
+    if (reloading) {
+        reloading = false;
+        if (playAfterReload) requestPlay();
+        playAfterReload = false;
+    }
     if (startHandled) return;
     startHandled = true;
 
@@ -670,7 +816,7 @@ function onLoadedMetadata() {
     // needs a play nor goes full-screen, which is for a player that shows video only there.
     if (youtubeUrl.value) return;
 
-    if (autoPlay || props.autoplay) void player.value?.play();
+    if (autoPlay || props.autoplay) requestPlay();
     if (
         autoFullscreen ||
         (props.autoplay && props.fullscreenOnPlay && !props.startAudio && !inlineActive.value)
@@ -679,11 +825,29 @@ function onLoadedMetadata() {
     }
 }
 
-defineExpose({ player, inlineActive, syncDataSaverCap });
+/** Which copy plays now, for the download tool; undefined without downloads. */
+const playingSource = computed<"downloaded" | "online" | undefined>(() =>
+    downloadsPlayer() ? (playback.value ? "downloaded" : "online") : undefined,
+);
 
-function onTimeUpdate(currentTime: number, duration: number) {
+defineExpose({ player, inlineActive, syncDataSaverCap, playback, playingSource });
+
+/**
+ * Progress is stored in full-item time against the full duration: a download's own, shorter timeline is converted
+ * back, so a position lands on the same word whichever copy plays.
+ */
+function onTimeUpdate(localTime: number, localDuration: number) {
     // The video being swapped out is still playing while the next one's key is fetched.
     if (leaving || !playingThisContent() || loadedContentId !== props.content._id) return;
+    if (reloading || closedPlaybackId) return;
+    // A load resets the player to 0 before it has loaded anything: that is not where the viewer is.
+    if (loadingNow()) return;
+    const timeline = playback.value?.timeline;
+    const currentTime = timeline ? timeline.toFull(localTime) : localTime;
+    const duration = timeline ? timeline.fullDuration : localDuration;
+    lastFull = currentTime;
+    lastLocal = localTime;
+    timeReported = true;
     watchTracker.track(currentTime);
     if (
         watchTracker.claimCompletionIfWatched(duration, affinityConfig.value.mediaCompletionPercent)
@@ -692,16 +856,29 @@ function onTimeUpdate(currentTime: number, duration: number) {
         applyCompletion();
     }
 
+    // Released whatever the time, so a stream taking over in the first minute starts where playback is.
+    if (holdSavedAt !== undefined && Math.abs(localTime - holdSavedAt) >= 1)
+        holdSavedAt = undefined;
+
     const id = mediaId.value;
     if (!id || duration === Infinity || currentTime < MIN_RESUME_SECONDS) return;
 
     // A fallback for an `ended` that never arrives, which is the normal case on
     // YouTube. One second short of the duration is as close as a `timeupdate`
     // reliably gets.
-    if (duration > 0 && currentTime >= duration - 1) {
+    if (localDuration > 0 && localTime >= localDuration - 1) {
         if (!completed) onEnded();
         return;
     }
+    if (holdSavedAt !== undefined) return;
+    // Played again from the start after its end: the first minute counts again before anything is booked.
+    if (completed && timeline && localTime < MIN_RESUME_SECONDS) topBase = 0;
+    if (topBase !== undefined && timeline) {
+        if (localTime - topBase < MIN_RESUME_SECONDS) return;
+        topBase = undefined;
+    }
+    // Played on below the end of a download: reaching its end again sets the completed mark again.
+    if (timeline) completed = false;
 
     pendingProgress = { mediaId: id, contentId: props.content._id, time: currentTime, duration };
     if (
@@ -719,6 +896,20 @@ watch(
         if (playing === false) flushProgress();
     },
 );
+// A pause the player reports after playing ends the intent to play; the reset to paused a load brings does not.
+watch(
+    () => player.value?.state?.playing,
+    (playing, was) => {
+        if (playing === true) {
+            playIntent = true;
+            clearTimeout(playIntentTimer);
+        } else if (was === true) {
+            // A load's reset may hide the viewer's pause before it plays again: the intent then runs out as a play's does.
+            if (reloading || loadingNow()) armPlayIntentExpiry();
+            else dropPlayIntent();
+        }
+    },
+);
 
 function flushWhenHidden() {
     if (document.visibilityState === "hidden") flushProgress();
@@ -726,6 +917,7 @@ function flushWhenHidden() {
 onMounted(() => document.addEventListener("visibilitychange", flushWhenHidden));
 onBeforeUnmount(() => {
     document.removeEventListener("visibilitychange", flushWhenHidden);
+    clearTimeout(playIntentTimer);
     flushProgress();
 });
 
@@ -736,8 +928,11 @@ watch(
     () => (nextUpDismissed.value = false),
 );
 
-/** Books the playthrough as finished: the progress is kept as complete, and the completion is scored once. */
-function finishPlaythrough(): boolean {
+/**
+ * Books the playthrough as finished: the progress is kept as complete, and the completion is scored once. `atEnd`:
+ * playback reached the end of what is loaded, rather than the viewer moving on to the next video.
+ */
+function finishPlaythrough(atEnd: boolean): boolean {
     const id = mediaId.value;
     if (!id || completed) return false;
     completed = true;
@@ -745,10 +940,26 @@ function finishPlaythrough(): boolean {
     // Media under MIN_RESUME_SECONDS never reaches the store, and stays out of it.
     const point = pendingProgress ?? savedProgress;
     forgetProgress();
-    if (point) setMediaProgress(id, props.content._id, point.duration, point.duration);
+    const timeline = playback.value?.timeline;
+    let finished = true;
+    if (timeline) {
+        // A download finishes the item only from a position past the finished line: at its end, the last span's end
+        // (the position native books for the same end); moving on mid-item, the word the viewer was at. Short of
+        // the line it leaves the completed mark there instead, so either copy resumes at it; below the minimum no
+        // position is kept, as for any other write.
+        const end = timeline.spans.at(-1)?.fullEnd ?? timeline.toFull(timeline.localDuration);
+        const full = timeline.fullDuration;
+        const at = atEnd ? end : point?.time;
+        finished = full > 0 && at !== undefined && (at / full) * 100 >= FINISHED_PROGRESS_PERCENT;
+        if (finished) {
+            if (point || full >= MIN_RESUME_SECONDS)
+                setMediaProgress(id, props.content._id, full, full);
+        } else if (at !== undefined && at >= MIN_RESUME_SECONDS)
+            markMediaCompleted(id, props.content._id, at, full);
+    } else if (point) setMediaProgress(id, props.content._id, point.duration, point.duration);
 
-    // Nothing to score if the watched fraction already claimed it.
-    if (watchTracker.claimCompletion()) applyCompletion();
+    // Nothing to score if the watched fraction already claimed it; a partial download scores only by that fraction.
+    if (finished && watchTracker.claimCompletion()) applyCompletion();
     return true;
 }
 
@@ -759,7 +970,7 @@ function finishPlaythrough(): boolean {
 let leaving = false;
 function onNextUpSelect(id: string) {
     if (playingThisContent()) {
-        finishPlaythrough();
+        finishPlaythrough(false);
         leaving = true;
         player.value?.pause();
     }
@@ -767,11 +978,498 @@ function onNextUpSelect(id: string) {
 }
 
 function onEnded() {
-    if (!playingThisContent() || !finishPlaythrough()) return;
+    if (!playingThisContent() || !finishPlaythrough(true)) return;
 
     // A next video offered stays in full-screen: the swap carries on in it.
     if (props.nextUp?.length && videoPlayer.acceptsNextUp && !nextUpDismissed.value) return;
     player.value?.exitFullscreen();
+}
+
+// --- downloads ------------------------------------------------------------
+
+function online(): boolean {
+    return downloads?.network.value.online ?? deviceOnline.value;
+}
+
+/** Online is chosen for the item: by the viewer here, else on the download sheet. */
+function prefersOnline(): boolean {
+    const override = playOnlineOverride.value;
+    if (override !== null) return override;
+    return downloadsPlayer()?.sourceOverride(props.content.parentId) === "online";
+}
+
+/** A download is likely to play, so the stream's playlists are not warmed for it. */
+function likelyPlaysDownload(content: ContentDto): boolean {
+    return (
+        !!downloads?.playableParentIds.value.has(content.parentId) && !(prefersOnline() && online())
+    );
+}
+
+/** The session open but not handed to the player, which nothing else will release. */
+function unloadedSession(): DownloadPlayback | null {
+    const local = playback.value;
+    return local && heldSource.value?.masterUrl !== local.masterUrl ? local : null;
+}
+
+function forgetDownload() {
+    void unloadedSession()
+        ?.close()
+        .catch(() => undefined);
+    playback.value = null;
+    closedPlaybackId = null;
+    closedAt = undefined;
+    replacedPlaybackId = null;
+    holdSavedAt = undefined;
+    reloading = false;
+    playAfterReload = false;
+    if (switchAsked) clearPlayerNotice(switchAsked);
+    switchAsked = undefined;
+}
+
+/**
+ * The download to play, or null to stream. A playable download that does not open online also streams; the service
+ * tells the viewer why.
+ */
+async function openDownload(
+    hooks: DownloadsPlayer,
+    content: ContentDto,
+): Promise<DownloadPlayback | null> {
+    try {
+        return await hooks.open(content, { preferOnline: prefersOnline() });
+    } catch {
+        // Offline there is nothing else to play: the stream's own failure is what the viewer sees.
+        return null;
+    }
+}
+
+function noticeFallback() {
+    showPlayerNotice({
+        text: textOr(
+            "downloads.notice.streaming_fallback",
+            "Playing online: the download could not be played",
+        ),
+    });
+}
+
+/** A position on the current copy's timeline, in full-item time; undefined is its start. */
+function fullAt(local: number | undefined): number {
+    const time = local ?? 0;
+    return playback.value ? playback.value.timeline.toFull(time) : time;
+}
+
+/**
+ * Where playback is, in full-item time: while a load runs and until it reports a time, where it was sent. A load's
+ * reset to 0 can reach a watcher before the lifecycle does.
+ */
+function fullPosition(): number {
+    if (reloading || !timeReported || loadingNow()) return lastFull ?? 0;
+    return fullAt(player.value?.state?.currentTime);
+}
+
+/**
+ * Where a stream that takes over from the download starts: while the saved position is still held, the stream holds
+ * it, so it opens at its own resume point (undefined) rather than at the download's stand-in start.
+ */
+function streamPosition(): number | undefined {
+    return holdSavedAt !== undefined ? undefined : fullPosition();
+}
+
+function loadingNow(): boolean {
+    const lifecycle = player.value?.state?.lifecycle;
+    return lifecycle === "loading" || lifecycle === "waiting-for-master";
+}
+
+/**
+ * How long after a load has settled a play asked for may take to start. Past it, a player still paused was paused
+ * by the viewer in the start-up gap, or never started, and does not count as playing.
+ */
+const PLAY_INTENT_GRACE_MS = 3_000;
+/** Graces a start still buffering may take in all, so an engine that never says it has data cannot hold it for good. */
+const PLAY_INTENT_MAX_GRACES = 10;
+
+function requestPlay() {
+    playIntent = true;
+    armPlayIntentExpiry();
+    void player.value?.play();
+}
+
+/**
+ * Still on its way to playing: the engine reports itself stuck, or holds nothing ahead of the playhead yet. A player
+ * the viewer paused keeps buffering ahead, so this does not hold their pause.
+ */
+function stillStarting(): boolean {
+    const state = player.value?.state;
+    if (!state) return false;
+    return (
+        state.stalled === true ||
+        (typeof state.bufferedEnd === "number" && state.bufferedEnd <= state.currentTime)
+    );
+}
+
+function armPlayIntentExpiry(graces = 1) {
+    clearTimeout(playIntentTimer);
+    playIntentTimer = setTimeout(() => {
+        if (unmounted) return;
+        if (reloading || loadingNow()) armPlayIntentExpiry();
+        else if (player.value?.state?.playing === true) return;
+        else if (graces < PLAY_INTENT_MAX_GRACES && stillStarting())
+            armPlayIntentExpiry(graces + 1);
+        else playIntent = false;
+    }, PLAY_INTENT_GRACE_MS);
+}
+
+function dropPlayIntent() {
+    playIntent = false;
+    clearTimeout(playIntentTimer);
+}
+
+/** Playing, or about to: a load told to play counts before the player reports it playing. */
+function playingNow(): boolean {
+    return playIntent || player.value?.state?.playing === true;
+}
+
+/** The word the viewer is at: a saved position still held while the download starts elsewhere, else playback's. */
+function viewerPosition(): number {
+    const id = mediaId.value;
+    return holdSavedAt !== undefined && id
+        ? getMediaProgress(id, props.content._id)
+        : fullPosition();
+}
+
+/**
+ * Loads another copy of the content in place: `next`, or the stream when null, from `position` on its timeline (the
+ * stream's resume point when undefined). Not `preservePosition`: under it the controller would take the engine's
+ * position, which is on the old copy's timeline. The angle held carries over, and play resumes once it has loaded.
+ */
+function reloadAt(next: DownloadPlayback | null, position?: number, play?: boolean) {
+    if (!playingThisContent()) {
+        void next?.close().catch(() => undefined);
+        return;
+    }
+    flushProgress();
+    // A reload during another keeps what that one was to do: the state holds no play state until a load reports.
+    playAfterReload = play ?? (reloading ? playAfterReload : playingNow());
+    startAngleId.value = player.value?.state?.activeAngleId ?? startAngleId.value;
+    preservePosition.value = false;
+    holdSavedAt = undefined;
+    closedPlaybackId = null;
+    closedAt = undefined;
+    reloading = true;
+    timeReported = false;
+    const playedFromTop = topBase !== undefined ? Math.max(0, lastLocal - topBase) : undefined;
+    playback.value = next;
+    resumeAt.value = position ?? resumePoint();
+    lastFull = fullAt(resumeAt.value);
+    lastLocal = resumeAt.value ?? 0;
+    // The first minute keeps counting on the new copy from what has played of it so far.
+    topBase = next && playedFromTop !== undefined ? lastLocal - playedFromTop : undefined;
+    if (next) return;
+    maxHeight.value = playbackDataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : undefined;
+    streamKey();
+}
+
+/** The stream needs the key a download did without; the download keeps playing until it is in hand. */
+function streamKey() {
+    const parentId = props.content.parentId;
+    if (keyHex.value || !props.content.parentMedia?.hlsKey_id) return;
+    const contentId = props.content._id;
+    keyResolved.value = false;
+    keyFor(parentId)
+        .then((key) => {
+            if (key && props.content._id === contentId) keyHex.value = key;
+        })
+        .catch((error) =>
+            reportError(error, { area: "player", op: "hls-key", data: { contentId } }),
+        )
+        .finally(() => {
+            if (props.content._id === contentId) keyResolved.value = true;
+        });
+}
+
+/** Streams from `position` (the stream's resume point when undefined), and keeps to it for the rest of this item. */
+function streamInstead(position: number | undefined, play?: boolean) {
+    playOnlineOverride.value = true;
+    reloadAt(null, position, play);
+}
+
+/**
+ * More of the item became playable: not playing, it switches at once and stays paused; playing, the viewer is asked,
+ * and it switches at the next pause either way. Nothing is offered while Online is chosen or the position is in a
+ * part the download does not hold.
+ */
+function onMoreReady(parentId: string) {
+    if (!downloadsPlayer() || parentId !== props.content.parentId) return;
+    if (chosenSwitch) {
+        readyDuringChoice = parentId;
+        return;
+    }
+    if (closedPlaybackId || !playingThisContent() || !switchable()) return;
+    // A switch still loading shows nothing to interrupt: the next one takes over what that one was to do.
+    if (reloading || !playingNow()) {
+        void switchToDownload();
+        return;
+    }
+    if (switchAsked) return;
+    switchAsked = showPlayerNotice({
+        text: textOr("downloads.notice.more_chapters", "More chapters are ready."),
+        action: {
+            label: textOr("downloads.notice.switch_now", "Switch now"),
+            run: () => void switchToDownload(),
+        },
+    });
+}
+
+function switchable(): boolean {
+    if (prefersOnline()) return false;
+    // A stream sent to a cast or AirPlay video device stays there, with the picture or the sound alone: the device
+    // cannot reach the phone's files, and a load from disk ends a cast.
+    if (!playback.value && player.value?.airPlayActive) return false;
+    const entry = downloads?.entryFor(props.content.parentId);
+    return !!entry && holdsPosition(entry, viewerPosition());
+}
+
+// The reset to paused a load brings is not the viewer's pause: the switch waits for the next real one.
+watch(
+    () => player.value?.state?.playing,
+    (playing) => {
+        if (playing === false && switchAsked && !reloading && !loadingNow())
+            void switchToDownload();
+    },
+);
+
+/**
+ * Opens the download again and loads it at the same word: the position goes to full-item time on the old timeline
+ * and back on the new one. `chosen`: the viewer picked the download, so it opens even where it lacks the position,
+ * and also after the engine closed the session that played. Resolves false when the download did not load; true also
+ * when another item took the player meanwhile.
+ */
+async function switchToDownload(chosen = false): Promise<boolean> {
+    if (switchAsked) clearPlayerNotice(switchAsked);
+    switchAsked = undefined;
+    const content = props.content;
+    const hooks = downloadsPlayer();
+    if (!hooks || (!chosen && (closedPlaybackId || !switchable()))) return false;
+    let next: DownloadPlayback | null;
+    try {
+        next = await hooks.open(content, { preferOnline: false });
+    } catch {
+        return false;
+    }
+    if (!next) return false;
+    // A saved position still held is the word the viewer is at: the new copy may now hold it.
+    const held = holdSavedAt !== undefined;
+    // A closed session's player may have stopped anywhere: where it was when the engine closed it is the word.
+    const target = closedPlaybackId && closedAt !== undefined ? closedAt : viewerPosition();
+    const local = next.timeline.toLocal(target);
+    const superseded = unmounted || props.content._id !== content._id;
+    if (superseded || !local || (!chosen && !local.exact)) {
+        void next.close().catch(() => undefined);
+        return superseded;
+    }
+    reloadAt(next, held ? next.timeline.resumeLocal(target) : local.local);
+    if (held) holdSavedAt = holdFor(resumeAt.value);
+    return true;
+}
+
+/**
+ * Opens the download the viewer picked on the sheet. More that became ready meanwhile is reported again once the pick
+ * loads, should the session it opened lack it; after a failed pick it is decided as usual, once the sheet has put its
+ * pick back.
+ */
+async function chooseDownload(): Promise<boolean> {
+    const switching = switchToDownload(true);
+    chosenSwitch = switching;
+    let loaded = false;
+    try {
+        loaded = await switching;
+    } finally {
+        if (chosenSwitch === switching) {
+            chosenSwitch = undefined;
+            const ready = readyDuringChoice;
+            readyDuringChoice = undefined;
+            if (ready && !loaded)
+                setTimeout(() => {
+                    if (!unmounted) onMoreReady(ready);
+                });
+        }
+    }
+    return loaded;
+}
+
+/** The engine stopped the session itself: playback of it ends, and the viewer is told why. */
+function onClosed(playbackId: string, reason: DownloadPlaybackCloseReason) {
+    const [key, english] = closedNoticeKey(reason);
+    if (playbackId === replacedPlaybackId && !playback.value) {
+        // The stream already plays; the server checks it, so it is left alone.
+        replacedPlaybackId = null;
+        showPlayerNotice({ text: textOr(key, english) });
+        return;
+    }
+    if (playback.value?.playbackId !== playbackId) return;
+    flushProgress();
+    // A revoked load's error may have stopped it first, where it had got to.
+    const position = closedPlaybackId === playbackId ? closedAt : streamPosition();
+    closedPlaybackId = playbackId;
+    closedAt = position;
+    if (switchAsked) clearPlayerNotice(switchAsked);
+    switchAsked = undefined;
+    // Online the item can still be streamed.
+    const streams = online() && !!mediaSource.value;
+    showPlayerNotice({
+        text: textOr(key, english),
+        ...(streams
+            ? {
+                  action: {
+                      label: textOr("downloads.now_playing.chapter_online", "Play online"),
+                      run: () => streamInstead(position, true),
+                  },
+              }
+            : {}),
+    });
+}
+
+/**
+ * The viewer picked a copy on the download sheet: it loads at once, at the same word. Answers false when the copy
+ * picked did not load, so the sheet shows its error and what played before stays.
+ */
+async function onSourceChosen(parentId: string, value: "downloaded" | "online"): Promise<boolean> {
+    if (!downloadsPlayer() || parentId !== props.content.parentId) return true;
+    const before = playOnlineOverride.value;
+    playOnlineOverride.value = value === "online";
+    if (value === "online" && playback.value) {
+        if (online() && mediaSource.value) streamInstead(streamPosition());
+        else if (!closedPlaybackId) {
+            // With no stream to load, the session that plays goes on.
+            playOnlineOverride.value = before;
+            return false;
+        }
+    } else if (
+        value === "downloaded" &&
+        (!playback.value || closedPlaybackId) &&
+        !(await chooseDownload())
+    ) {
+        if (playOnlineOverride.value === false) playOnlineOverride.value = before;
+        return false;
+    }
+    return true;
+}
+
+/**
+ * A download that fails to play while online streams instead; one the engine closed stays stopped until the viewer
+ * tries again (the player's own retry), which online streams it, since the session would only fail again.
+ */
+watch(
+    () => player.value?.state?.lifecycle,
+    (lifecycle, before) => {
+        const loading = lifecycle === "loading" || lifecycle === "waiting-for-master";
+        if (loading) timeReported = false;
+        if (closedPlaybackId && before === "error" && loading) {
+            if (online() && mediaSource.value) streamInstead(closedAt, true);
+            return;
+        }
+        if (lifecycle !== "error") return;
+        // A load that failed is not playing: a later change is not held back as if it were.
+        const wanted = playingNow() || (reloading && playAfterReload);
+        dropPlayIntent();
+        const local = playback.value;
+        if (!local || closedPlaybackId) return;
+        reloading = false;
+        // The engine refused the session as revoked: it closes it, and its close says why. Native's own code comes
+        // through as the error's cause.
+        const cause = player.value?.state?.error?.cause as { code?: unknown } | undefined;
+        if (cause?.code === "offline-revoked") {
+            flushProgress();
+            closedAt = streamPosition();
+            closedPlaybackId = local.playbackId;
+            return;
+        }
+        if (!online() || !mediaSource.value) return;
+        noticeFallback();
+        replacedPlaybackId = local.playbackId;
+        playOnlineOverride.value = true;
+        // Not loaded yet, it opens the stream where the stream would have opened.
+        reloadAt(
+            null,
+            loadedContentId === props.content._id ? streamPosition() : undefined,
+            wanted,
+        );
+    },
+);
+
+/**
+ * The player says a device holds a download that plays (on iOS, any AirPlay route while the picture plays): the device
+ * cannot reach the phone's files, so online the stream loads at the same position, with the picture or the sound alone
+ * as it played, and the cast carries on from it.
+ */
+watch(
+    () => player.value?.castHeldLocal === true,
+    (held) => {
+        if (!held || !playback.value || closedPlaybackId) return;
+        if (!online() || !mediaSource.value) {
+            showPlayerNotice({
+                text: textOr(
+                    "downloads.notice.casting_offline",
+                    "Casting is not available offline",
+                ),
+            });
+            return;
+        }
+        streamInstead(streamPosition());
+    },
+);
+
+/** What plays, as the download sheet's preselection. */
+function playingSelection() {
+    const state = player.value?.state;
+    const audioLanguage = state?.audioTracks.find(
+        (track) => track.id === state.activeAudioTrackId,
+    )?.lang;
+    return selectionOf({
+        audioOnly: !!state?.isAudioOnly || state?.activeAngleId === AUDIO_ONLY_ANGLE_ID,
+        angleId: state?.activeAngleId,
+        height: player.value?.playingHeight,
+        audioLanguage,
+    });
+}
+
+function onDownloadAction(action: VideoDownloadAction) {
+    const index = Number(action.value);
+    const chapter = Number.isInteger(index)
+        ? downloads?.entryFor(props.content.parentId)?.chapters[index]
+        : undefined;
+    if (action.action === "notice") actOnPlayerNotice(action.value);
+    else if (action.action === "noticeDismiss") dismissPlayerNotice(action.value);
+    else if (action.action === "download")
+        void downloads?.openSheet(props.content, {
+            context: "player",
+            selection: playingSelection(),
+        });
+    else if (action.action === "chapterDownload" && chapter)
+        void downloads?.openSheet(props.content, {
+            context: "player",
+            chapter: index,
+            selection: playingSelection(),
+        });
+    else if (action.action === "chapterOnline" && chapter && online() && mediaSource.value)
+        streamInstead(chapter.startTime, true);
+    else emit("downloadaction", action);
+}
+
+// Listened to whenever there is a service, since the player can say it plays downloads later.
+if (downloads) {
+    const stops = [
+        downloads.player.onMoreReady(onMoreReady),
+        downloads.player.onClosed(onClosed),
+        downloads.player.onSourceChosen(onSourceChosen),
+    ];
+    onBeforeUnmount(() => {
+        unmounted = true;
+        stops.forEach((stop) => stop());
+        // A session handed to the player is released with it; one it never loaded is closed here.
+        void unloadedSession()
+            ?.close()
+            .catch(() => undefined);
+    });
 }
 </script>
 
@@ -816,6 +1514,7 @@ function onEnded() {
                 @nextupdismiss="nextUpDismissed = true"
                 @nowplayingaction="passNowPlayingAction"
                 @miniplayeraction="emit('miniplayeraction', $event)"
+                @downloadaction="onDownloadAction"
             />
         </div>
     </div>

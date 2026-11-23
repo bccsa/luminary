@@ -7,7 +7,7 @@ import router from "./router";
 import { setupAuth } from "@/auth";
 import { registerAuthFailureHandler } from "@/authFailure";
 import { useNotificationStore } from "./stores/notification";
-import { appPluginsManager } from "@/build-time/contracts/plugin-registry";
+import { installPlugins } from "@/build-time/contracts/plugin-registry";
 import { getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
 import {
     appSyncedLanguageIdsAsRef,
@@ -94,7 +94,7 @@ async function Startup() {
 
     // Provide the build-target services before setupAuth(), which resolves the
     // platform auth-flow strategy from the app.
-    app.use(appPluginsManager);
+    const pluginsReady = installPlugins(app);
 
     // Before mount: a player opening on the video would otherwise resume from, and save over, the older position.
     const backgroundProgress = applyBackgroundProgress(
@@ -140,7 +140,12 @@ async function Startup() {
 
     app.use(router);
     app.use(i18n);
-    await backgroundProgress;
+    // Consumers inject downloads once at setup, so mount waits for them; the cap keeps a shell that never answers from
+    // holding the launch.
+    await Promise.all([
+        backgroundProgress,
+        Promise.race([pluginsReady, new Promise((resolve) => setTimeout(resolve, 1500))]),
+    ]);
     app.mount("#app");
     // The web loading UI is rendering from here on — the build target may have
     // launch chrome of its own to hand over from.

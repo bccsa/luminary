@@ -8,6 +8,13 @@ import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { db, isConnected } from "luminary-shared";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
+import { useNotificationStore } from "@/stores/notification";
+import {
+    createDownloadsServiceStub,
+    provideDownloadsStub,
+    stubEntry,
+    type DownloadsServiceStub,
+} from "@/tests/downloadsServiceStub";
 import {
     isDataSaverEnabled,
     dataSaverLevel,
@@ -16,6 +23,8 @@ import {
     subtitlesOnVideo,
     autoplayNext,
 } from "@/globalConfig";
+import { mediaPlayerItem } from "@/media-player/mediaPlayer";
+import { autoplayDownloadedOnly } from "@/media-player/autoplayMode";
 
 vi.mock("@/globalConfig", async () => {
     const { computed, ref, watch } = await import("vue");
@@ -81,14 +90,22 @@ vi.mock("@/router", () => ({
 
 // Keys a test takes out, as a language document older than the app lacks them.
 const missingKeys = vi.hoisted(() => new Set<string>());
+// vue-i18n's `te` reads a flat dotted key as a path and never finds it, as with the app's language documents.
+const flatKeys = vi.hoisted(() => ({ on: false }));
 vi.mock("vue-i18n", () => ({
     useI18n: () => {
-        const te = (key: string) =>
-            !missingKeys.has(key) && key in (mockLanguageDtoEng.translations as object);
+        const messages = () =>
+            Object.fromEntries(
+                Object.entries(mockLanguageDtoEng.translations as Record<string, string>).filter(
+                    ([key]) => !missingKeys.has(key),
+                ),
+            );
+        const has = (key: string) => key in messages();
         return {
-            t: (key: string) =>
-                te(key) ? (mockLanguageDtoEng.translations as Record<string, string>)[key] : key,
-            te,
+            t: (key: string) => (has(key) ? messages()[key] : key),
+            te: (key: string) => !flatKeys.on && has(key),
+            locale: { value: "eng" },
+            getLocaleMessage: () => messages(),
         };
     },
 }));
@@ -244,6 +261,20 @@ describe("SettingsPage data saver", () => {
         }
     });
 
+    it("shows the language's own words for flat dotted keys that te() cannot find", async () => {
+        const translations = mockLanguageDtoEng.translations as Record<string, string>;
+        const before = translations["settings.data_saver.strict"];
+        translations["settings.data_saver.strict"] = "Streng";
+        flatKeys.on = true;
+        try {
+            const wrapper = mountSettingsPage();
+            expect(wrapper.find("[data-test='dataSaverLevel-strict']").text()).toBe("Streng");
+        } finally {
+            flatKeys.on = false;
+            translations["settings.data_saver.strict"] = before;
+        }
+    });
+
     it("lets the viewer choose where subtitles go: under the video by default, or over it", async () => {
         const wrapper = mountSettingsPage();
         const toggle = wrapper.find("[data-test='subtitlesOnVideoToggle']");
@@ -323,5 +354,260 @@ describe("SettingsPage data saver", () => {
 
         await flushPromises();
         expect(await db.userActivity.count()).toBe(0);
+    });
+});
+
+describe("SettingsPage delete local data with downloads", () => {
+    let order: string[];
+
+    beforeEach(() => {
+        setActivePinia(createTestingPinia());
+        isConnected.value = true;
+        order = [];
+        vi.spyOn(db, "purge").mockImplementation(async () => {
+            order.push("purge");
+        });
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await db.docs.clear();
+        await db.localChanges.clear();
+    });
+
+    const mountWith = (service: DownloadsServiceStub) => {
+        vi.mocked(service.lifecycle.removeAll).mockImplementation(async () => {
+            order.push("removeAll");
+            return { kept: [] };
+        });
+        vi.mocked(service.lifecycle.recheck).mockImplementation(async () => {
+            order.push("recheck");
+        });
+        return mount(SettingsPage, {
+            global: {
+                provide: provideDownloadsStub(service),
+                stubs: { BasePage: { template: "<div><slot /></div>" } },
+            },
+        });
+    };
+    const downloadsDialog = (wrapper: ReturnType<typeof mount>) =>
+        wrapper.findAllComponents(LDialog)[1];
+    const withDownloads = () =>
+        createDownloadsServiceStub({ entries: [stubEntry("post-1")], totalBytes: 5_000_000 });
+
+    it("purges at once, with no dialog, without the downloads service", async () => {
+        const wrapper = mountSettingsPage();
+
+        await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
+        await flushPromises();
+
+        expect(db.purge).toHaveBeenCalledOnce();
+        expect(wrapper.findAllComponents(LDialog)).toHaveLength(1);
+    });
+
+    it("purges at once while no download exists, then restores the downloads' pins", async () => {
+        const wrapper = mountWith(createDownloadsServiceStub());
+
+        await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
+        await flushPromises();
+
+        expect(downloadsDialog(wrapper).props("open")).toBe(false);
+        expect(order).toEqual(["purge", "recheck"]);
+    });
+
+    it("asks first when downloads exist, with their deletion off by default", async () => {
+        const service = withDownloads();
+        const wrapper = mountWith(service);
+
+        await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
+        await flushPromises();
+
+        expect(db.purge).not.toHaveBeenCalled();
+        expect(downloadsDialog(wrapper).props("open")).toBe(true);
+        const option = wrapper.findComponent({ name: "DeleteLocalDataOptionStub" });
+        expect(option.props("modelValue")).toBe(false);
+    });
+
+    it("keeps the downloads and restores their pins after the purge when the option is clear", async () => {
+        const service = withDownloads();
+        const wrapper = mountWith(service);
+
+        await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
+        await downloadsDialog(wrapper).props("primaryAction")();
+        await flushPromises();
+
+        expect(service.lifecycle.removeAll).not.toHaveBeenCalled();
+        expect(order).toEqual(["purge", "recheck"]);
+        expect(downloadsDialog(wrapper).props("open")).toBe(false);
+    });
+
+    it("deletes the downloads before the purge when the option is ticked", async () => {
+        const service = withDownloads();
+        const wrapper = mountWith(service);
+
+        await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
+        await wrapper.find("[data-test='stub-delete-local-data-option']").setValue(true);
+        await downloadsDialog(wrapper).props("primaryAction")();
+        await flushPromises();
+
+        expect(order).toEqual(["removeAll", "purge"]);
+        const texts = vi
+            .mocked(useNotificationStore().addNotification)
+            .mock.calls.map(([n]) => n.title);
+        expect(texts).not.toContain("A download that is playing was kept.");
+    });
+
+    it("tells the viewer when a download being played was kept, and restores its pins", async () => {
+        const service = withDownloads();
+        const wrapper = mountWith(service);
+        vi.mocked(service.lifecycle.removeAll).mockImplementation(async () => {
+            order.push("removeAll");
+            return { kept: ["dl-post-1"], playing: "dl-post-1" };
+        });
+
+        await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
+        await wrapper.find("[data-test='stub-delete-local-data-option']").setValue(true);
+        await downloadsDialog(wrapper).props("primaryAction")();
+        await flushPromises();
+
+        expect(order).toEqual(["removeAll", "purge", "recheck"]);
+        const texts = vi
+            .mocked(useNotificationStore().addNotification)
+            .mock.calls.map(([n]) => n.title);
+        expect(texts).toContain("A download that is playing was kept.");
+        expect(texts).not.toContain("Some downloads could not be deleted.");
+    });
+
+    it("tells the viewer when downloads could not be deleted, and restores their pins", async () => {
+        const service = createDownloadsServiceStub({
+            entries: [stubEntry("post-1"), stubEntry("post-2")],
+        });
+        const wrapper = mountWith(service);
+        vi.mocked(service.lifecycle.removeAll).mockImplementation(async () => {
+            order.push("removeAll");
+            return { kept: ["dl-post-1", "dl-post-2"], playing: "dl-post-1" };
+        });
+
+        await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
+        await wrapper.find("[data-test='stub-delete-local-data-option']").setValue(true);
+        await downloadsDialog(wrapper).props("primaryAction")();
+        await flushPromises();
+
+        expect(order).toEqual(["removeAll", "purge", "recheck"]);
+        const notes = vi
+            .mocked(useNotificationStore().addNotification)
+            .mock.calls.map(([n]) => [n.title, n.state]);
+        expect(notes).toContainEqual(["A download that is playing was kept.", "info"]);
+        expect(notes).toContainEqual(["Some downloads could not be deleted.", "error"]);
+    });
+
+    it("calls a kept download of the item in the player a failure when it was not kept for playing", async () => {
+        const service = withDownloads();
+        const wrapper = mountWith(service);
+        vi.mocked(service.lifecycle.removeAll).mockImplementation(async () => {
+            order.push("removeAll");
+            return { kept: ["dl-post-1"] };
+        });
+        // Streamed, so the engine held no lock on it: it failed to delete.
+        mediaPlayerItem.value = { content: { parentId: "post-1" } as any, language: "en" };
+
+        await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
+        await wrapper.find("[data-test='stub-delete-local-data-option']").setValue(true);
+        try {
+            await downloadsDialog(wrapper).props("primaryAction")();
+            await flushPromises();
+        } finally {
+            mediaPlayerItem.value = null;
+        }
+
+        const texts = vi
+            .mocked(useNotificationStore().addNotification)
+            .mock.calls.map(([n]) => n.title);
+        expect(texts).toContain("Some downloads could not be deleted.");
+        expect(texts).not.toContain("A download that is playing was kept.");
+    });
+
+    it("still purges, and keeps the pins, when deleting the downloads fails", async () => {
+        const service = withDownloads();
+        const wrapper = mountWith(service);
+        vi.mocked(service.lifecycle.removeAll).mockRejectedValue(new Error("io"));
+        const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+        await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
+        await wrapper.find("[data-test='stub-delete-local-data-option']").setValue(true);
+        await downloadsDialog(wrapper).props("primaryAction")();
+        await flushPromises();
+
+        expect(order).toEqual(["purge", "recheck"]);
+        const notes = vi
+            .mocked(useNotificationStore().addNotification)
+            .mock.calls.map(([n]) => [n.title, n.state]);
+        expect(notes).toContainEqual(["Some downloads could not be deleted.", "error"]);
+        expect(logged).toHaveBeenCalledWith(expect.objectContaining({ message: "io" }));
+        logged.mockRestore();
+    });
+
+    it("neither asks nor deletes anything offline", async () => {
+        const service = withDownloads();
+        const wrapper = mountWith(service);
+        isConnected.value = false;
+
+        await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
+        await flushPromises();
+
+        expect(downloadsDialog(wrapper).props("open")).toBe(false);
+        expect(order).toEqual([]);
+    });
+});
+
+describe("SettingsPage autoplay of downloads alone", () => {
+    beforeEach(() => {
+        setActivePinia(createTestingPinia());
+        autoplayDownloadedOnly.value = false;
+    });
+
+    const mountWith = (service?: DownloadsServiceStub) =>
+        mount(SettingsPage, {
+            global: {
+                provide: service ? provideDownloadsStub(service) : {},
+                stubs: { BasePage: { template: "<div><slot /></div>" } },
+            },
+        });
+
+    it("draws nothing of it without the downloads service", () => {
+        const wrapper = mountWith();
+        expect(wrapper.find("[data-test='autoplayToggle']").exists()).toBe(true);
+        expect(wrapper.find("[data-test='autoplayDownloadedOnly']").exists()).toBe(false);
+        expect(wrapper.find("[data-test='stub-autoplay-mode']").exists()).toBe(false);
+    });
+
+    it("keeps autoplay to downloaded videos when switched on, with the pill naming the mode", async () => {
+        const wrapper = mountWith(createDownloadsServiceStub());
+        const pill = () => wrapper.find("[data-test='stub-autoplay-mode']");
+        expect(pill().attributes("data-mode")).toBe("all");
+
+        await wrapper.find("[data-test='autoplayDownloadedOnlyToggle']").trigger("click");
+
+        expect(autoplayDownloadedOnly.value).toBe(true);
+        expect(localStorage.getItem("autoplayDownloadedOnly")).toBe("true");
+        expect(pill().attributes("data-mode")).toBe("downloaded");
+    });
+
+    it("offline, shows the forced mode and leaves the stored choice alone", async () => {
+        const service = createDownloadsServiceStub({ network: { online: false, metered: false } });
+        const wrapper = mountWith(service);
+        const toggle = wrapper.find("[data-test='autoplayDownloadedOnlyToggle']");
+
+        expect(wrapper.find("[data-test='stub-autoplay-mode']").attributes("data-mode")).toBe(
+            "downloaded",
+        );
+        await toggle.trigger("click");
+        expect(autoplayDownloadedOnly.value).toBe(false);
+
+        service.networkRef.value = { online: true, metered: false };
+        await flushPromises();
+        expect(wrapper.find("[data-test='stub-autoplay-mode']").attributes("data-mode")).toBe(
+            "all",
+        );
     });
 });

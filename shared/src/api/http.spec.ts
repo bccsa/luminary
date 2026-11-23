@@ -117,6 +117,105 @@ describe("HttpReq", () => {
         });
     });
 
+    describe("getWithStatus", () => {
+        it("returns the status and parsed body, with headers and query params", async () => {
+            mockFetch.mockResolvedValue(mockResponse(200, { key: "value" }));
+
+            setCustomHeader("Authorization", "Bearer token");
+            const http = new HttpReq("https://api.example.com");
+            const result = await http.getWithStatus("sidecar", { parentId: "p1" });
+
+            expect(mockFetch.mock.calls[0][0]).toBe("https://api.example.com/sidecar?parentId=p1");
+            expect(mockFetch.mock.calls[0][1].headers.Authorization).toBe("Bearer token");
+            expect(result).toEqual({ status: 200, body: { key: "value" } });
+        });
+
+        it("keeps a 4xx status and its body", async () => {
+            mockFetch.mockResolvedValue(mockResponse(404, { message: "Not found" }));
+
+            const http = new HttpReq("https://api.example.com");
+
+            expect(await http.getWithStatus("sidecar", {})).toEqual({
+                status: 404,
+                body: { message: "Not found" },
+            });
+        });
+
+        it("keeps a 5xx status without signalling serverError", async () => {
+            mockFetch.mockResolvedValue(mockResponse(503, { message: "down" }));
+
+            const http = new HttpReq("https://api.example.com");
+
+            expect(await http.getWithStatus("sidecar", {})).toEqual({
+                status: 503,
+                body: { message: "down" },
+            });
+            expect(serverError.value).toBeNull();
+        });
+
+        it("returns the status alone when the body does not parse", async () => {
+            mockFetch.mockResolvedValue(mockResponse(200));
+
+            const http = new HttpReq("https://api.example.com");
+
+            expect(await http.getWithStatus("sidecar", {})).toEqual({ status: 200 });
+        });
+
+        it("returns status 0 when no response arrives", async () => {
+            mockFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+
+            const http = new HttpReq("https://api.example.com");
+
+            expect(await http.getWithStatus("sidecar", {})).toEqual({ status: 0 });
+        });
+    });
+
+    describe("postWithStatus", () => {
+        it("POSTs JSON with headers and returns the status and parsed body", async () => {
+            mockFetch.mockResolvedValue(mockResponse(200, { docs: [] }));
+
+            setCustomHeader("Authorization", "Bearer token");
+            const http = new HttpReq("https://api.example.com");
+            const result = await http.postWithStatus("query", { selector: {} });
+
+            const [url, opts] = mockFetch.mock.calls[0];
+            expect(url).toBe("https://api.example.com/query");
+            expect(opts.method).toBe("POST");
+            expect(opts.headers["Content-Type"]).toBe("application/json");
+            expect(opts.headers.Authorization).toBe("Bearer token");
+            expect(opts.body).toBe(JSON.stringify({ selector: {} }));
+            expect(result).toEqual({ status: 200, body: { docs: [] } });
+        });
+
+        it("keeps a 5xx status without signalling serverError", async () => {
+            mockFetch.mockResolvedValue(mockResponse(500, { message: "boom" }));
+
+            const http = new HttpReq("https://api.example.com");
+
+            expect(await http.postWithStatus("query", {})).toEqual({
+                status: 500,
+                body: { message: "boom" },
+            });
+            expect(serverError.value).toBeNull();
+        });
+
+        it("returns the status alone when the body does not parse", async () => {
+            mockFetch.mockResolvedValue(mockResponse(429));
+
+            const http = new HttpReq("https://api.example.com");
+
+            expect(await http.postWithStatus("query", {})).toEqual({ status: 429 });
+        });
+
+        it("returns status 0 when no response arrives", async () => {
+            mockFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+
+            const http = new HttpReq("https://api.example.com");
+
+            expect(await http.postWithStatus("query", {})).toEqual({ status: 0 });
+        });
+    });
+
     describe("post", () => {
         it("sends POST with JSON body and Content-Type header", async () => {
             mockFetch.mockResolvedValue({

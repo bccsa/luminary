@@ -7,14 +7,17 @@ export const summaryClampFor = (mobileTitleLines: number): string =>
 </script>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, inject, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import { type ContentDto } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import LImage from "../images/LImage.vue";
 import { useRevealedCount } from "@/composables/useScrollMemory";
+import { DownloadsKey } from "@/build-time/contracts/downloads/token";
 
 const props = defineProps<{ items: ContentDto[] }>();
+
+const downloads = inject(DownloadsKey, undefined);
 
 const summaryText = (content: ContentDto): string => content.summary?.trim() ?? "";
 
@@ -159,6 +162,7 @@ watch(visibleItems, () => nextTick(remeasureAll));
                          LImage's 4:3 box to fill the card's height without gaps. -->
                     <div
                         class="shrink-0 overflow-hidden sm:hidden [&>div>div]:!h-full [&>div]:h-full [&_img]:!h-full"
+                        :class="{ relative: !!downloads }"
                     >
                         <LImage
                             :image="item.parentImageData"
@@ -168,6 +172,13 @@ watch(visibleItems, () => nextTick(remeasureAll));
                             size="thumbnailCompact"
                             :rounded="false"
                         />
+                        <!-- The wrapper is placed: the badge positions its own ring inside itself. -->
+                        <span v-if="downloads" class="absolute right-1 top-1 z-10">
+                            <component
+                                :is="downloads.ui.DownloadBadge"
+                                :parent-id="item.parentId"
+                            />
+                        </span>
                     </div>
 
                     <!-- Tablet and up: full-width image with the title laid over its bottom
@@ -193,6 +204,13 @@ watch(visibleItems, () => nextTick(remeasureAll));
                                 {{ item.title }}
                             </h3>
                         </div>
+                        <!-- The wrapper is placed: the badge positions its own ring inside itself. -->
+                        <span v-if="downloads" class="absolute right-1.5 top-1.5 z-10">
+                            <component
+                                :is="downloads.ui.DownloadBadge"
+                                :parent-id="item.parentId"
+                            />
+                        </span>
                     </div>
 
                     <!-- Even spacing on mobile: the same 8px above the title, below the tags,

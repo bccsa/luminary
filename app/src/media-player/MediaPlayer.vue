@@ -55,12 +55,24 @@ import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
 import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";
 import type {
+    VideoDownloadAction,
     VideoMiniPlayerAction,
     VideoMiniPlayerBar,
     VideoNowPlayingAction,
+    VideoNowPlayingDownload,
     VideoNowPlayingScreen,
     VideoNowPlayingTexts,
 } from "@/build-time/contracts/video-player/contract";
+import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
+import { DownloadsKey } from "@/build-time/contracts/downloads/token";
+import { useNotificationStore } from "@/stores/notification";
+import { nowPlayingDownload } from "./downloadPlayback";
+import {
+    actOnPlayerNotice,
+    dismissPlayerNotice,
+    playerNotice,
+    showPlayerNotice,
+} from "./playerNotice";
 import LImage from "@/components/images/LImage.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { cmsLanguages, isMac } from "@/globalConfig";
@@ -78,7 +90,8 @@ import {
 } from "./coverImage";
 import { deviceOnline, offlineArtworkDataUrl } from "./cachedArtwork";
 import ThumbHashWash from "./wash/ThumbHashWash.vue";
-import { usePlayerMessages } from "./usePlayerMessages";
+import { useKnownTexts, useNowPlayingDownloadTexts, usePlayerMessages } from "./usePlayerMessages";
+import { useAutoplayMode } from "./autoplayMode";
 import { isNativeApp } from "@/util/inAppBrowser";
 import {
     autoplayNext,
@@ -93,6 +106,7 @@ import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token"
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
 import MediaPlayerMenu from "./MediaPlayerMenu.vue";
 import MediaPlayerVolume from "./MediaPlayerVolume.vue";
+import AppPromoSlot from "@/build-time/plugins/app-promo/AppPromoSlot.vue";
 import PlayerButton from "./PlayerButton.vue";
 import { mediaSourceFor } from "@/util/mediaSource";
 import { isYouTubeLink } from "@/util/youtube";
@@ -102,6 +116,7 @@ import { TIMELINE_SCRUB_IDLE_MS } from "./player/ui/timelineScrub";
 import MediaPlayerMenuItem from "./MediaPlayerMenuItem.vue";
 import MediaPlayerUpNext from "./MediaPlayerUpNext.vue";
 import { useUpNext } from "./useUpNext";
+import type { PlayerUpNextItem } from "./player/upNext";
 import { useNextUp } from "./useNextUp";
 import { useMediaPlayerShortcuts } from "./useMediaPlayerShortcuts";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
@@ -120,7 +135,8 @@ import {
     playbackDataSaverLevel,
 } from "./mediaPlayer";
 
-const { t, te } = useI18n();
+const { t } = useI18n();
+const { known, textOr } = useKnownTexts();
 const router = useRouter();
 
 /** The speeds every speed menu offers, the player's own included, so a speed set in one is ticked in the others. */
@@ -157,10 +173,37 @@ const sheetTab = ref<SheetTab | null>(null);
 /** The tag the Up next lists are narrowed to; it goes with the video, and the next one starts at All. */
 const upNextTag = ref<Uuid | null>(null);
 const upNext = useUpNext(content, upNextTag);
+
+const videoPlayerService = inject(VideoPlayerKey, undefined);
+const downloadsInjected = inject(DownloadsKey, undefined);
+/**
+ * Downloads, where a service is there and the player plays them; without them nothing of downloads shows. The
+ * player's answer can arrive after this is set up, so it is followed as it changes.
+ */
+const downloadsService = computed(() =>
+    videoPlayerService?.playsDownloads ? downloadsInjected : undefined,
+);
+const autoplayWithDownloads = useAutoplayMode(downloadsInjected);
+/** Which items autoplay carries on to; undefined without downloads, where it is any. */
+const autoplay = computed(() => (downloadsService.value ? autoplayWithDownloads : undefined));
 const { nextContents, nextUp, browseContents, browseUpNext } = useNextUp(
     upNext,
     () => content.value?.parentId,
+    () =>
+        autoplay.value?.mode.value === "downloaded"
+            ? downloadsService.value?.playableParentIds.value
+            : undefined,
 );
+/** The items up next for the player's own panel and strip, those on the device marked. */
+function markDownloaded(items: PlayerUpNextItem[], docs: ContentDto[]) {
+    const playable = downloadsService.value?.playableParentIds.value;
+    if (!playable?.size) return items;
+    return items.map((entry, i) =>
+        docs[i] && playable.has(docs[i].parentId) ? { ...entry, downloaded: true } : entry,
+    );
+}
+const playerUpNext = computed(() => markDownloaded(browseUpNext.value, browseContents.value));
+const playerNextUp = computed(() => markDownloaded(nextUp.value, nextContents.value));
 /** Up next has had something to offer for this video: the tab stays while a new choice loads. */
 const hadUpNext = ref(false);
 watch(
@@ -1416,8 +1459,11 @@ const nativeBar = computed<VideoMiniPlayerBar | null>(() => {
     const shown = content.value;
     if (!nativeOwnsBar.value || !shown) return null;
     const hash = thumbHashOf(shown);
-    // Offline, native cannot reach the bucket: the cover goes as data, as on the now-playing screen.
-    const cover = deviceOnline.value ? barCover.value : (offlineArtwork.value ?? barCover.value);
+    // A download carries its own cover. Offline, native cannot reach the bucket: the cover goes as data, as on the
+    // now-playing screen.
+    const cover =
+        engine.value?.playback?.artworkUrl ??
+        (deviceOnline.value ? barCover.value : (offlineArtwork.value ?? barCover.value));
     return {
         title: shown.title,
         ...(shown.author ? { author: shown.author } : {}),
@@ -1796,7 +1842,9 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
     if (!nativeScreen.value || !content.value) return null;
     // Offline, native cannot reach the bucket: the cover goes as data, and the poster falls back to it there.
     const online = deviceOnline.value;
-    const artworkUrl = online ? screenArtwork.value?.src : offlineArtwork.value;
+    const artworkUrl =
+        engine.value?.playback?.artworkUrl ??
+        (online ? screenArtwork.value?.src : offlineArtwork.value);
     return {
         title: content.value.title,
         ...(nowPlayingSubtitle.value ? { subtitle: nowPlayingSubtitle.value } : {}),
@@ -1814,16 +1862,115 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
         ...(upNextTag.value ? { upNextTag: upNextTag.value } : {}),
         dataSaver: playbackDataSaverLevel.value,
         autoplay: autoplayNext.value,
+        ...(autoplay.value
+            ? {
+                  autoplayMode: autoplay.value.mode.value,
+                  autoplayModeLocked: autoplay.value.locked.value,
+              }
+            : {}),
+        ...(screenDownload.value ? { download: screenDownload.value } : {}),
+        ...(playerNotice.value
+            ? {
+                  notice: {
+                      id: playerNotice.value.id,
+                      text: playerNotice.value.text,
+                      ...(playerNotice.value.action
+                          ? { action: playerNotice.value.action.label }
+                          : {}),
+                      dismissible: true,
+                  },
+              }
+            : {}),
     };
 });
+
+// --- downloads on the platform's screen -------------------------------------------------------------
+
+/** Whether the item may be downloaded now, for the download tool. */
+const downloadable = downloadsInjected?.eligibility(() => content.value);
 /**
- * A string the language has; left out otherwise, so the platform's own English shows rather than the bare key (a
- * key added before the server's language documents have it).
+ * The download tool: shown for an item that may be downloaded or has a download. A progress tick that leaves the
+ * tool as it was hands back the same object, so the screen is not described again for it.
  */
-const known = (key: string, params?: Record<string, string>): string | undefined =>
-    te(key) ? (params ? t(key, params) : t(key)) : undefined;
-/** A page string the language may not have yet: its English shows rather than the bare key. */
-const textOr = (key: string, english: string): string => (te(key) ? t(key) : english);
+const screenDownload = computed<VideoNowPlayingDownload | null>((before) => {
+    const service = downloadsService.value;
+    const shown = content.value;
+    if (!service || !shown) return null;
+    const entry = service.entryFor(shown.parentId);
+    if (!entry && !downloadable?.value) return null;
+    const badge = service.badges.value.get(shown.parentId) ?? { state: "none" as const };
+    // A stand-in made from the download alone names no stream.
+    const streams = service.network.value.online && !!mediaSourceFor(shown);
+    const tool = nowPlayingDownload(
+        badge,
+        entry ? engine.value?.playingSource : undefined,
+        streams,
+    );
+    return before && JSON.stringify(before) === JSON.stringify(tool) ? before : tool;
+});
+const downloadTexts = useNowPlayingDownloadTexts();
+
+/**
+ * A notice about what plays shows on the platform's screen while it is up, and waits while the expanded player is
+ * about to become that screen. Otherwise (minimised included) one without a button is a toast, once; one with a
+ * button is a banner whose tap runs it and whose label it shows, up while the notice stands. The downloads' own
+ * notices come here too when the screen is up; otherwise they go to the app's notifications.
+ */
+const noticeBanner = ref<string | undefined>(undefined);
+function dropNoticeBanner() {
+    const id = noticeBanner.value;
+    noticeBanner.value = undefined;
+    if (id) useNotificationStore().removeNotification(id);
+}
+const noticeWaitsForScreen = computed(() => expanded.value && nativeOwnsScreen.value);
+watch([playerNotice, nativeScreen, noticeWaitsForScreen], ([notice, onScreen, owns]) => {
+    if (notice?.id !== noticeBanner.value || onScreen || owns) dropNoticeBanner();
+    if (!notice || onScreen || owns || noticeBanner.value === notice.id) return;
+    if (!notice.action) {
+        playerNotice.value = null;
+        useNotificationStore().addNotification({
+            title: notice.text,
+            state: "info",
+            type: "toast",
+        });
+        return;
+    }
+    noticeBanner.value = notice.id;
+    useNotificationStore().addNotification({
+        id: notice.id,
+        title: notice.text,
+        description: notice.action.label,
+        state: "info",
+        type: "banner",
+        link: () => actOnPlayerNotice(notice.id),
+    });
+});
+// The viewer closing the banner closes the notice.
+watch(
+    () => useNotificationStore().notifications.find((n) => n.id === noticeBanner.value)?.id,
+    (now, was) => {
+        if (was && !now && noticeBanner.value === was) {
+            noticeBanner.value = undefined;
+            dismissPlayerNotice(String(was));
+        }
+    },
+);
+onBeforeUnmount(dropNoticeBanner);
+// A notice is about the item it was raised for.
+watch(
+    () => content.value?._id,
+    () => (playerNotice.value = null),
+);
+if (downloadsInjected) {
+    const stop = downloadsInjected.player.onNotice((text) => {
+        // One raised while the screen is about to rise waits for it, as the player's own notices do.
+        if (!downloadsService.value || (!nativeScreen.value && !noticeWaitsForScreen.value))
+            return false;
+        showPlayerNotice({ text });
+        return true;
+    });
+    onBeforeUnmount(stop);
+}
 /** The screen's own words; the player adds those it shares with its other controls. */
 const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
     Object.fromEntries(
@@ -1879,6 +2026,7 @@ const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
             allTags: known("media_player.all_tags"),
             noMoreWithTag: known("media_player.no_more_with_tag"),
             filterByTag: known("media_player.filter_by_tag"),
+            ...(downloadsService.value ? downloadTexts.value : {}),
         }).filter((entry): entry is [string, string] => entry[1] !== undefined),
     ),
 );
@@ -1917,6 +2065,30 @@ function onNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
     else if (action === "dataSaver") pickDataSaver(value);
     else if (action === "autoplay" && (value === "on" || value === "off"))
         autoplayNext.value = value === "on";
+}
+
+/** The pill naming the autoplay mode on the page's own screen; tapped, it switches mode, unless offline forces it. */
+const AutoplayModePill = downloadsInjected?.ui.AutoplayModePill;
+const autoplayModeShown = computed(() => autoplay.value?.mode.value);
+const autoplayModeLocked = computed(() => autoplay.value?.locked.value === true);
+const autoplayModeLabel = computed(() => {
+    const mode =
+        autoplayModeShown.value === "downloaded"
+            ? textOr("downloads.now_playing.autoplay_mode_downloaded", "Downloaded only")
+            : textOr("downloads.now_playing.autoplay_mode_all", "All videos");
+    return `${textOr("downloads.now_playing.autoplay_mode", "Autoplay plays")}: ${mode}`;
+});
+function toggleAutoplayMode() {
+    autoplay.value?.choose(autoplayModeShown.value === "downloaded" ? "all" : "downloaded");
+}
+
+/** A downloads control of the platform's screen that the player left to the page. */
+function onDownloadAction(action: VideoDownloadAction) {
+    if (
+        action.action === "autoplayMode" &&
+        (action.value === "all" || action.value === "downloaded")
+    )
+        autoplay.value?.choose(action.value);
 }
 
 /** The quality menu's Data Saver switch overrides Settings for this playback only. */
@@ -2399,6 +2571,18 @@ function onKeydown(event: KeyboardEvent) {
                     @stagechange="nudgeInlineVideo"
                     @scrub="onNowPlayingScrub"
                 >
+                    <template v-if="AutoplayModePill && autoplayModeShown" #autoplay-mode>
+                        <button
+                            type="button"
+                            class="flex min-h-[44px] items-center self-center disabled:opacity-60"
+                            :aria-label="autoplayModeLabel"
+                            :disabled="autoplayModeLocked"
+                            data-test="mediaPlayerAutoplayMode"
+                            @click="toggleAutoplayMode"
+                        >
+                            <component :is="AutoplayModePill" :mode="autoplayModeShown" />
+                        </button>
+                    </template>
                     <template v-if="nowPlayingRoster" #roster>
                         <ScrubRoster
                             :tiles="nowPlayingRoster.tiles"
@@ -2457,6 +2641,7 @@ function onKeydown(event: KeyboardEvent) {
                             @volume="setVolume"
                             @step="stepVolume"
                         />
+                        <AppPromoSlot placement="player-download" />
                     </template>
                     <template #top-end>
                         <button
@@ -3280,13 +3465,14 @@ function onKeydown(event: KeyboardEvent) {
                     :content="content"
                     :language="item.language"
                     :start-audio="startAudio"
-                    :next-up="nextUp"
-                    :up-next="browseUpNext"
+                    :next-up="playerNextUp"
+                    :up-next="playerUpNext"
                     autoplay
                     @nextupselect="swapToNext"
                     @upnextselect="swapToNext"
                     @nowplayingaction="onNowPlayingAction"
                     @miniplayeraction="onMiniPlayerAction"
+                    @downloadaction="onDownloadAction"
                     inline
                     :caption-band="screen && captionBand ? 64 : 0"
                     :fullscreen-on-play="isNativeApp()"

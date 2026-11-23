@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { mount } from "@vue/test-utils";
+import { nextTick } from "vue";
+import { mount, type VueWrapper } from "@vue/test-utils";
 import StorageFormModal from "./StorageFormModal.vue";
 import {
     StorageType,
@@ -10,6 +11,7 @@ import {
 } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import LButton from "../button/LButton.vue";
+import LSelect from "../forms/LSelect.vue";
 
 describe("BucketFormModal", () => {
     const mockBucket: StorageDto = {
@@ -444,6 +446,140 @@ describe("BucketFormModal media settings", () => {
             byteRange: true,
             chunkSizeMB: 100,
         });
+    });
+
+    it("records the block length in the same object", async () => {
+        const wrapper = mount(StorageFormModal, {
+            props: propsFor({ ...mediaBucket, mediaEncoderSettings: { chunkSizeMB: 100 } }),
+        });
+
+        await wrapper.find('input[name="mediaBlockSeconds"]').setValue("60");
+
+        const emitted = wrapper.emitted("update:bucket");
+        expect(emitted).toBeTruthy();
+        expect((emitted!.at(-1)![0] as StorageDto).mediaEncoderSettings).toEqual({
+            chunkSizeMB: 100,
+            blockSeconds: 60,
+        });
+    });
+
+    it.each([
+        ["", undefined],
+        ["0", 0],
+        ["-5", -5],
+        ["900", 900],
+    ])("records a block length of %j as %j", async (value, expected) => {
+        const wrapper = mount(StorageFormModal, {
+            props: propsFor({ ...mediaBucket, mediaEncoderSettings: { blockSeconds: 30 } }),
+        });
+
+        await wrapper.find('input[name="mediaBlockSeconds"]').setValue(value);
+
+        const emitted = wrapper.emitted("update:bucket");
+        expect(emitted).toBeTruthy();
+        expect((emitted!.at(-1)![0] as StorageDto).mediaEncoderSettings?.blockSeconds).toBe(
+            expected,
+        );
+    });
+
+    it.each([
+        [45, false],
+        [-5, true],
+        [900, true],
+    ])("flags a stored block length of %j as out of range: %j", (blockSeconds, flagged) => {
+        const wrapper = mount(StorageFormModal, {
+            props: propsFor({ ...mediaBucket, mediaEncoderSettings: { blockSeconds } }),
+        });
+
+        const input = wrapper.find('input[name="mediaBlockSeconds"]');
+        expect(input.classes().includes("ring-red-300")).toBe(flagged);
+    });
+
+    it("shows the block length that is stored, whatever is typed", async () => {
+        // Fed back as the parent does, so the field is judged against the stored value.
+        const wrapper: VueWrapper<InstanceType<typeof StorageFormModal>> = mount(StorageFormModal, {
+            props: {
+                ...propsFor({ ...mediaBucket, mediaEncoderSettings: { blockSeconds: 600 } }),
+                "onUpdate:bucket": (bucket: StorageDto) => wrapper.setProps({ bucket }),
+            },
+        });
+        const input = wrapper.find('input[name="mediaBlockSeconds"]');
+
+        for (const typed of ["6000", "600", "45"]) {
+            await input.setValue(typed);
+            await nextTick();
+            const stored = wrapper.props("bucket")?.mediaEncoderSettings?.blockSeconds;
+            expect((input.element as HTMLInputElement).value).toBe(String(stored));
+        }
+    });
+
+    it("shows the stored block length and hides it with byte-range off", async () => {
+        const wrapper = mount(StorageFormModal, {
+            props: propsFor({ ...mediaBucket, mediaEncoderSettings: { blockSeconds: 45 } }),
+        });
+
+        const input = wrapper.find('input[name="mediaBlockSeconds"]');
+        expect((input.element as HTMLInputElement).value).toBe("45");
+
+        await wrapper.setProps({
+            bucket: { ...mediaBucket, mediaEncoderSettings: { byteRange: false } },
+        });
+        expect(wrapper.find('input[name="mediaBlockSeconds"]').exists()).toBe(false);
+    });
+
+    it("clears the block length when byte-range is turned off, so a hidden value cannot block the save", async () => {
+        const wrapper = mount(StorageFormModal, {
+            props: propsFor({ ...mediaBucket, mediaEncoderSettings: { blockSeconds: 900 } }),
+        });
+
+        await wrapper.find('[data-test="media-byterange-toggle"]').trigger("click");
+
+        const settings = (wrapper.emitted("update:bucket")!.at(-1)![0] as StorageDto)
+            .mediaEncoderSettings;
+        expect(settings?.byteRange).toBe(false);
+        expect(settings?.blockSeconds).toBeUndefined();
+    });
+
+    it("keeps the block length when byte-range is turned on", async () => {
+        const wrapper = mount(StorageFormModal, {
+            props: propsFor({
+                ...mediaBucket,
+                mediaEncoderSettings: { byteRange: false, blockSeconds: 45 },
+            }),
+        });
+
+        await wrapper.find('[data-test="media-byterange-toggle"]').trigger("click");
+
+        expect(
+            (wrapper.emitted("update:bucket")!.at(-1)![0] as StorageDto).mediaEncoderSettings,
+        ).toEqual({ byteRange: true, blockSeconds: 45 });
+    });
+
+    it("clears the block length when the bucket stops being a media bucket", async () => {
+        const wrapper = mount(StorageFormModal, {
+            props: propsFor({
+                ...mediaBucket,
+                mediaEncoderSettings: { chunkSizeMB: 100, blockSeconds: 900 },
+            }),
+        });
+
+        wrapper.findComponent(LSelect).vm.$emit("update:modelValue", StorageType.Image);
+        await nextTick();
+
+        const bucket = wrapper.emitted("update:bucket")!.at(-1)![0] as StorageDto;
+        expect(bucket.storageType).toBe(StorageType.Image);
+        expect(bucket.mediaEncoderSettings?.chunkSizeMB).toBe(100);
+        expect(bucket.mediaEncoderSettings?.blockSeconds).toBeUndefined();
+    });
+
+    it("leaves a bucket without encode settings without them when its type changes", async () => {
+        const wrapper = mount(StorageFormModal, { props: propsFor(mediaBucket) });
+
+        wrapper.findComponent(LSelect).vm.$emit("update:modelValue", StorageType.Image);
+        await nextTick();
+
+        const bucket = wrapper.emitted("update:bucket")!.at(-1)![0] as StorageDto;
+        expect(bucket).not.toHaveProperty("mediaEncoderSettings");
     });
 
     it("keeps an unencrypted choice visible when the modal reopens", () => {

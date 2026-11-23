@@ -83,6 +83,25 @@ declare module "virtual:video-player" {
     export function installVideoPlayer(app: App): void;
 }
 
+declare module "virtual:downloads" {
+    import type { App } from "vue";
+    import type { InjectionKey } from "vue";
+    import type { DownloadsService } from "@/build-time/contracts/downloads/contract";
+
+    export const DownloadsKey: InjectionKey<DownloadsService>;
+    /** A promise settles once the service is provided or known absent; it never rejects. */
+    export function installDownloads(app: App): void | Promise<void>;
+}
+
+declare module "virtual:app-promo" {
+    import type { App } from "vue";
+    import type { InjectionKey } from "vue";
+    import type { AppPromoService } from "@/build-time/contracts/app-promo/contract";
+
+    export const AppPromoKey: InjectionKey<AppPromoService>;
+    export function installAppPromo(app: App): void | Promise<void>;
+}
+
 declare module "virtual:app-update" {
     import type { App } from "vue";
     import type { InjectionKey } from "vue";

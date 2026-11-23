@@ -1,8 +1,50 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { effectiveDataSaverLevel } from "@/globalConfig";
+import type { VideoNowPlayingTexts } from "@/build-time/contracts/video-player/contract";
 
 const DATA_SAVER_LEVEL_NAMES = { off: "Off", light: "Light", strict: "Strict" } as const;
+
+/** The now-playing screen's download words, by its field names; the platform fills in `{percent}` itself. */
+const NOW_PLAYING_DOWNLOAD_KEYS = {
+    download: "downloads.now_playing.download",
+    downloadProgress: "downloads.now_playing.download_progress",
+    downloaded: "downloads.now_playing.downloaded",
+    downloadAttention: "downloads.now_playing.download_attention",
+    downloadUnavailable: "downloads.now_playing.download_unavailable",
+    sourceDownloaded: "downloads.now_playing.source_downloaded",
+    sourceOnline: "downloads.now_playing.source_online",
+    chapterNotDownloaded: "downloads.now_playing.chapter_not_downloaded",
+    chapterOnline: "downloads.now_playing.chapter_online",
+    chapterDownload: "downloads.now_playing.chapter_download",
+    autoplayMode: "downloads.now_playing.autoplay_mode",
+    autoplayModeAll: "downloads.now_playing.autoplay_mode_all",
+    autoplayModeDownloaded: "downloads.now_playing.autoplay_mode_downloaded",
+    closeNotice: "downloads.now_playing.close_notice",
+} as const satisfies Partial<Record<keyof VideoNowPlayingTexts, string>>;
+
+/**
+ * Strings that may be newer than the language document: `known` leaves out one the language lacks, so a player's own
+ * English stands in rather than the bare key, and `textOr` gives the English passed.
+ */
+export function useKnownTexts() {
+    const { t, te, locale, getLocaleMessage } = useI18n();
+    // The language documents' keys are flat with dots in them, which `te` reads as a path and never finds.
+    const has = (key: string): boolean => {
+        if (te(key)) return true;
+        const messages = getLocaleMessage(locale.value) as Record<string, unknown> | undefined;
+        return (
+            !!messages &&
+            Object.prototype.hasOwnProperty.call(messages, key) &&
+            typeof messages[key] === "string"
+        );
+    };
+    const known = (key: string, params?: Record<string, string>): string | undefined =>
+        has(key) ? (params ? t(key, params) : t(key)) : undefined;
+    const textOr = (key: string, english: string, params?: Record<string, string>): string =>
+        known(key, params) ?? english;
+    return { known, textOr };
+}
 
 /**
  * The player's own strings, in the language of the app: the web and the native player take the
@@ -10,16 +52,16 @@ const DATA_SAVER_LEVEL_NAMES = { off: "Off", light: "Light", strict: "Strict" } 
  * the player to fill in with its own numbers.
  */
 export function usePlayerMessages() {
-    const { t, te } = useI18n();
-    // Strings newer than a language document are left out, so the player's English stands in rather than the key.
-    const known = (key: string): string | undefined => (te(key) ? t(key) : undefined);
+    const { t } = useI18n();
+    const { known } = useKnownTexts();
     /** "Default from Settings: Light": what the quality menu's Data Saver switch overrides. */
     const dataSaverDefault = (): string => {
         const level = effectiveDataSaverLevel.value;
         const name = known(`settings.data_saver.${level}`) ?? DATA_SAVER_LEVEL_NAMES[level];
-        return te("media_player.data_saver_default")
-            ? t("media_player.data_saver_default", { level: name })
-            : `Default from Settings: ${name}`;
+        return (
+            known("media_player.data_saver_default", { level: name }) ??
+            `Default from Settings: ${name}`
+        );
     };
     return computed(() => ({
         comingSoon: t("video_player.coming_soon"),
@@ -89,8 +131,25 @@ export function usePlayerMessages() {
             sleepShort: known("media_player.sleep_label"),
             more: known("media_player.more"),
             backToLine: known("media_player.back_to_line"),
+            // Native full screen reads it after an up-next item that is on the device.
+            downloaded: known(NOW_PLAYING_DOWNLOAD_KEYS.downloaded),
         }),
     }));
+}
+
+/** The download words of a platform's now-playing screen that the language has; the rest stay the platform's English. */
+export function useNowPlayingDownloadTexts() {
+    const { known } = useKnownTexts();
+    return computed<VideoNowPlayingTexts>(() =>
+        defined(
+            Object.fromEntries(
+                Object.entries(NOW_PLAYING_DOWNLOAD_KEYS).map(([field, key]) => [
+                    field,
+                    known(key, { percent: "{percent}" }),
+                ]),
+            ),
+        ),
+    );
 }
 
 function defined(texts: Record<string, string | undefined>): Record<string, string> {

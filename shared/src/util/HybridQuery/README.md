@@ -282,6 +282,9 @@ offline.
   persisted, e.g. a viewed online-only article). This covers _both_ `persistOffline` docs
   and content that slid out of the sync window. TTL defaults to **30 days**
   (`SharedConfig.offlineRetentionTtlMs`).
+  `pinRetention` keeps docs with no deadline until `unpinRetention`; eviction spares
+  them, and a pinned doc keeps its keep-alive stamp for after it is unpinned. A pin never
+  expires on its own; `getPinnedRetentionIds` lists the pinned ids.
 - **Live socket updates are retention-gated.** The global socket `data` handler writes a
   below-cutoff Content update through to `db.docs` **only if a retention row exists** for
   it — so a live edit to an offline-cached older article stays fresh, while a below-cutoff
@@ -413,6 +416,11 @@ by choosing the shared variant).
   (`POST /query`). Applies the `DEFAULT_REMOTE_QUERY_LIMIT` (500) as the **default**
   when `$limit` is omitted, and as a **clamp** on caller-supplied limits above it.
   (`HybridQuery` is `queryLocal` merged with `queryRemote`, kept reactive.)
+- `queryRemoteOutcome<T>(query)` — `queryRemote` that tells an empty result from a
+  failed request. Same request and limit rules; resolves a `RemoteQueryOutcome<T>`:
+  `{ ok: true, docs }` only for a successful response carrying a document list, otherwise
+  `{ ok: false, status? }`, with `status` the HTTP status when a response arrived (absent
+  for a network failure or when `initHybridQuery` has not run). Never throws.
 - `initHybridQuery(http)` — wire the HTTP service once at startup
   (`shared/src/luminary.ts`).
 - `DEFAULT_REMOTE_QUERY_LIMIT = 500` — paired with the API's `QUERY_MAX_LIMIT`

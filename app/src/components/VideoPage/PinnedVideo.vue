@@ -5,6 +5,15 @@ import HorizontalContentTileCollection from "@/components/content/HorizontalCont
 import { useContentQuery } from "@/composables/useContentQuery";
 import { hasVideoSelector } from "@/util/mediaSource";
 
+type Props = {
+    /** Shows only these parents, under cache entries of their own, leaving the full feed's alone. */
+    parentIds?: readonly string[];
+};
+const props = defineProps<Props>();
+// Fixed for the life of the list: a query takes its cache entry when it is made, so the page
+// remounts the list to change it.
+const filtered = props.parentIds !== undefined;
+
 const pinnedCategories = useContentQuery(
     () => [{ parentPinned: 1 }, { parentTagType: TagType.Category }],
     {
@@ -30,6 +39,7 @@ const pinnedCategoryContent = useContentQuery(
         },
         { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
         { parentId: { $in: pinnedCategories.value.flatMap((c) => c.parentTaggedDocs ?? []) } },
+        ...(filtered ? [{ parentId: { $in: [...(props.parentIds ?? [])] } }] : []),
     ],
     // Resolve each pinned category to the post ids tagged with it (parentTaggedDocs — the
     // server-mirrored copy of the tag's taggedDocs) and seek child content by parentId.
@@ -41,7 +51,13 @@ const pinnedCategoryContent = useContentQuery(
     // contentByTag re-sorts per category for display.
     // A pinned-category change re-narrows the same feed, so keep the tiles on screen
     // while the new window loads.
-    { cache: true, limit: 50, sort: [{ publishDate: "desc" }], keepPreviousResult: true },
+    {
+        cache: true,
+        limit: 50,
+        sort: [{ publishDate: "desc" }],
+        keepPreviousResult: true,
+        ...(filtered ? { cacheId: "watch-pinned-downloaded" } : {}),
+    },
 );
 
 // sort pinned content by category

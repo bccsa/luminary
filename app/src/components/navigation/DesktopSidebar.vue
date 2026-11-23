@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, inject, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
@@ -12,6 +12,7 @@ import {
     ShieldCheckIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
+    ArrowDownTrayIcon,
 } from "@heroicons/vue/24/outline";
 import {
     HeartIcon as FilledHeartIcon,
@@ -19,6 +20,7 @@ import {
     UserIcon,
     ArrowRightEndOnRectangleIcon,
     ArrowLeftEndOnRectangleIcon,
+    ArrowDownTrayIcon as FilledArrowDownTrayIcon,
 } from "@heroicons/vue/24/solid";
 import defaultLogo from "@/assets/logo.svg?url";
 import defaultLogoDark from "@/assets/logo-dark.svg?url";
@@ -36,11 +38,13 @@ import {
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import { useHydrated } from "@/composables/useHydrated";
+import { DownloadsKey } from "@/build-time/contracts/downloads/token";
 
 const { t } = useI18n();
 const { openSearch, isSearchOpen } = useSearchOverlay();
 const { collapsed, toggleCollapsed } = useDesktopSidebar();
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
+const downloads = inject(DownloadsKey, undefined);
 
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 const LOGO_DARK = import.meta.env.VITE_LOGO_DARK || defaultLogoDark;
@@ -239,6 +243,47 @@ const handleLogin = () => {
                     <span v-if="!collapsed" :class="navLabelClass">{{
                         t("profile_menu.activity")
                     }}</span>
+                </a>
+            </RouterLink>
+
+            <RouterLink
+                v-if="downloads"
+                :to="{ name: 'downloads' }"
+                v-slot="{ isActive, href, navigate }"
+                custom
+            >
+                <a
+                    :href="href"
+                    :class="[navItemClasses(isActive), 'relative']"
+                    :title="t('profile_menu.downloads')"
+                    data-test="sidebar-downloads"
+                    @click="navigate"
+                >
+                    <component
+                        :is="isActive ? FilledArrowDownTrayIcon : ArrowDownTrayIcon"
+                        :class="navIconClass"
+                        aria-hidden="true"
+                    />
+                    <span v-if="!collapsed" :class="[navLabelClass, 'flex-1']">{{
+                        t("profile_menu.downloads")
+                    }}</span>
+                    <span
+                        v-if="downloads.attentionCount.value > 0"
+                        class="rounded-full bg-red-500 text-center text-xs font-semibold text-white"
+                        :class="
+                            collapsed
+                                ? 'absolute right-1 top-1 h-2.5 w-2.5'
+                                : 'min-w-5 px-1.5 leading-5'
+                        "
+                        :aria-label="
+                            t('downloads.menu.attention', {
+                                count: downloads.attentionCount.value,
+                            })
+                        "
+                        role="img"
+                        data-test="sidebar-downloads-attention"
+                        >{{ collapsed ? "" : downloads.attentionCount.value }}</span
+                    >
                 </a>
             </RouterLink>
 

@@ -26,6 +26,7 @@ export const availablePermissionsPerDocType = {
         AclPermission.Translate,
         AclPermission.Publish,
         AclPermission.Share,
+        AclPermission.Download,
         AclPermission.CmsView,
     ],
     [DocType.Tag]: [
@@ -36,6 +37,7 @@ export const availablePermissionsPerDocType = {
         AclPermission.Translate,
         AclPermission.Publish,
         AclPermission.Share,
+        AclPermission.Download,
         AclPermission.CmsView,
     ],
     [DocType.User]: [
@@ -125,6 +127,22 @@ export const cmsOnlyPermissions = [
     AclPermission.Translate,
     AclPermission.Publish,
 ];
+
+/**
+ * Short labels for the compact permission summaries. Explicit, because first letters clash
+ * (Delete and Download).
+ */
+export const permissionAbbreviations: Record<AclPermission, string> = {
+    [AclPermission.View]: "V",
+    [AclPermission.Edit]: "E",
+    [AclPermission.Delete]: "D",
+    [AclPermission.Assign]: "A",
+    [AclPermission.Translate]: "T",
+    [AclPermission.Publish]: "P",
+    [AclPermission.Share]: "S",
+    [AclPermission.Download]: "Dl",
+    [AclPermission.CmsView]: "C",
+};
 
 /**
  * Check if an ACL entry carries either of the visibility permissions the other permissions depend on

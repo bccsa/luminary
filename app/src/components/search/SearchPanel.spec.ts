@@ -8,6 +8,7 @@ import SearchPanel from "./SearchPanel.vue";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
 import type { FtsSearchResult } from "luminary-shared";
+import { createDownloadsServiceStub, provideDownloadsStub } from "@/tests/downloadsServiceStub";
 
 // ── Hoisted (vi.mock factories run before imports; no mockdata here) ──────────
 
@@ -328,5 +329,55 @@ describe("SearchPanel (page mode, kept alive)", () => {
 
         expect((wrapper!.find("input").element as HTMLInputElement).value).toBe("hope");
         expect(runSearchMock).toHaveBeenCalled();
+    });
+});
+
+describe("SearchPanel download badge", () => {
+    const results = ["a", "b"].map(
+        (id) =>
+            ({
+                docId: id,
+                score: 1,
+                wordMatchScore: 0,
+                doc: {
+                    _id: id,
+                    parentId: `post-${id}`,
+                    title: `Title ${id}`,
+                    slug: id,
+                    language: "lang-eng",
+                },
+            }) as unknown as FtsSearchResult,
+    );
+
+    it("renders results without a badge or any trace of downloads without the service", async () => {
+        setupFts({ results, lastSearchedQuery: "title" });
+        mountPage();
+        await flushPromises();
+
+        expect(wrapper!.findAll("[role='option']")).toHaveLength(2);
+        expect(wrapper!.find("[data-test='stub-download-badge']").exists()).toBe(false);
+        expect(wrapper!.find("#search-results-container").html()).not.toContain("download");
+    });
+
+    it("shows the badge of a result whose parent has a download", async () => {
+        setupFts({ results, lastSearchedQuery: "title" });
+        const service = createDownloadsServiceStub({
+            badges: { "post-b": { state: "attention" } },
+        });
+        wrapper = mount(SearchPanel, {
+            props: { mode: "page" },
+            global: {
+                provide: provideDownloadsStub(service),
+                stubs: { LImage: { template: "<div />" } },
+            },
+        });
+        await flushPromises();
+
+        const badges = wrapper.findAll("[data-test='stub-download-badge']");
+        expect(badges).toHaveLength(1);
+        expect(badges[0].attributes("data-parent-id")).toBe("post-b");
+        expect(
+            wrapper.get("#search-result-1").find("[data-test='stub-download-badge']").exists(),
+        ).toBe(true);
     });
 });

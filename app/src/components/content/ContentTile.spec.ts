@@ -15,6 +15,7 @@ import { setMediaProgress, setReadingProgress } from "@/contentProgress";
 import { computed, nextTick } from "vue";
 import { cmsLanguages } from "@/globalConfig";
 import { setSessionNow, __resetSessionNow } from "@/util/sessionNow";
+import { createDownloadsServiceStub, provideDownloadsStub } from "@/tests/downloadsServiceStub";
 
 vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({
@@ -585,5 +586,67 @@ describe("ContentTile", () => {
 
         expect(wrapper.text()).toContain("SERMONS");
         expect(wrapper.text()).not.toContain("Jan 1, 2024");
+    });
+});
+
+describe("ContentTile download badge", () => {
+    it("renders no badge, and no trace of downloads, without the downloads service", () => {
+        const wrapper = mount(ContentTile, { props: { content: mockEnglishContentDto } });
+
+        expect(wrapper.find("[data-test='stub-download-badge']").exists()).toBe(false);
+        expect(wrapper.html()).not.toContain("download");
+    });
+
+    it.each(["tile", "card"] as const)("shows the parent's badge in the %s layout", (layout) => {
+        const service = createDownloadsServiceStub({
+            badges: { [mockEnglishContentDto.parentId]: { state: "progress", percent: 40 } },
+        });
+        const wrapper = mount(ContentTile, {
+            props: { content: mockEnglishContentDto, layout },
+            global: { provide: provideDownloadsStub(service) },
+        });
+
+        const badge = wrapper.find("[data-test='stub-download-badge']");
+        expect(badge.attributes("data-parent-id")).toBe(mockEnglishContentDto.parentId);
+        expect(badge.attributes("data-state")).toBe("progress");
+    });
+
+    it("renders no badge for a parent without a download", () => {
+        const service = createDownloadsServiceStub();
+        const wrapper = mount(ContentTile, {
+            props: { content: mockEnglishContentDto },
+            global: { provide: provideDownloadsStub(service) },
+        });
+
+        expect(wrapper.find("[data-test='stub-download-badge']").exists()).toBe(false);
+    });
+
+    it("updates the badge without rendering the tile again", async () => {
+        const service = createDownloadsServiceStub();
+        const updated: string[] = [];
+        const wrapper = mount(ContentTile, {
+            props: { content: mockEnglishContentDto },
+            global: {
+                provide: provideDownloadsStub(service),
+                mixins: [
+                    {
+                        updated(this: { $: { type: { __name?: string; name?: string } } }) {
+                            updated.push(this.$.type.__name ?? this.$.type.name ?? "");
+                        },
+                    },
+                ],
+            },
+        });
+
+        service.badgesRef.value = new Map([
+            [mockEnglishContentDto.parentId, { state: "downloaded", partial: false }],
+        ]);
+        await nextTick();
+
+        expect(wrapper.find("[data-test='stub-download-badge']").attributes("data-state")).toBe(
+            "downloaded",
+        );
+        expect(updated).toContain("DownloadBadgeStub");
+        expect(updated).not.toContain("ContentTile");
     });
 });

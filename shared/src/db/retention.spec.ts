@@ -8,8 +8,12 @@ vi.mock("../fts/ftsIndexer", async (importOriginal) => {
     return { ...orig, scheduleCorpusStatsRecompute: vi.fn() };
 });
 
-import { db, initDatabase } from "./database";
+import { db, initDatabase, onDocsDeletedByCommand } from "./database";
 import {
+    getPinnedRetentionIds,
+    getRetainUntil,
+    pinRetention,
+    unpinRetention,
     touchRetention,
     flushRetention,
     evictStaleBelowCutoff,
@@ -97,6 +101,16 @@ describe("retention", () => {
             expect(spy).not.toHaveBeenCalled();
             await vi.advanceTimersByTimeAsync(10_000);
             expect(spy).toHaveBeenCalledTimes(1);
+        });
+
+        // The hide/unload flush gets no later turn of the event loop to write in
+        it("issues the write in the same tick as the flush call", async () => {
+            const spy = vi.spyOn(db.retention, "bulkPut");
+            touchRetention(["a"]);
+
+            const flushing = flushRetention();
+            expect(spy).toHaveBeenCalledTimes(1);
+            await flushing;
         });
 
         it("does nothing for an empty id list (no flush scheduled)", async () => {
@@ -407,5 +421,210 @@ describe("retention", () => {
             expect(await db.docs.get("fr1")).toBeDefined();
             config.cms = false;
         });
+    });
+
+    describe("pinRetention / unpinRetention", () => {
+        const PINNED = Number.MAX_SAFE_INTEGER;
+        const DAY = 24 * 60 * 60 * 1000;
+        // useFakeTimers is a no-op once a clock is installed, so later jumps go through setSystemTime.
+        const travel = (ms: number) => {
+            if (!vi.isFakeTimers()) vi.useFakeTimers({ toFake: ["Date"] });
+            vi.setSystemTime(Date.now() + ms);
+        };
+
+        it("spares a pinned doc from eviction and pruning however long ago it was served", async () => {
+            await db.docs.bulkPut([
+                content("below-pinned", 500),
+                content("below-cold", 400),
+                { ...content("fr-pinned", CUTOFF + 5000), language: "lang-fr" } as BaseDocumentDto,
+            ]);
+            await pinRetention(["below-pinned", "fr-pinned"]);
+
+            travel(10 * 365 * DAY);
+            await evictStaleBelowCutoff();
+            await pruneUnsyncedLanguageContent(["lang-fr"]);
+
+            expect(await db.docs.get("below-pinned")).toBeDefined();
+            expect(await db.docs.get("fr-pinned")).toBeDefined();
+            expect(await db.docs.get("below-cold")).toBeUndefined();
+            expect(await getRetainUntil(["below-pinned", "fr-pinned"])).toEqual([PINNED, PINNED]);
+        });
+
+        it("reports each doc's deadline: the pin, the stamp, or none", async () => {
+            touchRetention(["stamped", "both"]);
+            await flushRetention();
+            await pinRetention(["pinned", "both"]);
+            const [stamped, pinned, both, none] = await getRetainUntil([
+                "stamped",
+                "pinned",
+                "both",
+                "none",
+            ]);
+
+            expect(stamped).toBeGreaterThan(Date.now());
+            expect(stamped).toBeLessThan(PINNED);
+            expect(pinned).toBe(PINNED);
+            expect(both).toBe(PINNED);
+            expect(none).toBeUndefined();
+        });
+
+        it("does not let a touch overwrite the pin", async () => {
+            await pinRetention(["a"]);
+
+            touchRetention(["a"]);
+            await flushRetention();
+
+            expect(await getRetainUntil(["a"])).toEqual([PINNED]);
+        });
+
+        it("makes an unpinned doc that was never served evictable again", async () => {
+            await db.docs.bulkPut([content("below", 500)]);
+            await pinRetention(["below"]);
+
+            await unpinRetention(["below"]);
+            await evictStaleBelowCutoff();
+
+            expect(await getRetainUntil(["below"])).toEqual([undefined]);
+            expect(await db.docs.get("below")).toBeUndefined();
+        });
+
+        it("keeps the stamp a doc had before it was pinned once it is unpinned", async () => {
+            await db.docs.bulkPut([content("below", 500)]);
+            touchRetention(["below"]);
+            await flushRetention();
+            const stamped = (await db.retention.get("below"))!.retainUntil;
+
+            await pinRetention(["below"]);
+            await unpinRetention(["below"]);
+            await evictStaleBelowCutoff();
+
+            expect(await getRetainUntil(["below"])).toEqual([stamped]);
+            expect(await db.docs.get("below")).toBeDefined();
+        });
+
+        it("keeps the stamps of touches made while pinned once it is unpinned", async () => {
+            await db.docs.bulkPut([content("below", 500)]);
+            touchRetention(["below"]); // deadline +30 days
+            await flushRetention();
+            await pinRetention(["below"]);
+            travel(20 * DAY);
+            touchRetention(["below"]); // deadline +50 days
+            await flushRetention();
+            await unpinRetention(["below"]);
+
+            travel(20 * DAY); // +40 days: past the first deadline, within the second
+            await evictStaleBelowCutoff();
+            expect(await db.docs.get("below")).toBeDefined();
+
+            travel(15 * DAY); // +55 days: past both
+            await evictStaleBelowCutoff();
+            expect(await db.docs.get("below")).toBeUndefined();
+        });
+
+        it("leaves the deadline of a doc that was not pinned", async () => {
+            touchRetention(["a"]);
+            await flushRetention();
+            const stamped = (await db.retention.get("a"))!.retainUntil;
+
+            await unpinRetention(["a", "never-stamped"]);
+
+            expect(await getRetainUntil(["a", "never-stamped"])).toEqual([stamped, undefined]);
+        });
+
+        it("never deletes a pin row, even one written while an eviction pass is reading the stamps", async () => {
+            await db.docs.bulkPut([content("below", 500)]);
+            const bulkGet = db.retention.bulkGet.bind(db.retention);
+            let pinning: Promise<void> | undefined;
+            vi.spyOn(db.retention, "bulkGet").mockImplementationOnce(async (keys) => {
+                const rows = await bulkGet(keys);
+                pinning = pinRetention(["below"]);
+                return rows;
+            });
+
+            await evictStaleBelowCutoff();
+            await pinning;
+
+            expect(await getRetainUntil(["below"])).toEqual([PINNED]);
+            // The pass had already judged the doc stale, so the pin keeps its row but not its doc.
+            expect(await db.docs.get("below")).toBeUndefined();
+        });
+
+        it("lists the pinned ids and none of the stamped ones", async () => {
+            touchRetention(["stamped", "both"]);
+            await flushRetention();
+            await pinRetention(["pinned", "both"]);
+
+            expect((await getPinnedRetentionIds()).sort()).toEqual(["both", "pinned"]);
+        });
+
+        it("does not list an ordinary row whose deadline equals a pin's", async () => {
+            await db.retention.put({ docId: "x", retainUntil: PINNED });
+
+            expect(await getPinnedRetentionIds()).toEqual([]);
+        });
+
+        it("stops listing an id once it is unpinned", async () => {
+            await pinRetention(["a", "b"]);
+
+            await unpinRetention(["a"]);
+
+            expect(await getPinnedRetentionIds()).toEqual(["b"]);
+        });
+
+        it("lists nothing when no doc is pinned", async () => {
+            touchRetention(["a"]);
+            await flushRetention();
+
+            expect(await getPinnedRetentionIds()).toEqual([]);
+        });
+
+        it("keeps listing a pin whose doc is gone through an eviction pass", async () => {
+            await db.docs.bulkPut([content("below", 500)]);
+            await pinRetention(["below"]);
+            await db.docs.delete("below");
+
+            travel(10 * 365 * DAY);
+            await evictStaleBelowCutoff();
+
+            expect(await getPinnedRetentionIds()).toEqual(["below"]);
+        });
+
+        it("does nothing for an empty id list", async () => {
+            const put = vi.spyOn(db.retention, "bulkPut");
+            const del = vi.spyOn(db.retention, "bulkDelete");
+
+            await pinRetention([]);
+            await unpinRetention([]);
+
+            expect(put).not.toHaveBeenCalled();
+            expect(del).not.toHaveBeenCalled();
+        });
+
+        it("is cleared by purge along with the rest of the retention table", async () => {
+            await pinRetention(["a"]);
+
+            await db.purge();
+
+            expect(await db.retention.count()).toBe(0);
+        });
+    });
+
+    it("does not report eviction or pruning as deletion by command", async () => {
+        const listener = vi.fn();
+        const unsubscribe = onDocsDeletedByCommand(listener);
+        try {
+            await db.docs.bulkPut([
+                content("below-cold", 400),
+                { ...content("fr-cold", CUTOFF + 5000), language: "lang-fr" } as BaseDocumentDto,
+            ]);
+
+            await evictStaleBelowCutoff();
+            await pruneUnsyncedLanguageContent(["lang-fr"]);
+
+            expect(await db.docs.count()).toBe(0);
+            expect(listener).not.toHaveBeenCalled();
+        } finally {
+            unsubscribe();
+        }
     });
 });

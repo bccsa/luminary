@@ -4,6 +4,7 @@ import { applyLiveData } from "./liveSync";
 import { syncList } from "./state";
 import type { SyncListEntry } from "./types";
 import { db, initDatabase } from "../../db/database";
+import { pinRetention } from "../../db/retention";
 import { initConfig, config } from "../../config";
 import { DocType } from "../../types";
 
@@ -170,6 +171,29 @@ describe("liveSync.applyLiveData (sync live persister)", () => {
         expect(ids).toContain("above"); // above-cutoff → always persisted
         expect(ids).toContain("kept"); // below-cutoff but retention-listed
         expect(ids).not.toContain("uncached"); // below-cutoff, not kept → dropped
+    });
+
+    it("persists below-cutoff Content that is pinned but has no keep-alive stamp", async () => {
+        const CUTOFF = 1_000_000;
+        config.contentPublishDateCutoff = CUTOFF;
+        syncList.value = [
+            entry({ chunkType: `${DocType.Content}:${DocType.Post}`, languages: ["en"] }),
+        ];
+        await pinRetention(["pinned"]);
+
+        await applyLiveData({
+            docs: [
+                {
+                    type: DocType.Content,
+                    _id: "pinned",
+                    parentType: DocType.Post,
+                    language: "en",
+                    publishDate: CUTOFF - 1000,
+                },
+            ] as any,
+        });
+
+        expect(await db.docs.get("pinned")).toBeDefined();
     });
 
     it("persists below-cutoff Content when parentAlwaysOffline is true without a retention row", async () => {

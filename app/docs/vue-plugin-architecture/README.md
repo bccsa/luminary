@@ -30,7 +30,7 @@ This document describes a **contract-driven** way to plug in behavior in the Vue
 | **Implementation** | Class(es) in `build-time/plugins/<name>/` (e.g. `<name>-web.ts`) that satisfy the contract. |
 | **Virtual entry** | `build-time/plugins/<name>/index.ts`: `install…(app)`, `app.provide(YourKey, instance)`, re-exports. This is what Vite resolves. |
 | **Vite** | A plugin maps `virtual:<name>` → `build-time/plugins/<plugin>/index.ts` via `resolveId`. |
-| **Registry** | `src/build-time/contracts/plugin-registry.ts` imports `virtual:…` modules and exposes `app.use(appPluginsManager)` so bootstrap stays one place. |
+| **Registry** | `src/build-time/contracts/plugin-registry.ts` imports `virtual:…` modules and exposes `installPlugins(app)`, which `main.ts` calls and awaits, so bootstrap stays one place. `appPluginsManager` wraps it for `app.use` where nothing waits. |
 
 ### What `virtual:…` means
 
@@ -69,7 +69,7 @@ flowchart TB
 
 **Typical steps**
 
-1. **`main.ts`** uses **`app.use(appPluginsManager)`** from `@/build-time/contracts/plugin-registry`.
+1. **`main.ts`** calls **`installPlugins(app)`** from `@/build-time/contracts/plugin-registry` and awaits what it returns before mounting (see [Optional plugins](#optional-plugins)).
 2. The registry imports **`virtual:…`** (not `build-time/plugins/...` directly).
 3. The resolved module runs **`install…(app)`**, which constructs the service and **`provide`s** it on the app.
 4. Feature code **`inject(YourKey)`** and calls only the contract. Import **`YourKey`** from **`token.ts`**, not from the registry, so components do not depend on the virtual module's dependency graph.
@@ -84,7 +84,7 @@ app/
     buildTargetVirtuals.ts             # maps virtual:… → build-time/plugins/<name>/index.ts
   src/
     build-time/contracts/
-      plugin-registry.ts               # imports virtual modules; appPluginsManager
+      plugin-registry.ts               # imports virtual modules; installPlugins
       <plugin-name>/
         contract.ts
         token.ts
@@ -110,21 +110,61 @@ Each new capability gets its **own** `virtual:<name>` id and **parallel** entrie
    - **`<name>-web.ts`** — class that satisfies the contract.
    - **`index.ts`** — `install<Name>(app)` that **`provide`**s the implementation under the key from `token.ts`, plus any re-exports the registry needs.
 
-3. **Teach Vite the new id** — in **`app/vite-plugins/buildTargetVirtuals.ts`**, add another branch in **`resolveId`** (same pattern as `virtual:media-player`):
+3. **Teach Vite the new id** — in **`app/vite-plugins/buildTargetVirtuals.ts`**, add the id to **`virtualTargets`**, and its name to **`platformSwappable`** when a packaged-app target must supply it, or to **`optionalSwappable`** when it may (see [Optional plugins](#optional-plugins)):
 
 ```ts
-if (id === "virtual:downloads") {
-    return `${root}/build-time/plugins/downloads/index.ts`;
-}
+"virtual:my-feature": `${root}/build-time/plugins/my-feature/index.ts`,
 ```
 
-4. **Type the virtual module** — in **`app/env.d.ts`**, add **`declare module "virtual:downloads"`** (or whatever id you chose) exporting **`install…`** and the injection key type, mirroring **`virtual:media-player`**.
+4. **Type the virtual module** — in **`app/env.d.ts`**, add **`declare module "virtual:my-feature"`** (or whatever id you chose) exporting **`install…`** and the injection key type, mirroring **`virtual:video-player`**.
 
-5. **Wire bootstrap** — in **`app/src/build-time/contracts/plugin-registry.ts`**, **`import`** from **`virtual:downloads`**, call **`installDownloads(app)`** inside **`installPlugins`**, and re-export keys/types as needed.
+5. **Wire bootstrap** — in **`app/src/build-time/contracts/plugin-registry.ts`**, **`import`** from **`virtual:my-feature`**, call **`installMyFeature(app)`** inside **`installPlugins`**, and re-export keys/types as needed.
 
 6. **Use it in UI** — **`inject`** using the key imported from **`@/build-time/contracts/<name>/token`**, not from the virtual module.
 
 **Order of `install*` calls** usually does not matter unless one plugin's `install` depends on another's `provide` being ready; keep dependencies explicit in **`installPlugins`**.
+
+---
+
+## Optional plugins
+
+Most build-swapped services are **required**: every target supplies one, and a packaged-app build whose implementation directory (`VITE_NATIVE_IMPL_DIR`) lacks `<name>.ts` fails to build. Some capabilities only exist on some targets. These are **optional**, listed in the `optionalSwappable` set in `vite-plugins/buildTargetVirtuals.ts`:
+
+| | File in the implementation directory | Resolves to |
+| --- | --- | --- |
+| Required (`platformSwappable`) | present | `<impl dir>/<name>.ts` |
+| Required | missing | `<impl dir>/<name>.ts`, so the build fails |
+| Optional (`optionalSwappable`) | present | `<impl dir>/<name>.ts` |
+| Optional | missing | the in-app entry, `build-time/plugins/<name>/index.ts` |
+
+The web builds have an implementation directory of their own, `VITE_WEB_IMPL_DIR`, which only optional names resolve from: a required name keeps its in-app entry there, and with the variable unset nothing changes. A packaged-app build (`VITE_NATIVE_IMPL_DIR` set) ignores it. Bare package imports in a file from either directory resolve against the app's own dependencies.
+
+An optional plugin follows the same contract, token and registry pattern, with these differences:
+
+1. **The in-app entry provides nothing** (or, where consumers need something to hold on to, an empty holder). The web builds and any target that leaves the file out carry none of the feature.
+2. **Consumers treat the service as possibly absent:** `inject(YourKey, undefined)`, and render nothing when it is `undefined`. Components the feature shows are handed out by the service itself (for example `service.ui.SomeBadge`), the way `VideoPlayerService.component` is, so a consumer never imports them.
+3. **The feature's code is reached through one module.** A target's own entry hands its platform engine to a single `provide…(app, engine)` function, which builds the service and provides it. Everything else of the feature lives in its own folder that only that function imports, and ESLint rules in `.eslintrc.cjs` keep it that way: `no-restricted-imports` for static imports and re-exports, `no-restricted-syntax` for `import()`, and a stricter override for the in-app entry, which may import nothing of the feature outside a development-only branch. Because only a target's own entry imports the `provide…` function, a build without that entry cannot contain the feature.
+4. **Its `install…(app)` may return a promise** (`void | Promise<void>` in `env.d.ts`) when the answer comes asynchronously, for example from a platform plugin. It must never reject.
+
+**Consumers inject once at setup.** A component set up before an optional service is provided never sees it. Two ways around that:
+
+- **Hold the mount.** `installPlugins` returns a promise that settles once downloads are provided or known absent, and `main.ts` awaits it beside its other pre-mount work, capped at 1.5 s so a target whose plugin never answers still mounts. Components set up after a late answer still get the service.
+- **Provide a holder.** Provide a reactive holder at app creation and fill it later; consumers read through it, so anything already rendered updates when the service lands. App promotion does this.
+
+**Example: downloads.** `virtual:downloads` resolves to the target's `downloads.ts` when it exists, else to `build-time/plugins/downloads/index.ts`. A target with a downloads engine calls `provideDownloads(app, engine)` from `build-time/plugins/downloads/provide.ts`, the only importer of `src/downloads/**`; it builds the `DownloadsService`, adds the `/downloads` route with `router.addRoute`, and provides the service under `DownloadsKey`. The in-app entry provides nothing, except on the development server with `?fakeDownloads`: there it loads `provideFakeDownloads` from `provide.ts` through an `import()` inside an `if (import.meta.env.DEV && …)` branch, which provides the service over an in-memory engine so the downloads UI can be built in a browser. A build replaces `import.meta.env.DEV` with `false` and drops that branch with its import, so neither web bundle contains any of it; the in-app entry's ESLint override allows no other `import()`, and accepts this one only in the consequent of an `if` whose test is `import.meta.env.DEV && …` (not in an `else` branch, the test itself, or under `DEV || …`, none of which a build drops). The entry returns that import's promise, so the mount waits for the fake like any other answer; a first navigation to `/downloads` that went ahead without the route is sent there again.
+
+**Example: app promotion.** `virtual:app-promo` lets a build place promotional content on the page. Its contract (`build-time/contracts/app-promo/`) is an `AppPromoService` that answers `component(placement)` for a named placement, `AppPromoPlacement`:
+
+| Placement | Where |
+| --- | --- |
+| `player-download` | the page's own now-playing screen, in its tools, where the platform's screen has its download tool |
+
+A placement is drawn with `<AppPromoSlot placement="…" />` from `build-time/plugins/app-promo/`, which renders the service's component for it and nothing at all (no element, no wrapper) without one. `provideAppPromoHolder(app)` in `build-time/plugins/app-promo/provide.ts` provides an empty holder under `AppPromoKey`, and a target's own `app-promo.ts` hands its service to `provideAppPromo(app, service)`, which fills that holder. The in-app entry's `installAppPromo` only provides the holder, so with no implementation every placement stays empty.
+
+- **SPA** (`main.ts`): `installPlugins` provides the holder, then calls `installAppPromo`. The mount does not wait for it.
+- **SSG site** (`main.web.ts`): the setup provides the holder on both sides of the prerender, so prerendered HTML and the first client render carry only the empty placement. On the client, `installSsgAppPromo` in `src/ssg/clientRuntime.ts` loads `virtual:app-promo` and calls `installAppPromo` once the page has hydrated, so the module is off the path to the data layer, auth and the mount. The prerender never loads or installs it, so prerendered HTML is the same with or without an implementation.
+
+A web build supplies an implementation by setting `VITE_WEB_IMPL_DIR` to a directory with `app-promo.ts`; a packaged-app build puts it in `VITE_NATIVE_IMPL_DIR`.
 
 ---
 

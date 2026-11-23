@@ -5,13 +5,16 @@ import LImage from "../images/LImage.vue";
 import { type AspectRatio, type ImageSize } from "../images/LImageProvider.vue";
 import { PlayIcon } from "@heroicons/vue/24/solid";
 import { getMediaDuration, getMediaProgress, getReadingProgress } from "@/contentProgress";
-import { computed } from "vue";
+import { computed, inject } from "vue";
 import { useI18n } from "vue-i18n";
 import { cmsLanguages, cmsDefaultLanguage } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
 import { hasMediaSource, mediaSourceFor } from "@/util/mediaSource";
+import { DownloadsKey } from "@/build-time/contracts/downloads/token";
 
 const { t } = useI18n();
+// The badge reads its own state, so a progress tick re-renders the badge alone, never the tile.
+const downloads = inject(DownloadsKey, undefined);
 
 // The locale of the content's own language, not the visitor's browser locale — matches
 // the article page's `formatPublishDate` so a tile and the article it opens agree. The
@@ -158,6 +161,10 @@ const summaryText = computed(() => props.content.summary?.trim() ?? "");
                     <PlayIcon class="absolute h-9 w-9 text-white blur-sm" />
                     <PlayIcon class="relative h-9 w-9 text-white" />
                 </div>
+                <!-- The wrapper is placed: the badge positions its own ring inside itself. -->
+                <span v-if="downloads" class="absolute right-1 top-1 z-30">
+                    <component :is="downloads.ui.DownloadBadge" :parent-id="content.parentId" />
+                </span>
             </div>
 
             <div data-card-text class="flex min-w-0 flex-1 flex-col justify-start gap-1 py-2 pr-3">
@@ -307,6 +314,13 @@ const summaryText = computed(() => props.content.summary?.trim() ?? "");
                                 :style="{ width: `${displayProgress}%` }"
                             ></div>
                         </div>
+                        <!-- The wrapper is placed: the badge positions its own ring inside itself. -->
+                        <span v-if="downloads" class="absolute right-1.5 top-1.5 z-30">
+                            <component
+                                :is="downloads.ui.DownloadBadge"
+                                :parent-id="content.parentId"
+                            />
+                        </span>
                     </template>
                 </LImage>
             </div>

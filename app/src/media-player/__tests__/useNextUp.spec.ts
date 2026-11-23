@@ -159,6 +159,42 @@ describe("useNextUp", () => {
         expect(nextUp.value[1]?.imageSrcset).toBe("https://cdn.example.com/square.webp 100w");
     });
 
+    describe("when autoplay plays downloads alone", () => {
+        it("offers only what is playable from the device, still up to five, and browses everything", () => {
+            const related = Array.from({ length: 8 }, (_, i) => doc(`r${i}`));
+            const playable = new Set(["s1-parent", "r2-parent", "r7-parent"]);
+            const { nextContents, nextUp, browseContents } = useNextUp(
+                upNext([doc("s1")], related),
+                () => undefined,
+                () => playable,
+            );
+            expect(nextContents.value.map((d) => d._id)).toEqual(["s1", "r2", "r7"]);
+            expect(nextUp.value.map((i) => i.id)).toEqual(["s1", "r2", "r7"]);
+            expect(browseContents.value).toHaveLength(8);
+        });
+
+        it("offers nothing when nothing to follow is on the device", () => {
+            const { nextContents } = useNextUp(
+                upNext([doc("s1")], [doc("r1")]),
+                () => undefined,
+                () => new Set<string>(),
+            );
+            expect(nextContents.value).toEqual([]);
+        });
+
+        it("follows the mode as it changes", () => {
+            const only = ref<Set<string> | undefined>(new Set(["r1-parent"]));
+            const { nextContents } = useNextUp(
+                upNext([doc("s1")], [doc("r1")]),
+                () => undefined,
+                () => only.value,
+            );
+            expect(nextContents.value.map((d) => d._id)).toEqual(["r1"]);
+            only.value = undefined;
+            expect(nextContents.value.map((d) => d._id)).toEqual(["s1", "r1"]);
+        });
+    });
+
     it("always names the app's fallback picture, and no ladder for a document with no image", () => {
         const { nextUp } = useNextUp(upNext([doc("a", { parentImageData: undefined })], []));
         expect(nextUp.value[0]).toMatchObject({ fallbackImageUrl: "/fallback-a-parent.webp" });

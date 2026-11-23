@@ -77,7 +77,8 @@ import {
  * A host can also make it its now-playing view for video: with `stage: 'video'` the picture's place is the host's
  * `stage` slot, full width, and the tools are a video's (subtitles, picture in picture, full screen) instead of a
  * listener's. `stageHole` leaves that place transparent, for a picture the platform draws behind the page. The
- * `top-end` slot fills the right of the top line (a switch between sound and picture, say).
+ * `top-end` slot fills the right of the top line (a switch between sound and picture, say). The `autoplay-mode` slot
+ * names which items autoplay goes on to, beside the autoplay switch and in the end panel.
  */
 const props = withDefaults(
     defineProps<{
@@ -1072,6 +1073,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                     >
                         <span class="lmpl-afs-endpanel-label">{{ messages.nextUp }}</span>
                         <span class="lmpl-afs-endpanel-title">{{ offer.title }}</span>
+                        <slot name="autoplay-mode"></slot>
                         <span class="lmpl-afs-endpanel-ring" aria-hidden="true">
                             <svg viewBox="0 0 48 48" width="48" height="48">
                                 <circle
@@ -1170,6 +1172,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                     :size="24"
                                 />
                             </button>
+                            <slot v-if="autoplay !== undefined" name="autoplay-mode"></slot>
                             <button
                                 v-if="isVideo && canPictureInPicture"
                                 type="button"

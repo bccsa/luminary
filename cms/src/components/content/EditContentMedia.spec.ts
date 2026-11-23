@@ -13,6 +13,7 @@ const encoder = {
     encoding: ref(false),
     progress: ref<number | undefined>(undefined),
     error: ref<string | undefined>(undefined),
+    needsUpdate: ref(false),
     sessionId: ref<string | undefined>(undefined),
     outdated: ref(false),
     refreshAvailability: vi.fn().mockResolvedValue(true),
@@ -78,6 +79,7 @@ beforeEach(() => {
     encoder.status.value = undefined;
     encoder.encoding.value = false;
     encoder.error.value = undefined;
+    encoder.needsUpdate.value = false;
 });
 
 /**
@@ -453,6 +455,15 @@ describe("EditContentMedia status", () => {
 
         expect(wrapper.find('[data-test="encoder-unavailable"]').exists()).toBe(true);
         expect(wrapper.find('[data-test="encode-media-button"]').exists()).toBe(true);
+    });
+
+    it("asks for an update when the encoder is too old for the bucket", async () => {
+        encoder.needsUpdate.value = true;
+
+        const wrapper = mountSection();
+        await settle();
+
+        expect(wrapper.find('[data-test="encoder-needs-update"]').exists()).toBe(true);
     });
 });
 

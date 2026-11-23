@@ -15,6 +15,7 @@ import {
     startsAsAudio,
     dataSaverOverride,
     playbackDataSaverLevel,
+    playOnlineOverride,
 } from "../mediaPlayer";
 
 const other = { ...mockEnglishContentDto, _id: "content-other" };
@@ -139,6 +140,17 @@ describe("the media player's store", () => {
             openMediaPlayer(other, "en");
             expect(dataSaverOverride.value).toBeNull();
             expect(playbackDataSaverLevel.value).toBe("off");
+        });
+    });
+
+    describe("the viewer's pick of a copy", () => {
+        it("lasts for the item playing: another item follows the downloads' own pick again", () => {
+            openMediaPlayer(mockEnglishContentDto, "en");
+            playOnlineOverride.value = true;
+            openMediaPlayer(mockEnglishContentDto, "en", { audio: true });
+            expect(playOnlineOverride.value).toBe(true);
+            openMediaPlayer(other, "en");
+            expect(playOnlineOverride.value).toBeNull();
         });
     });
 });

@@ -4,6 +4,8 @@
 // Boots the same data layer the normal SPA uses (minus the service worker/auth),
 // so prerendered pages hydrate into a live, interactive SPA.
 
+import type { App } from "vue";
+import type { Router } from "vue-router";
 import { getSocket, init, warmMangoCaches } from "luminary-shared";
 import { apiUrl, appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
 import { APP_DOCS_INDEX } from "@/docsIndex";
@@ -32,4 +34,19 @@ export async function initSsgClient(): Promise<void> {
     initAuthLangSync();
     void initLanguage();
     initSync();
+}
+
+/**
+ * Installs the promotion plugin once the prerendered page has hydrated, so the static HTML and the first client
+ * render both carry its empty holder and only a later fill re-renders the placements. Its module loads only then, so
+ * neither its download nor a failure of it stands in the way of the data layer, auth or the mount.
+ */
+export function installSsgAppPromo(app: App, router: Router): void {
+    // The mount follows router readiness within the same microtask run; a timer lands after it.
+    void router
+        .isReady()
+        .then(() => new Promise((resolve) => setTimeout(resolve)))
+        .then(() => import("virtual:app-promo"))
+        .then(({ installAppPromo }) => installAppPromo(app))
+        .catch((error: unknown) => console.error(error));
 }

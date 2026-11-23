@@ -5,7 +5,7 @@ import ProfileMenu from "./ProfileMenu.vue";
 import * as auth from "@/auth";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { ref } from "vue";
+import { defineComponent, nextTick, ref, type PropType } from "vue";
 import waitForExpect from "wait-for-expect";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
 import { isConnected } from "luminary-shared";
@@ -13,6 +13,7 @@ import { useI18n } from "vue-i18n";
 import { useNotificationStore } from "@/stores/notification";
 import { isAuthPluginInstalled } from "@/auth";
 import { AppUpdateKey } from "@/build-time/contracts/app-update/token";
+import { createDownloadsServiceStub, provideDownloadsStub } from "@/tests/downloadsServiceStub";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -249,5 +250,78 @@ describe("ProfileMenu", () => {
         await wrapper.find("button").trigger("click");
 
         expect(wrapper.find("[data-test='menu-app-update']").exists()).toBe(false);
+    });
+});
+
+describe("ProfileMenu downloads link", () => {
+    const navigate = vi.fn();
+    // Renders a custom RouterLink's slot, so the links inside the panel can be found and clicked.
+    const RouterLinkStub = defineComponent({
+        props: {
+            to: { type: Object as PropType<{ name: string }>, required: true },
+            custom: Boolean,
+        },
+        setup(props, { slots }) {
+            return () =>
+                slots.default?.({
+                    isActive: false,
+                    href: `/${props.to.name}`,
+                    navigate: () => navigate(props.to),
+                });
+        },
+    });
+
+    beforeEach(() => {
+        window.matchMedia = vi.fn().mockImplementation((query) => ({
+            matches: false,
+            media: query,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+        }));
+        setActivePinia(createTestingPinia());
+        (auth as any).useAuth.mockReturnValue({ isAuthenticated: ref(false) });
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    const openMenu = async (provide: Record<symbol, unknown> = {}) => {
+        const wrapper = mount(ProfileMenu, {
+            global: { provide, stubs: { RouterLink: RouterLinkStub } },
+        });
+        await wrapper.find("button").trigger("click");
+        return wrapper;
+    };
+
+    it("offers My Activity and no downloads link without the downloads service", async () => {
+        const wrapper = await openMenu();
+
+        expect(wrapper.text()).toContain("My Activity");
+        expect(wrapper.find("[data-test='menu-downloads']").exists()).toBe(false);
+        expect(wrapper.text()).not.toContain("My Downloads");
+    });
+
+    it("links to My Downloads beside My Activity", async () => {
+        const wrapper = await openMenu(provideDownloadsStub(createDownloadsServiceStub()));
+
+        const link = wrapper.get("[data-test='menu-downloads']");
+        expect(link.text()).toBe("My Downloads");
+        expect(wrapper.find("[data-test='menu-downloads-attention']").exists()).toBe(false);
+
+        await link.trigger("click");
+        expect(navigate).toHaveBeenCalledWith({ name: "downloads" });
+        expect(wrapper.find("[aria-label='Close menu']").exists()).toBe(false);
+    });
+
+    it("shows how many downloads need attention", async () => {
+        const service = createDownloadsServiceStub({ attentionCount: 2 });
+        const wrapper = await openMenu(provideDownloadsStub(service));
+
+        expect(wrapper.get("[data-test='menu-downloads-attention']").text()).toBe("2");
+
+        service.attentionRef.value = 0;
+        await nextTick();
+        expect(wrapper.find("[data-test='menu-downloads-attention']").exists()).toBe(false);
     });
 });

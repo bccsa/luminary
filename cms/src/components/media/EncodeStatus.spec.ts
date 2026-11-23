@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import EncodeStatus from "./EncodeStatus.vue";
+import { ENCODER_DOWNLOAD_URL } from "@/util/mediaEncoder";
 
 const errorOf = (error: string) =>
     mount(EncodeStatus, {
@@ -31,5 +32,23 @@ describe("EncodeStatus — the encoder's error", () => {
 
     it("does not show a single line that runs on and on either", () => {
         expect(errorOf(`S3 upload failed: ${"x".repeat(400)}`)).toMatch(/^The encode failed\./);
+    });
+});
+
+describe("EncodeStatus — an encoder too old for the bucket", () => {
+    const mounted = () =>
+        mount(EncodeStatus, { props: { availability: "available", needsUpdate: true } });
+
+    it("asks the editor to update, with a link to the current installer", () => {
+        const notice = mounted().find("[data-test='encoder-needs-update']");
+
+        expect(notice.text()).toContain("needs a newer Luminary Media Convert");
+        expect(notice.find("[data-test='encoder-download']").attributes("href")).toBe(
+            ENCODER_DOWNLOAD_URL,
+        );
+    });
+
+    it("is not mistaken for a failed encode", () => {
+        expect(mounted().find("[data-test='encoder-error']").exists()).toBe(false);
     });
 });

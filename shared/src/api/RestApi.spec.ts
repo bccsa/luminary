@@ -3,12 +3,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockGet = vi.fn().mockResolvedValue({ docs: [] });
 const mockPost = vi.fn().mockResolvedValue({ ok: true });
 const mockGetWithQueryParams = vi.fn().mockResolvedValue({ status: "connected" });
+const mockGetWithStatus = vi.fn().mockResolvedValue({ status: 200, body: {} });
 
 vi.mock("./http", () => ({
     HttpReq: vi.fn().mockImplementation(() => ({
         get: mockGet,
         post: mockPost,
         getWithQueryParams: mockGetWithQueryParams,
+        getWithStatus: mockGetWithStatus,
     })),
 }));
 
@@ -85,6 +87,22 @@ describe("RestApi", () => {
             "changerequest",
             expect.objectContaining({ apiVersion: "0.0.0" }),
         );
+    });
+
+    it("getSidecarWithStatus asks for the sidecar and keeps the status", async () => {
+        setValidConfig();
+        const rest = getRest({ reset: true });
+        mockGetWithStatus.mockResolvedValueOnce({ status: 404, body: { message: "Not found" } });
+
+        const res = await rest.getSidecarWithStatus("post-1", "hlsEncryptionKey", { cms: true });
+
+        expect(res).toEqual({ status: 404, body: { message: "Not found" } });
+        expect(mockGetWithStatus).toHaveBeenCalledWith("sidecar", {
+            parentId: "post-1",
+            sidecarType: "hlsEncryptionKey",
+            cms: "true",
+            apiVersion: "0.0.0",
+        });
     });
 
     it("getStorageStatus delegates to http.getWithQueryParams", async () => {

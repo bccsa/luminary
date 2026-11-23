@@ -24,6 +24,7 @@ import { isPrerender } from "./ssg/isPrerender";
 import { captureSsgArticleTextSnapshot } from "./util/ssgTextRecovery";
 import { markAppReady } from "./util/renderState";
 import { installChunkReload } from "./util/chunkReload";
+import { provideAppPromoHolder } from "./build-time/plugins/app-promo/provide";
 
 // Tag this query so the API's expensive-query logs can separate prerender build load
 // from normal app load.
@@ -54,6 +55,8 @@ export const createApp = ViteSSG(
     async ({ app, initialState, routePath, router }) => {
         const pinia = createPinia();
         app.use(pinia);
+        // Empty on both sides of the prerender; the client runtime fills it after hydration.
+        provideAppPromoHolder(app);
         let langs: LanguageDto[] = [];
 
         // Make the render language and its translations available before i18n installs so the static HTML carries real UI strings, not raw keys. The render and default language docs ride vite-ssg's `initialState` so the client has them synchronously before mount.
@@ -143,6 +146,10 @@ export const createApp = ViteSSG(
             } catch (err) {
                 console.error("[ssg] client runtime/auth init failed", err);
             }
+            // Apart from the data layer and auth, so a failure in either leaves the other standing.
+            void import("./ssg/clientRuntime")
+                .then(({ installSsgAppPromo }) => installSsgAppPromo(app, router))
+                .catch((err) => console.error("[ssg] promotion install failed", err));
             markAppReady();
         }
     },
