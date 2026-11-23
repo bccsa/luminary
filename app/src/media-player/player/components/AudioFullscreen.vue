@@ -438,10 +438,28 @@ let pressClosesOverlay = false;
 const TAP_SLOP_PX = 10;
 const TAP_MS = 500;
 let stageTap: { id: number; x: number; y: number; at: number } | null = null;
+const CONTROL_SELECTOR =
+    'button, input, select, a[href], [role="button"], [role="menu"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="slider"]';
+
+/**
+ * Whether a press is on the picture itself. The host's player sits in the stage, so a press on one of its controls,
+ * or anywhere in it while it is full screen (where it answers taps itself), bubbles here and would toggle play twice.
+ */
+function pressOnPicture(event: PointerEvent): boolean {
+    const stage = event.currentTarget instanceof Element ? event.currentTarget : null;
+    const fullscreen =
+        document.fullscreenElement ??
+        (document as Document & { webkitFullscreenElement?: Element | null })
+            .webkitFullscreenElement;
+    if (stage && fullscreen && (stage.contains(fullscreen) || fullscreen.contains(stage)))
+        return false;
+    return !(event.target instanceof Element && event.target.closest(CONTROL_SELECTOR));
+}
+
 /** A tap on the picture plays or pauses it, as a video's own does; not while it is getting ready or at the end. */
 function onStageDown(event: PointerEvent): void {
     stageTap =
-        isVideo.value && !props.fill && !pressClosesOverlay
+        isVideo.value && !props.fill && !pressClosesOverlay && pressOnPicture(event)
             ? { id: event.pointerId, x: event.clientX, y: event.clientY, at: event.timeStamp }
             : null;
 }

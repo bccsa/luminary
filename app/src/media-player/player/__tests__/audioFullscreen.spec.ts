@@ -722,6 +722,38 @@ describe("a tap on the picture", () => {
         wrapper.unmount();
     });
 
+    // #2664: the host's player sits in the stage, and its own controls already did what the press asked.
+    it("leaves a press on one of the host player's controls to that control", async () => {
+        const wrapper = mountScreen(
+            { stage: "video" },
+            { stage: '<div class="host-player"><button data-test="hostPlay"></button></div>' },
+        );
+        const button = wrapper.find('[data-test="hostPlay"]');
+        await button.trigger("pointerdown", { pointerId: 1, clientX: 100, clientY: 100 });
+        await button.trigger("pointerup", { pointerId: 1, clientX: 100, clientY: 100 });
+        expect(wrapper.emitted("toggle-play")).toBeUndefined();
+        wrapper.unmount();
+    });
+
+    it("leaves the picture to the host player while that player is full screen", async () => {
+        const wrapper = mountScreen(
+            { stage: "video" },
+            { stage: '<div class="host-player" data-test="hostPlayer"></div>' },
+        );
+        const host = wrapper.find('[data-test="hostPlayer"]').element;
+        Object.defineProperty(document, "fullscreenElement", {
+            configurable: true,
+            get: () => host,
+        });
+        try {
+            await tap(wrapper);
+            expect(wrapper.emitted("toggle-play")).toBeUndefined();
+        } finally {
+            delete (document as { fullscreenElement?: Element }).fullscreenElement;
+            wrapper.unmount();
+        }
+    });
+
     it("only closes a menu that is open", async () => {
         const wrapper = mountScreen({ stage: "video" }, stage);
         await find(wrapper, "afsSpeed").trigger("click");
