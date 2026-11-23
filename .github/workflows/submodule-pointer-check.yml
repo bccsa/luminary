@@ -1,0 +1,55 @@
+name: Check luminary-media-convert Submodule Pointer
+permissions:
+  contents: read
+
+# A stale submodule checkout committed by accident silently reverts the encoder/player on merge,
+# so the pointer may only move forward, and only onto code released to luminary-media-convert's prod branch.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+    paths:
+      - luminary-media-convert
+      - .gitmodules
+      - .github/workflows/submodule-pointer-check.yml
+
+env:
+  SUBMODULE_PATH: luminary-media-convert
+  SUBMODULE_URL: https://github.com/bccsa/luminary-media-convert.git
+  RELEASE_BRANCH: prod
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Check the pointer is on prod and has not moved backwards
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --quiet --depth=1 origin "$BASE_SHA"
+          pointer=$(git ls-tree HEAD "$SUBMODULE_PATH" | awk '{print $3}')
+          base_pointer=$(git ls-tree "$BASE_SHA" "$SUBMODULE_PATH" | awk '{print $3}')
+
+          # Blobless clone: enough history for ancestry checks without downloading file contents.
+          git clone --quiet --bare --filter=blob:none --branch "$RELEASE_BRANCH" "$SUBMODULE_URL" lmc.git
+
+          if ! git -C lmc.git cat-file -e "$pointer^{commit}" 2>/dev/null \
+            || ! git -C lmc.git merge-base --is-ancestor "$pointer" "$RELEASE_BRANCH"; then
+            echo "::error::$SUBMODULE_PATH points at $pointer, which is not on its '$RELEASE_BRANCH' branch." \
+              "Release it to '$RELEASE_BRANCH' first, or point at a commit that is already there."
+            exit 1
+          fi
+
+          if [ -n "$base_pointer" ] && [ "$pointer" != "$base_pointer" ] \
+            && ! git -C lmc.git merge-base --is-ancestor "$base_pointer" "$pointer"; then
+            echo "::error::$SUBMODULE_PATH moves from $base_pointer to $pointer, which is not a step forward." \
+              "A stale submodule checkout was probably committed; restore it with: git checkout origin/main -- $SUBMODULE_PATH"
+            exit 1
+          fi
+
+          echo "$SUBMODULE_PATH points at $pointer: on '$RELEASE_BRANCH' and not behind main ($base_pointer)."
