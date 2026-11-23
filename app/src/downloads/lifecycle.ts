@@ -482,10 +482,16 @@ export function createLifecycle(ctx: LifecycleContext): Lifecycle {
         }
     }
 
+    /** Downloads already rechecked this session for a picture they were saved without. */
+    const artworkAsked = new Set<string>();
+
     function checkOnOpen(entry: DownloadEntry) {
         if (!state.network.value.online || checking.has(entry.downloadId)) return;
         const last = entry.lastSourceCheckAt;
-        if (last !== null && deps.now() - last < SOURCE_CHECK_INTERVAL_MS) return;
+        // Without a picture the screens show the stand-in offline, so the check that fetches it does not wait a day.
+        const missingArtwork = !entry.content.artwork && !artworkAsked.has(entry.downloadId);
+        if (missingArtwork) artworkAsked.add(entry.downloadId);
+        else if (last !== null && deps.now() - last < SOURCE_CHECK_INTERVAL_MS) return;
         checking.add(entry.downloadId);
         void checkSource(entry).finally(() => checking.delete(entry.downloadId));
     }

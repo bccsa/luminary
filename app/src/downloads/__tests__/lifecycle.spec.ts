@@ -786,6 +786,40 @@ describe("source checks", () => {
         expect(checkSource).toHaveBeenCalledTimes(1);
     });
 
+    it("checks a download saved without a picture once on open, however recent its last check", async () => {
+        const { fake, service, docs } = await setup();
+        docs.set("content-1", makeContent());
+        const checkSource = vi.spyOn(fake, "checkSource");
+        const entry = fake.entry("d1")!;
+        service.internals.state.applyEntry({
+            ...entry,
+            content: { ...entry.content, artwork: undefined },
+            lastSourceCheckAt: Date.now(),
+        });
+        const playback = await service.player.open(makeContent(), { preferOnline: false });
+        await flush();
+        expect(checkSource).toHaveBeenCalledTimes(1);
+        await playback?.close();
+        await service.player.open(makeContent(), { preferOnline: false });
+        await flush();
+        expect(checkSource).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves a recently checked download with a picture alone on open", async () => {
+        const { fake, service, docs } = await setup();
+        docs.set("content-1", makeContent());
+        const checkSource = vi.spyOn(fake, "checkSource");
+        const entry = fake.entry("d1")!;
+        service.internals.state.applyEntry({
+            ...entry,
+            content: { ...entry.content, artwork: "item/art/cover.jpg" },
+            lastSourceCheckAt: Date.now(),
+        });
+        await service.player.open(makeContent(), { preferOnline: false });
+        await flush();
+        expect(checkSource).not.toHaveBeenCalled();
+    });
+
     it("reports a check that could not run, and whether the engine could not read the source", async () => {
         const { fake, service, docs, deps } = await setup();
         docs.set("content-1", makeContent());
