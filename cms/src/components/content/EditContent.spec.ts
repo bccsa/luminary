@@ -1233,6 +1233,7 @@ describe("EditContent.vue", () => {
                 await seedPost();
                 const wrapper = await openPost();
                 await wrapper.find('input[name="title"]').setValue("A new title");
+                console.log("Title after editing:", await wrapper.find('input[name="title"]').element.value);
 
                 await wrapper.find('[data-test="delete-media-button"]').trigger("click");
                 const dialog = wrapper
