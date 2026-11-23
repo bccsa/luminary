@@ -225,7 +225,7 @@ describe("CreateOrEditUser.vue", () => {
 
         let removeBtn;
         await waitForExpect(() => {
-            removeBtn = groupSelector.find('[data-test="removeTag"]');
+            removeBtn = wrapper.find('[data-test="removeTag"]');
             expect(removeBtn.exists()).toBe(true);
         });
         await removeBtn!.trigger("click");
