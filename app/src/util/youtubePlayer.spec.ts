@@ -66,6 +66,25 @@ describe("createYouTubePlayer", () => {
         expect(onEnded).toHaveBeenCalledTimes(2);
     });
 
+    it("passes a live stream's duration on as infinite, so its edge is not read as the end", () => {
+        const { player, onTimeUpdate } = make();
+        // YouTube's duration on a live stream is the stream so far, and the position sits at it.
+        player.receive(
+            report({ type: "time", status: 1, currentTime: 600, duration: 600.5, live: true }),
+        );
+        expect(player.state.live).toBe(true);
+        expect(onTimeUpdate).toHaveBeenLastCalledWith(600, Infinity);
+    });
+
+    it("passes an ordinary video's duration on as it is", () => {
+        const { player, onTimeUpdate } = make();
+        player.receive(
+            report({ type: "time", status: 1, currentTime: 99.5, duration: 100, live: false }),
+        );
+        expect(player.state.live).toBe(false);
+        expect(onTimeUpdate).toHaveBeenLastCalledWith(99.5, 100);
+    });
+
     it("keeps the time from a time report without touching what is playing", () => {
         const { player } = make();
         player.receive(report({ status: 2 }));
