@@ -25,6 +25,11 @@ export type YouTubeReport = {
     loaded?: number;
     rate?: number;
     muted?: boolean;
+    /**
+     * A live stream: its duration is the stream so far, which the position keeps reaching, so it must not be
+     * read as the end.
+     */
+    live?: boolean;
     code?: number | string;
 };
 
@@ -139,9 +144,12 @@ export function createYouTubePlayer(options: YouTubePlayerOptions) {
         }
         if (report.rate !== undefined) state.playbackRate = report.rate;
         if (report.muted !== undefined) flags.muted = report.muted;
+        if (report.live !== undefined) state.live = report.live;
 
         if (report.type === "time" || report.type === "state") {
-            options.onTimeUpdate?.(state.currentTime, state.duration);
+            // A live stream has no end to near: its duration is passed on as infinite, as a live HLS
+            // stream's is, so hosts skip their end-of-video handling.
+            options.onTimeUpdate?.(state.currentTime, state.live ? Infinity : state.duration);
         }
         if (status === ENDED) {
             if (!endedReported) options.onEnded?.();

@@ -31,6 +31,8 @@ interface YouTubePlayer {
     getDuration(): number;
     getVideoLoadedFraction(): number;
     getPlaybackRate(): number;
+    /** Not in YouTube's documented API, but reports `isLive` on a live stream; absent, nothing is live. */
+    getVideoData?(): { isLive?: boolean };
 }
 
 declare global {
@@ -48,6 +50,7 @@ type Snapshot = {
     loaded?: number;
     rate?: number;
     muted?: boolean;
+    live?: boolean;
 };
 
 const PLAYING = 1;
@@ -176,6 +179,7 @@ function driven(): void {
             loaded: player.getVideoLoadedFraction() || 0,
             rate: player.getPlaybackRate() || 1,
             muted: player.isMuted(),
+            live: player.getVideoData?.()?.isLive === true,
         };
     }
 
