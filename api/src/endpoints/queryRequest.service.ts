@@ -3,7 +3,6 @@ import { ConfigService } from "@nestjs/config";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
 import { FastifyReply, FastifyRequest } from "fastify";
-import { rateLimitIdentity } from "../auth/requestIdentity";
 import { QueryRateLimiterService } from "../ratelimit/queryRateLimiter.service";
 import { validateQuery, ALLOWED_IDENTIFIERS } from "../validation/query/validateQuery";
 import { classifyQueryCost } from "./queryStats";
@@ -26,7 +25,7 @@ export class QueryRequestService {
         options: { requireValidation?: boolean; indexNames?: ReadonlySet<string> } = {},
     ): Promise<any> {
         // Identity used both for the rate-limit bucket and the expensive-query log line.
-        const identityKey = rateLimitIdentity(request.user, request.ip);
+        const identityKey = request.authIdentity.rateLimitKey;
 
         // Pre-execution gate: an identity already in backoff for repeated expensive
         // queries is rejected before doing any work. No-op when the limiter is disabled.

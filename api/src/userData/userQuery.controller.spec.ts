@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { ServiceUnavailableException } from "@nestjs/common";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
-import { AuthGuard } from "../auth/auth.guard";
+import { IdentityCacheService } from "../auth/identityCache.service";
 import { ownerKey } from "../auth/ownerKey";
 import { QueryController } from "../endpoints/query.controller";
 import { QueryService } from "../endpoints/query.service";
@@ -37,6 +37,15 @@ describe("shared and user query HTTP routing (mocked databases)", () => {
             controllers: [QueryController, UserQueryController],
             providers: [
                 UserQueryService,
+                {
+                    provide: IdentityCacheService,
+                    useValue: {
+                        resolveOrDefault: async () => ({
+                            status: anonymous ? "anonymous" : "authenticated",
+                            userDetails: anonymous ? { groups: [], anonymous: true } : user,
+                        }),
+                    },
+                },
                 UserDataService,
                 QueryRequestService,
                 { provide: UserDataDbService, useValue: db },
@@ -52,17 +61,7 @@ describe("shared and user query HTTP routing (mocked databases)", () => {
                     }),
                 },
             ],
-        })
-            .overrideGuard(AuthGuard)
-            .useValue({
-                canActivate(context: any) {
-                    context.switchToHttp().getRequest().user = anonymous
-                        ? { groups: [], anonymous: true }
-                        : user;
-                    return true;
-                },
-            })
-            .compile();
+        }).compile();
         app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
         await app.init();
         await app.getHttpAdapter().getInstance().ready();

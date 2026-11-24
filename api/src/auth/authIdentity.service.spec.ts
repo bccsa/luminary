@@ -1,3 +1,4 @@
+import { ConfigService } from "@nestjs/config";
 import { AuthIdentityService } from "./authIdentity.service";
 import { Test, TestingModule } from "@nestjs/testing";
 import { JwtService } from "@nestjs/jwt";
@@ -548,7 +549,10 @@ describe("AuthGuard (Integrated)", () => {
             { get: () => undefined } as any,
             { on: jest.fn() } as any,
         );
-        guard = new AuthGuard(identityCacheService);
+        guard = new AuthGuard(
+            identityCacheService,
+            new ConfigService({ userData: { idSecret: "secret" } }),
+        );
     });
 
     it("should fall back to default groups when no email in token and no user found by identity", async () => {

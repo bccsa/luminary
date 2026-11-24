@@ -60,11 +60,16 @@ queries only the caller's partition, and strips the prefix on reads. The owner k
 is never exposed to clients. A local identity marker may separately associate
 retained device data with the issuer and subject from its OIDC profile.
 
-Account extraction belongs to the authentication layer (`auth/requestIdentity.ts`), keeping the
-owner-key helper (`auth/ownerKey.ts`) independent of token transport details. Token refreshes and session identifiers
-do not change the persisted HMAC input. Change-request, query and FTS rate limits reuse the resolved
-shared User id, or an issuer/subject hash for authenticated accounts without a shared User document;
-anonymous requests use IP. A future session-token resolver must retain the original account identity.
+`AuthGuard` builds an immutable `request.authIdentity` in `auth/requestContext.ts`
+after resolving credentials through the identity cache. Account extraction and bucket
+selection use `auth/requestIdentity.ts`; `auth/ownerKey.ts` retains the persisted HMAC.
+User-data services receive the authorized owner key rather than interpreting credentials.
+Change-request, query and FTS paths consume the auth-resolved rate-limit key: shared User
+id first, account hash second, IP for anonymous callers. Missing user-data configuration
+does not prevent shared requests; user-data authorization returns 401 for an absent account
+and 503 for missing owner configuration. Token refreshes and session identifiers do not
+change owner partitions or account allowances. Session-token integration remains pending
+until its auth resolver can supply the original account identity at this boundary.
 
 `USER_DATA_ID_SECRET` is dedicated to identity derivation, separate from
 `ENCRYPTION_KEY`. It must be backed up and not rotated. Losing or changing it

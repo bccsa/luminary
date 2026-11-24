@@ -1,3 +1,4 @@
+import { resolveRequestIdentity, requireUserDataOwner } from "../auth/requestContext";
 jest.mock("../changeRequests/processChangeRequest", () => ({ processChangeRequest: jest.fn() }));
 
 import {
@@ -46,7 +47,19 @@ describe("change-request source dispatch (mocked)", () => {
 
     const submit = (body: any, identity: any = user) =>
         controller.handleChangeRequest(
-            { body, user: identity, ip: "127.0.0.1" } as FastifyRequest,
+            {
+                body,
+                user: identity,
+                ip: "127.0.0.1",
+                authIdentity: resolveRequestIdentity(
+                    {
+                        status: identity.anonymous ? "anonymous" : "authenticated",
+                        userDetails: identity,
+                    },
+                    "127.0.0.1",
+                    "secret",
+                ),
+            } as FastifyRequest,
             { code: jest.fn() } as unknown as FastifyReply,
         );
 
@@ -90,7 +103,16 @@ describe("change-request source dispatch (mocked)", () => {
                 type: "liked",
             };
             await submit({ dataSource, doc });
-            expect(userData.changeRequest).toHaveBeenCalledWith(doc, user);
+            expect(userData.changeRequest).toHaveBeenCalledWith(
+                doc,
+                requireUserDataOwner(
+                    resolveRequestIdentity(
+                        { status: "authenticated", userDetails: user },
+                        "127.0.0.1",
+                        "secret",
+                    ),
+                ),
+            );
             expect(processChangeRequest).not.toHaveBeenCalled();
             expect(db.getDoc).not.toHaveBeenCalled();
         },

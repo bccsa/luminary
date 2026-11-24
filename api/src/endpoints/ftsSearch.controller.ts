@@ -14,7 +14,6 @@ import {
 import { FastifyReply, FastifyRequest } from "fastify";
 import { FtsSearchService, type FtsSearchStats } from "./ftsSearch.service";
 import { AuthGuard } from "../auth/auth.guard";
-import { rateLimitIdentity } from "../auth/requestIdentity";
 import { FtsSearchReqDto } from "../dto/FtsSearchReqDto";
 import { FtsSearchResultDto } from "../dto/FtsSearchResultDto";
 import { validateApiVersion } from "../validation/apiVersion";
@@ -48,7 +47,7 @@ export class FtsSearchController {
         await validateApiVersion(body.apiVersion);
         validateFtsSearchCaps(body);
 
-        const identityKey = rateLimitIdentity(request.user, request.ip);
+        const identityKey = request.authIdentity.rateLimitKey;
         const gate = this.rateLimiter.check(identityKey);
         if (!gate.allowed) {
             reply.header("Retry-After", String(Math.ceil(gate.retryAfterMs / 1000)));

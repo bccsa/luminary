@@ -1,8 +1,4 @@
-import {
-    BadRequestException,
-    ServiceUnavailableException,
-    UnauthorizedException,
-} from "@nestjs/common";
+import { BadRequestException, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { UserDataService } from "./userData.service";
 import { UserQueryService } from "./userQuery.service";
@@ -53,7 +49,7 @@ describe("User-data services", () => {
             partitionedFind: jest.fn().mockResolvedValue({ docs: [] }),
         };
         const config = new ConfigService({ userData: { idSecret: "secret" } });
-        const documents = new UserDataService(db as unknown as UserDataDbService, config);
+        const documents = new UserDataService(db as unknown as UserDataDbService);
         service = new UserChangeRequestService(db as unknown as UserDataDbService, documents);
         queries = new UserQueryService(db as unknown as UserDataDbService, config, documents);
     });
@@ -80,7 +76,7 @@ describe("User-data services", () => {
                             deleteReq: 1,
                             memberOf: ["admins"],
                         },
-                        user,
+                        owner,
                     )
                 ).ack,
             ).toBe("accepted");
@@ -96,17 +92,17 @@ describe("User-data services", () => {
             ...activity,
             _id: userActivityDocumentId({ type: "liked", parentId: "other" }),
         };
-        expect((await service.changeRequest({ ...doc, _id: wrong._id }, user)).ack).toBe(
+        expect((await service.changeRequest({ ...doc, _id: wrong._id }, owner)).ack).toBe(
             "rejected",
         );
         expect(
-            (await service.changeRequest({ ...doc, _id: "liked:page-privacy-policy" }, user)).ack,
+            (await service.changeRequest({ ...doc, _id: "liked:page-privacy-policy" }, owner)).ack,
         ).toBe("rejected");
         expect(db.upsert).not.toHaveBeenCalled();
     });
 
     it("rejects unknown activity kinds", async () => {
-        expect((await service.changeRequest({ ...activity, type: "device" }, user)).ack).toBe(
+        expect((await service.changeRequest({ ...activity, type: "device" }, owner)).ack).toBe(
             "rejected",
         );
         expect(db.upsert).not.toHaveBeenCalled();
@@ -119,9 +115,11 @@ describe("User-data services", () => {
             { start: 0, end: 10, color: "orange", text: "hello" },
             { start: 10, end: 0, color: "blue", text: "hello" },
         ]) {
-            expect((await service.changeRequest({ ...doc, range }, user)).ack).toBe("rejected");
+            expect((await service.changeRequest({ ...doc, range }, owner)).ack).toBe("rejected");
         }
-        expect((await service.changeRequest({ ...doc, deleted: true }, user)).ack).toBe("accepted");
+        expect((await service.changeRequest({ ...doc, deleted: true }, owner)).ack).toBe(
+            "accepted",
+        );
         expect(db.upsert.mock.calls[0][1].range).toEqual({ start: 0, end: 10 });
     });
 
@@ -133,7 +131,7 @@ describe("User-data services", () => {
         });
         const result = await queries.query(
             { dataSource: USER_ACTIVITY_SOURCE, selector: { type: "highlighted" } },
-            user,
+            owner,
         );
         expect(result.docs).toEqual([doc]);
         expect(result.docs[0]).not.toHaveProperty("activityType");
@@ -157,7 +155,7 @@ describe("User-data services", () => {
                 memberOf: ["admins"],
                 deleteReq: 123,
             },
-            user,
+            owner,
         );
         expect(result.ack).toBe("accepted");
         expect(db.upsert).toHaveBeenCalledWith(owner, activity);
@@ -168,7 +166,7 @@ describe("User-data services", () => {
             (
                 await service.changeRequest(
                     { ...highlight, range: { ...highlight.range, extra: "discard" } },
-                    user,
+                    owner,
                 )
             ).ack,
         ).toBe("accepted");
@@ -180,7 +178,7 @@ describe("User-data services", () => {
             (
                 await service.changeRequest(
                     { ...highlight, deleted: true, range: { start: 0, end: 10 } },
-                    user,
+                    owner,
                 )
             ).ack,
         ).toBe("accepted");
@@ -192,8 +190,8 @@ describe("User-data services", () => {
             _id: userActivityDocumentId({ type: "viewed", parentId: activity.parentId }),
             type: UserActivityType.Viewed,
         };
-        expect((await service.changeRequest(viewed, user)).ack).toBe("accepted");
-        expect((await service.changeRequest({ ...viewed, deleted: true }, user)).ack).toBe(
+        expect((await service.changeRequest(viewed, owner)).ack).toBe("accepted");
+        expect((await service.changeRequest({ ...viewed, deleted: true }, owner)).ack).toBe(
             "accepted",
         );
     });
@@ -219,7 +217,7 @@ describe("User-data services", () => {
         },
         { ...activity, range: highlight.range },
     ])("returns a final rejected ack for invalid activity without writing", async (doc) => {
-        const result = await service.changeRequest(doc, user);
+        const result = await service.changeRequest(doc, owner);
         expect(result.ack).toBe("rejected");
         expect(result.docs).toBeUndefined();
         expect(db.upsert).not.toHaveBeenCalled();
@@ -232,7 +230,7 @@ describe("User-data services", () => {
                 (
                     await service.changeRequest(
                         { ...activity, activityTimeUtc: Number.MAX_SAFE_INTEGER },
-                        user,
+                        owner,
                     )
                 ).ack,
             ).toBe("accepted");
@@ -252,7 +250,7 @@ describe("User-data services", () => {
                 updatedTimeUtc: 1000,
             },
         });
-        const result = await service.changeRequest(activity, user);
+        const result = await service.changeRequest(activity, owner);
         expect(result.ack).toBe("rejected");
         expect(result.docs).toEqual([{ ...activity, activityTimeUtc: 999, updatedTimeUtc: 1000 }]);
         expect(JSON.stringify(result)).not.toContain(owner);
@@ -260,37 +258,25 @@ describe("User-data services", () => {
 
     it("keeps database failures retryable instead of rejecting the queued edit", async () => {
         db.upsert.mockRejectedValue(new Error("database down"));
-        await expect(service.changeRequest(activity, user)).rejects.toThrow(
+        await expect(service.changeRequest(activity, owner)).rejects.toThrow(
             ServiceUnavailableException,
         );
-    });
-
-    it("requires authentication for both reads and writes", async () => {
-        const anonymous = { groups: [], anonymous: true as const };
-        await expect(queries.query({ selector: { type: "liked" } }, anonymous)).rejects.toThrow(
-            UnauthorizedException,
-        );
-        await expect(service.changeRequest(activity, anonymous)).rejects.toThrow(
-            UnauthorizedException,
-        );
-        expect(db.upsert).not.toHaveBeenCalled();
-        expect(db.partitionedFind).not.toHaveBeenCalled();
     });
 
     it("answers an unavailable source with an HTTP error even for an invalid doc", async () => {
         db.assertEnabled.mockImplementation(() => {
             throw new ServiceUnavailableException("disabled");
         });
-        await expect(queries.query({ selector: { type: "liked" } }, user)).rejects.toThrow(
+        await expect(queries.query({ selector: { type: "liked" } }, owner)).rejects.toThrow(
             ServiceUnavailableException,
         );
-        await expect(service.changeRequest({}, user)).rejects.toThrow(ServiceUnavailableException);
+        await expect(service.changeRequest({}, owner)).rejects.toThrow(ServiceUnavailableException);
     });
 
     it.each([{}, { type: "user" }, { type: { $in: ["userActivity", "device"] } }])(
         "requires a supported exact activity type in queries",
         async (selector) => {
-            await expect(queries.query({ selector }, user)).rejects.toThrow(BadRequestException);
+            await expect(queries.query({ selector }, owner)).rejects.toThrow(BadRequestException);
             expect(db.partitionedFind).not.toHaveBeenCalled();
         },
     );
@@ -305,7 +291,7 @@ describe("User-data services", () => {
             });
             const result = await queries.query(
                 { selector, dataSource: "user", identifier: "sync", limit: 100 },
-                user,
+                owner,
             );
             expect(db.partitionedFind).toHaveBeenCalledWith(
                 owner,
@@ -324,7 +310,7 @@ describe("User-data services", () => {
         db.partitionedFind.mockResolvedValue({
             docs: [{ ...activity, _id: "another-owner:liked:post" }],
         });
-        await expect(queries.query({ selector: { type: "liked" } }, user)).rejects.toThrow(
+        await expect(queries.query({ selector: { type: "liked" } }, owner)).rejects.toThrow(
             ServiceUnavailableException,
         );
     });
@@ -335,8 +321,10 @@ describe("User-data services", () => {
         }));
         const otherUser = { ...user, jwtPayload: { ...user.jwtPayload, sub: "another-user" } };
         const query = { selector: { type: "liked" } };
-        expect((await queries.query(query, user)).docs).toEqual([activity]);
-        expect((await queries.query(query, otherUser)).docs).toEqual([activity]);
+        expect((await queries.query(query, owner)).docs).toEqual([activity]);
+        expect((await queries.query(query, ownerKey(otherUser, "secret"))).docs).toEqual([
+            activity,
+        ]);
         expect(db.partitionedFind.mock.calls[0][0]).not.toBe(db.partitionedFind.mock.calls[1][0]);
     });
 });

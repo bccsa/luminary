@@ -73,11 +73,16 @@ User document. The API derives the owner with HMAC-SHA256, adds `<ownerKey>:` to
 queries through CouchDB's partition path, and strips that prefix from response documents.
 Bookmarks are omitted because they can encode internal stored ids.
 
-`auth/requestIdentity.ts` extracts the account identity from the authenticated request context.
+`AuthGuard` resolves an immutable `request.authIdentity` through `auth/requestContext.ts`
+after authentication. It contains the owner and rate-limit keys, derived using
+`auth/requestIdentity.ts`; controllers consume those resolved values.
 `auth/ownerKey.ts` retains the same issuer/subject HMAC across token refreshes and sessions. Change-request,
 query and FTS rate limits use the shared User id when available, otherwise an issuer/subject hash,
 and IP for anonymous callers. Token and session identifiers do not select owner partitions or
 reset an account's rate-limit allowance.
+User-data services receive an authorized owner key and do not inspect token claims.
+The session-token implementation is not yet on main; when it lands, its auth resolver
+must preserve the original account identity before building this request context.
 
 Current queries select one `UserActivityType` (`viewed`, `liked`, `highlighted`) and its
 `sync-<type>-index`. Each type has an independent client cursor. User queries use a
@@ -102,7 +107,7 @@ otherwise a hash of verified issuer/subject, otherwise the caller IP.
 `ChangeRequestController` routes parsed JSON and multipart requests to either the shared
 `ChangeRequestService` or `UserChangeRequestService`. The shared service has no user-data
 dependency. `UserQueryService` and `UserChangeRequestService` reuse `UserDataService` for
-owner derivation and response conversion, and the same singleton `UserDataDbService` for
+source availability and response conversion, and the same singleton `UserDataDbService` for
 storage. User validation acknowledgements intentionally remain separate from retryable
 HTTP errors; turning a storage failure into a rejected ack would discard the queued activity.
 

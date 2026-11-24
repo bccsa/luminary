@@ -1,7 +1,6 @@
 import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { instanceToPlain, plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
-import { JwtUserDetails } from "../auth/authIdentity.service";
 import {
     UserActivityDto,
     BaseUserActivityDto,
@@ -23,8 +22,7 @@ export class UserChangeRequestService {
         private readonly documents: UserDataService,
     ) {}
 
-    async changeRequest(raw: unknown, user: JwtUserDetails): Promise<ChangeReqAckDto> {
-        const owner = this.documents.owner(user);
+    async changeRequest(raw: unknown, owner: string): Promise<ChangeReqAckDto> {
         // An unavailable source must preserve the client's queue, including invalid queued docs.
         this.db.assertEnabled();
         const rejected = (message: string): ChangeReqAckDto => ({

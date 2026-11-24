@@ -7,7 +7,8 @@ import multipart from "@fastify/multipart";
 import { ChangeRequestController } from "./changeRequest.controller";
 import { ChangeRequestService } from "./changeRequest.service";
 import { UserChangeRequestService } from "../userData/userChangeRequest.service";
-import { AuthGuard } from "../auth/auth.guard";
+import { IdentityCacheService } from "../auth/identityCache.service";
+import { ConfigService } from "@nestjs/config";
 import { DocType } from "../enums";
 import * as path from "path";
 import * as fs from "fs";
@@ -25,6 +26,25 @@ describe("ChangeRequestController", () => {
         const module: TestingModule = await Test.createTestingModule({
             controllers: [ChangeRequestController],
             providers: [
+                {
+                    provide: ConfigService,
+                    useValue: new ConfigService({ userData: { idSecret: "secret" } }),
+                },
+                {
+                    provide: IdentityCacheService,
+                    useValue: {
+                        resolveOrDefault: async () => ({
+                            status: mockAnonymous ? "anonymous" : "authenticated",
+                            userDetails: mockAnonymous
+                                ? { groups: ["group-public-users"], anonymous: true }
+                                : (mockIdentity ?? {
+                                      groups: ["group-public-users"],
+                                      userId: "mock-user",
+                                      jwtPayload: { iss: "https://issuer.example", sub: "subject" },
+                                  }),
+                        }),
+                    },
+                },
                 { provide: ChangeRequestRateLimiterService, useValue: mockRateLimiter },
                 {
                     provide: UserChangeRequestService,
@@ -37,18 +57,7 @@ describe("ChangeRequestController", () => {
                     },
                 },
             ],
-        })
-            .overrideGuard(AuthGuard)
-            .useValue({
-                canActivate: (context: any) => {
-                    const req = context.switchToHttp().getRequest();
-                    req.user = mockAnonymous
-                        ? { groups: ["group-public-users"], anonymous: true }
-                        : (mockIdentity ?? { groups: ["group-public-users"], userId: "mock-user" });
-                    return true;
-                },
-            })
-            .compile();
+        }).compile();
 
         app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
 

@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { JwtUserDetails } from "../auth/authIdentity.service";
 import { UserDataDbService } from "./userDataDb.service";
 import { UserDataService } from "./userData.service";
 import { isUserActivityType } from "./activityIdentity";
@@ -13,8 +12,7 @@ export class UserQueryService {
         private readonly documents: UserDataService,
     ) {}
 
-    async query(query: any, user: JwtUserDetails) {
-        const owner = this.documents.owner(user);
+    async query(query: any, owner: string) {
         this.db.assertEnabled();
         if (!isUserActivityType(query?.selector?.type)) {
             throw new BadRequestException("User-data queries require a supported activity type");

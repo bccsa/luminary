@@ -59,10 +59,10 @@ Writes go through `upsertDoc(doc)` which auto-generates `DeleteCmd` docs when `m
 `UserDataDbService` is independent of `DbService`: it has no change feed or database-creation
 loop. It enables only after both `DB_USERDATA_DATABASE` and `USER_DATA_ID_SECRET` are configured,
 the dedicated database is partitioned, and its indexes install. `UserQueryService` owns reads;
-`UserChangeRequestService` owns DTO validation and writes. `UserDataService` shares owner
-derivation and response id conversion between them; the API `DocType` enum
-does not include `UserActivity`. `auth/ownerKey.ts` authorizes all user-source paths from verified
-JWT issuer/subject. Every query uses `partitionedFind`; unknown sources never fall back to the
+`UserChangeRequestService` owns DTO validation and writes. `UserDataService` shares source
+availability and response id conversion between them; the API `DocType` enum
+does not include `UserActivity`. `AuthGuard` resolves owner identity through
+`auth/requestContext.ts`; user-data services receive the authorized owner key. Every query uses `partitionedFind`; unknown sources never fall back to the
 shared dataset. Writes use activity-time comparison, server-set cursor timestamps and
 conflict retries. Validation rejects are HTTP 200 acks; source/storage failures are retryable
 HTTP errors. Keep owner keys and CouchDB bookmarks out of client responses. See `README.md`
@@ -103,11 +103,16 @@ Multi-provider OIDC. `AuthProvider` documents in the DB define each provider (do
 
 The `JwtModule` is registered globally in `app.module.ts` with no signing secret — tokens are verified against each provider's JWKS. Group-membership and identity claims are derived from the claim/group mappings stored on each `AuthProvider` doc and evaluated by `AuthIdentityService` (plus `AutoGroupMappings` docs).
 
-`auth/requestIdentity.ts` owns account extraction and rate-limit identities from this resolved context.
-`auth/ownerKey.ts` consumes the account identity without interpreting token/session identifiers, preserving
-the persisted issuer/subject HMAC. Change-request, query and FTS controllers share `rateLimitIdentity()`:
-shared User id first, verified issuer/subject hash second, IP for anonymous callers. Future token
-transports must resolve to the same account before reaching these helpers.
+`auth/requestIdentity.ts` supplies account extraction and rate-limit identity helpers.
+After identity-cache resolution, `AuthGuard` calls `auth/requestContext.ts` once to populate
+an immutable `request.authIdentity` with the account, owner key and rate-limit key.
+Change-request, query and FTS paths consume that key; they do not interpret JWT claims.
+`requireUserDataOwner()` rejects anonymous/incomplete accounts with 401 and missing owner
+configuration with 503 before user-data services run. Shared requests remain available
+without user-data configuration. `auth/ownerKey.ts` preserves the existing issuer/subject
+HMAC; rate limits retain shared User id first, account hash second, IP for anonymous callers.
+Session-token integration is pending: its auth resolver must map credentials to the original
+account before this context is built, retaining owner partitions and rate-limit buckets.
 
 ### Socket.io (`src/socketio.ts`)
 

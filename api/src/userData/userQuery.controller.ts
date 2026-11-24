@@ -6,6 +6,7 @@ import { resolveDataSource } from "../util/dataSource";
 import { USER_ACTIVITY_SOURCE } from "./activityIdentity";
 import { getUserDataIndexNames } from "./userDataDb.service";
 import { UserQueryService } from "./userQuery.service";
+import { requireUserDataOwner } from "../auth/requestContext";
 
 /** Dedicated owner-scoped query endpoint; omission selects user activity. */
 @Controller("user/query")
@@ -29,7 +30,7 @@ export class UserQueryController {
             query,
             request,
             reply,
-            () => this.queries.query(query, request.user),
+            () => this.queries.query(query, requireUserDataOwner(request.authIdentity)),
             { requireValidation: true, indexNames: getUserDataIndexNames() },
         );
     }

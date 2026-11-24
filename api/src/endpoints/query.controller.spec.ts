@@ -1,3 +1,4 @@
+import { resolveRequestIdentity } from "../auth/requestContext";
 import { Test, TestingModule } from "@nestjs/testing";
 import { BadRequestException, HttpException, HttpStatus } from "@nestjs/common";
 import { QueryController } from "./query.controller";
@@ -19,7 +20,14 @@ describe("QueryController", () => {
     const mockUser = { groups: ["group-public-users"], userId: "mock-user" };
 
     function mockRequest(user: any = mockUser): FastifyRequest {
-        return { user, ip: "127.0.0.1" } as any;
+        return {
+            user,
+            ip: "127.0.0.1",
+            authIdentity: resolveRequestIdentity(
+                { status: user?.anonymous ? "anonymous" : "authenticated", userDetails: user },
+                "127.0.0.1",
+            ),
+        } as any;
     }
 
     function mockReply(): FastifyReply & { header: jest.Mock } {

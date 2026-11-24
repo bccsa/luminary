@@ -519,3 +519,20 @@ mocked API/HTTP 274. API/app/CMS type checks and changed-code lint passed. The s
 timestamp-tie diagnostic failed as described above and remains an open finding.
 Shared/API/app/CMS builds passed; the CMS build used the favicon setting from `.env.example`
 as a command-scoped override because the local value was unset. No `.env` file was edited.
+
+
+### Review item 4 — request identity boundary
+
+Checked `origin/main` at `ffb2226f` on 2026-11-24: provider JWT authentication and the
+identity cache are present; the session-token implementation has not landed.
+
+- `AuthGuard` builds immutable `request.authIdentity` through `auth/requestContext.ts`.
+  Owner and rate-limit keys are resolved in auth before controller processing.
+- User-data read/write services accept the authorized owner key. `UserDataService` no
+  longer derives account identity or reads the owner secret.
+- Change-request, query and FTS rate limits consume the auth-resolved key. Existing
+  shared User buckets, account fallback hashes and persisted HMAC owner keys are unchanged.
+- Pending session-token integration: map the verified session to the original issuer and
+  subject before building this context. Verify the same owner and allowance across JWTs,
+  session credentials, refreshes and separate devices once that implementation lands.
+  This refactor does not implement or claim session-token support.

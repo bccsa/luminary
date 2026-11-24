@@ -1,24 +1,14 @@
 import { Injectable, ServiceUnavailableException } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { JwtUserDetails } from "../auth/authIdentity.service";
-import { ownerKey } from "../auth/ownerKey";
 import { UserActivityDto } from "../dto/UserActivityDto";
 import { UserDataDbService } from "./userDataDb.service";
 
-/** Account-scoped document identity and response conversion shared by reads and writes. */
+/** Source availability and response conversion shared by reads and writes. */
 @Injectable()
 export class UserDataService {
-    constructor(
-        private readonly db: UserDataDbService,
-        private readonly config: ConfigService,
-    ) {}
+    constructor(private readonly db: UserDataDbService) {}
 
     get enabled(): boolean {
         return this.db.enabled;
-    }
-
-    owner(user: JwtUserDetails): string {
-        return ownerKey(user, this.config.get<string>("userData.idSecret"));
     }
 
     toClient(owner: string, doc: UserActivityDto): UserActivityDto {

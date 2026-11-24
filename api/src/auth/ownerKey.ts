@@ -3,7 +3,7 @@ import { createHmac } from "crypto";
 import type { JwtUserDetails } from "./authIdentity.service";
 import { accountIdentity } from "./requestIdentity";
 
-/** All owner-scoped paths authorize here; future device authorization belongs here too. */
+/** Derive the stored partition from verified account claims, independently of token/session ids. */
 export function ownerKey(user: JwtUserDetails, secret: string): string {
     const account = accountIdentity(user);
     if (!account) throw new UnauthorizedException("Authentication required for user data");
