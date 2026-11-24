@@ -122,6 +122,18 @@ describe("LuminaryPlayer and a host screen", () => {
         expect(w.find(".lmpl-root").classes()).toContain("lmpl-is-fullscreen");
         hostScreen.remove();
     });
+
+    it("hides the seek bar for live audio in its fullscreen screen", async () => {
+        const w = await mountPlayer(
+            { nowPlaying: { title: "Live audio" } },
+            { isAudioOnly: true, live: true, duration: 0 },
+        );
+        await setFullscreen(true);
+
+        expect(w.find("[data-test='audioFullscreen']").classes()).toContain(
+            "lmpl-afs-hide-timeline",
+        );
+    });
 });
 
 describe("LuminaryPlayer browse panel", () => {

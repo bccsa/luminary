@@ -1855,6 +1855,12 @@ media-quality-radio-group + .lmpl-card-toggle {
     row-gap: 0;
 }
 
+.lmpl-afs-hide-timeline .lmpl-afs-bar {
+    display: none;
+}
+
+
+
 .lmpl-afs-timeline > .lmpl-afs-bar {
     grid-column: 1 / -1;
     grid-row: 1;
@@ -2631,6 +2637,11 @@ media-quality-radio-group + .lmpl-card-toggle {
  * whenever sound and picture are switched.
  */
 @container lmpl-afs (max-aspect-ratio: 6/5) {
+    .lmpl-afs-hide-timeline .lmpl-afs-timeline {
+        display: flex;
+        justify-content: space-between;
+    }
+
     .lmpl-afs-main {
         justify-content: space-evenly;
     }

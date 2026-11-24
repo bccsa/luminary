@@ -482,17 +482,25 @@ describe("AudioFullscreen — the transport", () => {
 });
 
 describe("AudioFullscreen — a live stream", () => {
-    it("has no skip buttons and says Live where the time left would be", () => {
+    it("hides the timeline and skips for live audio", () => {
         const wrapper = mountScreen({ duration: Infinity });
         expect(find(wrapper, "afsSkipBack").exists()).toBe(false);
         expect(find(wrapper, "afsSkipForward").exists()).toBe(false);
         expect(find(wrapper, "afsRemaining").exists()).toBe(false);
+        expect(find(wrapper, "afsBar").exists()).toBe(false);
+        expect(wrapper.find(".lmpl-afs-timeline").exists()).toBe(false);
+        expect(wrapper.find(".lmpl-afs").classes()).toContain("lmpl-afs-hide-timeline");
+    });
+
+    it("keeps the live indicator in the video timeline", () => {
+        const wrapper = mountScreen({ stage: "video", live: true });
+        expect(wrapper.find(".lmpl-afs-timeline").exists()).toBe(true);
         expect(find(wrapper, "afsLive").text()).toBe("Live");
     });
 
-    it("does the same when told it is live, whatever the length says", () => {
+    it("hides the timeline when marked live, whatever the length says", () => {
         const wrapper = mountScreen({ live: true });
-        expect(find(wrapper, "afsLive").exists()).toBe(true);
+        expect(wrapper.find(".lmpl-afs-timeline").exists()).toBe(false);
         expect(find(wrapper, "afsSkipBack").exists()).toBe(false);
     });
 });
