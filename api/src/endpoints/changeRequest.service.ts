@@ -1,5 +1,5 @@
 import { ChangeReqDto } from "../dto/ChangeReqDto";
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { DbService } from "../db/db.service";
 import { AckStatus, AclPermission, DocType, Uuid } from "../enums";
 import { JwtUserDetails } from "../auth/authIdentity.service";
@@ -24,9 +24,6 @@ export class ChangeRequestService {
         if (userDetails.anonymous) {
             return { ack: AckStatus.Rejected, message: "Authentication required" };
         }
-
-        if (changeRequest?.dataSource !== undefined)
-            throw new BadRequestException("Unknown dataSource");
 
         // Process change request
         return await processChangeRequest(

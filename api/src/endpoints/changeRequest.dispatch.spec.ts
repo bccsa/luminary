@@ -85,17 +85,6 @@ describe("change-request source dispatch (mocked)", () => {
     });
 
     it.each(["user"])(
-        "refuses %s directly in the shared change-request service",
-        async (dataSource) => {
-            await expect(service.changeRequest({ dataSource, doc: {} }, user)).rejects.toThrow(
-                BadRequestException,
-            );
-            expect(processChangeRequest).not.toHaveBeenCalled();
-            expect(db.getDoc).not.toHaveBeenCalled();
-        },
-    );
-
-    it.each(["user"])(
         "never sends a %s request to shared processing or rejection lookups",
         async (dataSource) => {
             const doc = {
@@ -126,10 +115,15 @@ describe("change-request source dispatch (mocked)", () => {
         expect(db.getDoc).not.toHaveBeenCalled();
     });
 
-    it("rejects unknown source values", async () => {
-        await expect(submit({ dataSource: "other", doc: {} })).rejects.toThrow(BadRequestException);
-        expect(processChangeRequest).not.toHaveBeenCalled();
-    });
+    it.each(["other", null, "", false, 0, ["user"], {}])(
+        "rejects invalid source %j in the controller before calling either service",
+        async (dataSource) => {
+            await expect(submit({ dataSource, doc: {} })).rejects.toThrow(BadRequestException);
+            expect(processChangeRequest).not.toHaveBeenCalled();
+            expect(userData.changeRequest).not.toHaveBeenCalled();
+            expect(db.getDoc).not.toHaveBeenCalled();
+        },
+    );
 
     it("rejects anonymous requests before dispatch and keeps the shared service anonymous ack", async () => {
         const anonymous = { groups: [], anonymous: true as const };

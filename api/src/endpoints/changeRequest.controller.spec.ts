@@ -186,6 +186,18 @@ describe("ChangeRequestController", () => {
         },
     );
 
+    it("rejects an unknown JSON source before calling either change-request service", async () => {
+        const response = await app.inject({
+            method: "POST",
+            url: "/changerequest",
+            payload: { dataSource: "other", doc: {} },
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json().message).toBe("Unknown dataSource");
+        expect(mockChangeRequest).not.toHaveBeenCalled();
+        expect(mockUserChangeRequest).not.toHaveBeenCalled();
+    });
+
     /**
      * Helper function to create a test file buffer
      */
@@ -226,6 +238,14 @@ describe("ChangeRequestController", () => {
     };
 
     describe("LFormData binary handling", () => {
+        it("rejects an unknown multipart source before calling either change-request service", async () => {
+            const response = await createLFormDataRequest({ dataSource: "other", doc: {} }, []);
+            expect(response.status).toBe(400);
+            expect(response.body.message).toBe("Unknown dataSource");
+            expect(mockChangeRequest).not.toHaveBeenCalled();
+            expect(mockUserChangeRequest).not.toHaveBeenCalled();
+        });
+
         it.each(["user"])(
             "preserves the %s source and returns HTTP 200 for multipart activity",
             async (dataSource) => {
