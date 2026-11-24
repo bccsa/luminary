@@ -34,20 +34,10 @@ export type IdentityResult =
  * `token_invalid` covers signature / audience / issuer / azp failures — these
  * may indicate provider-config drift, so the client should evict its cached
  * provider doc and let Dexie resync before retrying.
- * `provider_unavailable` means the provider endpoint/JWKS was unreachable
- * (DNS/network/timeout), so the client should retry without evicting provider state.
  */
-export type AuthFailureReason = "provider_not_found" | "token_invalid" | "provider_unavailable";
+export type AuthFailureReason = "provider_not_found" | "token_invalid";
 
 export const AUTH_FAILURE_MESSAGE = "Invalid authentication token";
-
-function isEndpointUnavailableError(error: unknown): boolean {
-    const e = error as { isEndpointUnavailable?: boolean; code?: unknown; message?: unknown };
-    if (e?.isEndpointUnavailable === true) return true;
-
-    const code = typeof e?.code === "string" ? e.code : "";
-    return ["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT"].includes(code);
-}
 
 @Injectable()
 export class AuthIdentityService implements OnModuleInit {
@@ -164,8 +154,6 @@ export class AuthIdentityService implements OnModuleInit {
                 // strongest signal — the token was signed by a kid not present at the
                 // configured domain's JWKS endpoint, which typically means the token
                 // came from a different tenant than `provider.domain`.
-                const endpointUnavailable = isEndpointUnavailableError(error);
-
                 const hint =
                     errorName === "SigningKeyNotFoundError" ||
                     originalMessage.includes("Unable to find a signing key")
@@ -175,26 +163,17 @@ export class AuthIdentityService implements OnModuleInit {
                           "action only called api.idToken.setCustomClaim (add api.accessToken.setCustomClaim too)."
                         : undefined;
 
-                if (endpointUnavailable) {
-                    this.logger.warn("Token validation unavailable", {
-                        reason: originalMessage,
-                        providerId,
-                    });
-                } else {
-                    this.logger.warn("Token validation failed", {
-                        reason: originalMessage,
-                        providerId,
-                        ...(hint ? { hint } : {}),
-                    });
-                }
+                this.logger.warn("Token validation failed", {
+                    reason: originalMessage,
+                    providerId,
+                    ...(hint ? { hint } : {}),
+                });
                 // Attach a coarse reason code so the transport layer (e.g. socket.io)
                 // can tell the client whether to evict its cached provider doc.
                 const reason: AuthFailureReason =
                     originalMessage === "Provider not found"
                         ? "provider_not_found"
-                        : endpointUnavailable
-                          ? "provider_unavailable"
-                          : "token_invalid";
+                        : "token_invalid";
                 const authError = new UnauthorizedException(AUTH_FAILURE_MESSAGE) as Error & {
                     reason?: AuthFailureReason;
                 };
@@ -509,13 +488,6 @@ export class AuthIdentityService implements OnModuleInit {
             };
         } catch (error) {
             if (error instanceof UnauthorizedException) throw error;
-            if (isEndpointUnavailableError(error)) {
-                const authError = new UnauthorizedException("Authentication failed") as Error & {
-                    isEndpointUnavailable?: true;
-                };
-                authError.isEndpointUnavailable = true;
-                throw authError;
-            }
             this.logger.error("Unexpected error resolving identity", error);
             throw new UnauthorizedException("Authentication failed");
         }
