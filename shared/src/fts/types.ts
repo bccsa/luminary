@@ -110,4 +110,8 @@ export type FtsCorpusStats = {
     docCount: number;
     /** Identifies the per-trigram document frequencies computed with these stats. */
     docFrequencyVersion?: number;
+    /** The `CORPUS_SCAN_VERSION` of the scan that produced these stats. */
+    scanVersion?: number;
+    /** Content docs in the table when these stats were taken, indexed or not. */
+    contentCount?: number;
 };

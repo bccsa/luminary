@@ -1152,6 +1152,149 @@ describe("Database", async () => {
         });
     });
 
+    describe("search stats after an access change", () => {
+        const map = { "g-public": { [DocType.Post]: { view: true, cmsView: true } } };
+        const stale = async () =>
+            (await db.luminaryInternals.get("corpusStatsStale")) !== undefined;
+
+        beforeEach(async () => {
+            await db.docs.clear();
+            accessMap.value = map;
+            await waitForExpect(async () => {
+                expect(await db.getLuminaryInternals("reconciledAccessMap")).toBe(
+                    JSON.stringify(map),
+                );
+            });
+            await db.luminaryInternals.delete("corpusStatsStale");
+        });
+
+        afterEach(async () => {
+            accessMap.value = {};
+            await db.docs.clear();
+            await db.purge();
+        });
+
+        it("stay current when the change removed nothing", async () => {
+            await db.docs.bulkPut([
+                { _id: "p1", type: DocType.Post, memberOf: ["g-public"], updatedTimeUtc: 0 },
+            ] as PostDto[]);
+            await db.luminaryInternals.delete("corpusStatsStale");
+
+            await db.deleteRevoked();
+            await new Promise((resolve) => setTimeout(resolve, 20));
+
+            expect(await stale()).toBe(false);
+        });
+
+        it("go out of date when the change removed content", async () => {
+            await db.docs.bulkPut([
+                { _id: "p2", type: DocType.Post, memberOf: ["g-private"], updatedTimeUtc: 0 },
+                {
+                    _id: "c2",
+                    type: DocType.Content,
+                    parentId: "p2",
+                    parentType: DocType.Post,
+                    memberOf: ["g-private"],
+                    updatedTimeUtc: 0,
+                },
+            ] as PostDto[]);
+            await db.luminaryInternals.delete("corpusStatsStale");
+
+            await db.deleteRevoked();
+            await new Promise((resolve) => setTimeout(resolve, 20));
+
+            expect(await db.docs.get("c2")).toBeUndefined();
+            expect(await stale()).toBe(true);
+        });
+
+        it("stay current when the change removed only docs that are not content", async () => {
+            await db.docs.bulkPut([
+                { _id: "p3", type: DocType.Post, memberOf: ["g-private"], updatedTimeUtc: 0 },
+            ] as PostDto[]);
+            await db.luminaryInternals.delete("corpusStatsStale");
+
+            await db.deleteRevoked();
+            await new Promise((resolve) => setTimeout(resolve, 20));
+
+            expect(await db.docs.get("p3")).toBeUndefined();
+            expect(await stale()).toBe(false);
+        });
+
+        it("go out of date when an eviction fails, as it may have removed content first", async () => {
+            const original = (db as any).whereNotMemberOfAsCollection.bind(db);
+            const spy = vi
+                .spyOn(db as any, "whereNotMemberOfAsCollection")
+                .mockImplementation((groups: any, docType: any) => {
+                    if (docType === DocType.Redirect) throw new Error("eviction failed");
+                    return original(groups, docType);
+                });
+            vi.mocked(scheduleCorpusStatsRecompute).mockClear();
+
+            try {
+                await expect(db.deleteRevoked()).rejects.toThrow("eviction failed");
+            } finally {
+                spy.mockRestore();
+            }
+
+            expect(scheduleCorpusStatsRecompute).toHaveBeenCalled();
+        });
+    });
+
+    describe("search stats after a local change", () => {
+        beforeEach(() => vi.mocked(scheduleCorpusStatsRecompute).mockClear());
+
+        it("go out of date when content is saved", async () => {
+            await db.upsert({ doc: { ...mockEnglishContentDto, title: "Edited" } });
+            expect(scheduleCorpusStatsRecompute).toHaveBeenCalled();
+        });
+
+        it("go out of date when a post is deleted with its content", async () => {
+            await db.upsert({ doc: { ...mockPostDto, deleteReq: 1 } });
+            expect(await db.docs.get(mockEnglishContentDto._id)).toBeUndefined();
+            expect(scheduleCorpusStatsRecompute).toHaveBeenCalled();
+        });
+
+        it("stay current when only a post is saved", async () => {
+            await db.upsert({ doc: { ...mockPostDto, updatedTimeUtc: 2 } });
+            expect(scheduleCorpusStatsRecompute).not.toHaveBeenCalled();
+        });
+
+        it("go out of date when a refused content change is replaced by the server's copy", async () => {
+            await db.upsert({ doc: mockEnglishContentDto, localChangesOnly: true });
+            const localChange = await db.localChanges
+                .where("docId")
+                .equals(mockEnglishContentDto._id)
+                .first();
+            vi.mocked(scheduleCorpusStatsRecompute).mockClear();
+
+            await db.applyLocalChangeAck(
+                {
+                    ack: AckStatus.Rejected,
+                    message: "refused",
+                    docs: [{ ...mockEnglishContentDto, title: "Server" }],
+                },
+                localChange!,
+            );
+
+            expect(scheduleCorpusStatsRecompute).toHaveBeenCalled();
+        });
+
+        it("go out of date when a refused content create is removed", async () => {
+            const created = { ...mockEnglishContentDto, _id: "content-refused" };
+            await db.upsert({ doc: created });
+            const localChange = await db.localChanges.where("docId").equals(created._id).first();
+            vi.mocked(scheduleCorpusStatsRecompute).mockClear();
+
+            await db.applyLocalChangeAck(
+                { ack: AckStatus.Rejected, message: "refused" },
+                localChange!,
+            );
+
+            expect(await db.docs.get(created._id)).toBeUndefined();
+            expect(scheduleCorpusStatsRecompute).toHaveBeenCalled();
+        });
+    });
+
     // Regression (#160 partial-sync): deleteRevoked() must keep syncList consistent with the docs
     // it evicts. Otherwise a revoked group's docs leave `docs` while its column stays at `eof`, so
     // a later re-grant (same memberOf — no growth path triggers) trusts the stale eof and never
@@ -1384,6 +1527,35 @@ describe("Database", async () => {
         const _v2 = await getDbVersion();
 
         expect(_v1).toBeLessThan(_v2);
+    });
+
+    describe("search stats on start", () => {
+        const started = async () => {
+            vi.mocked(scheduleCorpusStatsRecompute).mockClear();
+            await initDatabase();
+            await new Promise((resolve) => setTimeout(resolve, 50));
+        };
+
+        it("are not rescanned when they are current", async () => {
+            const { recomputeCorpusStats } =
+                await vi.importActual<typeof import("../fts/ftsIndexer")>("../fts/ftsIndexer");
+            await recomputeCorpusStats();
+
+            await started();
+
+            expect(scheduleCorpusStatsRecompute).not.toHaveBeenCalled();
+        });
+
+        it("are rescanned when they are out of date", async () => {
+            const { recomputeCorpusStats, markCorpusStatsStale } =
+                await vi.importActual<typeof import("../fts/ftsIndexer")>("../fts/ftsIndexer");
+            await recomputeCorpusStats();
+            await markCorpusStatsStale();
+
+            await started();
+
+            expect(scheduleCorpusStatsRecompute).toHaveBeenCalled();
+        });
     });
 
     describe("document deletion", () => {
