@@ -22,9 +22,12 @@ export type ApiDataResponseDto = {
 };
 
 export type BaseDocumentDto = {
+    /** Unique document identifier within its database. */
     _id: string;
+    /** Revision identifying the stored server version of the document. */
     _rev?: string;
     type: DocType | UserActivityType;
+    /** Document update time in UTC milliseconds, used for sync. */
     updatedTimeUtc: number;
     memberOf?: Uuid[];
     docType?: DocType;
@@ -367,7 +370,16 @@ export type HighlightColor = `${UserActivityColor}`;
  * A highlight as character offsets into a document's text. `text` is the quoted passage, used to
  * find the highlight again after the document has been edited.
  */
-export type HighlightRange = { start: number; end: number; color: HighlightColor; text: string };
+export type HighlightRange = {
+    /** Zero-based character offset at the start of the passage. */
+    start: number;
+    /** Exclusive character offset at the end of the passage. */
+    end: number;
+    /** Display color of the highlighted passage. */
+    color: HighlightColor;
+    /** Quoted passage used to relocate a highlight after content edits. */
+    text: string;
+};
 
 /**
  * A row in the `userActivity` side table: one thing the user did to a document. Kept apart from
@@ -406,27 +418,40 @@ export type LegacyUserActivityDto = BaseDocumentDto & {
 };
 
 export type BaseUserActivityDto = Pick<BaseDocumentDto, "_id" | "_rev" | "updatedTimeUtc"> & {
+    /** Activity kind used to select the matching DTO. */
     type: UserActivityType;
+    /** Identifier of the post this activity belongs to. */
     parentId: Uuid;
+    /** Time of the user's action in UTC milliseconds, used to order conflicting changes. */
     activityTimeUtc: number;
+    /** Marks a removed activity so the removal can reach other devices. */
     deleted?: boolean;
 };
 
 export type ViewedActivityDto = BaseUserActivityDto & {
+    /** Identifies a viewed-post activity. */
     type: UserActivityType.Viewed;
+    /** Disallowed because viewing applies to a post rather than a translation. */
     contentId?: never;
+    /** Disallowed because viewing does not identify a highlighted passage. */
     range?: never;
 };
 
 export type LikedActivityDto = BaseUserActivityDto & {
+    /** Identifies a liked-post activity. */
     type: UserActivityType.Liked;
+    /** Disallowed because liking applies to a post rather than a translation. */
     contentId?: never;
+    /** Disallowed because liking does not identify a highlighted passage. */
     range?: never;
 };
 
 export type HighlightedActivityDto = BaseUserActivityDto & {
+    /** Identifies a highlighted passage. */
     type: UserActivityType.Highlighted;
+    /** Identifier of the content translation containing the highlighted passage. */
     contentId: Uuid;
+    /** Passage offsets, with color and quoted text omitted on removal tombstones. */
     range: Pick<HighlightRange, "start" | "end"> & Partial<Pick<HighlightRange, "color" | "text">>;
 };
 
