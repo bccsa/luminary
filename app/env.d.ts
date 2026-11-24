@@ -17,6 +17,9 @@ interface ImportMetaEnv {
     readonly VITE_SENTRY_DSN: string;
 
     readonly VITE_SENTRY_ENVIRONMENT?: string;
+
+    /** GA4 measurement ID (G-XXXX); analytics stays off when unset. */
+    readonly VITE_GA_MEASUREMENT_ID?: string;
 }
 
 interface ImportMeta {
@@ -63,6 +66,15 @@ declare module "virtual:share" {
 
     export const ShareKey: InjectionKey<ShareService>;
     export function installShare(app: App): void;
+}
+
+declare module "virtual:analytics" {
+    import type { App } from "vue";
+    import type { InjectionKey } from "vue";
+    import type { AnalyticsService } from "@/build-time/contracts/analytics/contract";
+
+    export const AnalyticsKey: InjectionKey<AnalyticsService>;
+    export function installAnalytics(app: App): void;
 }
 
 declare module "virtual:screen-wake" {

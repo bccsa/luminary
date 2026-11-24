@@ -86,5 +86,5 @@ Supported flags (see `README.md` for full list): `autoplay=true`, `autofullscree
 - Path alias `@` → `src/` (configured in `vite.config.ts` and tsconfig).
 - Tailwind for styling; `prettier-plugin-tailwindcss` reorders classes on format.
 - Sentry is initialised via `src/util/initSentry.ts`; use the exported `Sentry` (may be undefined when DSN is unset) — always null-check.
-- `src/main.ts`, `src/analytics.ts`, and `src/guards/**` are excluded from coverage; don't chase coverage there. `src/auth.ts` is covered by `src/auth.spec.ts` and is not excluded.
+- `src/main.ts` and `src/guards/**` are excluded from coverage; don't chase coverage there. `src/auth.ts` is covered by `src/auth.spec.ts` and is not excluded.
 - Vitest globals are enabled (`describe`/`it`/`expect` are ambient).

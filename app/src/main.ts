@@ -11,14 +11,17 @@ import { appPluginsManager } from "@/build-time/contracts/plugin-registry";
 import { getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
 import {
     appSyncedLanguageIdsAsRef,
+    cmsLanguages,
     initLanguage,
     initUserActivity,
     isAppLoading,
     isInstalledStandalone,
+    userPreferencesAsRef,
 } from "./globalConfig";
 import { apiUrl, deleteExpiredIntervalMs } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
-import { initAnalytics } from "./analytics";
+import { startAnalytics } from "@/analytics";
+import { AnalyticsKey } from "@/build-time/contracts/analytics/token";
 import { initSync, initAuthLangSync } from "./sync";
 import { initDefaultAffinitySync } from "@/recommendation/defaultAffinityStore";
 import { APP_DOCS_INDEX } from "./docsIndex";
@@ -161,8 +164,33 @@ async function Startup() {
     document.getElementById(BOOT_SPLASH_ID)?.remove();
 
     initAppTitle(i18n);
-    initAnalytics();
+    startAnalytics(
+        app.runWithContext(() => inject(AnalyticsKey, undefined)),
+        {
+            router,
+            platform: isInstalledStandalone() ? "pwa_installed" : "pwa",
+            consented: () => userPreferencesAsRef.value.privacyPolicy?.status === "accepted",
+            languageCode: (id) => cmsLanguages.value.find((l) => l._id === id)?.languageCode,
+        },
+    );
+    unregisterMatomoWorker();
     markAppReady();
+}
+
+// Browsers that ran the Matomo build still hold its offline-tracking worker; the PWA's own worker is left alone.
+function unregisterMatomoWorker() {
+    if (!("serviceWorker" in navigator)) return;
+    void navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => {
+            for (const registration of registrations) {
+                const worker =
+                    registration.active ?? registration.waiting ?? registration.installing;
+                if (worker?.scriptURL.includes("/analytics/service-worker.js"))
+                    void registration.unregister();
+            }
+        })
+        .catch(() => undefined);
 }
 
 Startup().catch((err) => {

@@ -2,7 +2,7 @@
 import { RouterView } from "vue-router";
 import { computed, nextTick, onErrorCaptured, onMounted, watch } from "vue";
 import { isConnected } from "luminary-shared";
-import { isAppLoading, userPreferencesAsRef, localCacheVersion } from "./globalConfig";
+import { isAppLoading, localCacheVersion } from "./globalConfig";
 import { useNotificationStore } from "./stores/notification";
 import { ArrowLeftEndOnRectangleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import * as Sentry from "@sentry/vue";
@@ -46,7 +46,6 @@ watch(() => router.currentRoute.value.query.affinityDebug, applyAffinityDebugQue
 });
 const {
     isAuthenticated,
-    user,
     loginWithRedirect,
     isPrivacyPolicyAccepted,
     showPrivacyPolicyModal,
@@ -152,19 +151,6 @@ watch(
     },
     { immediate: true },
 );
-
-// Add userId to analytics if privacy policy has been accepted
-const unwatchUserPref = watch(userPreferencesAsRef.value, () => {
-    if (userPreferencesAsRef.value.privacyPolicy?.status == "accepted") {
-        if (isAuthenticated.value) {
-            // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
-            window._paq && user && user.value && window._paq.push(["setUserId", user.value.email]);
-        }
-    }
-
-    // Stop watcher if the privacy policy is accepted or declined
-    if (userPreferencesAsRef.value.privacyPolicy?.status) unwatchUserPref();
-});
 
 /** The key the content page last got; a swap to the next video reuses it. */
 let contentPageKey = "";

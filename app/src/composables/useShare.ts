@@ -1,6 +1,7 @@
 import { inject, onMounted, ref } from "vue";
 import { ShareKey } from "@/build-time/contracts/share/token";
 import { formatShareMessage } from "@/composables/useSocialShare";
+import { trackShare } from "@/analytics";
 
 /** One share, whichever way it goes out: the OS share sheet or a curated target. */
 export type ShareDraft = {
@@ -42,6 +43,7 @@ export function useShare() {
             url: draft.url,
             files,
         });
+        if (result === "shared") trackShare("share_sheet", draft);
         if (result !== "unavailable") return true;
         nativeShareAvailable.value = false;
         return false;

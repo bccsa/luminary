@@ -8,6 +8,7 @@ import {
     formatShareMessage,
 } from "@/composables/useSocialShare";
 import type { ShareDraft } from "@/composables/useShare";
+import { trackShare } from "@/analytics";
 import TelegramIcon from "@/components/icons/TelegramIcon.vue";
 import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
 import XIcon from "@/components/icons/XIcon.vue";
@@ -29,25 +30,29 @@ const message = (options: { withUrl?: boolean } = {}) =>
         url: options.withUrl ? props.draft.url : undefined,
     });
 
-function openTarget(url: string) {
+function openTarget(method: string, url: string) {
+    trackShare(method, props.draft);
     window.open(url, "_blank", "noopener,noreferrer");
     emit("done");
 }
 
-const shareToTelegram = () => openTarget(buildTelegramShareUrl(message(), props.draft.url));
+const shareToTelegram = () =>
+    openTarget("telegram", buildTelegramShareUrl(message(), props.draft.url));
 
 // The curated WhatsApp target still needs phone/tablet vs. desktop when there's no share sheet.
 const shareToWhatsApp = () =>
     openTarget(
+        "whatsapp",
         buildWhatsAppShareUrl(
             message({ withUrl: true }),
             window.matchMedia("(pointer: coarse)").matches,
         ),
     );
 
-const shareToX = () => openTarget(buildXShareUrl(message(), props.draft.url));
+const shareToX = () => openTarget("x", buildXShareUrl(message(), props.draft.url));
 
-const shareToReddit = () => openTarget(buildRedditShareUrl(props.draft.title, props.draft.url));
+const shareToReddit = () =>
+    openTarget("reddit", buildRedditShareUrl(props.draft.title, props.draft.url));
 
 // Instagram has no web share-URL API for posts/links, so the closest one-click equivalent
 // is copying the text + link for the user to paste into a DM, Story or bio.
@@ -59,6 +64,7 @@ async function shareToInstagram() {
         emit("done");
         return;
     }
+    trackShare("instagram_copy", props.draft);
     useNotificationStore().addNotification({
         id: "share-link-copied",
         title: t("singlecontent.shareInstagramCopiedTitle"),
