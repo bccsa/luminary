@@ -71,6 +71,7 @@ describe("Socketio", () => {
 
         client.on("clientConfig", (config: any) => {
             expect(config.maxUploadFileSize).toBeDefined();
+            expect(config.maxQueryLanguages).toBeGreaterThan(0);
             expect(config.accessMap).toBeDefined();
             client.disconnect();
             done();
