@@ -54,7 +54,6 @@ describe("indexNameRegistry", () => {
             expect([...user].sort()).toEqual([
                 "sync-highlighted-index",
                 "sync-liked-index",
-                "sync-userActivity-index",
                 "sync-viewed-index",
             ]);
             expect([...user].every((name) => !content.has(name))).toBe(true);

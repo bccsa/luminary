@@ -13,20 +13,20 @@ import { UserDataDbService } from "./userDataDb.service";
 import { UserDataService } from "./userData.service";
 import { UserQueryService } from "./userQuery.service";
 import { UserQueryController } from "./userQuery.controller";
-import { normalizeUserActivityDocument } from "./activityIdentity";
+import { userActivityDocumentId } from "./activityIdentity";
 
 describe("shared and user query HTTP routing (mocked databases)", () => {
     let app: NestFastifyApplication;
     let anonymous: boolean;
     const user = { groups: [], jwtPayload: { iss: "https://issuer", sub: "account" } };
     const owner = ownerKey(user, "secret");
-    const doc = normalizeUserActivityDocument({
-        _id: "liked:post",
-        type: "userActivity",
-        activityType: "liked",
+    const doc = {
+        _id: userActivityDocumentId({ type: "liked", parentId: "post" }),
+        type: "liked",
         parentId: "post",
         activityTimeUtc: 100,
-    });
+        updatedTimeUtc: 100,
+    };
     const db = { assertEnabled: jest.fn(), partitionedFind: jest.fn() };
     const shared = { query: jest.fn() };
     const limiter = { check: jest.fn(), recordStrike: jest.fn() };
@@ -92,30 +92,31 @@ describe("shared and user query HTTP routing (mocked databases)", () => {
         expect(db.partitionedFind).not.toHaveBeenCalled();
     });
 
-    it.each([
-        ["/user/query", undefined],
-        ["/user/query", "user-v2"],
-        ["/query", "user-v2"],
-        ["/user/query", "user"],
-        ["/query", "user"],
-    ])("uses only the owner's partition through %s with source %s", async (url, dataSource) => {
-        const legacy = dataSource === "user";
-        const response = await send(url, {
-            ...(dataSource ? { dataSource } : {}),
-            selector: { type: legacy ? "userActivity" : "liked" },
-            use_index: legacy ? "sync-userActivity-index" : "sync-liked-index",
-        });
-        expect(response.statusCode).toBe(200);
-        expect(response.json().docs[0]).toMatchObject({
-            _id: legacy ? "liked:post" : doc._id,
-            type: legacy ? "userActivity" : "liked",
-        });
-        expect(db.partitionedFind).toHaveBeenCalledWith(owner, expect.anything());
+    it.each([undefined, "user"])(
+        "uses only the owner's partition for source %s",
+        async (dataSource) => {
+            const response = await send("/user/query", {
+                ...(dataSource ? { dataSource } : {}),
+                selector: { type: "liked" },
+                use_index: "sync-liked-index",
+            });
+            expect(response.statusCode).toBe(200);
+            expect(response.json().docs).toEqual([doc]);
+            expect(db.partitionedFind).toHaveBeenCalledWith(owner, expect.anything());
+            expect(shared.query).not.toHaveBeenCalled();
+            expect(response.json()).not.toHaveProperty("execution_stats");
+            expect(response.json()).not.toHaveProperty("bookmark");
+            expect(response.body).not.toContain(owner);
+            expect(limiter.check).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    it("rejects user queries on the shared endpoint", async () => {
+        expect(
+            (await send("/query", { dataSource: "user", selector: { type: "liked" } })).statusCode,
+        ).toBe(400);
+        expect(db.partitionedFind).not.toHaveBeenCalled();
         expect(shared.query).not.toHaveBeenCalled();
-        expect(response.json()).not.toHaveProperty("execution_stats");
-        expect(response.json()).not.toHaveProperty("bookmark");
-        expect(response.body).not.toContain(owner);
-        expect(limiter.check).toHaveBeenCalledTimes(1);
     });
 
     it.each(["/query", "/user/query"])(
@@ -128,7 +129,7 @@ describe("shared and user query HTTP routing (mocked databases)", () => {
         },
     );
 
-    it.each([null, "", false, 0, ["user-v2"]])(
+    it.each([null, "", false, 0, ["user"]])(
         "does not treat an invalid source %j as omission",
         async (dataSource) => {
             for (const url of ["/query", "/user/query"]) {
@@ -169,7 +170,7 @@ describe("shared and user query HTTP routing (mocked databases)", () => {
         expect(db.partitionedFind).not.toHaveBeenCalled();
     });
 
-    it("shares cost strikes and rate-limit buckets between the dedicated and compatibility routes", async () => {
+    it("applies account rate limits on the dedicated route", async () => {
         db.partitionedFind.mockResolvedValue({
             docs: [],
             execution_stats: { total_docs_examined: 100 },
@@ -181,8 +182,8 @@ describe("shared and user query HTTP routing (mocked databases)", () => {
         const identity = limiter.check.mock.calls[0][0];
         expect(limiter.recordStrike).toHaveBeenCalledWith(identity);
         limiter.check.mockReturnValue({ allowed: false, retryAfterMs: 1500 });
-        const response = await send("/query", {
-            dataSource: "user-v2",
+        const response = await send("/user/query", {
+            dataSource: "user",
             selector: { type: "liked" },
         });
         expect(response.statusCode).toBe(429);

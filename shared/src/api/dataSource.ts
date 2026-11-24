@@ -13,6 +13,8 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export type DataSourceConfig = {
     /** Wire name sent to the API. */
     name: string;
+    /** Query endpoint used by this source, relative to the API base URL. */
+    queryPath?: string;
     /** Local IndexedDB database name for this source. */
     databaseName: string;
     /** Sync cursor storage key for this source. */
@@ -86,6 +88,7 @@ export async function createDataSource(config: DataSourceConfig): Promise<DataSo
 
     const source: SyncSource = {
         name: config.name,
+        queryPath: config.queryPath,
         syncList,
         setSyncList: () => sourceDb.setSyncList(syncList).then(() => undefined),
         put: (docs) => putPulledDocs(docs),

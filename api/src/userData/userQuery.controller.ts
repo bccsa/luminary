@@ -7,7 +7,7 @@ import { USER_ACTIVITY_SOURCE } from "./activityIdentity";
 import { getUserDataIndexNames } from "./userDataDb.service";
 import { UserQueryService } from "./userQuery.service";
 
-/** Dedicated owner-scoped query endpoint; omission selects the current activity format. */
+/** Dedicated owner-scoped query endpoint; omission selects user activity. */
 @Controller("user/query")
 export class UserQueryController {
     constructor(

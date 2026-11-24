@@ -9,7 +9,7 @@ import { DatabaseConfig, UserDataConfig } from "../configuration";
 import { UserActivityDto } from "../dto/UserActivityDto";
 import { isEqualDoc } from "../util/isEqualDoc";
 import { loadIndexNames } from "../db/indexNameRegistry";
-import { normalizeUserActivityDocument } from "./activityIdentity";
+import { USER_ACTIVITY_TYPES } from "./activityIdentity";
 import { USER_DESIGN_DOCS_DIR } from "../db/databaseAssets";
 
 let indexNames: ReadonlySet<string>;
@@ -69,7 +69,11 @@ export class UserDataDbService {
                 );
                 return;
             }
-            if (!getUserDataIndexNames().has("sync-userActivity-index")) {
+            if (
+                USER_ACTIVITY_TYPES.some(
+                    (type) => !getUserDataIndexNames().has(`sync-${type}-index`),
+                )
+            ) {
                 throw new Error("Missing user-data design documents");
             }
             for (const file of fs
@@ -80,13 +84,12 @@ export class UserDataDbService {
                 );
                 await this.upsertDesignDoc(design);
             }
-            await this.migrateActivityFormat();
             this.available = true;
             this.logger.info("User-data source enabled.");
         } catch (error) {
             // Do not log the connection string, the identity secret or owner keys.
             this.logger.error(
-                "User-data source disabled: check the partitioned database, design documents and activity-format migration.",
+                "User-data source disabled: check the partitioned database and design documents.",
                 {
                     statusCode: error.statusCode,
                     code: error.code,
@@ -118,19 +121,11 @@ export class UserDataDbService {
         owner: string,
         doc: UserActivityDto,
         maxRetries = 50,
-        preserveTombstone = false,
     ): Promise<{ stale: boolean; doc: UserActivityDto }> {
         const id = `${owner}:${doc._id}`;
         for (let attempt = 0; ; attempt++) {
             const stored = await this.read(id);
             if (stored?.activityTimeUtc > doc.activityTimeUtc) return { stale: true, doc: stored };
-            if (
-                preserveTombstone &&
-                stored?.activityTimeUtc === doc.activityTimeUtc &&
-                stored.deleted &&
-                !doc.deleted
-            )
-                return { stale: true, doc: stored };
             const candidate = { ...doc, _id: id };
             if (isEqualDoc(stored, candidate)) return { stale: false, doc: stored };
             candidate.updatedTimeUtc = Date.now();
@@ -154,65 +149,6 @@ export class UserDataDbService {
         } catch (error) {
             if (error.statusCode === 404) return undefined;
             throw error;
-        }
-    }
-
-    private async migrateActivityFormat(): Promise<void> {
-        const markerId = "_local/userActivityFormat-v2";
-        const marker = (await this.read(markerId)) as any;
-        if (marker?.format === 2) return;
-        let after: string | undefined;
-        for (;;) {
-            const page = await this.connection.list({
-                include_docs: true,
-                limit: 100,
-                ...(after ? { startkey: after + "\u0000" } : {}),
-            });
-            if (!page.rows.length) break;
-            for (const row of page.rows) {
-                const raw = row.doc as any;
-                if (!raw || raw.type !== "userActivity") continue;
-                // Re-read on conflict; a legacy API may still be finishing an upload.
-                for (let attempt = 0; attempt < 10; attempt++) {
-                    const current = (await this.read(raw._id)) as any;
-                    if (!current) break;
-                    const separator = current._id.indexOf(":");
-                    if (separator < 1) throw new Error("Invalid legacy activity partition");
-                    const owner = current._id.slice(0, separator);
-                    const doc = normalizeUserActivityDocument({
-                        ...current,
-                        _id: current._id.slice(separator + 1),
-                    });
-                    const canonical = await this.read(`${owner}:${doc._id}`);
-                    if (
-                        !canonical ||
-                        doc.activityTimeUtc > canonical.activityTimeUtc ||
-                        (doc.activityTimeUtc === canonical.activityTimeUtc &&
-                            doc.deleted &&
-                            !canonical.deleted)
-                    ) {
-                        await this.write(owner, doc, 50, true);
-                    }
-                    try {
-                        await this.connection.destroy(current._id, current._rev);
-                        break;
-                    } catch (error) {
-                        if (error.statusCode === 404) break;
-                        if (error.statusCode !== 409 || attempt === 9) throw error;
-                    }
-                }
-            }
-            after = page.rows[page.rows.length - 1].id;
-        }
-        try {
-            await this.connection.insert({
-                _id: markerId,
-                ...(marker?._rev ? { _rev: marker._rev } : {}),
-                format: 2,
-            } as any);
-        } catch (error) {
-            if (error.statusCode !== 409 || ((await this.read(markerId)) as any)?.format !== 2)
-                throw error;
         }
     }
 

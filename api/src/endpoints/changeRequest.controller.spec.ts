@@ -144,7 +144,7 @@ describe("ChangeRequestController", () => {
         expect(mockRateLimiter.recordRequest.mock.calls[2][0]).not.toBe(first);
     });
 
-    it.each(["user", "user-v2"])(
+    it.each(["user"])(
         "returns a bad %s document's rejected ack with HTTP 200",
         async (dataSource) => {
             mockUserChangeRequest.mockResolvedValue({
@@ -161,7 +161,7 @@ describe("ChangeRequestController", () => {
         },
     );
 
-    it.each(["user", "user-v2"])(
+    it.each(["user"])(
         "returns a disabled %s source's HTTP 503 instead of a final ack",
         async (dataSource) => {
             mockUserChangeRequest.mockRejectedValueOnce(
@@ -217,7 +217,7 @@ describe("ChangeRequestController", () => {
     };
 
     describe("LFormData binary handling", () => {
-        it.each(["user", "user-v2"])(
+        it.each(["user"])(
             "preserves the %s source and returns HTTP 200 for multipart activity",
             async (dataSource) => {
                 mockUserChangeRequest.mockResolvedValue({ ack: "accepted" });
@@ -225,16 +225,12 @@ describe("ChangeRequestController", () => {
                     dataSource,
                     doc: {
                         _id: "activity-id",
-                        type: dataSource === "user" ? "userActivity" : "liked",
+                        type: "liked",
                     },
                 };
                 const response = await createLFormDataRequest(body, []);
                 expect(response.status).toBe(200);
-                expect(mockUserChangeRequest).toHaveBeenCalledWith(
-                    body.doc,
-                    expect.anything(),
-                    dataSource,
-                );
+                expect(mockUserChangeRequest).toHaveBeenCalledWith(body.doc, expect.anything());
                 expect(mockChangeRequest).not.toHaveBeenCalled();
             },
         );

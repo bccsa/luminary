@@ -1,7 +1,5 @@
 import {
-    normalizeUserActivityDocument,
     userActivityDocumentId,
-    toLegacyUserActivityDocument,
     type HighlightRange,
     type UserActivityDto,
     type UserActivityEntry,
@@ -18,6 +16,7 @@ import {
     upsertSourceUserActivityDoc,
 } from "./source";
 import { notifyUserActivityChanged } from "./state";
+import { toUserActivityDocument } from "./activityDocument";
 export { userActivityVersion } from "./state";
 
 /** UI row: activity time is distinct from the server's sync cursor. */
@@ -32,7 +31,6 @@ export type ActivityRef =
 export const userActivityId = userActivityDocumentId;
 
 function toEntry(doc: UserActivityDto): ActivityEntry {
-    const legacy = toLegacyUserActivityDocument(doc);
     return {
         _id: doc._id,
         type: doc.type,
@@ -41,12 +39,11 @@ function toEntry(doc: UserActivityDto): ActivityEntry {
         updatedTimeUtc: doc.updatedTimeUtc,
         activityTimeUtc: doc.activityTimeUtc,
         deleted: doc.deleted,
-        payload: legacy.payload,
+        payload:
+            doc.type === "highlighted" && !doc.deleted
+                ? { range: doc.range as HighlightRange }
+                : undefined,
     };
-}
-
-function toDoc(row: UserActivityEntry & { activityTimeUtc?: number }): UserActivityDto {
-    return normalizeUserActivityDocument(row);
 }
 
 /** Migration/backfill writes never replace an existing row, including a tombstone. */
@@ -55,7 +52,7 @@ export async function addMissingUserActivity(rows: UserActivityEntry[]): Promise
     return source.db.transaction("rw", source.db.docs, source.db.localChanges, async () => {
         let added = 0;
         for (const row of rows) {
-            const doc = toDoc(row);
+            const doc = toUserActivityDocument(row);
             if (await source.db.docs.get(doc._id)) continue;
             await source.db.upsert({ doc, overwriteLocalChanges: true });
             added++;
@@ -70,7 +67,7 @@ export async function recordUserActivity(
     payload?: UserActivityEntry["payload"],
 ): Promise<void> {
     await upsertSourceUserActivityDoc(
-        toDoc({
+        toUserActivityDocument({
             _id: userActivityId(activity),
             type: activity.type,
             parentId: activity.parentId,

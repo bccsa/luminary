@@ -5,6 +5,8 @@ import type { Ref } from "vue";
 export type SyncSource = {
     /** Wire name sent to API (e.g. "user"). */
     name: string;
+    /** Query endpoint for this source; defaults to the shared query endpoint. */
+    queryPath?: string;
     /** Sync-list state owned by this source. */
     syncList: Ref<SyncListEntry[]>;
     /** Persist source sync-list after mutations. */

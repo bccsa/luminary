@@ -1,8 +1,4 @@
-import {
-    normalizeUserActivityDocument,
-    toLegacyUserActivityDocument,
-    userActivityDocumentId,
-} from "./activityIdentity";
+import { userActivityDocumentId } from "./activityIdentity";
 
 describe("activity document identity contract", () => {
     it.each([
@@ -34,55 +30,5 @@ describe("activity document identity contract", () => {
         expect(userActivityDocumentId({ ...identity, range: { start: 1, end: 5 } })).not.toBe(
             userActivityDocumentId(identity),
         );
-    });
-
-    it("migrates a removed passage without retaining its quotation", () => {
-        const old = {
-            _id: "highlighted:content:a:10-20",
-            type: "userActivity",
-            activityType: "highlighted",
-            parentId: "post",
-            contentId: "content:a",
-            deleted: true,
-            activityTimeUtc: 7,
-            updatedTimeUtc: 12,
-        };
-        const doc = normalizeUserActivityDocument(old);
-        expect(doc).toMatchObject({
-            type: "highlighted",
-            range: { start: 10, end: 20 },
-            activityTimeUtc: 7,
-            updatedTimeUtc: 12,
-        });
-        expect(doc._id).toMatch(/^[a-f0-9-]{36}$/);
-        expect(doc).not.toHaveProperty("activityType");
-        expect(toLegacyUserActivityDocument(doc)).toMatchObject(old);
-    });
-
-    it("round trips legacy active passages and keeps their activity time", () => {
-        const old = {
-            _id: "highlighted:content:0-5",
-            type: "userActivity",
-            activityType: "highlighted",
-            parentId: "post",
-            contentId: "content",
-            activityTimeUtc: 7,
-            updatedTimeUtc: 12,
-            payload: { range: { start: 0, end: 5, color: "blue", text: "hello" } },
-        };
-        expect(toLegacyUserActivityDocument(normalizeUserActivityDocument(old))).toMatchObject(old);
-    });
-
-    it("rejects a legacy tombstone whose passage cannot be recovered", () => {
-        expect(() =>
-            normalizeUserActivityDocument({
-                _id: "highlighted:content",
-                type: "userActivity",
-                activityType: "highlighted",
-                parentId: "post",
-                contentId: "content",
-                deleted: true,
-            }),
-        ).toThrow();
     });
 });

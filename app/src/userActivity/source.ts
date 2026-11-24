@@ -13,7 +13,6 @@ import {
     type UserActivityDto,
 } from "luminary-shared";
 import { notifyUserActivityChanged } from "./state";
-import { migrateActivityFormat } from "./migrateActivityFormat";
 
 type UserActivityDatabase = Omit<DataSourceHandle["db"], "docs"> & {
     docs: Table<UserActivityDto, string>;
@@ -41,8 +40,9 @@ export async function getUserActivitySource(): Promise<UserActivitySource> {
     if (!openPromise) {
         openPromise = createDataSource({
             name: USER_ACTIVITY_SOURCE,
+            queryPath: "user/query",
             databaseName: "luminary-user-db",
-            syncListKey: "syncList:v2",
+            syncListKey: "syncList",
             docsIndex: "activityTimeUtc,deleted,contentId,[type+activityTimeUtc]",
             sync: {
                 type: UserActivityType.Viewed,
@@ -53,13 +53,7 @@ export async function getUserActivitySource(): Promise<UserActivitySource> {
             ready: computed(() => transportEnabled.value && !suspended.value),
             paceMs: 300,
         })
-            .then(async (source) => {
-                try {
-                    await migrateActivityFormat(source.db);
-                } catch (error) {
-                    await source.dispose();
-                    throw error;
-                }
+            .then((source) => {
                 // Keep the shared database generic and type this source's activity-only table.
                 const activitySource: UserActivitySource = {
                     ...source,

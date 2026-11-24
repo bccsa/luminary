@@ -21,27 +21,25 @@ pull takes the single-column batch path, omits the `memberOf` selector, and does
 change the default source's `syncActive` indicator. HybridQuery and default live
 sync retain their existing contracts.
 
-The wire contract adds optional `dataSource` to `/query` and `/changerequest`.
-Omitting it selects the shared dataset. The API advertises supported source names
-in socket `clientConfig.dataSources`. Clients must not send source requests until
-advertised: an older API can reject an unfamiliar document as a final acknowledgement
-and cause the queue to discard an otherwise valid edit.
+The wire contract adds optional `dataSource` to `/changerequest`; omitting it selects
+the shared dataset. User reads use `/user/query`, while shared `/query` rejects named
+sources. The API advertises supported source names in socket `clientConfig.dataSources`.
+Clients must not send source requests until advertised: an older API can reject an
+unfamiliar document as a final acknowledgement and cause the queue to discard an
+otherwise valid edit. Source configuration supplies its read endpoint through `queryPath`.
 
-The controller split adds an owner-scoped `/user/query` route, defaulting to the current
-activity format. `/query` retains its existing source dispatch for compatibility. Both
-controllers share validation, account rate limits and cost reporting through
+Both query controllers share validation, account rate limits and cost reporting through
 `QueryRequestService`. User reads and writes live in `UserQueryService` and
 `UserChangeRequestService`; `/changerequest` dispatches after common request parsing.
 The shared change-request service has no dependency on user-data processing.
 
-Current user activity uses the wire name `user-v2`; `user` remains a compatibility adapter
-for older clients. Its target local database is
+User activity uses the wire name `user`. Its target local database is
 `luminary-user-db`, with documents, outbound changes and cursor stored together.
 `UserActivityDto` is a discriminated union with separate viewed, liked and highlighted DTOs.
 A dedicated `UserActivityType` enum supplies `type`; there is no second `activityType` field.
 The common base reuses minimal document identity without shared group metadata. The API
 mirrors these types; its shared-dataset `DocType` enum must not gain activity types.
-The source syncs each type with its own cursor, using `syncList:v2` on the device.
+The source syncs each type with its own cursor, using `syncList` on the device.
 
 Activity ids are UUID v5 values with namespace `94bcbde6-4392-5f66-8900-7d7aabc6a7a9`.
 The name is the JSON encoding of `[type, parentId]` for likes/views, or
@@ -49,13 +47,10 @@ The name is the JSON encoding of `[type, parentId]` for likes/views, or
 Highlights use a root `range`; tombstones preserve offsets but remove color and quoted text.
 Reference ids still accept existing non-UUID content identifiers.
 
-Device documents and pending uploads migrate in one transaction before transport starts.
-API startup migrates legacy records in bounded pages before advertising either source, with
-an idempotent completion marker. The compatibility adapter maps old envelopes and ids onto
-the same UUID records. This supports old clients. Upgrading an existing legacy user database
-requires backing it up and stopping older API instances before migration; currently only the
-local setup has such a database. New, empty deployments need no legacy-data cutover. An older backend
-cannot serve the migrated database; rollback requires restoring its matching backup.
+The app's `migrate.ts` moves existing activity from the main local activity table into
+the source database before transport starts. The intermediate source formats introduced
+within this feature never shipped and need no compatibility adapter or format migration.
+Server initialization installs indexes without scanning or rewriting stored activity.
 
 The server stores activity in an ops-provisioned, partitioned CouchDB database.
 The owner partition key is

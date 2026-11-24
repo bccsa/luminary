@@ -159,7 +159,7 @@ export class ChangeRequestController {
         const source = resolveDataSource(changeRequest?.dataSource);
         if (source) {
             reply.code(200);
-            return this.userChanges.changeRequest(changeRequest.doc, request.user, source);
+            return this.userChanges.changeRequest(changeRequest.doc, request.user);
         }
         return this.changeRequestService.changeRequest(changeRequest, request.user);
     }

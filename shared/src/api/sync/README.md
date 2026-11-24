@@ -93,6 +93,8 @@ Start an autonomous sync runner for a specific document type.
   other types — an undefined bound is treated as an open range.
 - `source` (`SyncSource`, optional): Source-scoped sync state/storage target. When provided,
   `sync()` uses source mode (single-column `syncBatch` path) and does not add DeleteCmd companions.
+  The source's optional `queryPath` selects its read endpoint (for example `"user/query"`);
+  when omitted, requests use `"query"`.
 
 > The `type`/`subType` examples below use illustrative type names (e.g. `"content:post"`) as
 > shorthand for the resulting `chunkType`. In real calls `type` and `subType` are `DocType`

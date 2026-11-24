@@ -55,17 +55,16 @@ Back up `USER_DATA_ID_SECRET` securely and **never rotate it**. It is independen
 `ENCRYPTION_KEY`; losing or changing it or an issuer's domain orphans the corresponding data.
 The database must differ from `DB_DATABASE`. Startup checks that it exists and is partitioned,
 then installs the design documents from `src/db/designDocs/user/`. Only a successful check
-advertises `clientConfig.dataSources: ["user", "user-v2"]` after the activity-format migration.
+advertises `clientConfig.dataSources: ["user"]`.
 A missing database, incomplete settings or
 index-installation failure logs an error and leaves the source off without a retry loop.
 Correct the configuration and restart to retry initialization; the API never creates this database.
 
-Current authenticated clients reuse `POST /query` and `POST /changerequest` with
-`dataSource: "user-v2"`. The legacy `user` source remains available for older clients.
-Omitting `dataSource` preserves the shared-dataset path; unknown sources return 400.
-Owner-scoped queries also have a dedicated `POST /user/query` controller. On that route,
-omitting `dataSource` selects `user-v2`; an explicit `user` selects the legacy format.
-The existing `/query` source routing remains supported, so clients need no URL changes.
+Authenticated activity clients read through `POST /user/query` and write through
+`POST /changerequest` with `dataSource: "user"`. The user query route accepts either
+an omitted source or `dataSource: "user"`. Shared queries use `POST /query`, which
+rejects named sources. Omitting `dataSource` on change requests selects the shared
+dataset; unknown sources return 400.
 Both controllers use `QueryRequestService` for validation, account rate limits, cost logging
 and removal of execution statistics. User query validation stays mandatory even when the
 shared query validation bypass is enabled.
@@ -81,9 +80,8 @@ and IP for anonymous callers. Token and session identifiers do not select owner 
 reset an account's rate-limit allowance.
 
 Current queries select one `UserActivityType` (`viewed`, `liked`, `highlighted`) and its
-`sync-<type>-index`. Each type has an independent client cursor. The legacy source accepts
-`selector.type: "userActivity"` and translates the stored records back to the earlier envelope.
-Both use a separate index allowlist and accept the sync engine's `updatedTimeUtc` bounds
+`sync-<type>-index`. Each type has an independent client cursor. User queries use a
+separate index allowlist and accept the sync engine's `updatedTimeUtc` bounds
 including zero and `Number.MAX_SAFE_INTEGER`.
 Change requests validate separate viewed, liked and highlighted DTOs, all extending a common
 base. The `type` field is the discriminator; current documents have no `activityType`.
@@ -134,16 +132,9 @@ timestamp-pagination limit: a full batch of documents sharing one `updatedTimeUt
 the client's generic sync cursor to stop before importing every tied document. Stable
 tie-breaker pagination remains follow-up work; passing unit suites does not resolve it.
 
-On the first startup with this format, the API migrates existing user-data records in pages of
-100, preserving owner partitions and activity timestamps, then writes
-`_local/userActivityFormat-v2`. Interrupted migrations resume safely on restart. Source support
-is advertised only after migration succeeds. When upgrading an existing legacy user database,
-back it up and stop older API instances before migration. In the current setup this applies
-only to the local user database; new, empty staging/production databases need no legacy-data
-cutover. Older clients remain supported through the legacy adapter;
-older API binaries cannot read the migrated format. Rolling back the API requires restoring the
-matching database backup. The device migration atomically converts stored activity and pending
-uploads before enabling transport, and starts fresh `syncList:v2` cursors.
+The app migrates activity from the existing main-database local activity table into
+its named source database before transport starts. There is no server startup format
+migration or adapter for intermediate formats introduced during development of this feature.
 
 This phase supports pull-based convergence. Owner live updates, per-account quotas and server
 tombstone cleanup remain separate follow-up work (ADR 0020). CouchDB/S3 integration tests and

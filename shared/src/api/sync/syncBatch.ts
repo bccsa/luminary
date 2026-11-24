@@ -147,7 +147,7 @@ export async function syncBatch(options: SyncOptions) {
         return;
     }
 
-    const res = await options.httpService.post("query", mangoQuery);
+    const res = await options.httpService.post(options.source?.queryPath ?? "query", mangoQuery);
 
     // Check if sync was cancelled during the API call
     if (cancelSync || options.source?.isCancelled?.()) {

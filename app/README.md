@@ -85,7 +85,7 @@ Full design, diagrams, and constants: **[docs/reading-progress-tracker/README.md
 Likes, highlighted passages and viewing history live in `luminary-user-db`, with their
 own outbound queue and sync cursor. Recording works offline and while signed out.
 Uploads and pulls require a signed-in user, accepted privacy policy status and an API
-advertising `user-v2` in `clientConfig.dataSources`. Until the API supports that source,
+advertising `user` in `clientConfig.dataSources`. Until the API supports that source,
 activity stays local and queued; no user-data requests are sent.
 
 At sign-in, unowned device history is adopted by the account. An existing owner marker
@@ -114,9 +114,9 @@ migrations and the progress mirror before components mount.
 
 The current activity format uses deterministic UUID ids and `type` values `viewed`,
 `liked` or `highlighted`. Highlights store a root `range`; deleting one retains its offsets
-and removes its quotation. Stored activity and pending uploads from the earlier envelope
-are converted in a single transaction before sync starts, preserving the account marker.
-The new format uses independent cursors for each type under `syncList:v2`.
+and removes its quotation. `migrate.ts` moves existing activity from the main local
+activity table into the source database before transport starts. Each activity type
+has an independent cursor under the source database's `syncList` key.
 
 Highlights use one activity row per passage. The passage migration has its own
 completion marker (`userActivityPassagesMigrated`), so devices that already ran the

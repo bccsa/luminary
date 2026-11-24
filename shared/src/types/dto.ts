@@ -403,20 +403,6 @@ export type UserActivityEntry = {
     payload?: { range: HighlightRange };
 };
 
-/**
- * Earlier server-synced envelope, retained only for compatibility conversions. Distinct from
- * {@link UserActivityEntry}, which is the legacy local side-table row shape.
- */
-export type LegacyUserActivityDto = BaseDocumentDto & {
-    type: DocType.UserActivity;
-    activityType: UserActivityKind;
-    parentId: Uuid;
-    contentId?: Uuid;
-    activityTimeUtc: number;
-    deleted?: boolean;
-    payload?: { range: HighlightRange };
-};
-
 export type BaseUserActivityDto = Pick<BaseDocumentDto, "_id" | "_rev" | "updatedTimeUtc"> & {
     /** Activity kind used to select the matching DTO. */
     type: UserActivityType;

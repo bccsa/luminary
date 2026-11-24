@@ -5,7 +5,7 @@ import waitForExpect from "wait-for-expect";
 import { initConfig } from "../config";
 import { dbUpgradeBlocked, openDatabase } from "./database";
 import type { SyncListEntry } from "../api/sync/types";
-import { AckStatus, DocType, type LocalChangeDto } from "../types";
+import { AckStatus, UserActivityType, type LocalChangeDto } from "../types";
 
 type Connection = Awaited<ReturnType<typeof openDatabase>>;
 let connections: Connection[] = [];
@@ -32,13 +32,13 @@ describe("named databases", () => {
     });
 
     it("keeps schema definitions, versions and sync cursors isolated across databases", async () => {
-        const first = await open("named-isolation-first", "activityType");
+        const first = await open("named-isolation-first", "activityTimeUtc");
         const second = await open("named-isolation-second", "differentIndex");
         const firstVersion = first.verno;
         const secondVersion = second.verno;
         const cursor = ref<SyncListEntry[]>([
             {
-                chunkType: "userActivity",
+                chunkType: UserActivityType.Viewed,
                 memberOf: ["*"],
                 blockStart: 2000,
                 blockEnd: 0,
@@ -54,7 +54,7 @@ describe("named databases", () => {
         first.close();
         second.close();
 
-        const reopenedFirst = await open("named-isolation-first", "activityType");
+        const reopenedFirst = await open("named-isolation-first", "activityTimeUtc");
         const reopenedSecond = await open("named-isolation-second", "differentIndex");
         expect(reopenedFirst.verno).toBe(firstVersion);
         expect(reopenedSecond.verno).toBe(secondVersion);
@@ -85,7 +85,7 @@ describe("named databases", () => {
 
     it("does not restore source data from late acknowledgements after clear or a newer edit", async () => {
         const source = await open("named-late-ack", "");
-        const doc = { _id: "liked:one", type: DocType.UserActivity, updatedTimeUtc: 100 };
+        const doc = { _id: "liked:one", type: UserActivityType.Viewed, updatedTimeUtc: 100 };
         const { localChangeId } = await source.upsert({ doc, overwriteLocalChanges: true });
         const oldChange = (await source.localChanges.get(localChangeId)) as LocalChangeDto;
         await source.upsert({ doc: { ...doc, updatedTimeUtc: 300 }, overwriteLocalChanges: true });

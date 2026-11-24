@@ -71,7 +71,7 @@ describe("change-request source dispatch (mocked)", () => {
         expect(userData.changeRequest).not.toHaveBeenCalled();
     });
 
-    it.each(["user", "user-v2"])(
+    it.each(["user"])(
         "refuses %s directly in the shared change-request service",
         async (dataSource) => {
             await expect(service.changeRequest({ dataSource, doc: {} }, user)).rejects.toThrow(
@@ -82,15 +82,15 @@ describe("change-request source dispatch (mocked)", () => {
         },
     );
 
-    it.each(["user", "user-v2"])(
+    it.each(["user"])(
         "never sends a %s request to shared processing or rejection lookups",
         async (dataSource) => {
             const doc = {
                 _id: "activity-id",
-                type: dataSource === "user" ? "userActivity" : "liked",
+                type: "liked",
             };
             await submit({ dataSource, doc });
-            expect(userData.changeRequest).toHaveBeenCalledWith(doc, user, dataSource);
+            expect(userData.changeRequest).toHaveBeenCalledWith(doc, user);
             expect(processChangeRequest).not.toHaveBeenCalled();
             expect(db.getDoc).not.toHaveBeenCalled();
         },

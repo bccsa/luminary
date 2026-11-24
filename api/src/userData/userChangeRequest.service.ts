@@ -11,13 +11,7 @@ import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { AckStatus, UserActivityType } from "../enums";
 import { UserDataDbService } from "./userDataDb.service";
 import { removeEmptyValues } from "../util/removeEmptyValues";
-import { LegacyUserActivityDto } from "../dto/LegacyUserActivityDto";
-import {
-    USER_ACTIVITY_SOURCE,
-    isUserActivityType,
-    normalizeUserActivityDocument,
-    userActivityDocumentId,
-} from "./activityIdentity";
+import { isUserActivityType, userActivityDocumentId } from "./activityIdentity";
 import type { ClassConstructor } from "class-transformer";
 
 import { UserDataService } from "./userData.service";
@@ -29,11 +23,7 @@ export class UserChangeRequestService {
         private readonly documents: UserDataService,
     ) {}
 
-    async changeRequest(
-        raw: unknown,
-        user: JwtUserDetails,
-        source = "user",
-    ): Promise<ChangeReqAckDto> {
+    async changeRequest(raw: unknown, user: JwtUserDetails): Promise<ChangeReqAckDto> {
         const owner = this.documents.owner(user);
         // An unavailable source must preserve the client's queue, including invalid queued docs.
         this.db.assertEnabled();
@@ -43,25 +33,10 @@ export class UserChangeRequestService {
         });
         if (!raw || typeof raw !== "object" || Array.isArray(raw))
             return rejected("Invalid user activity document");
-        let input: unknown = raw;
-        const current = source === USER_ACTIVITY_SOURCE;
-        if (!current) {
-            const legacy = plainToInstance(LegacyUserActivityDto, raw);
-            const errors = await validate(legacy, { whitelist: true, forbidNonWhitelisted: false });
-            if (errors.length || !legacy._id.startsWith(`${legacy.activityType}:`))
-                return rejected("Invalid user activity document");
-            if (legacy.activityType !== "highlighted" && legacy.payload != null)
-                return rejected("Only highlights may carry a passage");
-            try {
-                input = normalizeUserActivityDocument(legacy);
-            } catch {
-                return rejected("Invalid highlight passage identity");
-            }
-        }
-        const type = (input as { type?: unknown }).type;
+        const type = (raw as { type?: unknown }).type;
         if (!isUserActivityType(type)) return rejected("Invalid user activity type");
         const dtoClass = USER_ACTIVITY_DTO_CLASSES[type] as ClassConstructor<BaseUserActivityDto>;
-        const doc = plainToInstance(dtoClass, input) as UserActivityDto;
+        const doc = plainToInstance(dtoClass, raw) as UserActivityDto;
         const errors = await validate(doc, { whitelist: true, forbidNonWhitelisted: false });
         if (errors.length) return rejected("Invalid user activity document");
         if (doc.type === UserActivityType.Highlighted) {
@@ -84,7 +59,7 @@ export class UserChangeRequestService {
                 ? {
                       ack: AckStatus.Rejected,
                       message: "A newer activity is already stored",
-                      docs: [this.documents.toClient(owner, result.doc, current)],
+                      docs: [this.documents.toClient(owner, result.doc)],
                   }
                 : { ack: AckStatus.Accepted };
         } catch {

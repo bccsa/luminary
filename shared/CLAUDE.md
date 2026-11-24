@@ -81,7 +81,8 @@ pulled documents with pending local edits are skipped in a transaction.
 `sync.types` optionally lists multiple document types, each with an independent column in
 the source's cursor list. `UserActivityType` is separate from the shared-dataset `DocType`;
 activity types require an explicit source and never join default group rooms. `userActivity.ts`
-defines the UUID identity contract and compatibility conversions, mirrored by the API helper.
+defines the UUID identity contract, mirrored by the API helper. A source can set
+`queryPath` to its dedicated read endpoint; otherwise pulls use `query`.
 
 The exported singleton is `db`, available after `initDatabase()` resolves. `db.upsert(...)` is the standard write path: it writes to `docs` and queues a `localChange` for upload (or, for deletes with `deleteReq`, removes from `docs` and queues the delete). `db.bulkPut(docs)` handles incoming docs from the API including `DeleteCmd` resolution (with a stale-delete guard — skips deletes whose target is already newer).
 

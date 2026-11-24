@@ -1,3 +1,4 @@
+import { UserActivityType } from "../types";
 import "fake-indexeddb/auto";
 import { describe, it, afterEach, beforeEach, expect, beforeAll, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
@@ -774,7 +775,7 @@ describe("Database", async () => {
         try {
             const userActivityDoc = {
                 _id: "user-activity-1",
-                type: DocType.UserActivity,
+                type: UserActivityType.Viewed,
                 updatedTimeUtc: 1,
             } as ContentDto;
 
@@ -808,11 +809,11 @@ describe("Database", async () => {
         try {
             await sourceDb.docs.put({
                 _id: "source-doc-1",
-                type: DocType.UserActivity,
+                type: UserActivityType.Viewed,
                 updatedTimeUtc: 1,
             } as ContentDto);
             await sourceDb.localChanges.put({
-                doc: { _id: "source-doc-1", type: DocType.UserActivity, updatedTimeUtc: 1 },
+                doc: { _id: "source-doc-1", type: UserActivityType.Viewed, updatedTimeUtc: 1 },
                 docId: "source-doc-1",
             } as any);
             await sourceDb.setLuminaryInternals("x", 1);

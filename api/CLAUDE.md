@@ -66,14 +66,11 @@ JWT issuer/subject. Every query uses `partitionedFind`; unknown sources never fa
 shared dataset. Writes use activity-time comparison, server-set cursor timestamps and
 conflict retries. Validation rejects are HTTP 200 acks; source/storage failures are retryable
 HTTP errors. Keep owner keys and CouchDB bookmarks out of client responses. See `README.md`
-and ADR 0020 for provisioning and wire contracts. Current clients use `user-v2` with separate
-activity types and UUID ids; `user` adapts older clients to the same stored records. Startup
-migrates the server format before enabling either source. Upgrading an existing legacy user
-database requires a backup and stopping older API instances; currently that database exists
-only locally. New, empty deployment databases need no legacy-data cutover.
-`UserQueryController` serves `/user/query`, defaulting to `user-v2`; `/query` retains source
-dispatch for compatibility. Both use `QueryRequestService` for validation, account rate
-limits, cost reporting and lean responses. `/changerequest` dispatches to separate shared
+and ADR 0020 for provisioning and wire contracts. The `user` source uses separate
+activity types and UUID ids. Initialization installs indexes without scanning or migrating
+activity documents. `UserQueryController` serves `/user/query`; shared `/query` rejects
+named sources. Both use `QueryRequestService` for validation, account rate limits,
+cost reporting and lean responses. `/changerequest` dispatches to separate shared
 and user services after its common authentication, throttling and multipart/JSON parsing.
 Preserve user validation acks versus retryable HTTP errors, and never route owner data to
 the shared service's rejection lookups. All services use Nest's default singleton scope.

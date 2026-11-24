@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import waitForExpect from "wait-for-expect";
-import { DocType, UserActivityType, type BaseDocumentDto } from "../types";
+import { UserActivityType, type BaseDocumentDto } from "../types";
 import { initConfig } from "../config";
 import { initDatabase } from "../db/database";
 import { dataSources, isConnected } from "../socket/socketio";
@@ -16,7 +16,7 @@ const changeRequestMock = vi.fn();
 const http = { post: vi.fn() };
 const makeDoc = (id: string, updatedTimeUtc: number): BaseDocumentDto => ({
     _id: id,
-    type: DocType.UserActivity,
+    type: UserActivityType.Viewed,
     updatedTimeUtc,
     memberOf: ["*"],
 });
@@ -27,9 +27,10 @@ const create = async (databaseName = `source-test-${++databaseNumber}`, paceMs =
     const enabled = ref(false);
     const source = await createDataSource({
         name: "user",
+        queryPath: "user/query",
         databaseName,
         syncListKey: "syncList",
-        sync: { type: DocType.UserActivity, limit: 2 },
+        sync: { type: UserActivityType.Viewed, limit: 2 },
         ready: enabled,
         paceMs,
     });
@@ -103,6 +104,7 @@ describe("createDataSource", () => {
         const payload = JSON.parse(changeRequestMock.mock.calls[0][0].get("changeRequest__json"));
         expect(payload.dataSource).toBe("user");
         expect(http.post.mock.calls[0][1]).toMatchObject({ dataSource: "user" });
+        expect(http.post.mock.calls[0][0]).toBe("user/query");
         expect(http.post.mock.calls[0][1].selector).not.toHaveProperty("memberOf");
     });
 
@@ -123,9 +125,10 @@ describe("createDataSource", () => {
                 .slice(0, body.limit),
         }));
         const source = await createDataSource({
-            name: "user-v2",
+            name: "user",
+            queryPath: "user/query",
             databaseName: `multi-type-source-${++databaseNumber}`,
-            syncListKey: "syncList:v2",
+            syncListKey: "syncList",
             sync: {
                 type: UserActivityType.Viewed,
                 types: Object.values(UserActivityType),
@@ -134,13 +137,13 @@ describe("createDataSource", () => {
         });
         handles.push(source);
         isConnected.value = true;
-        dataSources.value = ["user-v2"];
+        dataSources.value = ["user"];
         await source.pull();
 
         expect(new Set(http.post.mock.calls.map(([, body]) => body.selector.type))).toEqual(
             new Set(Object.values(UserActivityType)),
         );
-        const cursors = (await source.db.getLuminaryInternals("syncList:v2")) as any[];
+        const cursors = (await source.db.getLuminaryInternals("syncList")) as any[];
         expect(new Set(cursors.map((column) => column.chunkType))).toEqual(
             new Set(Object.values(UserActivityType)),
         );

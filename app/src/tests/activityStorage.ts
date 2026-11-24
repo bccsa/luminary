@@ -1,9 +1,6 @@
 import { beforeEach, vi } from "vitest";
-import {
-    normalizeUserActivityDocument,
-    userActivityDocumentId,
-    type UserActivityEntry,
-} from "luminary-shared";
+import { toUserActivityDocument } from "@/userActivity/activityDocument";
+import { userActivityDocumentId, type UserActivityEntry } from "luminary-shared";
 import { clearLocalUserActivity, getUserActivitySource } from "@/userActivity/source";
 
 export let activityDocs: Awaited<ReturnType<typeof getUserActivitySource>>["db"]["docs"];
@@ -39,5 +36,5 @@ export async function seedUserActivity(
 ): Promise<void> {
     const rows = Array.isArray(input) ? input : [input];
     const source = await getUserActivitySource();
-    await source.db.docs.bulkPut(rows.map((row) => normalizeUserActivityDocument(row)));
+    await source.db.docs.bulkPut(rows.map((row) => toUserActivityDocument(row)));
 }

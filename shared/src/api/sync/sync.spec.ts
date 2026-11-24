@@ -90,7 +90,7 @@ describe("sync module", () => {
             expect(syncActive.value).toBe(false);
             return { eof: true, blockStart: 0, blockEnd: 0, firstSync: true };
         });
-        await sync({ type: DocType.UserActivity, memberOf: ["*"], limit: 100, source });
+        await sync({ type: UserActivityType.Viewed, memberOf: ["*"], limit: 100, source });
         expect(syncActive.value).toBe(false);
         expect(syncBatch).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -103,7 +103,7 @@ describe("sync module", () => {
         try {
             vi.mocked(syncBatch).mockRejectedValueOnce(new Error("source unavailable"));
             await expect(
-                sync({ type: DocType.UserActivity, memberOf: ["*"], limit: 100, source }),
+                sync({ type: UserActivityType.Viewed, memberOf: ["*"], limit: 100, source }),
             ).rejects.toThrow("source unavailable");
             expect(syncActive.value).toBe(true);
         } finally {

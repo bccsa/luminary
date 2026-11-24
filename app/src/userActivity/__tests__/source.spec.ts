@@ -155,7 +155,7 @@ describe("activity source lifecycle", () => {
         accept();
         signIn();
         isConnected.value = true;
-        dataSources.value = ["user-v2"];
+        dataSources.value = ["user"];
         requests.mockImplementation(async (form: FormData) => {
             expect(await owner()).toBe("https://issuer|one");
             return {
@@ -167,7 +167,7 @@ describe("activity source lifecycle", () => {
         await waitForExpect(async () => expect(await queued()).toHaveLength(0));
         expect(requests).toHaveBeenCalledTimes(1);
         expect(JSON.parse(requests.mock.calls[0][0].get("changeRequest__json")).dataSource).toBe(
-            "user-v2",
+            "user",
         );
         expect(localStorage.getItem("userActivityOwner")).toBeNull();
     });
@@ -177,7 +177,7 @@ describe("activity source lifecycle", () => {
         await recordUserActivity({ type: "liked", parentId: "held" });
         await setupUserActivitySync();
         isConnected.value = true;
-        dataSources.value = ["user-v2"];
+        dataSources.value = ["user"];
         const source = await getUserActivitySource();
         expect(await source.flush(10)).toBe(false);
         signIn();
@@ -193,21 +193,6 @@ describe("activity source lifecycle", () => {
         expect(query).not.toHaveBeenCalled();
     });
 
-    it("does not upload the new document format to an API advertising only the old source", async () => {
-        accept();
-        signIn();
-        await setupUserActivitySync();
-        await recordUserActivity({ type: "liked", parentId: "local" });
-        isConnected.value = true;
-        dataSources.value = ["user"];
-        const source = await getUserActivitySource();
-        expect(await source.flush(10)).toBe(false);
-        await source.pull();
-        expect(requests).not.toHaveBeenCalled();
-        expect(query).not.toHaveBeenCalled();
-        expect(await queued()).toHaveLength(1);
-    });
-
     it("retains owner and queued edits on session loss and resumes for the same account", async () => {
         accept();
         signIn();
@@ -220,7 +205,7 @@ describe("activity source lifecycle", () => {
         expect(await getUserActivity("liked")).toHaveLength(1);
         signIn();
         isConnected.value = true;
-        dataSources.value = ["user-v2"];
+        dataSources.value = ["user"];
         await waitForExpect(async () => expect(await queued()).toHaveLength(0));
         expect(await getUserActivity("liked")).toHaveLength(1);
     });
@@ -232,19 +217,19 @@ describe("activity source lifecycle", () => {
         await recordUserActivity({ type: "liked", parentId: "private-to-one" });
         await (
             await getUserActivitySource()
-        ).db.setLuminaryInternals("syncList:v2", [{ stale: true }]);
+        ).db.setLuminaryInternals("syncList", [{ stale: true }]);
         loseSession();
         await nextTick();
         signIn("two");
         isConnected.value = true;
-        dataSources.value = ["user-v2"];
+        dataSources.value = ["user"];
         await waitForExpect(async () => expect(await owner()).toBe("https://issuer|two"));
         expect(await getUserActivity("liked")).toEqual([]);
         expect(await queued()).toHaveLength(0);
         expect(requests).not.toHaveBeenCalled();
-        expect(
-            await (await getUserActivitySource()).db.getLuminaryInternals("syncList:v2"),
-        ).toEqual([]);
+        expect(await (await getUserActivitySource()).db.getLuminaryInternals("syncList")).toEqual(
+            [],
+        );
     });
 
     it("invalidates activity and highlight readers after a pull without redating history", async () => {
@@ -264,13 +249,15 @@ describe("activity source lifecycle", () => {
         ];
         const before = userActivityVersion.value;
         isConnected.value = true;
-        dataSources.value = ["user-v2"];
+        dataSources.value = ["user"];
         await waitForExpect(async () => {
             expect(await loadHighlightQueriesFor("content")).toEqual([
                 { query: "hello", updatedAt: 10 },
             ]);
             expect(userActivityVersion.value).toBeGreaterThan(before);
         });
+        expect(query).toHaveBeenCalled();
+        expect(query.mock.calls.every(([path]) => path === "user/query")).toBe(true);
         expect((await getUserActivity("highlighted"))[0]).toMatchObject({
             activityTimeUtc: 10,
             updatedTimeUtc: 5000,
