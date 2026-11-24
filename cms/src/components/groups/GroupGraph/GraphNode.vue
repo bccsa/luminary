@@ -66,14 +66,14 @@ function cancelHoldOnMove(event: PointerEvent) {
         :class="[
             isHolding ? 'is-holding' : '',
             data.selected
-                ? 'border-2 border-zinc-950 bg-zinc-950 text-white'
+                ? 'border-2 border-zinc-950 bg-zinc-950 text-white dark:border-zinc-100 dark:bg-zinc-100'
                 : data.accessState === 'downstream'
-                  ? 'border-sky-300 bg-sky-300 opacity-100'
+                  ? 'border-sky-300 bg-sky-300 opacity-100 dark:border-sky-700 dark:bg-sky-900'
                   : data.accessState === 'upstream'
-                    ? 'border-violet-300 bg-violet-300 opacity-100'
+                    ? 'border-violet-300 bg-violet-300 opacity-100 dark:border-violet-700 dark:bg-violet-900'
                     : data.dimmed
-                      ? 'border-zinc-200 bg-white opacity-25'
-                      : 'border-zinc-200 bg-white',
+                      ? 'border-zinc-200 bg-white opacity-25 dark:border-slate-700 dark:bg-slate-800'
+                      : 'border-zinc-200 bg-white dark:border-slate-700 dark:bg-slate-800',
         ]"
         tabindex="0"
         @click.stop="$emit('select', data.groupId)"
@@ -94,7 +94,9 @@ function cancelHoldOnMove(event: PointerEvent) {
         />
         <div
             class="truncate text-sm font-semibold"
-            :class="data.selected ? 'text-white' : 'text-zinc-900'"
+            :class="
+                data.selected ? 'text-white dark:text-zinc-900' : 'text-zinc-900 dark:text-zinc-100'
+            "
         >
             {{ data.name }}
         </div>

@@ -69,6 +69,7 @@ import {
     rosterTiles,
 } from "../ui/scrubPreview";
 import { TimelineScrub } from "../ui/timelineScrub";
+import { StripSpin } from "../ui/stripSpin";
 import ScrubThumbnail from "./ScrubThumbnail.vue";
 import ScrubRoster from "./ScrubRoster.vue";
 import ScrubPicture from "./ScrubPicture.vue";
@@ -122,6 +123,11 @@ interface Props {
     appearance?: "light" | "dark";
     /** Audio language to select automatically; a viewer's own choice outranks it. */
     preferredLanguage?: string;
+    /**
+     * The Data Saver level playback follows; given, the quality card ends with a switch for it, and a flip raises
+     * `nowplayingaction` (`dataSaver`, `light` or `off`), as the native now-playing screen's does.
+     */
+    dataSaver?: "off" | "light" | "strict";
     /** Saves data on scrub sprite sheets: only the playhead's own is fetched ahead, once playback is under way; the rest as the pointer reaches them. */
     lazyThumbnails?: boolean;
     /** Options handed to the default `PlayerController`. */
@@ -143,6 +149,8 @@ const emit = defineEmits<{
     nextupselect: [id: string];
     /** The viewer closed the card, so nothing follows this video. */
     nextupdismiss: [];
+    /** The quality card's Data Saver switch was flipped: `dataSaver` with `light` or `off`. */
+    nowplayingaction: [action: "dataSaver", value: "light" | "off"];
 }>();
 
 /**
@@ -229,6 +237,7 @@ async function loadSource(source: PlayerSource): Promise<void> {
     const media = mediaEl.value;
     if (!media) return;
     const generation = ++loadGeneration;
+    startTrackUnread = true;
     sourceError.value = null;
 
     if (isYouTubeUrl(source.masterUrl)) {
@@ -264,8 +273,25 @@ function applyPreferredLanguage(): void {
     const target = findPreferredTrack(snapshot.audioTracks, preferred);
     if (!target) return;
     autoAppliedTrackId = target;
-    if (target === snapshot.activeAudioTrackId) return;
+    // Nothing to do when the state names it already, unless the engine is known to play another: until somebody
+    // chooses, the state names the first track listed, and the engine plays the stream's default.
+    const playing = engineAudioTrackId();
+    if (target === snapshot.activeAudioTrackId && (playing === undefined || playing === target))
+        return;
     instance.setAudioTrack(target);
+}
+
+/** The controller's id for the track the engine has enabled, joined by position as the menu's relay joins them. */
+function engineAudioTrackId(): string | undefined {
+    const tracks = mediaEl.value?.audioTracks;
+    const known = state.value.audioTracks;
+    if (!tracks || known.length !== tracks.length) return undefined;
+    let i = 0;
+    for (const track of tracks) {
+        if (track.enabled) return known[i]?.id;
+        i++;
+    }
+    return undefined;
 }
 
 watch([() => props.source, () => props.preferredLanguage], () => {
@@ -302,11 +328,27 @@ function onEngineAudioTrackChange(): void {
     const tracks = mediaEl.value?.audioTracks;
     if (isYouTube.value || !instance || !tracks) return;
     const known = state.value.audioTracks;
-    if (known.length !== tracks.length) return;
     let i = 0;
     for (const track of tracks) {
         if (track.enabled) {
-            const id = known[i]?.id;
+            const id = known.length === tracks.length ? known[i]?.id : undefined;
+            // The track the engine started this source on, not a pick: see `audioListSettling`. Only once the list
+            // has been rebuilt for it: until then it is the outgoing source's, and a change there is a pick.
+            if (audioListSettling && audioListRebuilt) {
+                audioListSettling = false;
+                // A load's first list, with no preferred language in it for the host to select: the track the engine
+                // starts on is the one that plays, and the state names the first track listed until it is told. On a
+                // new video the picture started for that track's language, the stream's default, so telling it moves
+                // no picture. Never after a re-attach, where the controller hands the viewer's choice back.
+                const awaited = [
+                    props.preferredLanguage,
+                    ...(props.source.preferredAudioLanguages ?? []),
+                ].some((lang) => !!lang && !!findPreferredTrack(known, lang));
+                if (startTrackUnread && !awaited && id && id !== state.value.activeAudioTrackId)
+                    instance.setAudioTrack(id);
+                startTrackUnread = false;
+                return;
+            }
             if (id && id !== state.value.activeAudioTrackId) instance.setAudioTrack(id);
             return;
         }
@@ -445,6 +487,23 @@ onMounted(() => {
 onBeforeUnmount(() => qualityCardObserver?.disconnect());
 let audioTrackList: EventTarget | undefined;
 let textTrackList: EventTarget | undefined;
+/**
+ * The audio list was bound for a new source and has not yet shown the track it starts on. Every attach (an angle
+ * switch, the audio toggle, a recovery) rebuilds the list with the stream's default enabled, and that `change`
+ * arrives before the controller hands the viewer's choice back. Relayed, the default would overwrite the choice,
+ * and move the picture to the default's language. From nothing to something after a load is not a pick, as on native.
+ * Raised on `loadstart`, lowered by the first `change` on the rebuilt list or, at the latest, on `loadeddata`.
+ */
+let audioListSettling = false;
+/**
+ * A track has been added to the audio list since `loadstart`. Until one is, the list still holds the outgoing
+ * source's tracks, and a pick made on it in those few milliseconds would otherwise lower `audioListSettling`: the
+ * rebuilt list's default would then be relayed as a pick.
+ */
+let audioListRebuilt = false;
+const onAudioTrackAdded = (): void => void (audioListRebuilt = true);
+/** A new `source` has not yet shown the track its engine starts on. A re-attach does not raise it again. */
+let startTrackUnread = false;
 
 /**
  * Listens to the element's audio and text track lists, for a choice made in the player's own menus.
@@ -453,6 +512,7 @@ let textTrackList: EventTarget | undefined;
  * controller, and the player's state would go on saying English.
  */
 function bindTrackLists(): void {
+    audioTrackList?.removeEventListener("addtrack", onAudioTrackAdded);
     audioTrackList?.removeEventListener("change", onEngineAudioTrackChange);
     textTrackList?.removeEventListener("change", onEngineTextTrackChange);
     textTrackList?.removeEventListener("change", placeCues);
@@ -460,6 +520,10 @@ function bindTrackLists(): void {
     const media = mediaEl.value;
     audioTrackList = media?.audioTracks as unknown as EventTarget | undefined;
     textTrackList = media?.textTracks as unknown as EventTarget | undefined;
+    // On `loadstart`, which comes before the engine rebuilds the list for the source.
+    audioListSettling = true;
+    audioListRebuilt = false;
+    audioTrackList?.addEventListener("addtrack", onAudioTrackAdded);
     audioTrackList?.addEventListener("change", onEngineAudioTrackChange);
     textTrackList?.addEventListener("change", onEngineTextTrackChange);
     textTrackList?.addEventListener("change", placeCues);
@@ -551,6 +615,9 @@ onMounted(() => {
     keepAlive = createKeepAlive(keepAliveEl.value);
 
     on("loadstart", bindTrackLists);
+    // The engine enables the default when it reads the manifest, long before data loads: a flag still up by now
+    // is one no `change` came for, and left up it would swallow the viewer's next pick.
+    on("loadeddata", () => (audioListSettling = false));
     bindTrackLists();
     applyFit();
     on("loadstart", applyFit);
@@ -610,6 +677,7 @@ onBeforeUnmount(() => {
     removePressActivation = null;
     for (const [type, handler] of mediaListeners) mediaEl.value?.removeEventListener(type, handler);
     mediaListeners.length = 0;
+    audioTrackList?.removeEventListener("addtrack", onAudioTrackAdded);
     audioTrackList?.removeEventListener("change", onEngineAudioTrackChange);
     textTrackList?.removeEventListener("change", onEngineTextTrackChange);
     textTrackList?.removeEventListener("change", placeCues);
@@ -739,6 +807,10 @@ function onFullscreenChange(): void {
  * Raising the volume of a muted player unmutes it, which is what pressing plus means.
  */
 function onControlsClick(event: MouseEvent): void {
+    if (event.target instanceof Element && event.target.closest("[data-data-saver]")) {
+        emit("nowplayingaction", "dataSaver", props.dataSaver === "off" ? "light" : "off");
+        return;
+    }
     if (event.target instanceof Element && event.target.closest("[data-browse-toggle]")) {
         toggleBrowse();
         return;
@@ -1097,6 +1169,7 @@ function followTouch(event: PointerEvent): boolean {
         if (isTouch(event) && onBar) {
             const duration = mediaEl.value?.duration ?? NaN;
             if (!Number.isFinite(duration) || duration <= 0) return true;
+            dropPinSpin();
             // The slider never sees it, so it cannot seek on release.
             event.stopPropagation();
             event.preventDefault();
@@ -1214,6 +1287,7 @@ function updateScrub(event: PointerEvent): void {
     const onBar = isOnBar(event.clientX, event.clientY, bar);
     // A press anywhere but the roster and the timeline (the fast way, which the roster is there to refine) closes a pinned roster.
     if (event.type === "pointerdown" && pin.value && !onBar) closePin();
+    if (event.type === "pointerdown" && onBar) dropPinSpin();
     if (event.type === "pointerdown" && onBar) {
         scrubbing = true;
         pauseForScrub();
@@ -1357,6 +1431,9 @@ interface PinDrag {
     moved: boolean;
 }
 const pinDrag = shallowRef<PinDrag | null>(null);
+/** A flick carries the strip on after the finger lifts; the video goes where it stops. */
+const pinSpin = new StripSpin();
+onBeforeUnmount(() => pinSpin.stop());
 
 /** The playhead, read every frame while a roster is pinned: `timeupdate` is a few times a second, which steps the strip. */
 const pinNow = ref(0);
@@ -1395,8 +1472,14 @@ function closePin(): void {
     putAwayPin();
 }
 
+/** A press on the timeline takes the video over: a spin left running would seek after it. */
+function dropPinSpin(): void {
+    if (pinSpin.stop()) pinDrag.value = null;
+}
+
 /** The strip goes, and playback is left as it is. */
 function putAwayPin(): void {
+    pinSpin.stop();
     pin.value = null;
     pinDrag.value = null;
     pinAnchor.value = null;
@@ -1434,13 +1517,17 @@ function onPinDown(event: PointerEvent): void {
     const view = pinnedView.value;
     if (!view) return;
     (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
-    if (isTouch(event)) timelineScrub.dragBegan(true, isPlaying());
-    else pauseForScrub();
+    // A press that catches a spin carries on its drag: the video is already held, and it is not a tap.
+    const caught = pinSpin.press(event.clientX);
+    if (!caught) {
+        if (isTouch(event)) timelineScrub.dragBegan(true, isPlaying());
+        else pauseForScrub();
+    }
     pinDrag.value = {
         startX: event.clientX,
         lastX: event.clientX,
         time: view.time,
-        moved: false,
+        moved: caught,
     };
 }
 
@@ -1450,6 +1537,7 @@ function onPinMove(event: PointerEvent): void {
     if (!drag || !(duration > 0)) return;
     const view = pinnedView.value;
     if (!view) return;
+    pinSpin.move(event.clientX);
     // The strip follows the finger one-to-one, at a scale that never changes during the drag.
     const time = drag.time - (event.clientX - drag.lastX) / (view.tileWidth / view.step);
     pinDrag.value = {
@@ -1463,10 +1551,15 @@ function onPinMove(event: PointerEvent): void {
 function onPinUp(event: PointerEvent): void {
     const drag = pinDrag.value;
     const view = pinnedView.value;
-    pinDrag.value = null;
     const touch = isTouch(event);
-    if (!drag || !view || event.type !== "pointerup")
+    // A phone's browser may cancel a drag it takes over: where the strip had got to is still where the viewer went.
+    const lifted = event.type === "pointerup" || (event.type === "pointercancel" && !!drag?.moved);
+    if (!drag || !view || !lifted) {
+        pinDrag.value = null;
         return touch ? timelineScrub.dragCancelled() : resumeFromScrub();
+    }
+    if (drag.moved && spinPin(drag.time, view.tileWidth / view.step, touch)) return;
+    pinDrag.value = null;
     let target = drag.time;
     if (!drag.moved) {
         // A tap: the frame under the finger, read off the strip's own scale.
@@ -1477,6 +1570,29 @@ function onPinUp(event: PointerEvent): void {
             (event.clientX - (frame?.left ?? 0) - view.markerX) / (view.tileWidth / view.step);
         target = Math.min(Math.max(0, target), Math.max(0, duration - 0.001));
     }
+    commitPin(target, touch);
+}
+
+/** A flicked strip runs on from `from` and the video goes where it stops; false when it was not flicked. */
+function spinPin(from: number, pxPerSecond: number, touch: boolean): boolean {
+    const last = Math.max(0, state.value.duration - 0.001);
+    return pinSpin.release(
+        (offset) => {
+            const drag = pinDrag.value;
+            if (!drag) return false;
+            const time = Math.min(Math.max(0, from - offset / pxPerSecond), last);
+            pinDrag.value = { ...drag, time };
+            return time > 0 && time < last;
+        },
+        () => {
+            const drag = pinDrag.value;
+            pinDrag.value = null;
+            if (drag) commitPin(drag.time, touch);
+        },
+    );
+}
+
+function commitPin(target: number, touch: boolean): void {
     if (touch) return timelineScrub.dragEnded(target);
     pinAnchor.value = target;
     armAnchorTimeout();
@@ -1615,6 +1731,22 @@ watch(
     ([disabled]) => {
         const next = containerEl.value?.querySelector<HTMLButtonElement>('[data-chapter-step="1"]');
         if (next) next.disabled = disabled;
+    },
+    { flush: "post", immediate: true },
+);
+
+/** The quality card's Data Saver switch is markup too: its state and words are written by hand. */
+watch(
+    [() => props.dataSaver, msg, controlsHtml, containerEl],
+    () => {
+        const toggle = containerEl.value?.querySelector<HTMLElement>("[data-data-saver]");
+        if (!toggle) return;
+        toggle.hidden = props.dataSaver === undefined;
+        toggle.setAttribute("aria-checked", String(!!props.dataSaver && props.dataSaver !== "off"));
+        const label = toggle.querySelector('[data-part="label"]');
+        if (label) label.textContent = msg.value.dataSaver;
+        const sub = toggle.querySelector('[data-part="default"]');
+        if (sub) sub.textContent = msg.value.dataSaverDefault;
     },
     { flush: "post", immediate: true },
 );
@@ -2080,6 +2212,7 @@ defineExpose({
             'lmpl-windowed-bare': !mergedControls.windowedControls,
             'lmpl-is-fullscreen': isFullscreen,
             'lmpl-has-quality-choice': state.qualities.length > 1,
+            'lmpl-has-data-saver': dataSaver !== undefined,
             'lmpl-has-audio-choice': state.audioTracks.length > 1,
             'lmpl-has-subtitles': state.subtitleTracks.length > 0,
             'lmpl-captions-on': !!state.activeSubtitleTrackId,
@@ -2226,6 +2359,11 @@ defineExpose({
                     @rate="setRate"
                     @audio-track="setAudioTrack"
                     @sleep="setSleep"
+                    :data-saver="dataSaver"
+                    @data-saver="
+                        (level: string) =>
+                            emit('nowplayingaction', 'dataSaver', level === 'off' ? 'off' : 'light')
+                    "
                 >
                     <template #cast>
                         <media-cast-button

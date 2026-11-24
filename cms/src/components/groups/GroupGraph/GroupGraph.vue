@@ -16,6 +16,7 @@ import {
     XMarkIcon,
 } from "@heroicons/vue/24/outline";
 import type { GroupDto } from "luminary-shared";
+import { isDarkTheme } from "@/globalConfig";
 import { GRID_SIZE, TREE_MAX_COLUMNS, TREE_MIN_COLUMNS } from "./types";
 import {
     graphGroupsToLayOut,
@@ -49,7 +50,7 @@ const graphRoot = ref<HTMLElement | null>(null);
 const selectedGroupId = ref<string | null>(null);
 const initialFitDone = ref(false);
 const segClass = (active: boolean) =>
-    `rounded-none shadow-none ring-0 ${active ? "bg-zinc-100 text-zinc-950" : "bg-white text-zinc-600"}`;
+    `rounded-none shadow-none ring-0 ${active ? "bg-zinc-100 text-zinc-950 dark:bg-slate-600 dark:text-zinc-100" : "bg-white text-zinc-600 dark:bg-slate-700 dark:text-zinc-300"}`;
 const isFullscreen = ref(false);
 const contextMenu = ref<{ groupId: string; x: number; y: number } | null>(null);
 const showSearch = ref(false);
@@ -275,7 +276,7 @@ watch(isFullscreen, () => {
                     />
                 </template>
 
-                <Background pattern-color="#e4e4e7" :gap="GRID_SIZE" />
+                <Background :pattern-color="isDarkTheme ? '#334155' : '#e4e4e7'" :gap="GRID_SIZE" />
                 <Panel position="bottom-left">
                     <div class="flex flex-col gap-1">
                         <LButton
@@ -308,13 +309,16 @@ watch(isFullscreen, () => {
                 >
                     <div class="flex w-max flex-nowrap items-start gap-2 sm:ml-auto">
                         <div
-                            class="pointer-events-auto flex h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300 dark:divide-zinc-500 dark:border-zinc-600 dark:ring-0"
+                            class="pointer-events-auto flex h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300 dark:divide-slate-600 dark:ring-0"
                         >
                             <LButton
                                 size="lg"
                                 variant="secondary"
                                 :icon="CursorArrowRaysIcon"
                                 :main-dynamic-css="segClass(interactionMode === 'select')"
+                                :icon-class="
+                                    interactionMode === 'select' ? 'dark:text-zinc-100' : ''
+                                "
                                 @click="interactionMode = 'select'"
                             >
                                 Select
@@ -324,13 +328,14 @@ watch(isFullscreen, () => {
                                 variant="secondary"
                                 :icon="HandRaisedIcon"
                                 :main-dynamic-css="segClass(interactionMode === 'drag')"
+                                :icon-class="interactionMode === 'drag' ? 'dark:text-zinc-100' : ''"
                                 @click="interactionMode = 'drag'"
                             >
                                 Drag
                             </LButton>
                         </div>
                         <div
-                            class="pointer-events-auto hidden h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300 dark:divide-zinc-500 dark:ring-0 sm:flex"
+                            class="pointer-events-auto hidden h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300 dark:divide-slate-600 dark:ring-0 sm:flex"
                         >
                             <LButton
                                 size="lg"
@@ -362,10 +367,12 @@ watch(isFullscreen, () => {
                                 :max="TREE_MAX_COLUMNS"
                                 step="1"
                                 :value="treeColumnCount"
-                                class="h-2 w-28 cursor-pointer appearance-none rounded-lg bg-zinc-200 accent-zinc-700 dark:accent-zinc-300"
+                                class="h-2 w-28 cursor-pointer appearance-none rounded-lg bg-zinc-200 accent-zinc-700 dark:bg-slate-600 dark:accent-zinc-300"
                                 @input="updateTreeColumnCount"
                             />
-                            <span class="w-3 text-right font-medium text-zinc-700">
+                            <span
+                                class="w-3 text-right font-medium text-zinc-700 dark:text-zinc-300"
+                            >
                                 {{ treeColumnCount }}
                             </span>
                         </div>
@@ -453,7 +460,7 @@ watch(isFullscreen, () => {
 
             <div
                 v-if="contextMenu"
-                class="absolute z-20 min-w-44 max-w-[calc(100vw-2rem)] overflow-hidden rounded-md border border-zinc-200 bg-white py-1 text-sm shadow-lg dark:border-zinc-400"
+                class="absolute z-20 min-w-44 max-w-[calc(100vw-2rem)] overflow-hidden rounded-md border border-zinc-200 bg-white py-1 text-sm shadow-lg dark:border-slate-600 dark:bg-slate-800"
                 :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
                 @click.stop
                 @contextmenu.prevent
@@ -491,5 +498,19 @@ watch(isFullscreen, () => {
 :deep(.vue-flow__node.selected > button) {
     border-color: #18181b; /* zinc-900 */
     box-shadow: 0 0 0 2px #18181b;
+}
+</style>
+
+<style>
+/* Unscoped on purpose: a scoped `:root.dark :deep(...)` compiles to `:root.dark[data-v-xxx] ...`,
+   which never matches because the scope id lands on <html>. */
+:root.dark .chart-handle {
+    border-color: #64748b; /* slate-500 */
+    background: #1e293b; /* slate-800 */
+}
+
+:root.dark .vue-flow__node.selected > button {
+    border-color: #f4f4f5; /* zinc-100 */
+    box-shadow: 0 0 0 2px #f4f4f5;
 }
 </style>

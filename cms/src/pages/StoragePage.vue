@@ -33,7 +33,7 @@ const createNew = () => {
             <LButton
                 v-if="isSmallScreen && canEdit"
                 variant="primary"
-                class="text-zinc-500"
+                class="text-zinc-500 dark:text-zinc-600"
                 :icon="PlusIcon"
                 @click="createNew"
                 name="createBucketBtn"

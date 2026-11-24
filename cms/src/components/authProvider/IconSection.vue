@@ -139,7 +139,7 @@ watch(
                         )
                     "
                 />
-                <span class="w-10 text-right text-xs text-zinc-600">
+                <span class="w-10 text-right text-xs text-zinc-600 dark:text-zinc-300">
                     {{ Math.round(localOpacity * 100) }}%
                 </span>
             </div>

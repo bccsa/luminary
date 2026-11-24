@@ -31,7 +31,8 @@ import { usePlayerMessages } from "@/media-player/usePlayerMessages";
 import YouTubeWrapper from "./YouTubeWrapper.vue";
 import { warmFetch, warmPlaylists } from "./playlistWarm";
 import { isYouTubeLink } from "@/util/youtube";
-import { appLanguagesPreferredAsRef, isDarkTheme, queryParams, dataSaverOn } from "@/globalConfig";
+import { appLanguagesPreferredAsRef, isDarkTheme, queryParams } from "@/globalConfig";
+import { playbackDataSaverLevel, playbackDataSaverOn } from "./mediaPlayer";
 import {
     connectionSpeed,
     hasMeasuredConnectionSpeed,
@@ -177,12 +178,14 @@ const webNowPlaying = computed(() => ({
         : {}),
 }));
 /**
- * What the player's controller is given, read once when the player is built: Data Saver turns the
- * background warming of the next chunk off, since a warm is an extra request nobody asked for.
- * Taken when this component is created: a player swapped to the next video keeps it.
+ * What the player's controller is given when the player is built: Data Saver turns the background warming of the
+ * next chunk off, since a warm is an extra request nobody asked for. The controller reads `prefetch` on each load,
+ * so a change mid-play takes effect from the next load (the next video, or a reload lifting the cap).
  */
+const prefetch = { enabled: !playbackDataSaverOn.value };
+watch(playbackDataSaverOn, (on) => (prefetch.enabled = !on));
 const controllerOptions = {
-    prefetch: { enabled: !dataSaverOn.value },
+    prefetch,
     // The playlists warmed beside the key (see `warmPlaylists`) are answered from memory.
     fetchImpl: warmFetch,
 };
@@ -190,10 +193,14 @@ const playerExtras = computed(() => ({
     controllerOptions,
     // Saving data, the scrub frames are fetched as they are reached rather than ahead; the player itself
     // holds back while only sound plays.
-    lazyThumbnails: dataSaverOn.value,
+    lazyThumbnails: playbackDataSaverOn.value,
     ...(videoPlayer.acceptsNowPlaying
         ? { nowPlaying: nowPlaying.value }
-        : { nowPlaying: webNowPlaying.value, appearance: isDarkTheme.value ? "dark" : "light" }),
+        : {
+              nowPlaying: webNowPlaying.value,
+              appearance: isDarkTheme.value ? "dark" : "light",
+              dataSaver: playbackDataSaverLevel.value,
+          }),
     // Withheld until this content's own video is loaded, or the previous video's last frame shows under it.
     ...(props.inline && videoPlayer.acceptsInline && playingThisContent()
         ? {
@@ -290,6 +297,23 @@ const youtubeUrl = computed(() =>
 
 /** The angle the load starts on, fixed per content so a later change of mind does not reload. */
 const startAngleId = ref<string | undefined>(undefined);
+/**
+ * The languages `preferredLanguage` will choose the audio by, for the player to start on the picture made for it
+ * (burnt-in titles, lip sync) rather than switch to it once the audio is selected. Whether the stream has the
+ * remembered language is not known before it loads, so both of that rule's candidates go, in its order, and the
+ * player takes the first the stream has; nothing beyond them, or the load could start on a picture whose audio is
+ * never selected. Fixed per content like `startAngleId`: the remembered language moves with every audio pick, and
+ * every new source reloads the stream. The cap's reload in place keeps it, as the player ignores it on a reload of the
+ * same video and goes on following the language it was following, on the angle `startAngleId` names.
+ */
+const preferredAudioLanguages = shallowRef<string[]>([]);
+function audioLanguagesToStartWith(): string[] {
+    const candidates = [
+        audioLanguagePreference.value,
+        props.language || appLanguagesPreferredAsRef.value[0]?.languageCode,
+    ];
+    return [...new Set(candidates.filter((lang): lang is string => !!lang))];
+}
 
 /**
  * What Data Saver allows a picture: nothing above this height is offered to the player, so it can
@@ -396,20 +420,32 @@ const delay = (ms: number) =>
  * the setting: on, ABR stays beneath it and the qualities above it leave the list; off, it goes, Auto is set and ABR
  * climbs. A quality picked by hand stands while it is on.
  */
-watch([dataSaverOn, () => player.value?.controller ?? null] as const, ([on, controller]) => {
-    controller?.setMaxHeight?.(on ? DATA_SAVER_MAX_HEIGHT : null);
-});
+watch(
+    [playbackDataSaverOn, () => player.value?.controller ?? null] as const,
+    ([on, controller]) => {
+        controller?.setMaxHeight?.(on ? DATA_SAVER_MAX_HEIGHT : null);
+    },
+);
 
 /**
- * Where the engine cannot hold the cap in place: Data Saver turned off mid-play lifts it by loading the same content
- * again in place, on the angle it is on. False when there was nothing to lift that way.
+ * Where the engine cannot hold the cap in place (AVPlayer): Data Saver turned on or off mid-play sets or lifts it by
+ * loading the same content again in place, on the angle the player is heading for. That is not always the one playing:
+ * during an automatic switch the playing angle is the one on its way out, while the player already follows the new
+ * audio language, and a reload onto it would keep that audio and lose the switch. Audio only stays Audio only (its
+ * `videoAngleId` is only where "Video" returns to). False when the cap already matches.
  */
-function liftDataSaverCap(): boolean {
-    if (player.value?.controller?.canCapInPlace) return false;
-    if (maxHeight.value === undefined || dataSaverOn.value || !props.content) return false;
-    startAngleId.value = player.value?.state?.activeAngleId ?? startAngleId.value;
+function syncDataSaverCap(): boolean {
+    if (player.value?.controller?.canCapInPlace || !props.content) return false;
+    const cap = playbackDataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : undefined;
+    if (maxHeight.value === cap) return false;
+    const state = player.value?.state;
+    const headingFor =
+        state?.activeAngleId === AUDIO_ONLY_ANGLE_ID
+            ? state.activeAngleId
+            : (state?.videoAngleId ?? state?.activeAngleId);
+    startAngleId.value = headingFor ?? startAngleId.value;
     preservePosition.value = true;
-    maxHeight.value = undefined;
+    maxHeight.value = cap;
     return true;
 }
 
@@ -420,6 +456,9 @@ const source = computed<PlayerSource | null>(() => {
         masterUrl: url,
         keyHex: keyHex.value,
         startAngleId: startAngleId.value,
+        ...(preferredAudioLanguages.value.length
+            ? { preferredAudioLanguages: preferredAudioLanguages.value }
+            : {}),
         maxHeight: maxHeight.value,
         // Held in place where the engine can, so the setting moves it with no reload.
         maxHeightInPlace: true,
@@ -442,7 +481,8 @@ watch(
         const masterUrl = mediaSource.value;
         if (masterUrl && !isYouTubeUrl(masterUrl)) warmPlaylists(masterUrl);
         startAngleId.value = props.startAudio ? AUDIO_ONLY_ANGLE_ID : undefined;
-        maxHeight.value = dataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : undefined;
+        preferredAudioLanguages.value = audioLanguagesToStartWith();
+        maxHeight.value = playbackDataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : undefined;
         preservePosition.value = false;
         resumeAt.value = resumePoint();
         bandwidthEstimate.value = startingBandwidth();
@@ -668,7 +708,7 @@ function onLoadedMetadata() {
     }
 }
 
-defineExpose({ player, inlineActive, liftDataSaverCap });
+defineExpose({ player, inlineActive, syncDataSaverCap });
 
 function onTimeUpdate(currentTime: number, duration: number) {
     // The video being swapped out is still playing while the next one's key is fetched.

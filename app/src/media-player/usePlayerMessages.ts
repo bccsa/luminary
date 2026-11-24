@@ -1,5 +1,8 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { effectiveDataSaverLevel } from "@/globalConfig";
+
+const DATA_SAVER_LEVEL_NAMES = { off: "Off", light: "Light", strict: "Strict" } as const;
 
 /**
  * The player's own strings, in the language of the app: the web and the native player take the
@@ -10,6 +13,14 @@ export function usePlayerMessages() {
     const { t, te } = useI18n();
     // Strings newer than a language document are left out, so the player's English stands in rather than the key.
     const known = (key: string): string | undefined => (te(key) ? t(key) : undefined);
+    /** "Default from Settings: Light": what the quality menu's Data Saver switch overrides. */
+    const dataSaverDefault = (): string => {
+        const level = effectiveDataSaverLevel.value;
+        const name = known(`settings.data_saver.${level}`) ?? DATA_SAVER_LEVEL_NAMES[level];
+        return te("media_player.data_saver_default")
+            ? t("media_player.data_saver_default", { level: name })
+            : `Default from Settings: ${name}`;
+    };
     return computed(() => ({
         comingSoon: t("video_player.coming_soon"),
         errorGeneric: t("video_player.error_generic"),
@@ -66,6 +77,7 @@ export function usePlayerMessages() {
         sleepMinutes: t("media_player.sleep_minutes", { minutes: "{minutes}" }),
         sleepEndOfChapter: t("media_player.sleep_end_of_chapter"),
         sleepLeft: t("media_player.sleep_left", { minutes: "{minutes}" }),
+        dataSaverDefault: dataSaverDefault(),
         ...defined({
             dataSaver: known("media_player.data_saver"),
             autoplay: known("media_player.autoplay"),

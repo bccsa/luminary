@@ -254,6 +254,7 @@
         "media_player.sleep_label": "Minuterie",
         "media_player.playback_settings": "Paramètres de lecture",
         "media_player.data_saver": "Économiseur de données",
+        "media_player.data_saver_default": "Par défaut dans les Paramètres : {level}",
         "media_player.autoplay": "Lecture automatique",
         "media_player.autoplay_on": "Activée",
         "media_player.autoplay_off": "Désactivée",

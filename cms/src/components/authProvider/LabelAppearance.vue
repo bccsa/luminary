@@ -11,7 +11,7 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
 
 <template>
     <div
-        class="rounded-md border border-zinc-200 bg-white p-2 text-zinc-900 dark:border-slate-700 dark:bg-slate-800"
+        class="rounded-md border border-zinc-200 bg-white p-2 text-zinc-900 dark:border-slate-700 dark:bg-slate-800 dark:text-zinc-100"
     >
         <h3 class="mb-2 text-sm font-medium dark:text-zinc-100">Appearance</h3>
         <div class="grid grid-cols-2 gap-4">

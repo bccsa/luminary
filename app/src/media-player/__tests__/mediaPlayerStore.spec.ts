@@ -13,6 +13,8 @@ import {
     chosenAudio,
     sleepTimerDefault,
     startsAsAudio,
+    dataSaverOverride,
+    playbackDataSaverLevel,
 } from "../mediaPlayer";
 
 const other = { ...mockEnglishContentDto, _id: "content-other" };
@@ -116,5 +118,27 @@ describe("the media player's store", () => {
         chosenAudio.value = null;
         await nextTick();
         expect(localStorage.getItem("mediaPlayerMode")).toBeNull();
+    });
+
+    describe("the quality menu's Data Saver override", () => {
+        it("follows Settings until set, then overrides it either way", () => {
+            openMediaPlayer(mockEnglishContentDto, "en");
+            expect(playbackDataSaverLevel.value).toBe("off");
+            dataSaverOverride.value = true;
+            expect(playbackDataSaverLevel.value).toBe("light");
+            userDataSaverEnabled.value = true;
+            dataSaverOverride.value = false;
+            expect(playbackDataSaverLevel.value).toBe("off");
+            dataSaverOverride.value = null;
+            expect(playbackDataSaverLevel.value).toBe("strict");
+        });
+
+        it("lasts for the item playing: another item follows Settings again", () => {
+            openMediaPlayer(mockEnglishContentDto, "en");
+            dataSaverOverride.value = true;
+            openMediaPlayer(other, "en");
+            expect(dataSaverOverride.value).toBeNull();
+            expect(playbackDataSaverLevel.value).toBe("off");
+        });
     });
 });

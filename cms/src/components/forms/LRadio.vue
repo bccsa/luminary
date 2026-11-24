@@ -13,11 +13,11 @@ import { twMerge } from "tailwind-merge";
 import FormLabel from "./FormLabel.vue";
 
 const radioClasses = cva({
-    base: "group inline-flex items-center justify-center gap-x-1.5 rounded-full text-sm font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed",
+    base: "group inline-flex items-center justify-center gap-x-1.5 rounded-full text-sm font-semibold ring-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 cursor-pointer disabled:cursor-not-allowed",
     variants: {
         variant: {
             primary:
-                "bg-white focus:ring-zinc-950 ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100/70 disabled:bg-zinc-100 disabled:text-zinc-500",
+                "bg-white focus:ring-zinc-950 ring-1 shadow-sm text-zinc-900 ring-zinc-300 hover:bg-zinc-50 active:bg-zinc-100/70 disabled:bg-zinc-100 disabled:text-zinc-500 dark:bg-slate-800 dark:focus:ring-slate-400 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-700 dark:active:bg-slate-600 dark:disabled:bg-slate-900 dark:disabled:text-zinc-500",
         },
         size: {
             sm: "px-2 py-1.5",
@@ -82,6 +82,11 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             @input="emit('update:modelValue', value)"
             v-bind="attrsWithoutStyles"
         />
-        <FormLabel class="" :for="id" v-if="label">{{ label }}</FormLabel>
+        <FormLabel
+            :class="disabled ? 'cursor-not-allowed' : 'cursor-pointer'"
+            :for="id"
+            v-if="label"
+            >{{ label }}</FormLabel
+        >
     </div>
 </template>

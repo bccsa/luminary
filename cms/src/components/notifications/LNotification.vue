@@ -48,7 +48,7 @@ const show = ref(true);
                         <button
                             type="button"
                             data-test="notification-action"
-                            class="rounded-md bg-zinc-900 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            class="rounded-md bg-zinc-900 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:focus:ring-slate-400"
                             @click="notification.action.onClick()"
                         >
                             {{ notification.action.label }}
@@ -59,7 +59,7 @@ const show = ref(true);
                     <button
                         type="button"
                         @click="show = false"
-                        class="inline-flex rounded-md bg-white text-zinc-400 hover:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:bg-slate-800 dark:text-zinc-500 dark:hover:text-zinc-400 dark:focus:ring-indigo-400 dark:focus:ring-offset-slate-800"
+                        class="inline-flex rounded-md bg-white text-zinc-400 hover:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:bg-slate-800 dark:text-zinc-500 dark:hover:text-zinc-400 dark:focus:ring-slate-400 dark:focus:ring-offset-slate-800"
                     >
                         <span class="sr-only">Close</span>
                         <XMarkIcon class="h-5 w-5" aria-hidden="true" />

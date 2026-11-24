@@ -213,7 +213,7 @@ watch(masterUrl, () => (showing.value = false));
                             </button>
                             <p
                                 v-if="error?.code"
-                                class="mt-2 font-mono text-[11px] text-zinc-500"
+                                class="mt-2 font-mono text-[11px] text-zinc-500 dark:text-zinc-400"
                                 data-test="preview-error-code"
                             >
                                 {{ error.code }}

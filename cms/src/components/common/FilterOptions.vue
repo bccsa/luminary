@@ -148,7 +148,7 @@ function handleReset() {
                         <button
                             v-if="canSubmitSearch"
                             type="button"
-                            class="rounded-md bg-white px-2 py-1 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50"
+                            class="rounded-md bg-white px-2 py-1 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50 dark:bg-slate-700 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-600"
                             data-test="search-go-button"
                             @click="commitSearch"
                         >
@@ -161,7 +161,9 @@ function handleReset() {
                             data-test="search-clear-button"
                             @click="clearSearch"
                         >
-                            <XMarkIcon class="h-5 w-5 cursor-pointer text-zinc-500" />
+                            <XMarkIcon
+                                class="h-5 w-5 cursor-pointer text-zinc-500 dark:text-zinc-400"
+                            />
                         </button>
                     </div>
                 </template>
