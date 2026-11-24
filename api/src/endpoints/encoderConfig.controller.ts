@@ -167,6 +167,15 @@ export class EncoderConfigController {
             );
         }
 
+        // These are the bucket's own long-lived keys, the same for every editor who encodes
+        // into it, so this line is the only record of who has held them if one leaks.
+        this.logger.info("Encoder credentials handed out", {
+            userId: userDetails.userId,
+            bucketId,
+            bucket: bucket.name,
+            ...(parentId && { parentId }),
+        });
+
         // The encoder takes host, port and TLS as separate fields; we store one URL.
         // Split the same way S3Service does, so both reach the same endpoint.
         const url = new URL(credentials.endpoint);
