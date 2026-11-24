@@ -34,7 +34,8 @@ import { usePlayerState } from "@luminary-media-converter/player-web";
 import { mergeMessages, type PlayerMessages } from "../messages";
 import { mergeControls, type PlayerControlsOptions } from "../controls";
 import { createKeepAlive, SILENT_AUDIO_DATA_URI, type KeepAlive } from "../ui/keepAlive";
-import { buildControlsHtml } from "../ui/controlsHtml";
+import { buildControlsHtml, cameraItemsHtml } from "../ui/controlsHtml";
+import { cameraChoices } from "../angles";
 import { capQualityCard } from "../ui/qualityCap";
 import { installAutoHide, type ControlsStore } from "../ui/autoHide";
 import { attachPressActivation } from "../ui/pressActivate";
@@ -191,6 +192,7 @@ const controlsHtml = computed(() =>
             audio: msg.value.languageLabel,
             speed: msg.value.speedLabel,
             captions: msg.value.captionsLabel,
+            camera: msg.value.cameraLabel,
             volumeUp: msg.value.volumeUp,
             volumeDown: msg.value.volumeDown,
             previousChapter: msg.value.previousChapter,
@@ -926,6 +928,41 @@ const isAudioOnly = computed(
         controller.value !== null &&
         (state.value.isAudioOnly || state.value.activeAngleId === AUDIO_ONLY_ANGLE_ID),
 );
+
+// --- camera ------------------------------------------------------------------
+
+const cameras = computed(() => cameraChoices(state.value.angles));
+
+/** A camera to choose between, while there is a picture to see it in. */
+const hasCameraChoice = computed(() => cameras.value.length > 1 && !isAudioOnly.value);
+
+/**
+ * The camera card's items, kept current by hand: the controls are markup, so a new set of controls,
+ * or another video's angles, finds the group empty again.
+ */
+watch(
+    [cameras, () => state.value.activeAngleId, controlsHtml],
+    ([choices, active]) => {
+        const group = containerEl.value?.querySelector<HTMLElement & { value: string }>(
+            "[data-camera-group]",
+        );
+        if (!group) return;
+        const html = cameraItemsHtml(choices);
+        if (group.dataset.items !== html) {
+            group.innerHTML = html;
+            group.dataset.items = html;
+        }
+        group.value = active ?? "";
+    },
+    { flush: "post" },
+);
+
+/** A camera picked in its card: the controller loads that angle where the video is. */
+function onControlsValueChange(event: Event): void {
+    if (!(event.target instanceof Element) || !event.target.closest("[data-camera-group]")) return;
+    const id = (event as CustomEvent<{ value?: string }>).detail?.value;
+    if (id && id !== state.value.activeAngleId) void controller.value?.setAngle(id);
+}
 
 /** Fullscreen with only sound playing, and something to say about it: the now-playing screen takes over. */
 const audioFullscreen = computed(
@@ -2211,6 +2248,7 @@ defineExpose({
         :class="{
             'lmpl-windowed-bare': !mergedControls.windowedControls,
             'lmpl-is-fullscreen': isFullscreen,
+            'lmpl-has-camera-choice': hasCameraChoice,
             'lmpl-has-quality-choice': state.qualities.length > 1,
             'lmpl-has-data-saver': dataSaver !== undefined,
             'lmpl-has-audio-choice': state.audioTracks.length > 1,
@@ -2303,7 +2341,11 @@ defineExpose({
                     pointer="touch"
                 ></media-gesture>
 
-                <media-controls class="lmpl-controls" v-html="controlsHtml"></media-controls>
+                <media-controls
+                    class="lmpl-controls"
+                    v-html="controlsHtml"
+                    @value-change="onControlsValueChange"
+                ></media-controls>
 
                 <!-- Inside the container, so it goes fullscreen with the picture, in the play button's place. -->
                 <div

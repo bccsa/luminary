@@ -37,6 +37,7 @@ import "@videojs/html/ui/slider-value";
 
 import "@videojs/html/ui/menu";
 import "@videojs/html/ui/menu-content";
+import "@videojs/html/ui/menu-radio-group";
 import "@videojs/html/ui/menu-radio-item";
 import "@videojs/html/ui/menu-item-indicator";
 import "@videojs/html/ui/quality-radio-group";

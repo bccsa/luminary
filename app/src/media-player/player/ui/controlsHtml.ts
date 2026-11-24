@@ -68,6 +68,9 @@ const GROUPS = {
     audio: `<media-audio-track-radio-group class="media-menu-radio-group">${radioItem(labelled)}</media-audio-track-radio-group>`,
     speed: `<media-playback-rate-radio-group class="media-menu-radio-group">${radioItem(labelled)}</media-playback-rate-radio-group>`,
     captions: `<media-captions-radio-group class="media-menu-radio-group">${radioItem(labelled)}</media-captions-radio-group>`,
+    // The page's angles are not the media element's, so no Video.js group lists them: the player fills
+    // this one with an item per angle and acts on its `value-change`.
+    camera: '<media-menu-radio-group class="media-menu-radio-group" data-camera-group></media-menu-radio-group>',
 } as const;
 
 type Setting = keyof typeof GROUPS;
@@ -87,6 +90,7 @@ const SETTING_ICONS: Record<Setting, string> = {
     audio: "language",
     speed: "speed",
     captions: "cc-off",
+    camera: "",
 };
 
 /**
@@ -102,7 +106,9 @@ function setting(kind: Setting, id: string, title: string): string {
             ? // Outlined while off, filled while a track is on: the player marks which on its root.
               '<media-icon name="cc-off" class="media-button-icon-base media-settings-menu-trigger-icon lmpl-cc-off"></media-icon>' +
               '<media-icon name="cc-on" class="media-button-icon-base media-settings-menu-trigger-icon lmpl-cc-on"></media-icon>'
-            : `<media-icon name="${iconName}" class="media-button-icon-base media-settings-menu-trigger-icon"></media-icon>`) +
+            : kind === "camera"
+              ? CAMERA_ICON
+              : `<media-icon name="${iconName}" class="media-button-icon-base media-settings-menu-trigger-icon"></media-icon>`) +
         // Visually hidden: the button is an icon, and this is its name for a screen reader.
         `<span class="media-settings-menu-trigger-label">${escapeHtml(title)}</span>` +
         "</button>" +
@@ -153,6 +159,13 @@ function volume(id: string, labels: ControlsHtmlLabels): string {
 const escapeHtml = (text: string): string =>
     text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+/** The now-playing screen's camera, body and lens: the Video.js icon set has no camera glyph. */
+const CAMERA_ICON =
+    '<svg class="lmpl-browse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<rect x="2.5" y="6" width="13" height="12" rx="2"/><path d="M15.5 10.5l6-3.5v10l-6-3.5"/>' +
+    "</svg>";
+
 /** heroicons 24/outline "list-bullet": the Video.js icon set has no list glyph. */
 const LIST_ICON =
     '<svg class="lmpl-browse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
@@ -183,6 +196,7 @@ function settings(options: ControlsHtmlOptions, id: string, labels: ControlsHtml
         setting("quality", id, labels.quality) +
         (options.audioMenu ? setting("audio", id, labels.audio) : "") +
         (options.subtitlesMenu ? setting("captions", id, labels.captions) : "") +
+        setting("camera", id, labels.camera) +
         browseButton(id, labels.browse) +
         "</div>"
     );
@@ -282,11 +296,12 @@ function bottomBar(options: ControlsHtmlOptions, id: string, labels: ControlsHtm
 export interface ControlsHtmlLabels {
     /** Name of the button that opens the chapters / up next panel. */
     browse: string;
-    /** Names of the four settings, each shown on its button's tooltip and as its card's title. */
+    /** Names of the settings, each shown on its button's tooltip and as its card's title. */
     quality: string;
     audio: string;
     speed: string;
     captions: string;
+    camera: string;
     /** Names of the volume card's plus and minus buttons. */
     volumeUp: string;
     volumeDown: string;
@@ -301,11 +316,29 @@ const DEFAULT_LABELS: ControlsHtmlLabels = {
     audio: "Language",
     speed: "Speed",
     captions: "Captions",
+    camera: "View",
     volumeUp: "Volume up",
     volumeDown: "Volume down",
     previousChapter: "Previous chapter",
     nextChapter: "Next chapter",
 };
+
+/**
+ * The camera card's items, one per video angle, in the radio group `data-camera-group` marks. Marked up as
+ * the generated groups' items are, so they look the same, with the angle's id as the value.
+ */
+export function cameraItemsHtml(angles: readonly { id: string; label: string }[]): string {
+    return angles
+        .map(
+            (angle) =>
+                `<media-menu-radio-item class="media-menu-radio-item" value="${escapeHtml(angle.id)}">` +
+                `<span>${escapeHtml(angle.label)}</span>` +
+                '<media-menu-item-indicator force-mount class="media-menu-item-indicator">' +
+                '<media-icon name="check" class="media-menu-radio-item-icon"></media-icon>' +
+                "</media-menu-item-indicator></media-menu-radio-item>",
+        )
+        .join("");
+}
 
 /** Everything that sits inside `<media-controls>`, ids made unique with `id`. */
 export function buildControlsHtml(

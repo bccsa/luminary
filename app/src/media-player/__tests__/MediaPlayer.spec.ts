@@ -866,6 +866,48 @@ describe("MediaPlayer", () => {
         });
     });
 
+    describe("the camera on the card in the corner", () => {
+        // Names as the master stores them; the menu shows them with a capital.
+        const TWO_CAMERAS = [
+            { id: "angle_0", name: "wide", isDefault: true },
+            { id: "angle_1", name: "pulpit", isDefault: false },
+            { id: AUDIO, name: "Audio only", isDefault: false },
+        ];
+
+        /** Minimised, which mounts the player afresh; its state is set after. */
+        async function card(angles: typeof TWO_CAMERAS) {
+            const wrapper = await playing();
+            minimiseMediaPlayer();
+            await flushPromises();
+            engine.state.angles = angles;
+            engine.state.activeAngleId = "angle_0";
+            engine.state.isAudioOnly = false;
+            await flushPromises();
+            return wrapper;
+        }
+        const camera = (wrapper: VueWrapper) => wrapper.find("[data-test='mediaPlayerCamera']");
+
+        it("offers no camera for a video with one picture", async () => {
+            const wrapper = await card([TWO_CAMERAS[0]!, TWO_CAMERAS[2]!]);
+            expect(find(wrapper, "mediaPlayerControls").exists()).toBe(true);
+            expect(camera(wrapper).exists()).toBe(false);
+        });
+
+        it("lists the cameras with a capital, under the View label, and loads the one picked", async () => {
+            const wrapper = await card(TWO_CAMERAS);
+            expect(camera(wrapper).attributes("aria-label")).toBe("media_player.view");
+            await camera(wrapper).trigger("click");
+            const items = wrapper
+                .findAll("button")
+                .filter((b) => ["Wide", "Pulpit", "Audio only"].includes(b.text().trim()));
+            expect(items.map((b) => b.text().trim())).toEqual(["Wide", "Pulpit"]);
+
+            await items[1]!.trigger("click");
+            expect(engine.controller.setAngle).toHaveBeenCalledWith("angle_1");
+            expect(camera(wrapper).attributes("aria-expanded")).toBe("false");
+        });
+    });
+
     describe("over the chrome", () => {
         it("covers the whole screen on a phone, above the page's top bar and the mobile menu", async () => {
             const wrapper = await playing();
