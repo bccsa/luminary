@@ -1,8 +1,20 @@
 # User data sync — implementation plan
 
-> **Temporary working doc** (`temp_` prefix, see "Development docs" in the root `CLAUDE.md`). Do not reference it from code, comments or tests. When the feature ships, promote the durable parts into an ADR and delete this file.
+> **Temporary working doc** (`temp_` prefix, see "Development docs" in the root `CLAUDE.md`). Do not reference it from code, comments or tests. Before merge, incorporate any remaining durable information into ADR 0020 or package documentation and remove this file.
 >
 > Written against `main` at `d4fce7cc` (12 November 2026). Code is referenced by file and symbol; line numbers are deliberately left out because they drift.
+
+This plan includes historical implementation steps, superseded formats and earlier test
+counts. The current contract is documented in [ADR 0020](adr/0020-owner-scoped-data-sources.md)
+and the [API README](../api/README.md): one `user` source, dedicated `/user/query` reads,
+UUID activity documents, and auth-resolved owner and rate-limit identities. The unshipped
+format adapters and migrations were removed during review; the migration from main's local
+activity table remains.
+
+Outstanding follow-ups include the timestamp-pagination finding below, session-token
+integration when that implementation lands, Johan's French-language review, and the
+repository owner's live database/browser checks. Live owner updates, quotas and tombstone
+cleanup remain deferred work.
 
 ## Progress — 18 November 2026
 
@@ -496,8 +508,8 @@ bytes and the compiled copies. Build output contains no assets at the old root p
 ### Review Phase 5 — final performance review and regression checks
 
 Scope confirmed with the repository owner: review and regression checks; original quota and
-tombstone-cleanup Phase 5 remains deferred. Findings and verification limits are recorded in
-`docs/reviews/user-data-sync-final-review.md`.
+tombstone-cleanup Phase 5 remains deferred. Findings and verification limits are retained
+here; the separate review snapshot has been removed.
 
 - Source pulls now use indexed pending-document key lookups instead of loading every queued
   document's payload for each incoming page. Transactional protection of local edits remains.
@@ -509,7 +521,11 @@ tombstone-cleanup Phase 5 remains deferred. Findings and verification limits are
 - **Open correctness finding:** a mocked source probe with three documents at one timestamp
   and batch size two imports only two. The inherited timestamp-only sync cursor can seal a
   saturated timestamp prematurely. Stable tie-breaker pagination requires a separate coordinated
-  API/client cursor change; it is not fixed by this review. See the review report for reproduction.
+  API/client cursor change; it is not fixed by this review. To reproduce, return the same first
+  two matching documents for every timestamp-bounded query, with all three documents at
+  `updatedTimeUtc: 1000`. Pull the source: the third document is absent from the local store.
+  The stall guard in `shared/src/api/sync/syncBatch.ts` seals the column before that timestamp
+  is exhausted. Increasing the batch limit only moves the failure threshold.
 
 Live CouchDB/S3 tests, browser E2E and throughput measurements remain user-owned. This review
 does not claim complete sync convergence while the timestamp-tie finding is unresolved.
