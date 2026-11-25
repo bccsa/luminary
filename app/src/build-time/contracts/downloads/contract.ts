@@ -516,7 +516,10 @@ export type DownloadsEngine = {
     resume(downloadId: string, options?: { meteredConsent?: boolean }): Promise<DownloadEntry>;
     /** Drops what is still to come; a download with nothing done is removed (null). */
     cancel(downloadId: string): Promise<DownloadEntry | null>;
-    remove(downloadIds: string[]): Promise<DownloadRemoveResult[]>;
+    remove(
+        downloadIds: string[],
+        options?: { closePlaying?: boolean },
+    ): Promise<DownloadRemoveResult[]>;
     /** Frees orphans, leftovers and expired files; resolves with the bytes freed. */
     cleanUp(): Promise<number>;
     /** Builds the download's playlists and opens a session for the player. */
@@ -668,11 +671,14 @@ export type DownloadsService = {
     resumeAll(options?: { meteredConsent?: boolean }): Promise<void>;
     /** Drops the chapters still to come; a download with none done is removed. */
     cancel(downloadId: string): Promise<void>;
-    remove(downloadIds: string[]): Promise<DownloadRemoveResult[]>;
+    remove(
+        downloadIds: string[],
+        options?: { closePlaying?: boolean },
+    ): Promise<DownloadRemoveResult[]>;
     cleanUp(): Promise<number>;
     refreshStorage(): Promise<void>;
-    /** Where new downloads go: `internal` or a mounted card's volume id. */
-    setPreferredVolume(volumeId: string): Promise<void>;
+    /** Where new downloads go: `internal` or a mounted card's volume id. Resolves false when the change failed. */
+    setPreferredVolume(volumeId: string): Promise<boolean>;
     /** The stored artwork of a download, for its card; undefined when none is stored. */
     artwork(downloadId: string): Promise<string | undefined>;
     readonly player: DownloadsPlayer;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { holdsPosition, nowPlayingDownload, selectionOf } from "../downloadPlayback";
+import { closedNoticeKey, holdsPosition, nowPlayingDownload, selectionOf } from "../downloadPlayback";
 import { entryOf } from "./downloadsStub";
 
 describe("downloadPlayback", () => {
@@ -67,5 +67,16 @@ describe("downloadPlayback", () => {
             angleId: "a",
             qualityId: "720",
         });
+    });
+
+    it("names the removed notice with data warning online and without it offline", () => {
+        expect(closedNoticeKey("removed", true)).toEqual([
+            "downloads.notice.removed_playing_online",
+            "The download was removed. Playing online, which uses data.",
+        ]);
+        expect(closedNoticeKey("removed", false)).toEqual([
+            "downloads.notice.removed_playing",
+            "The download was removed.",
+        ]);
     });
 });

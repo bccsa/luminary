@@ -1555,6 +1555,47 @@ describe("MediaPlayerWrapper with downloads", () => {
             service.hooks.closed("someone-else", "revoked");
             expect(playerNotice.value).toBeNull();
         });
+
+        it("switches to the stream at once with a data warning when a playing download is removed online", async () => {
+            const service = downloadsServiceStub();
+            service.hooks.open.mockResolvedValue(
+                playbackOf(timelineOf(WIDE_SPANS, 600), { playbackId: "pb-rm" }),
+            );
+            const wrapper = await mountWith(service);
+            await loaded(wrapper);
+            await at(wrapper, 150, 400);
+            state().playing = true;
+            playMock.mockClear();
+
+            service.hooks.closed("pb-rm", "removed");
+            await flushPromises();
+
+            expect(playerNotice.value?.text).toBe(
+                "The download was removed. Playing online, which uses data.",
+            );
+            expect(playerNotice.value?.action).toBeUndefined();
+            const source = native(wrapper).props("source");
+            expect(source.masterUrl).toContain("https://");
+            expect(source.startPosition).toBe(250);
+            await loaded(wrapper);
+            expect(playMock).toHaveBeenCalled();
+        });
+
+        it("stays stopped with an offline notice when a playing download is removed offline", async () => {
+            const service = downloadsServiceStub({ network: { online: false, metered: false } });
+            service.hooks.open.mockResolvedValue(
+                playbackOf(timelineOf(WIDE_SPANS, 600), { playbackId: "pb-rm-off" }),
+            );
+            const wrapper = await mountWith(service);
+            await loaded(wrapper);
+
+            service.hooks.closed("pb-rm-off", "removed");
+            await flushPromises();
+
+            expect(playerNotice.value?.text).toBe("The download was removed.");
+            expect(playerNotice.value?.action).toBeUndefined();
+            expect(native(wrapper).props("source").masterUrl).toContain("pb-rm-off");
+        });
     });
 
     describe("a download that fails to play", () => {

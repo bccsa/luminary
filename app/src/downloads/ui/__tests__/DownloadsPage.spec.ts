@@ -150,7 +150,7 @@ describe("DownloadsPage", () => {
         );
     });
 
-    it("skips a download being played, says so, and leaves it out of the total", async () => {
+    it("warns before deleting a download being played, deletes it, and keeps older native locks working", async () => {
         const ctx = await setupUi();
         await threeDownloads(ctx);
         await ctx.service.player.open(makeContent({ parentId: "post-2" }), {
@@ -163,26 +163,55 @@ describe("DownloadsPage", () => {
         const boxes = wrapper.findAll("[data-test='download-card-select']");
         for (const box of boxes) await box.setValue(true);
         const state = ctx.service.internals.state;
-        const total = storedBytes(state.byId("d1")!) + storedBytes(state.byId("d3")!);
+        const total =
+            storedBytes(state.byId("d1")!) +
+            storedBytes(state.byId("d2")!) +
+            storedBytes(state.byId("d3")!);
         const bar = wrapper.get("[data-test='downloads-selection-bar']");
         expect(bar.text()).toContain("3 selected");
         expect(bar.get("[data-test='downloads-selection-frees']").text()).toContain(
             formatBytes(total, "eng"),
         );
-        expect(bar.get("[data-test='downloads-selection-skips']").text()).toBe(
-            "The download being played is kept.",
+        expect(bar.find("[data-test='downloads-selection-skips']").exists()).toBe(false);
+        await wrapper.get("[data-test='downloads-delete-selected']").trigger("click");
+        expect(wrapper.text()).toContain(
+            "One of these is playing. It will keep playing online, which uses data.",
         );
+        await wrapper.get("[data-test='modal-primary-button']").trigger("click");
+        await settle();
+        expect(remove.mock.calls[0][0].sort()).toEqual(["d1", "d2", "d3"]);
+        expect(remove.mock.calls[0][1]).toEqual({ closePlaying: true });
+        expect(titles(wrapper)).toEqual([]);
+        expect(notify).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: `Downloads deleted: ${formatBytes(total, "eng")} freed.`,
+            }),
+        );
+    });
+
+    it("says so when an older engine keeps a download that is playing", async () => {
+        const ctx = await setupUi();
+        await threeDownloads(ctx);
+        await ctx.service.player.open(makeContent({ parentId: "post-2" }), {
+            preferOnline: false,
+        });
+        const notify = vi.spyOn(ctx.notifications, "addNotification");
+        vi.spyOn(ctx.fake, "remove").mockResolvedValueOnce([
+            { downloadId: "d2", removed: false, code: "locked", freedBytes: 0 },
+        ]);
+        const wrapper = mountPage(ctx);
+        await wrapper.get("[data-test='downloads-select']").trigger("click");
+        await wrapper.findAll("[data-test='download-card-select']")[1].setValue(true);
         await wrapper.get("[data-test='downloads-delete-selected']").trigger("click");
         await wrapper.get("[data-test='modal-primary-button']").trigger("click");
         await settle();
-        expect(remove.mock.calls[0][0].sort()).toEqual(["d1", "d3"]);
-        expect(titles(wrapper)).toEqual(["Item 2"]);
+        expect(titles(wrapper)).toContain("Item 2");
         expect(notify).toHaveBeenCalledWith(
             expect.objectContaining({ title: "“Item 2” is playing and was kept." }),
         );
     });
 
-    it("still marks and skips the download that plays while another open of its item is in flight", async () => {
+    it("still marks and warns about the download that plays while another open of its item is in flight", async () => {
         const ctx = await setupUi();
         await threeDownloads(ctx);
         await ctx.service.player.open(makeContent({ parentId: "post-2" }), {
@@ -211,20 +240,17 @@ describe("DownloadsPage", () => {
         await wrapper.get("[data-test='downloads-select']").trigger("click");
         for (const box of wrapper.findAll("[data-test='download-card-select']"))
             await box.setValue(true);
-        const state = ctx.service.internals.state;
-        const total = storedBytes(state.byId("d1")!) + storedBytes(state.byId("d3")!);
-        const bar = wrapper.get("[data-test='downloads-selection-bar']");
-        expect(bar.get("[data-test='downloads-selection-frees']").text()).toContain(
-            formatBytes(total, "eng"),
-        );
-        expect(bar.find("[data-test='downloads-selection-skips']").exists()).toBe(true);
         await wrapper.get("[data-test='downloads-delete-selected']").trigger("click");
+        expect(wrapper.text()).toContain(
+            "One of these is playing. It will keep playing online, which uses data.",
+        );
         await wrapper.get("[data-test='modal-primary-button']").trigger("click");
         await settle();
-        expect(remove.mock.calls[0][0].sort()).toEqual(["d1", "d3"]);
+        expect(remove.mock.calls[0][0].sort()).toEqual(["d1", "d2", "d3"]);
+        expect(remove.mock.calls[0][1]).toEqual({ closePlaying: true });
 
         release();
-        expect(await reopen).not.toBeNull();
+        expect(await reopen).toBeNull();
     });
 
     it("says which downloads could not be deleted, and when the delete failed outright", async () => {
@@ -242,7 +268,7 @@ describe("DownloadsPage", () => {
         await wrapper.get("[data-test='downloads-delete-selected']").trigger("click");
         await wrapper.get("[data-test='modal-primary-button']").trigger("click");
         await settle();
-        expect(remove).toHaveBeenCalledWith(["d1"]);
+        expect(remove).toHaveBeenCalledWith(["d1"], { closePlaying: true });
         expect(notify).toHaveBeenCalledWith(
             expect.objectContaining({ title: "“Item 1” could not be deleted.", state: "error" }),
         );

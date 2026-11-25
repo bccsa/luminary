@@ -466,6 +466,8 @@ export const mockLanguageDtoEng: LanguageDto = {
         "downloads.page.delete_selected": "Delete",
         "downloads.page.delete_title": "Delete the selected downloads?",
         "downloads.page.delete_message": "This frees {size} on this device.",
+        "downloads.page.delete_playing_warning":
+            "One of these is playing. It will keep playing online, which uses data.",
         "downloads.page.deleted": "Downloads deleted: {size} freed.",
         "downloads.page.kept_playing": "“{title}” is playing and was kept.",
         "downloads.page.dialog_cancel": "Cancel",
@@ -487,6 +489,8 @@ export const mockLanguageDtoEng: LanguageDto = {
         "downloads.page.remove": "Remove",
         "downloads.page.remove_title": "Remove this download?",
         "downloads.page.remove_message": "“{title}” will be removed from this device.",
+        "downloads.page.remove_playing_message":
+            "“{title}” is playing. Removing it will keep it playing online, which uses data.",
         "downloads.page.remove_confirm": "Remove",
         "downloads.page.attention.no_space":
             "There is not enough space. Free up space, then resume.",
@@ -511,9 +515,12 @@ export const mockLanguageDtoEng: LanguageDto = {
         "downloads.storage.free": "Free",
         "downloads.storage.reclaimable": "Can be cleaned up",
         "downloads.storage.clean_up": "Clean up",
+        "downloads.storage.cleaning": "Cleaning up…",
         "downloads.storage.cleaned": "{size} freed",
+        "downloads.storage.nothing_to_clean": "Nothing to clean up.",
         "downloads.storage.clean_up_failed": "Clean up did not finish. Try again later.",
         "downloads.storage.location": "Save new downloads to",
+        "downloads.storage.location_failed": "Could not change where downloads are saved.",
         "downloads.storage.location_hint": "Downloads you already have stay where they are.",
         "downloads.storage.free_on": "{size} free",
         "downloads.storage.internal": "This device",
@@ -546,6 +553,9 @@ export const mockLanguageDtoEng: LanguageDto = {
         "downloads.watch_filter.label": "Videos to show",
         "downloads.watch_filter.empty": "Videos you download will show up here.",
         "downloads.notice.kept_playing": "A download that is playing was kept.",
+        "downloads.notice.removed_playing": "The download was removed.",
+        "downloads.notice.removed_playing_online":
+            "The download was removed. Playing online, which uses data.",
         "downloads.notice.unreadable": "This item could not be read. Try again later.",
         "downloads.notice.more_chapters": "More chapters are ready.",
         "downloads.notice.switch_now": "Switch now",

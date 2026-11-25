@@ -1388,7 +1388,8 @@ async function chooseDownload(): Promise<boolean> {
 
 /** The engine stopped the session itself: playback of it ends, and the viewer is told why. */
 function onClosed(playbackId: string, reason: DownloadPlaybackCloseReason) {
-    const [key, english] = closedNoticeKey(reason);
+    const streams = online() && !!mediaSource.value;
+    const [key, english] = closedNoticeKey(reason, streams);
     if (playbackId === replacedPlaybackId && !playback.value) {
         // The stream already plays; the server checks it, so it is left alone.
         replacedPlaybackId = null;
@@ -1399,12 +1400,19 @@ function onClosed(playbackId: string, reason: DownloadPlaybackCloseReason) {
     flushProgress();
     // A revoked load's error may have stopped it first, where it had got to.
     const position = closedPlaybackId === playbackId ? closedAt : streamPosition();
+    if (reason === "removed" && streams) {
+        const wasPlaying = player.value?.state?.playing !== false;
+        if (switchAsked) clearPlayerNotice(switchAsked);
+        switchAsked = undefined;
+        streamInstead(position, wasPlaying);
+        showPlayerNotice({ text: textOr(key, english) });
+        return;
+    }
     closedPlaybackId = playbackId;
     closedAt = position;
     if (switchAsked) clearPlayerNotice(switchAsked);
     switchAsked = undefined;
     // Online the item can still be streamed.
-    const streams = online() && !!mediaSource.value;
     showPlayerNotice({
         text: textOr(key, english),
         ...(streams

@@ -68,6 +68,15 @@ describe("DownloadCard", () => {
         expect(card(wrapper, "selection").text()).toContain("Video · 720p · French");
     });
 
+    it("omits undetermined language from the selection summary", async () => {
+        const ctx = await setupUi();
+        await ctx.fake.start(request(1));
+        const entry = { ...entryOf(ctx), selection: { kind: "audio" as const, audioLanguage: "und" } };
+        const wrapper = mountCard(ctx, entry);
+        expect(card(wrapper, "selection").text()).toContain("Audio");
+        expect(card(wrapper, "selection").text()).not.toContain("und");
+    });
+
     it("plays the item from its stored doc and opens its content page", async () => {
         const ctx = await setupUi();
         await downloaded(ctx.fake, 1);
@@ -204,22 +213,40 @@ describe("DownloadCard", () => {
         expect(resume).toHaveBeenCalledWith("d1", { meteredConsent: true });
     });
 
-    it("removes after confirming, and says so when the download is playing", async () => {
+    it("warns and removes a playing download, closing its playback session", async () => {
         const ctx = await setupUi();
         await downloaded(ctx.fake, 1);
         await ctx.service.player.open(makeContent({ parentId: "post-1" }), {
             preferOnline: false,
         });
+        const closed = vi.fn();
+        ctx.service.player.onClosed(closed);
         const wrapper = mountCard(ctx, entryOf(ctx), { playing: true });
         expect(card(wrapper, "playing").text()).toBe("Playing");
         const remove = vi.spyOn(ctx.service, "remove");
-        const notify = vi.spyOn(ctx.notifications, "addNotification");
         await card(wrapper, "remove").trigger("click");
         expect(remove).not.toHaveBeenCalled();
-        expect(wrapper.text()).toContain("“Item 1” will be removed from this device.");
+        expect(wrapper.text()).toContain(
+            "“Item 1” is playing. Removing it will keep it playing online, which uses data.",
+        );
         await wrapper.get("[data-test='modal-primary-button']").trigger("click");
         await settle();
-        expect(remove).toHaveBeenCalledWith(["d1"]);
+        expect(remove).toHaveBeenCalledWith(["d1"], { closePlaying: true });
+        expect(closed).toHaveBeenCalledWith(expect.any(String), "removed");
+        expect(ctx.service.entries.value).toEqual([]);
+    });
+
+    it("says so when an older engine keeps a playing download on removal", async () => {
+        const ctx = await setupUi();
+        await downloaded(ctx.fake, 1);
+        const wrapper = mountCard(ctx, entryOf(ctx), { playing: true });
+        const notify = vi.spyOn(ctx.notifications, "addNotification");
+        vi.spyOn(ctx.fake, "remove").mockResolvedValueOnce([
+            { downloadId: "d1", removed: false, code: "locked", freedBytes: 0 },
+        ]);
+        await card(wrapper, "remove").trigger("click");
+        await wrapper.get("[data-test='modal-primary-button']").trigger("click");
+        await settle();
         expect(notify).toHaveBeenCalledWith(
             expect.objectContaining({ title: "“Item 1” is playing and was kept." }),
         );

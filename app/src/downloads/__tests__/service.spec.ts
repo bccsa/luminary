@@ -285,10 +285,14 @@ describe("actions", () => {
         expect(service.storage.value!.volumes[0].reclaimable.orphans).toBe(0);
     });
 
-    it("keeps the preferred volume the engine reports", async () => {
-        const { service } = await setup({ engine: { card: true } });
+    it("keeps the preferred volume the engine reports, and reports false when setting it fails", async () => {
+        const { fake, service } = await setup({ engine: { card: true } });
         await service.whenReady;
-        await service.setPreferredVolume("card-1");
+        expect(await service.setPreferredVolume("card-1")).toBe(true);
+        expect(service.storage.value?.preferredVolumeId).toBe("card-1");
+
+        vi.spyOn(fake, "setPreferredVolume").mockRejectedValueOnce(new Error("io"));
+        expect(await service.setPreferredVolume("internal")).toBe(false);
         expect(service.storage.value?.preferredVolumeId).toBe("card-1");
     });
 

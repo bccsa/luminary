@@ -208,7 +208,7 @@ export function downloadsServiceStub(
         remove: vi.fn(async () => []),
         cleanUp: vi.fn(async () => 0),
         refreshStorage: vi.fn(async () => {}),
-        setPreferredVolume: vi.fn(async () => {}),
+        setPreferredVolume: vi.fn(async () => true),
         artwork: vi.fn(async () => undefined),
         player: {
             open: (content, options) => hooks.open(content, options),

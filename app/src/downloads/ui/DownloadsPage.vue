@@ -71,15 +71,16 @@ watch(sorted, (entries) => {
 const selectedEntries = computed(() =>
     sorted.value.filter((entry) => selected.value.has(entry.downloadId)),
 );
-const skipped = computed(
-    () => new Set(playingId.value && selected.value.has(playingId.value) ? [playingId.value] : []),
+const includesPlaying = computed(() =>
+    Boolean(playingId.value && selected.value.has(playingId.value)),
 );
-const freed = computed(() => freedBytes(selectedEntries.value, skipped.value));
-const deletable = computed(() =>
-    selectedEntries.value.filter((entry) => !skipped.value.has(entry.downloadId)),
-);
+const freed = computed(() => freedBytes(selectedEntries.value, new Set()));
 
 const size = (bytes: number) => formatBytes(bytes, locale.value);
+const deleteDescription = computed(() => {
+    const base = t("downloads.page.delete_message", { size: size(freed.value) });
+    return includesPlaying.value ? `${base} ${t("downloads.page.delete_playing_warning")}` : base;
+});
 const confirming = ref(false);
 const deleting = ref(false);
 
@@ -90,21 +91,25 @@ function notify(title: string, state: "info" | "error" = "info") {
 async function deleteSelected() {
     confirming.value = false;
     if (!service || deleting.value) return;
-    const doomed: DownloadEntry[] = deletable.value;
-    const kept = selectedEntries.value.filter((entry) => skipped.value.has(entry.downloadId));
+    const doomed: DownloadEntry[] = selectedEntries.value;
     deleting.value = true;
     try {
-        const results = doomed.length ? await service.remove(doomed.map((e) => e.downloadId)) : [];
+        const results = doomed.length
+            ? await service.remove(
+                  doomed.map((e) => e.downloadId),
+                  { closePlaying: true },
+              )
+            : [];
         const total = results.reduce((sum, r) => sum + (r.removed ? r.freedBytes : 0), 0);
         const entryOf = (downloadId: string) => doomed.find((e) => e.downloadId === downloadId);
         // The engine holds no such download: nothing of it is left on the device.
         const refused = results.filter((r) => !r.removed && r.code !== "unknown-download");
-        // The engine refuses a download being played too, should the player have opened one meanwhile.
+        // An older native engine refuses a download being played.
         const locked = refused
             .filter((r) => r.code === "locked")
             .map((r) => entryOf(r.downloadId))
             .filter((e): e is DownloadEntry => Boolean(e));
-        for (const entry of [...kept, ...locked]) {
+        for (const entry of locked) {
             notify(t("downloads.page.kept_playing", { title: entry.content.title }));
         }
         for (const result of refused.filter((r) => r.code !== "locked")) {
@@ -280,26 +285,19 @@ onMounted(async () => {
                     <p class="font-medium text-zinc-900 dark:text-slate-100">
                         {{ t("downloads.page.selected", { count: selected.size }) }}
                         <span
-                            v-if="deletable.length"
+                            v-if="selectedEntries.length"
                             class="font-normal text-zinc-500 dark:text-slate-400"
                             data-test="downloads-selection-frees"
                         >
                             · {{ t("downloads.page.frees", { size: size(freed) }) }}
                         </span>
                     </p>
-                    <p
-                        v-if="skipped.size"
-                        class="text-xs text-zinc-500 dark:text-slate-400"
-                        data-test="downloads-selection-skips"
-                    >
-                        {{ t("downloads.page.skips_playing") }}
-                    </p>
                 </div>
                 <LButton
                     variant="danger"
                     size="sm"
                     :icon="TrashIcon"
-                    :disabled="deletable.length === 0 || deleting"
+                    :disabled="selectedEntries.length === 0 || deleting"
                     data-test="downloads-delete-selected"
                     @click="confirming = true"
                 >
@@ -311,7 +309,7 @@ onMounted(async () => {
         <LDialog
             v-model:open="confirming"
             :title="t('downloads.page.delete_title')"
-            :description="t('downloads.page.delete_message', { size: size(freed) })"
+            :description="deleteDescription"
             :primary-action="deleteSelected"
             :primary-button-text="t('downloads.page.delete_selected')"
             :secondary-action="() => (confirming = false)"

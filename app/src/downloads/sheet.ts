@@ -32,7 +32,10 @@ export type SheetContext = {
     actions: {
         pause(downloadId: string): Promise<boolean>;
         resume(downloadId: string, options: { meteredConsent: boolean }): Promise<boolean>;
-        remove(downloadIds: string[]): Promise<DownloadRemoveResult[]>;
+        remove(
+            downloadIds: string[],
+            options?: { closePlaying?: boolean },
+        ): Promise<DownloadRemoveResult[]>;
         cleanUp(): Promise<number>;
     };
 };
@@ -326,7 +329,9 @@ export function createSheetController(ctx: SheetContext): SheetController {
         };
         current = sheet;
         try {
-            await engine.presentSheet(model(sheet), sheetTexts(deps.translator()));
+            const now = player.heard.value;
+            const playing = Boolean(now?.playbackId && now.parentId === content.parentId);
+            await engine.presentSheet(model(sheet), sheetTexts(deps.translator(), { playing }));
         } catch (error) {
             deps.reportError(error, "present-sheet");
             current = null;
@@ -463,7 +468,7 @@ export function createSheetController(ctx: SheetContext): SheetController {
                 }
                 break;
             case "remove":
-                if (entry) done = await removed([entry.downloadId], "sheet-remove");
+                if (entry) done = await removed([entry.downloadId], "sheet-remove", true);
                 break;
         }
         // A failure shows in the sheet, whose Retry builds the model again as at opening.
@@ -479,9 +484,16 @@ export function createSheetController(ctx: SheetContext): SheetController {
      * Whether every download named is gone; one the engine does not hold counts as gone. One being played is kept on
      * purpose, which is no failure: the viewer is told it was kept.
      */
-    async function removed(downloadIds: string[], op: string): Promise<boolean> {
+    async function removed(
+        downloadIds: string[],
+        op: string,
+        closePlaying = false,
+    ): Promise<boolean> {
         try {
-            const results = await ctx.actions.remove(downloadIds);
+            const results = await ctx.actions.remove(
+                downloadIds,
+                closePlaying ? { closePlaying: true } : undefined,
+            );
             if (results.some((r) => r.code === "locked")) ctx.tell(KEPT_PLAYING);
             return results.every(
                 (r) => r.removed || r.code === "unknown-download" || r.code === "locked",

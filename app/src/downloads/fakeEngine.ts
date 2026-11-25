@@ -529,7 +529,7 @@ export function createFakeEngine(options: FakeEngineOptions = {}): FakeEngine {
             schedule();
             return clone(e);
         },
-        async remove(downloadIds) {
+        async remove(downloadIds, options) {
             const results: DownloadRemoveResult[] = [];
             for (const downloadId of downloadIds) {
                 const e = entries.get(downloadId);
@@ -541,7 +541,14 @@ export function createFakeEngine(options: FakeEngineOptions = {}): FakeEngine {
                         freedBytes: 0,
                     });
                 } else if ([...sessions.values()].includes(downloadId)) {
-                    results.push({ downloadId, removed: false, code: "locked", freedBytes: 0 });
+                    if (options?.closePlaying) {
+                        stopSessions(downloadId, "removed");
+                        const freedBytes = stored(e);
+                        drop(e, "deleted");
+                        results.push({ downloadId, removed: true, freedBytes });
+                    } else {
+                        results.push({ downloadId, removed: false, code: "locked", freedBytes: 0 });
+                    }
                 } else {
                     const freedBytes = stored(e);
                     drop(e, "deleted");

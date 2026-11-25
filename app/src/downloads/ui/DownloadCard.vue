@@ -94,7 +94,9 @@ const selectionText = computed(() => {
             : t("downloads.page.kind_video"),
     ];
     if (selection.kind === "video" && selection.qualityId) parts.push(`${selection.qualityId}p`);
-    if (selection.audioLanguage) parts.push(languageName(selection.audioLanguage));
+    if (selection.audioLanguage && selection.audioLanguage !== "und") {
+        parts.push(languageName(selection.audioLanguage));
+    }
     return parts.join(" · ");
 });
 
@@ -166,7 +168,7 @@ async function remove() {
     await run(async () => {
         let result;
         try {
-            [result] = await service!.remove([id.value]);
+            [result] = await service!.remove([id.value], { closePlaying: true });
         } catch {
             result = undefined;
         }
@@ -370,7 +372,11 @@ const ACTIONS: Record<CardAction, { key: string; icon: Component }> = {
         <LDialog
             v-model:open="confirmingRemove"
             :title="t('downloads.page.remove_title')"
-            :description="t('downloads.page.remove_message', { title })"
+            :description="
+                playing
+                    ? t('downloads.page.remove_playing_message', { title })
+                    : t('downloads.page.remove_message', { title })
+            "
             :primary-action="remove"
             :primary-button-text="t('downloads.page.remove_confirm')"
             :secondary-action="() => (confirmingRemove = false)"

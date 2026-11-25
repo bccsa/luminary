@@ -127,8 +127,18 @@ function collect<K extends string>(
 }
 
 /** The sheet's words in the app's language. */
-export function sheetTexts(translator: Translator | undefined): DownloadSheetTexts {
-    return translator ? collect(translator, SHEET_KEYS) : {};
+export function sheetTexts(
+    translator: Translator | undefined,
+    options?: { playing?: boolean },
+): DownloadSheetTexts {
+    if (!translator) return {};
+    const texts = collect(translator, SHEET_KEYS);
+    if (options?.playing) {
+        const key = "downloads.sheet.remove_playing_message";
+        const playing = translator.t(key, PLACEHOLDERS);
+        if (playing !== key) texts.removeMessage = playing;
+    }
+    return texts;
 }
 
 /** The notification words for a download of the item called `title`. */

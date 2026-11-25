@@ -84,6 +84,9 @@ describe("downloads strings", () => {
         expect(Object.keys(sheet)).toHaveLength(53);
         expect(sheet.freeSpace).toBe("{size} libres");
         expect(sheet.removeMessage).toBe("« {title} » sera supprimé de cet appareil.");
+        expect(sheetTexts(translator, { playing: true }).removeMessage).toBe(
+            "« {title} » est en cours de lecture. Le supprimer continuera sa lecture en ligne, ce qui utilise des données.",
+        );
 
         const notification = notificationTexts(translator, "Titre");
         expect(Object.keys(notification)).toHaveLength(15);

@@ -49,7 +49,16 @@ export function downloadChapters(
 /** The text key, and its English, of what the viewer is told when the engine stops a session itself. */
 export function closedNoticeKey(
     reason: DownloadPlaybackCloseReason,
+    online = true,
 ): [key: string, english: string] {
+    if (reason === "removed") {
+        return online
+            ? [
+                  "downloads.notice.removed_playing_online",
+                  "The download was removed. Playing online, which uses data.",
+              ]
+            : ["downloads.notice.removed_playing", "The download was removed."];
+    }
     return reason === "volume-unavailable"
         ? [
               "downloads.notice.volume_unavailable",

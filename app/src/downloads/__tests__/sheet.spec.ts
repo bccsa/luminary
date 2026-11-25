@@ -1144,13 +1144,18 @@ describe("the manage row and space", () => {
         expect(service.player.sourceOverride("post-1")).toBeUndefined();
     });
 
-    it("keeps a download being played on removal from the sheet, and says so rather than failing", async () => {
+    it("passes closePlaying when removing from the sheet, warns when playing, and keeps older locked behavior", async () => {
         const { fake, service, deps } = await setup();
         await service.openSheet(makeContent(), { context: "player" });
         await startAll(fake);
+        for (let i = 0; i < 4; i++) fake.tick();
+        await service.player.open(makeContent(), { preferOnline: false });
         await service.openSheet(makeContent(), { context: "player" });
+        expect(fake.sheet.value?.texts?.removeMessage).toBe("t:downloads.sheet.remove_playing_message");
+
         const id = service.entries.value[0].downloadId;
-        vi.spyOn(fake, "remove").mockResolvedValueOnce([
+        const removeSpy = vi.spyOn(fake, "remove");
+        removeSpy.mockResolvedValueOnce([
             { downloadId: id, removed: false, code: "locked", freedBytes: 0 },
         ]);
 
@@ -1158,9 +1163,16 @@ describe("the manage row and space", () => {
         await flush();
         await flush();
 
+        expect(removeSpy).toHaveBeenCalledWith([id], { closePlaying: true });
         expect(model(fake).phase).toBe("ready");
         expect(deps.notify).toHaveBeenCalledWith("t:downloads.notice.kept_playing", "info");
         expect(service.entries.value.map((e) => e.downloadId)).toEqual([id]);
+
+        // With closePlaying supported by the engine, the playing download is removed and its session closed.
+        fake.act({ action: "remove" });
+        await flush();
+        await flush();
+        expect(service.entries.value).toEqual([]);
     });
 
     it("shows the spinner again at once on retry, before the options arrive", async () => {

@@ -168,7 +168,7 @@ export function createDownloadsServiceStub(
         remove: vi.fn(async () => []),
         cleanUp: vi.fn(async () => 0),
         refreshStorage: vi.fn(async () => {}),
-        setPreferredVolume: vi.fn(async () => {}),
+        setPreferredVolume: vi.fn(async () => true),
         artwork: vi.fn(async () => undefined),
         player: {
             open: vi.fn(async () => null),

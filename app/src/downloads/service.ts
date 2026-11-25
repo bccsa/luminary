@@ -165,8 +165,8 @@ export function createDownloadsService(
         await refreshStorage();
     }
 
-    async function remove(downloadIds: string[]) {
-        const results = await engine.remove(downloadIds);
+    async function remove(downloadIds: string[], options?: { closePlaying?: boolean }) {
+        const results = await engine.remove(downloadIds, options);
         for (const result of results) {
             // The engine holds no such download: nothing of it is left on the device.
             if (result.removed || result.code === "unknown-download") forget(result.downloadId);
@@ -385,8 +385,10 @@ export function createDownloadsService(
         async setPreferredVolume(volumeId) {
             try {
                 state.storage.value = await engine.setPreferredVolume(volumeId);
+                return true;
             } catch (error) {
                 deps.reportError(error, "preferred-volume");
+                return false;
             }
         },
         artwork: (downloadId) => engine.artwork(downloadId).catch(() => undefined),

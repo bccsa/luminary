@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { formatBytes } from "../../texts";
+import { makeContent } from "../../__tests__/helpers";
 import StorageCard from "../StorageCard.vue";
 import { disposeServices, downloaded, settle, setupUi } from "./fixtures";
 
@@ -26,12 +27,24 @@ describe("StorageCard", () => {
         );
     });
 
-    it("cleans up, says what it freed, and is disabled with nothing to clean", async () => {
+    it("cleans up, says what it freed, and says there is nothing to clean", async () => {
         const ctx = await setupUi();
         const wrapper = mount(StorageCard, { global: ctx.global });
-        const cleanUp = vi.spyOn(ctx.service, "cleanUp");
+        const origCleanUp = ctx.service.cleanUp.bind(ctx.service);
+        let releaseClean!: () => void;
+        const cleanUp = vi.spyOn(ctx.service, "cleanUp").mockImplementationOnce(
+            () =>
+                new Promise<number>((resolve) => {
+                    releaseClean = () => resolve(origCleanUp());
+                }),
+        );
         const notify = vi.spyOn(ctx.notifications, "addNotification");
         await wrapper.get("[data-test='downloads-clean-up']").trigger("click");
+        expect(wrapper.get("[data-test='downloads-clean-up']").text()).toBe("Cleaning up…");
+        expect(
+            wrapper.get("[data-test='downloads-clean-up']").attributes("disabled"),
+        ).toBeDefined();
+        releaseClean();
         await settle();
         expect(cleanUp).toHaveBeenCalled();
         expect(notify).toHaveBeenCalledWith(
@@ -42,7 +55,14 @@ describe("StorageCard", () => {
         );
         expect(
             wrapper.get("[data-test='downloads-clean-up']").attributes("disabled"),
-        ).toBeDefined();
+        ).toBeUndefined();
+
+        notify.mockClear();
+        await wrapper.get("[data-test='downloads-clean-up']").trigger("click");
+        await settle();
+        expect(notify).toHaveBeenCalledWith(
+            expect.objectContaining({ title: "Nothing to clean up.", state: "info" }),
+        );
     });
 
     it("says so when the clean-up fails", async () => {
@@ -99,5 +119,53 @@ describe("StorageCard", () => {
         const ctx = await setupUi({ card: true, capabilities: { volumes: false } });
         const wrapper = mount(StorageCard, { global: ctx.global });
         expect(wrapper.find("[data-test='downloads-location']").exists()).toBe(false);
+    });
+
+    it("switches location on a single tap before settling, and reverts with a toast on failure", async () => {
+        const ctx = await setupUi({ card: true });
+        const wrapper = mount(StorageCard, { global: ctx.global });
+        const internal = wrapper.get("[data-test='downloads-location-internal'] input");
+        const card = wrapper.get("[data-test='downloads-location-card-1'] input");
+
+        let resolveVolume!: (ok: boolean) => void;
+        vi.spyOn(ctx.service, "setPreferredVolume").mockImplementationOnce(
+            () =>
+                new Promise<boolean>((resolve) => {
+                    resolveVolume = resolve;
+                }),
+        );
+        await card.setValue(true);
+        expect((card.element as HTMLInputElement).checked).toBe(true);
+        expect((internal.element as HTMLInputElement).checked).toBe(false);
+
+        const notify = vi.spyOn(ctx.notifications, "addNotification");
+        resolveVolume(false);
+        await settle();
+        expect((internal.element as HTMLInputElement).checked).toBe(true);
+        expect((card.element as HTMLInputElement).checked).toBe(false);
+        expect(notify).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: "Could not change where downloads are saved.",
+                state: "error",
+            }),
+        );
+    });
+
+    it("uses the chosen location immediately for new downloads from the sheet", async () => {
+        const ctx = await setupUi({ card: true });
+        const wrapper = mount(StorageCard, { global: ctx.global });
+        const start = vi.spyOn(ctx.fake, "start");
+        await wrapper.get("[data-test='downloads-location-card-1'] input").setValue(true);
+        await settle();
+
+        await ctx.service.openSheet(makeContent(), { context: "player" });
+        ctx.fake.act({
+            action: "start",
+            selection: { kind: "audio", audioLanguage: "en" },
+            chapters: [0, 1, 2],
+            meteredConsent: false,
+        });
+        await settle();
+        expect(start).toHaveBeenCalledWith(expect.objectContaining({ volumeId: "card-1" }));
     });
 });
