@@ -30,6 +30,10 @@ type Props = {
 
 defineProps<Props>();
 
+// Only Save is yellow in dark mode; Revert and the chevron use the secondary button colours.
+const neutralSegmentDark =
+    "dark:bg-slate-700 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-600 dark:active:bg-slate-500 dark:active:text-zinc-100";
+
 const showContentActionsMenuDesktop = ref(false);
 const showContentActionsMenuMobile = ref(false);
 
@@ -56,9 +60,11 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
             dropdown-anchor
             :main-dynamic-css="
                 !isDirty || isSaving
-                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none'
+                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none dark:!bg-slate-700 dark:!text-zinc-500 dark:!ring-slate-600'
                     : ''
             "
+            :left-dynamic-css="neutralSegmentDark"
+            :right-dynamic-css="neutralSegmentDark"
         >
             <template v-if="isDirty && !newDocument" #left>
                 <span data-test="revert-changes-button" class="flex items-center gap-1">
@@ -99,14 +105,16 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
                                     ? 'duplicate-button'
                                     : action.name.toLowerCase() + '-button'
                             "
-                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-600 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
+                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-600 hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none dark:text-zinc-100 dark:hover:bg-slate-700 dark:focus:bg-slate-700"
                         >
                             <component
                                 :is="action.icon"
                                 :class="action.iconClass"
                                 aria-hidden="true"
                             />
-                            <div class="flex flex-col text-nowrap leading-none text-zinc-600">
+                            <div
+                                class="flex flex-col text-nowrap leading-none text-zinc-600 dark:text-zinc-100"
+                            >
                                 {{ action.name }}
                             </div>
                         </li>
@@ -130,19 +138,24 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
             dropdown-anchor
             :main-dynamic-css="
                 !isDirty || isSaving
-                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none'
+                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none dark:!bg-slate-700 dark:!text-zinc-500 dark:!ring-slate-600'
                     : ''
             "
+            :left-dynamic-css="neutralSegmentDark"
+            :right-dynamic-css="neutralSegmentDark"
         >
             <template v-if="isDirty && !newDocument" #left>
                 <span data-test="revert-changes-button" class="flex items-center gap-1">
-                    <ArrowUturnLeftIcon class="size-5 dark:text-zinc-900" />
+                    <ArrowUturnLeftIcon class="size-5" />
                     Revert
                 </span>
             </template>
 
             <span data-test="save-button" class="flex items-center gap-1">
-                <CloudArrowUpIcon class="size-5 dark:text-zinc-800" />
+                <CloudArrowUpIcon
+                    class="size-5"
+                    :class="{ 'dark:text-zinc-800': isDirty && !isSaving }"
+                />
                 Save
             </span>
 
@@ -175,7 +188,7 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
                                     ? 'duplicate-button'
                                     : action.name.toLowerCase() + '-button'
                             "
-                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-400 hover:bg-zinc-50 focus:bg-zinc-100 focus:outline-none"
+                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-400 hover:bg-zinc-50 focus:bg-zinc-100 focus:outline-none dark:text-zinc-500 dark:hover:bg-slate-700 dark:focus:bg-slate-700"
                         >
                             <component
                                 :is="action.icon"

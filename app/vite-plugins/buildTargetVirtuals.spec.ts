@@ -47,6 +47,12 @@ describe("buildTargetVirtuals", () => {
         })).resolves.toContain(
             "/build-time/plugins/app-update/index.ts",
         );
+        await expect(resolveId.call({} as never, "virtual:share", undefined, {
+            attributes: {},
+            isEntry: false,
+        })).resolves.toContain(
+            "/build-time/plugins/share/index.ts",
+        );
     });
 
     it("uses external implementations and resolves their package imports from the app", async () => {

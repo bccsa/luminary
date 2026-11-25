@@ -39,7 +39,7 @@ const model = defineModel<string | number | undefined>();
 const states = {
     default: `
         border-zinc-300 bg-white focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-zinc-500 focus-within:ring-0
-        dark:border-slate-700 dark:bg-slate-900 dark:focus-within:outline-indigo-500
+        dark:border-slate-700 dark:bg-slate-900 dark:focus-within:outline-slate-400
     `,
     error: `
         border-red-300 bg-red-50 text-red-900 focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-red-500 focus-within:ring-0
@@ -123,7 +123,7 @@ function listOptionClass(option: Option): string {
                             'cursor-not-allowed bg-zinc-100 text-zinc-500 dark:bg-slate-950 dark:text-zinc-700':
                                 disabled,
                             'text-zinc-900 dark:text-zinc-100': !isPlaceholderShown && !disabled,
-                            'text-zinc-400 dark:text-zinc-500': isPlaceholderShown && !disabled,
+                            'text-zinc-400': isPlaceholderShown && !disabled,
                         },
                     ]"
                     v-bind="attrsWithoutStyles"

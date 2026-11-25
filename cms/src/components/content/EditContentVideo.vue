@@ -126,7 +126,7 @@ watch(
         :collapsed="bare ? false : collapsed"
         :bare="bare"
         data-test="videoContent"
-        :class="bare ? '' : 'bg-white'"
+        :class="bare ? '' : 'bg-white dark:bg-slate-800'"
     >
         <LInput
             name="video"
@@ -148,7 +148,7 @@ watch(
             class="pb-1"
             data-test="video-key-input"
         />
-        <p class="text-xs text-zinc-500" data-test="video-key-note">
+        <p class="text-xs text-zinc-500 dark:text-zinc-400" data-test="video-key-note">
             <template v-if="hasStoredKey">
                 An encryption key is saved for this video. It cannot be shown again.
             </template>

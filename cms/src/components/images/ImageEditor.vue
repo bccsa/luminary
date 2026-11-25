@@ -368,7 +368,7 @@ defineExpose({
             @dragleave="handleDragLeave"
             @drop="handleDrop"
             :class="{
-                'border-blue-500 bg-blue-50 dark:bg-blue-900/20': isDragging,
+                'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20': isDragging,
             }"
         >
             <!-- Drop instructions -->

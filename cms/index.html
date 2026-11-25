@@ -1,17 +1,29 @@
 <!doctype html>
 <html
     lang="en"
-    class="h-screen overflow-hidden bg-zinc-50 text-zinc-900 dark:bg-slate-700 dark:text-zinc-100"
+    class="h-screen overflow-hidden bg-zinc-50 text-zinc-900 dark:bg-slate-900 dark:text-zinc-100"
 >
     <head>
         <meta charset="UTF-8" />
         <link id="favIcon" rel="icon" href="%VITE_LOGO_FAVICON%" />
         <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#334155" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Luminary CMS</title>
+        <!-- Sets the dark class before first paint; globalConfig.ts only does it once the bundle has loaded. -->
+        <script>
+            try {
+                var t = localStorage.getItem("theme");
+                if (
+                    t === "dark" ||
+                    (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)
+                ) {
+                    document.documentElement.classList.add("dark");
+                }
+            } catch (e) {}
+        </script>
     </head>
-    <body>
+    <body class="dark:bg-slate-900 dark:text-zinc-100">
         <div id="app" class="h-screen"></div>
         <script type="module" src="/src/main.ts"></script>
     </body>

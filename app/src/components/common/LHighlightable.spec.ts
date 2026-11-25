@@ -14,6 +14,8 @@ import { createTestingPinia } from "@pinia/testing";
 import LHighlightable from "./LHighlightable.vue";
 import * as luminaryShared from "luminary-shared";
 import * as activityStore from "@/userActivity/store";
+import { ShareKey } from "@/build-time/contracts/share/token";
+import type { ShareService } from "@/build-time/contracts/share/contract";
 
 // Mock teleport to render in place
 vi.mock("vue", async (importOriginal) => {
@@ -29,11 +31,15 @@ const mountHighlightable = (
     title = "Test Article",
     copyright?: string,
     canShare?: boolean,
+    options: { shareService?: ShareService; shareUrl?: string } = {},
 ) =>
     mount(LHighlightable, {
-        props: { contentId, parentId, title, copyright, canShare },
+        props: { contentId, parentId, title, copyright, canShare, shareUrl: options.shareUrl },
         slots: { default: "<p>Some highlighted text content</p>" },
         attachTo: document.body,
+        global: options.shareService
+            ? { provide: { [ShareKey as symbol]: options.shareService } }
+            : undefined,
     });
 
 describe("LHighlightable", () => {
@@ -379,12 +385,12 @@ describe("LHighlightable", () => {
         await wrapper.vm.$nextTick();
 
         const telegramBtn = document.body.querySelector(
-            '[data-test="highlightShareTelegram"]',
+            '[data-test="shareTelegram"]',
         ) as HTMLElement;
-        const whatsappBtn = document.body.querySelector('[data-test="highlightShareWhatsApp"]');
-        const xBtn = document.body.querySelector('[data-test="highlightShareX"]');
-        const redditBtn = document.body.querySelector('[data-test="highlightShareReddit"]');
-        const instagramBtn = document.body.querySelector('[data-test="highlightShareInstagram"]');
+        const whatsappBtn = document.body.querySelector('[data-test="shareWhatsApp"]');
+        const xBtn = document.body.querySelector('[data-test="shareX"]');
+        const redditBtn = document.body.querySelector('[data-test="shareReddit"]');
+        const instagramBtn = document.body.querySelector('[data-test="shareInstagram"]');
         expect(telegramBtn).toBeTruthy();
         expect(whatsappBtn).toBeTruthy();
         expect(xBtn).toBeTruthy();
@@ -403,6 +409,54 @@ describe("LHighlightable", () => {
         expect(openedText).toContain("Test Article");
 
         // The popup fully closes after a share action, same as Highlight/Copy.
+        expect(document.body.querySelector(".fixed.z-50")).toBeFalsy();
+
+        wrapper.unmount();
+    });
+
+    it("shares the selection through the OS share sheet where there is one", async () => {
+        const share = vi.fn().mockResolvedValue("shared");
+        const wrapper = mountHighlightable(
+            "native-share-test",
+            "test-post-1",
+            "Test Article",
+            undefined,
+            true,
+            {
+                shareService: { isAvailable: () => true, canShareFiles: () => false, share },
+                shareUrl: "https://example.org/test-article",
+            },
+        );
+        await vi.advanceTimersByTimeAsync(50);
+
+        const textNode = wrapper.find(".prose").element.querySelector("p")!.firstChild!;
+        const range = document.createRange();
+        range.setStart(textNode, 0);
+        range.setEnd(textNode, 4);
+        range.getBoundingClientRect = vi.fn(() => new DOMRect(100, 100, 100, 20));
+        vi.spyOn(window, "getSelection").mockReturnValue({
+            isCollapsed: false,
+            rangeCount: 1,
+            getRangeAt: vi.fn(() => range),
+            toString: () => "Some",
+            removeAllRanges: vi.fn(),
+            anchorNode: textNode,
+        } as any);
+
+        document.dispatchEvent(new Event("selectionchange"));
+        vi.advanceTimersByTime(300);
+        await wrapper.vm.$nextTick();
+
+        (document.body.querySelector('[data-test="highlightShareTrigger"]') as HTMLElement).click();
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(share).toHaveBeenCalledTimes(1);
+        expect(share.mock.calls[0][0]).toMatchObject({
+            title: "Test Article",
+            url: "https://example.org/test-article",
+        });
+        expect(share.mock.calls[0][0].text).toContain("“Some”");
+        expect(document.body.querySelector('[data-test="shareTelegram"]')).toBeNull();
         expect(document.body.querySelector(".fixed.z-50")).toBeFalsy();
 
         wrapper.unmount();
@@ -555,9 +609,7 @@ describe("LHighlightable", () => {
         (document.body.querySelector('[data-test="highlightShareTrigger"]') as HTMLElement).click();
         await wrapper.vm.$nextTick();
 
-        (
-            document.body.querySelector('[data-test="highlightShareInstagram"]') as HTMLElement
-        ).click();
+        (document.body.querySelector('[data-test="shareInstagram"]') as HTMLElement).click();
         await wrapper.vm.$nextTick();
 
         expect(writeText).toHaveBeenCalledTimes(1);
@@ -830,6 +882,56 @@ describe("LHighlightable", () => {
                 expect(menu().style.top).toBe("48px");
                 expect(menu().classList).not.toContain("-translate-y-full");
                 wrapper.unmount();
+            });
+
+            it("moves the menu below the highlight when the taller share list would not fit above", async () => {
+                rect = { left: 100, top: 200, bottom: 220, width: 100, height: 20 };
+                // The pill fits above; the share list is about 230 px and would not.
+                vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+                    this: HTMLElement,
+                ) {
+                    return this.querySelector("[data-test='shareTelegram']") ? 230 : 44;
+                });
+                const wrapper = await tapHighlight();
+                expect(menu().classList).toContain("-translate-y-full");
+
+                document.body
+                    .querySelector<HTMLElement>("[data-test='highlightShareTrigger']")!
+                    .click();
+                await settle();
+
+                expect(document.body.querySelector("[data-test='shareTelegram']")).toBeTruthy();
+                expect(menu().style.top).toBe("228px");
+                expect(menu().classList).not.toContain("-translate-y-full");
+                wrapper.unmount();
+            });
+
+            it("moves the share list below the highlight when only its top would sit under a bar", async () => {
+                // A 64 px title bar; the 260 px list would start 32 px down, its middle clear of the bar.
+                const bar = document.createElement("div");
+                bar.style.position = "sticky";
+                document.body.appendChild(bar);
+                (document as { elementsFromPoint?: unknown }).elementsFromPoint = (
+                    _x: number,
+                    y: number,
+                ) => (y < 64 ? [bar] : []);
+                vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+                    this: HTMLElement,
+                ) {
+                    return this.querySelector("[data-test='shareTelegram']") ? 260 : 44;
+                });
+                const wrapper = await tapHighlight();
+                expect(menu().classList).toContain("-translate-y-full");
+
+                document.body
+                    .querySelector<HTMLElement>("[data-test='highlightShareTrigger']")!
+                    .click();
+                await settle();
+
+                expect(menu().style.top).toBe("328px");
+                expect(menu().classList).not.toContain("-translate-y-full");
+                wrapper.unmount();
+                bar.remove();
             });
 
             it("selects the whole highlight and opens its menu", async () => {

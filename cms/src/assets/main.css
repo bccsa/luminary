@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Native scrollbars, checkboxes and pickers follow the dark theme */
+html.dark {
+    color-scheme: dark;
+}
+
 @font-face {
     font-family: "Inter";
     font-style: normal;

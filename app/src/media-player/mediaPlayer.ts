@@ -1,7 +1,7 @@
 import { computed, ref, shallowRef, watch } from "vue";
 import type { ContentDto } from "luminary-shared";
 import type { SleepTimerOption } from "@luminary-media-converter/player-web";
-import { effectiveDataSaverLevel } from "@/globalConfig";
+import { effectiveDataSaverLevel, type DataSaverLevel } from "@/globalConfig";
 
 const CHOSEN_MODE_KEY = "mediaPlayerMode";
 
@@ -20,6 +20,28 @@ export type MediaPlayerView = "expanded" | "mini";
 export const mediaPlayerItem = shallowRef<MediaPlayerItem | null>(null);
 
 export const mediaPlayerView = ref<MediaPlayerView>("expanded");
+
+/**
+ * Data Saver as the quality menu set it for the item playing (true: on, as Light), overriding Settings; null follows
+ * Settings. Cleared whenever another item starts, so the choice lasts for that playback only.
+ */
+export const dataSaverOverride = ref<boolean | null>(null);
+watch(
+    () => mediaPlayerItem.value?.content._id,
+    () => (dataSaverOverride.value = null),
+    // Before the player's own watchers read the level for the new item.
+    { flush: "sync" },
+);
+
+/** The Data Saver level playback follows: the quality menu's override, else Settings'. */
+export const playbackDataSaverLevel = computed<DataSaverLevel>(() => {
+    const override = dataSaverOverride.value;
+    if (override === null) return effectiveDataSaverLevel.value;
+    return override ? "light" : "off";
+});
+
+/** Playback saves data (light or strict). */
+export const playbackDataSaverOn = computed(() => playbackDataSaverLevel.value !== "off");
 
 /** Whether play starts with the sound only: strict data saving, since a video's picture is most of what it costs. */
 export const startsAsAudio = computed(() => effectiveDataSaverLevel.value === "strict");

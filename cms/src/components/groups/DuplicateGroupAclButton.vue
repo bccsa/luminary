@@ -47,13 +47,15 @@ const selectGroup = (group: GroupDto) => {
                 v-for="group in groups"
                 :key="group._id"
                 role="menuitem"
-                class="group flex w-full items-center rounded-md px-2 py-2 text-left text-sm hover:bg-zinc-100 focus:bg-zinc-100 focus:outline-none"
+                class="group flex w-full items-center rounded-md px-2 py-2 text-left text-sm hover:bg-zinc-100 focus:bg-zinc-100 focus:outline-none dark:text-zinc-200 dark:hover:bg-slate-700 dark:focus:bg-slate-700"
                 @click.stop="selectGroup(group)"
                 data-test="selectGroupIcon"
             >
                 {{ group.name }}
             </button>
         </div>
-        <div v-else class="px-2 py-2 text-sm text-zinc-500">All groups added</div>
+        <div v-else class="px-2 py-2 text-sm text-zinc-500 dark:text-zinc-400">
+            All groups added
+        </div>
     </LDropdown>
 </template>

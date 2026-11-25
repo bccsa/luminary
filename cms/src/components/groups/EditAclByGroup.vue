@@ -131,7 +131,7 @@ onMounted(() => {
                         title="Remove group access"
                         class="gap-x-0"
                         @click.stop="removeAssignedGroup"
-                        mainDynamicCss="text-zinc-400 hover:text-red-500"
+                        mainDynamicCss="text-zinc-400 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400"
                         v-if="!disabled"
                     />
                 </div>
@@ -141,7 +141,7 @@ onMounted(() => {
                     v-if="canScrollLeft"
                     class="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-12 items-center justify-start bg-gradient-to-r from-white to-transparent pl-1 dark:from-slate-800"
                 >
-                    <ChevronLeftIcon class="h-3 w-3 text-zinc-400" />
+                    <ChevronLeftIcon class="h-3 w-3 text-zinc-400 dark:text-zinc-400" />
                 </div>
                 <div
                     ref="scrollContainer"

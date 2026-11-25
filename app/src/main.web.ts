@@ -23,6 +23,7 @@ import { applyServedLanguage } from "./ssg/hydrationLanguage";
 import { isPrerender } from "./ssg/isPrerender";
 import { captureSsgArticleTextSnapshot } from "./util/ssgTextRecovery";
 import { markAppReady } from "./util/renderState";
+import { installChunkReload } from "./util/chunkReload";
 
 // Tag this query so the API's expensive-query logs can separate prerender build load
 // from normal app load.
@@ -91,6 +92,9 @@ export const createApp = ViteSSG(
                 keep.has(l._id) ? l : { ...l, translations: {} },
             );
         } else {
+            // The entry chunk's hashed URL identifies the build; the web build has no build-id define.
+            installChunkReload(router, import.meta.url);
+
             // Snapshot the prerendered article body before `app.mount` clears #app; the
             // hydration patch in SingleContent recovers `text` (stripped from the cache
             // seed) from this snapshot so the body survives the JS boot.

@@ -16,9 +16,11 @@ defineProps<{
 <template>
     <div
         v-if="groups.length"
-        class="flex items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800"
+        class="flex items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800 dark:border-yellow-900 dark:bg-yellow-950/20 dark:text-yellow-400"
     >
-        <ExclamationTriangleIcon class="h-5 w-5 flex-shrink-0 text-yellow-500" />
+        <ExclamationTriangleIcon
+            class="h-5 w-5 flex-shrink-0 text-yellow-500 dark:text-yellow-400"
+        />
         <span>
             Members of {{ groups.map((g) => g.name).join(", ") }} can view this but do not have
             access to {{ subject }}. Give these groups View access to Storage on the bucket's group.

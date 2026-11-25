@@ -32,7 +32,7 @@ const greeting = computed(() => {
             <!-- Sync indicator -->
             <div
                 v-if="syncActive"
-                class="flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700"
+                class="flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"
             >
                 <ArrowPathIcon class="h-3.5 w-3.5 animate-spin" />
                 Syncing

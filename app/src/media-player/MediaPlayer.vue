@@ -50,6 +50,7 @@ import {
     rosterTiles,
     type ScrubPosition,
 } from "@/media-player/player";
+import { StripSpin } from "@/media-player/player/ui/stripSpin";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
 import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";
@@ -83,7 +84,6 @@ import {
     autoplayNext,
     dataSaverLevel,
     dataSaverOn,
-    effectiveDataSaverLevel,
     subtitlePreference,
     subtitlesOnVideo,
 } from "@/globalConfig";
@@ -116,6 +116,8 @@ import {
     chosenAudio,
     opensAsAudio,
     sleepTimerDefault,
+    dataSaverOverride,
+    playbackDataSaverLevel,
 } from "./mediaPlayer";
 
 const { t, te } = useI18n();
@@ -793,6 +795,9 @@ interface RosterDrag {
 }
 /** The pinned frames being dragged: the slow, precise way through the video. */
 const rosterDrag = ref<RosterDrag | null>(null);
+/** A flick carries the frames on after the finger lifts; the video goes where they stop. */
+const rosterSpin = new StripSpin();
+onBeforeUnmount(() => rosterSpin.stop());
 /** How far a finger may wander and still be tapping a frame rather than dragging the strip. */
 const TAP_SLOP_PX = 10;
 
@@ -903,12 +908,22 @@ const rosterEl = ref<HTMLElement | null>(null);
 /** A press anywhere but the bar or the frames puts the pinned frames away. */
 function onPressOutsideRoster(event: Event) {
     const target = event.target as Node | null;
-    if (target && (seekArea.value?.contains(target) || rosterEl.value?.contains(target))) return;
-    if ((target as Element | null)?.closest?.(".lmpl-afs-bar, .lmpl-afs-scrubzone")) return;
+    if (target && rosterEl.value?.contains(target)) return;
+    if (
+        (target && seekArea.value?.contains(target)) ||
+        (target as Element | null)?.closest?.(".lmpl-afs-bar, .lmpl-afs-scrubzone")
+    ) {
+        // The bar takes the video over: a spin left running would seek after it.
+        if (rosterSpin.stop()) rosterDrag.value = null;
+        return;
+    }
+    // A press on the picture mid-spin catches the spin there (onPictureDown), as one on the strip does.
+    if (rosterSpin.spinning && target && pictureEl.value?.contains(target)) return;
     unpinRoster();
     resumeFromScrub();
 }
 function unpinRoster() {
+    rosterSpin.stop();
     rosterPinned.value = false;
     nowPlayingPin.value = null;
     rosterDrag.value = null;
@@ -969,19 +984,6 @@ watch([() => item.value?.content._id, expanded, audioMode], () => {
 const LOADED_VISIBLE_FRACTION = 0.006;
 const loadedShows = computed(() => loaded.value - progress.value > LOADED_VISIBLE_FRACTION);
 
-/** The last camera seen playing on this item, where Video returns to. */
-let videoAngleId: string | null = null;
-watch(
-    () => state.value?.activeAngleId,
-    (id) => {
-        if (id && id !== AUDIO_ONLY_ANGLE_ID) videoAngleId = id;
-    },
-);
-// Another item's camera is not one this item has: asked for, the switch to Video would do nothing.
-watch(
-    () => item.value?.content._id,
-    () => (videoAngleId = null),
-);
 const videoAngles = computed(
     () => state.value?.angles.filter((angle) => angle.id !== AUDIO_ONLY_ANGLE_ID) ?? [],
 );
@@ -1026,7 +1028,7 @@ async function toSound() {
 /** Strict plays the sound only: the picture is offered by turning Data Saver down to Light, once the viewer agrees. */
 const strictVideoAsk = ref(false);
 function requestVideo() {
-    if (effectiveDataSaverLevel.value === "strict") strictVideoAsk.value = true;
+    if (playbackDataSaverLevel.value === "strict") strictVideoAsk.value = true;
     else void showVideo();
 }
 function confirmStrictVideo() {
@@ -1038,10 +1040,10 @@ function confirmStrictVideo() {
 async function showVideo() {
     chosenAudio.value = false;
     startingAsAudio.value = false;
-    // Data Saver went off while only the sound played: the picture comes back without its cap.
-    if (capLiftPending) {
-        capLiftPending = false;
-        engine.value?.liftDataSaverCap();
+    // Data Saver changed while only the sound played: the picture comes back under the cap now in force.
+    if (capSyncPending) {
+        capSyncPending = false;
+        engine.value?.syncDataSaverCap();
     }
     if (videoOffByChoice.value) {
         videoOffByChoice.value = false;
@@ -1051,8 +1053,10 @@ async function showVideo() {
     }
     const audioPending = audioRequested.value;
     audioRequested.value = false;
+    // The player's own return-to-video angle: also right for an item opened as sound, which no camera has played on,
+    // and after the audio language changed while only the sound played, which moves it to that language's picture.
     const target =
-        videoAngles.value.find((angle) => angle.id === videoAngleId)?.id ??
+        videoAngles.value.find((angle) => angle.id === state.value?.videoAngleId)?.id ??
         videoAngles.value.find((angle) => angle.isDefault)?.id ??
         videoAngles.value[0]?.id;
     if ((audioMode.value || audioPending) && target) await controller.value?.setAngle(target);
@@ -1064,23 +1068,20 @@ async function showVideo() {
 /**
  * Data Saver changed mid-play. Strict goes to sound exactly as the viewer's own Audio does (without counting as their
  * choice). Data Saver is a 360p cap, never a pinned rendition: Auto stays free beneath it and a quality the viewer
- * picks stands. Turning it on caps the next load, so nothing reloads now; turning it off lifts the cap by reloading
- * in place, and in sound waits for the picture to come back, as nothing shows it now.
+ * picks stands. Where the engine cannot move the cap in place it reloads in place, and in sound waits for the picture
+ * to come back, as nothing shows it now.
  */
-let capLiftPending = false;
-watch(effectiveDataSaverLevel, (level, before) => {
+let capSyncPending = false;
+watch(playbackDataSaverLevel, (level, before) => {
     if (!item.value) return;
     if (level === "strict") void toSound();
-    if (level !== "off" && before === "off") {
-        capLiftPending = false;
-    } else if (level === "off" && before !== "off") {
-        if (audioMode.value) capLiftPending = true;
-        else engine.value?.liftDataSaverCap();
-    }
+    if ((level === "off") === (before === "off")) return;
+    if (audioMode.value) capSyncPending = true;
+    else engine.value?.syncDataSaverCap();
 });
 watch(
     () => item.value?.content._id,
-    () => (capLiftPending = false),
+    () => (capSyncPending = false),
 );
 
 // The picture's off-switch belongs to the item it was used on; the next one starts as its own mode says.
@@ -1161,17 +1162,20 @@ function onRosterDown(event: PointerEvent) {
     if (!roster) return;
     (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
     pauseForScrub();
+    // A press that catches a spin carries on its drag rather than tapping a frame.
+    const caught = rosterSpin.press(event.clientX);
     rosterDrag.value = {
         startX: event.clientX,
         lastX: event.clientX,
         time: pinnedTime.value,
-        moved: false,
+        moved: caught,
     };
 }
 function onRosterMove(event: PointerEvent) {
     const drag = rosterDrag.value;
     const roster = dragRoster.value;
     if (!drag || !roster) return;
+    rosterSpin.move(event.clientX);
     // The strip follows the finger one-to-one, at a scale that does not change during the drag.
     const time = drag.time - (event.clientX - drag.lastX) / (roster.tileWidth / roster.step);
     rosterDrag.value = {
@@ -1188,6 +1192,11 @@ function onRosterMove(event: PointerEvent) {
 let pictureGesture: { x: number; y: number } | null = null;
 function onPictureDown(event: PointerEvent) {
     pictureGesture = null;
+    const drag = rosterDrag.value;
+    if (drag && rosterSpin.press(event.clientX)) {
+        rosterDrag.value = { ...drag, startX: event.clientX, lastX: event.clientX, moved: true };
+        return;
+    }
     if (audioMode.value || !state.value?.thumbnailsReady || !(duration.value > 0) || live.value)
         return;
     if ((event.target as Element | null)?.closest?.("button, a, input, select, textarea")) return;
@@ -1205,6 +1214,7 @@ function onPictureMove(event: PointerEvent) {
     pauseForScrub();
     rosterOpened = true;
     rosterPinned.value = true;
+    rosterSpin.press(event.clientX);
     rosterDrag.value = {
         startX: event.clientX,
         lastX: event.clientX,
@@ -1220,9 +1230,17 @@ function onPictureUp(event: PointerEvent) {
 function onRosterUp(event: PointerEvent) {
     const drag = rosterDrag.value;
     const roster = dragRoster.value;
-    rosterDrag.value = null;
     // A phone's browser may cancel a drag it takes over: where the strip had got to is still where the viewer went.
     const lifted = event.type === "pointerup" || (event.type === "pointercancel" && !!drag?.moved);
+    if (
+        drag &&
+        roster &&
+        lifted &&
+        drag.moved &&
+        spinRoster(drag.time, roster.tileWidth / roster.step)
+    )
+        return;
+    rosterDrag.value = null;
     if (!drag || !roster || !lifted) return resumeFromScrub();
     let target = drag.time;
     if (!drag.moved) {
@@ -1233,6 +1251,29 @@ function onRosterUp(event: PointerEvent) {
             (event.clientX - (box?.left ?? 0) - roster.markerX) / (roster.tileWidth / roster.step);
         target = Math.min(Math.max(0, target), Math.max(0, duration.value - 0.001));
     }
+    commitRoster(target);
+}
+
+/** Flicked frames run on from `from` and the video goes where they stop; false when they were not flicked. */
+function spinRoster(from: number, pxPerSecond: number): boolean {
+    const last = Math.max(0, duration.value - 0.001);
+    return rosterSpin.release(
+        (offset) => {
+            const drag = rosterDrag.value;
+            if (!drag) return false;
+            const time = Math.min(Math.max(0, from - offset / pxPerSecond), last);
+            rosterDrag.value = { ...drag, time };
+            return time > 0 && time < last;
+        },
+        () => {
+            const drag = rosterDrag.value;
+            rosterDrag.value = null;
+            if (drag) commitRoster(drag.time);
+        },
+    );
+}
+
+function commitRoster(target: number) {
     handle.value?.seek(target);
     anchorPin(target);
     holdScrubAt(target);
@@ -1760,7 +1801,7 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
         sleep: nativeSleep.value,
         ...(upNext.value.tags.length ? { upNextTags: upNext.value.tags } : {}),
         ...(upNextTag.value ? { upNextTag: upNextTag.value } : {}),
-        dataSaver: effectiveDataSaverLevel.value,
+        dataSaver: playbackDataSaverLevel.value,
         autoplay: autoplayNext.value,
     };
 });
@@ -1793,6 +1834,7 @@ const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
             sleepOff: known("media_player.sleep_off"),
             playbackSettings: known("media_player.playback_settings"),
             dataSaver: known("media_player.data_saver"),
+            dataSaverDefault: playerMessages.value.dataSaverDefault,
             dataSaverOff: known("settings.data_saver.off"),
             dataSaverLight: known("settings.data_saver.light"),
             dataSaverStrict: known("settings.data_saver.strict"),
@@ -1857,7 +1899,7 @@ function onNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
     else if (action === "audio") void showAudio();
     // The native screen asks first under Strict, as `requestVideo` does here: a `video` that arrives then is confirmed.
     else if (action === "video") {
-        if (effectiveDataSaverLevel.value === "strict") dataSaverLevel.value = "light";
+        if (playbackDataSaverLevel.value === "strict") dataSaverLevel.value = "light";
         void showVideo();
     } else if (action === "sleep") pickNativeSleep(value);
     else if (action === "tag") upNextTag.value = (value || null) as Uuid | null;
@@ -1866,8 +1908,10 @@ function onNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
         autoplayNext.value = value === "on";
 }
 
+/** The quality menu's Data Saver switch overrides Settings for this playback only. */
 function pickDataSaver(value: string | undefined) {
-    if (value === "off" || value === "light" || value === "strict") dataSaverLevel.value = value;
+    if (value === "off" || value === "light" || value === "strict")
+        dataSaverOverride.value = value !== "off";
 }
 
 /** The platform's sleep menu: `off`, `chapter`, or the minutes. */
@@ -2292,7 +2336,7 @@ function onKeydown(event: KeyboardEvent) {
                     :active-audio-track-id="state?.activeAudioTrackId ?? null"
                     :sleep-timer="sleepTimer"
                     :sleep-minutes="sleepPickedMinutes"
-                    :data-saver="effectiveDataSaverLevel"
+                    :data-saver="playbackDataSaverLevel"
                     :autoplay="autoplayNext"
                     :angles="screenAngles"
                     :active-angle-id="state?.activeAngleId ?? null"
@@ -2583,6 +2627,7 @@ function onKeydown(event: KeyboardEvent) {
             <div
                 v-if="!screen"
                 ref="pictureEl"
+                data-test="mediaPlayerPicture"
                 class="relative w-full flex-none touch-pan-y"
                 :class="
                     audioMode
@@ -3287,7 +3332,7 @@ function onKeydown(event: KeyboardEvent) {
                 :active-quality-id="state?.activeQualityId ?? 'auto'"
                 :playing-height="handle?.playingHeight"
                 :playing-bandwidth="handle?.playingBandwidth"
-                :data-saver="effectiveDataSaverLevel"
+                :data-saver="playbackDataSaverLevel"
                 fullscreen-active
                 @fullscreen="audioFullscreen = false"
                 @exit="audioFullscreen = false"

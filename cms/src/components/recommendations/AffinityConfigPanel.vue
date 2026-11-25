@@ -231,13 +231,13 @@ async function save() {
         fill-height
     >
         <div class="space-y-3">
-            <div class="text-sm text-zinc-600">
+            <div class="text-sm text-zinc-600 dark:text-zinc-400">
                 Control how much attention different interests get, and how strongly each action
                 shapes what people are shown next.
             </div>
 
             <fieldset class="space-y-1.5">
-                <legend class="text-sm font-semibold text-zinc-900">
+                <legend class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                     How much each action counts
                 </legend>
                 <div class="grid grid-cols-2 items-end gap-x-3 gap-y-1.5 sm:grid-cols-3">
@@ -335,7 +335,9 @@ async function save() {
             </fieldset>
 
             <fieldset class="space-y-1.5">
-                <legend class="text-sm font-semibold text-zinc-900">Other settings</legend>
+                <legend class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    Other settings
+                </legend>
                 <div class="grid grid-cols-2 items-end gap-x-3 gap-y-1.5 sm:grid-cols-3">
                     <LInput
                         name="halfLifeDays"

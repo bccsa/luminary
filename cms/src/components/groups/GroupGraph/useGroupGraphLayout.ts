@@ -1,6 +1,7 @@
 import { computed, type Ref } from "vue";
 import { MarkerType, Position } from "@vue-flow/core";
 import type { GroupDto } from "luminary-shared";
+import { isDarkTheme } from "@/globalConfig";
 import {
     CHART_COLUMN_WIDTH,
     CHART_ROW_HEIGHT,
@@ -226,7 +227,18 @@ export function useGroupGraphLayout(
                 const downstream = selectedAccess.value.downstreamEdges.has(edge.id);
                 const upstream = selectedAccess.value.upstreamEdges.has(edge.id);
                 const active = direct || inherited;
-                const stroke = downstream ? "#0284c7" : upstream ? "#7c3aed" : "#cbd5e1";
+                const dark = isDarkTheme.value;
+                const stroke = downstream
+                    ? dark
+                        ? "#38bdf8"
+                        : "#0284c7"
+                    : upstream
+                      ? dark
+                          ? "#a78bfa"
+                          : "#7c3aed"
+                      : dark
+                        ? "#475569"
+                        : "#cbd5e1";
 
                 return {
                     id: edge.id,
@@ -241,7 +253,7 @@ export function useGroupGraphLayout(
                         type: MarkerType.ArrowClosed,
                         width: 16,
                         height: 16,
-                        color: active ? stroke : "#94a3b8",
+                        color: active ? stroke : dark ? "#64748b" : "#94a3b8",
                     },
                     style: {
                         stroke,
