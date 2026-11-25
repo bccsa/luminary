@@ -4,6 +4,7 @@ import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import AiConnectorCard from "@/components/settings/AiConnectorCard.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { triggerSync } from "@/sync";
 import { Cog6ToothIcon } from "@heroicons/vue/20/solid";
@@ -55,5 +56,7 @@ const deleteLocalData = async () => {
                 {{ isClearing ? "Clearing local cache..." : "Delete local cache" }}
             </LButton>
         </LCard>
+
+        <AiConnectorCard class="mt-4" />
     </BasePage>
 </template>

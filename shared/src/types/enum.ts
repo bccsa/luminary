@@ -89,4 +89,7 @@ export enum AclPermission {
     // Access to view documents in the CMS, including drafts and expired content.
     // Gates all CMS-scoped (cms:true) reads/sync; the app uses plain View (published only).
     CmsView = "cmsView",
+    // Access to documents through the MCP server (AI clients), with CmsView visibility.
+    // Never granted implicitly; granting it implies CmsView.
+    McpView = "mcpView",
 }

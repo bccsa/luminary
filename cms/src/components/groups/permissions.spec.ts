@@ -329,6 +329,64 @@ describe("Group editor permissions (permissions.ts)", () => {
     });
 });
 
+describe("McpView permission", () => {
+    it.each(validDocTypes)("is available on %s", (docType) => {
+        expect(isPermissionAvailable.value(docType, AclPermission.McpView)).toBe(true);
+    });
+
+    it("implies CmsView", () => {
+        const aclEntry: GroupAclEntryDto = {
+            groupId: "group-public-users",
+            type: DocType.Post,
+            permission: [AclPermission.View, AclPermission.McpView],
+        };
+        const prevAclEntry: GroupAclEntryDto = {
+            groupId: "group-public-users",
+            type: DocType.Post,
+            permission: [AclPermission.View],
+        };
+
+        validateAclEntry(aclEntry, prevAclEntry);
+
+        expect(aclEntry.permission).toContain(AclPermission.CmsView);
+        expect(aclEntry.permission).toContain(AclPermission.McpView);
+    });
+
+    it("keeps CmsView while McpView is set", () => {
+        const aclEntry: GroupAclEntryDto = {
+            groupId: "group-public-users",
+            type: DocType.Post,
+            permission: [AclPermission.McpView],
+        };
+        const prevAclEntry: GroupAclEntryDto = {
+            groupId: "group-public-users",
+            type: DocType.Post,
+            permission: [AclPermission.CmsView, AclPermission.McpView],
+        };
+
+        validateAclEntry(aclEntry, prevAclEntry);
+
+        expect(aclEntry.permission).toEqual([AclPermission.McpView, AclPermission.CmsView]);
+    });
+
+    it("is not implied by CMS-only permissions", () => {
+        const aclEntry: GroupAclEntryDto = {
+            groupId: "group-public-users",
+            type: DocType.Post,
+            permission: [AclPermission.CmsView, AclPermission.Edit, AclPermission.Publish],
+        };
+        const prevAclEntry: GroupAclEntryDto = {
+            groupId: "group-public-users",
+            type: DocType.Post,
+            permission: [AclPermission.CmsView],
+        };
+
+        validateAclEntry(aclEntry, prevAclEntry);
+
+        expect(aclEntry.permission).not.toContain(AclPermission.McpView);
+    });
+});
+
 describe("Share permission", () => {
     it.each([DocType.Post, DocType.Tag])("is available on %s", (docType) => {
         expect(isPermissionAvailable.value(docType, AclPermission.Share)).toBe(true);

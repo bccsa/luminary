@@ -127,6 +127,7 @@ $ npx ts-node load_tester --help
 - [docs/rest-api/README.md](docs/rest-api/README.md) — REST bulk sync API and SyncMap
 - [docs/socket-io-messages.md](docs/socket-io-messages.md) — Socket.io message reference (API ↔ clients)
 - [docs/s3-multi-bucket/README.md](docs/s3-multi-bucket/README.md) — S3 multi-bucket storage architecture
+- [docs/mcp.md](docs/mcp.md) — MCP server for AI connectors (Claude, ChatGPT): setup, `McpView`, tools
 
 ## HLS decryption keys and the `/sidecar` rate limiters
 
@@ -142,6 +143,13 @@ Worth knowing when diagnosing playback: a blocked caller gets HTTP 429, and the
 shared http layer swallows it, so the app and CMS players report the media as
 needing a key rather than as rate limited. Check these limits before chasing a
 decryption fault.
+
+## MCP server (AI connectors) and `McpView`
+
+`/mcp/<providerId>` serves a Model Context Protocol server for AI apps such as Claude and ChatGPT,
+for users granted the **`McpView`** permission (which also grants `CmsView`). It is off until a
+provider enables it in the CMS. Changes that reach app users need the user's confirmation in the
+AI app. See [docs/mcp.md](docs/mcp.md) and ADR 0020.
 
 ## CMS view permission (`CmsView`) and CMS-scoped live updates
 

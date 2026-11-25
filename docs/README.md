@@ -32,7 +32,7 @@ Cross-cutting system design:
 
 Package-specific architecture now lives with its code:
 
-- REST bulk sync API, Socket.io messages, S3 multi-bucket storage — [api/docs/](../api/docs/), linked from [api/README.md](../api/README.md)
+- REST bulk sync API, Socket.io messages, S3 multi-bucket storage, MCP server for AI connectors — [api/docs/](../api/docs/), linked from [api/README.md](../api/README.md)
 - Build-time Vue plugin system — [app/docs/vue-plugin-architecture/](../app/docs/vue-plugin-architecture/), linked from [app/README.md](../app/README.md)
 - Offline FTS (trigram + BM25) — [shared/src/fts/README.md](../shared/src/fts/README.md)
 

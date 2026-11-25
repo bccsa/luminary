@@ -1198,6 +1198,108 @@ describe("AuthGuard (Integrated)", () => {
         expect(groups).toContain("group-baseline");
     });
 
+    // ── MCP: tokens issued for another resource of the provider ──────────────
+
+    describe("resolveForAudience (MCP)", () => {
+        const provider = {
+            _id: "provider-id",
+            type: DocType.AuthProvider,
+            domain: "example.auth0.com",
+            audience: "https://api.example.org",
+            clientId: "cms-client",
+        };
+        const mcpAudience = { audience: "https://api.example.org/mcp/provider-id" };
+
+        beforeEach(() => {
+            mockDbService.getDoc = jest.fn().mockResolvedValue({ docs: [provider] });
+            mockDbService.executeFindQuery = jest.fn().mockResolvedValue({ docs: [] });
+        });
+
+        it("verifies the token against the MCP audience instead of the provider's", async () => {
+            mockJwtService.verifyAsync = jest
+                .fn()
+                .mockResolvedValue({ sub: "auth0|1", azp: "claude-client" });
+
+            const user = await authIdentityService.resolveForAudience(
+                "token",
+                "provider-id",
+                mcpAudience,
+            );
+
+            expect(mockJwtService.verifyAsync.mock.calls[0][1].audience).toBe(
+                "https://api.example.org/mcp/provider-id",
+            );
+            // The CMS client pin doesn't apply: MCP clients register their own client ids.
+            expect(user.jwtPayload.azp).toBe("claude-client");
+            expect(user.anonymous).toBeUndefined();
+        });
+
+        it("enforces a client allowlist when one is set", async () => {
+            mockJwtService.verifyAsync = jest
+                .fn()
+                .mockResolvedValue({ sub: "auth0|1", azp: "unknown-client" });
+
+            await expect(
+                authIdentityService.resolveForAudience("token", "provider-id", {
+                    ...mcpAudience,
+                    allowedClientIds: ["claude-client"],
+                }),
+            ).rejects.toMatchObject({ reason: "token_invalid" });
+        });
+
+        it("rejects a token without a client id when an allowlist is set", async () => {
+            mockJwtService.verifyAsync = jest.fn().mockResolvedValue({ sub: "auth0|1" });
+
+            await expect(
+                authIdentityService.resolveForAudience("token", "provider-id", {
+                    ...mcpAudience,
+                    allowedClientIds: ["claude-client"],
+                }),
+            ).rejects.toThrow("Invalid authentication token");
+        });
+
+        it("keeps the CMS client pin on the default path", async () => {
+            mockJwtService.verifyAsync = jest
+                .fn()
+                .mockResolvedValue({ sub: "auth0|1", azp: "claude-client" });
+
+            await expect(
+                authIdentityService.resolveOrDefault("token", "provider-id"),
+            ).rejects.toMatchObject({ reason: "token_invalid" });
+            expect(mockJwtService.verifyAsync.mock.calls[0][1].audience).toBe(
+                "https://api.example.org",
+            );
+        });
+
+        it("refuses an id that belongs to another doc type", async () => {
+            mockDbService.getDoc = jest
+                .fn()
+                .mockResolvedValue({ docs: [{ ...provider, type: DocType.Post }] });
+
+            await expect(
+                authIdentityService.resolveForAudience("token", "provider-id", mcpAudience),
+            ).rejects.toThrow("Invalid authentication token");
+            expect(mockJwtService.verifyAsync).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("getProvider", () => {
+        it("returns AuthProvider docs only", async () => {
+            mockDbService.getDoc = jest.fn().mockResolvedValue({
+                docs: [{ _id: "p", type: DocType.Post, domain: "x" }],
+            });
+            expect(await authIdentityService.getProvider("p")).toBeUndefined();
+        });
+
+        it("remembers unknown ids briefly, so repeated probes don't each hit the database", async () => {
+            mockDbService.getDoc = jest.fn().mockResolvedValue({ docs: [] });
+
+            expect(await authIdentityService.getProvider("nope")).toBeUndefined();
+            expect(await authIdentityService.getProvider("nope")).toBeUndefined();
+            expect(mockDbService.getDoc).toHaveBeenCalledTimes(1);
+        });
+    });
+
     // ── resolveOrDefault error-reason discrimination ─────────────────────────
 
     describe("resolveOrDefault auth failure reasons", () => {

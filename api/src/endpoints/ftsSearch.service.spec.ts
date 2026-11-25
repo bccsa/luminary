@@ -734,4 +734,43 @@ describe("FtsSearchService", () => {
             );
         });
     });
+
+    describe("McpView read mode", () => {
+        it("gates Content searches on McpView with CMS visibility", async () => {
+            await service.search(makeReq({ status: PublishStatus.Draft }), mockUser, { mcp: true });
+            expect(permissions.PermissionSystem.accessMapToGroups).toHaveBeenCalledWith(
+                mockUser.accessMap,
+                AclPermission.McpView,
+                [DocType.Post, DocType.Tag, DocType.Language],
+            );
+        });
+
+        it("gates aux (User) searches on McpView", async () => {
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValue({
+                [DocType.User]: ["group-user"],
+            } as any);
+            await service.search(makeReq({ types: [DocType.User] }), mockUser, { mcp: true });
+            expect(permissions.PermissionSystem.accessMapToGroups).toHaveBeenCalledWith(
+                mockUser.accessMap,
+                AclPermission.McpView,
+                [DocType.User],
+            );
+        });
+
+        it("throws 403 when the user has McpView on no Language", async () => {
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValue({
+                [DocType.Post]: [POST_GROUP],
+            } as any);
+            await expect(service.search(makeReq(), mockUser, { mcp: true })).rejects.toThrow(
+                "Forbidden",
+            );
+        });
+
+        it("still skips the Language check for cms:true searches", async () => {
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValue({
+                [DocType.Post]: [POST_GROUP],
+            } as any);
+            await expect(service.search(makeReq({ cms: true }), mockUser)).resolves.toEqual([]);
+        });
+    });
 });

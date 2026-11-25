@@ -178,6 +178,48 @@ describe("IdentityCacheService", () => {
         });
     });
 
+    describe("resolveForMcp", () => {
+        const audience = { audience: "https://api.test/mcp/p" };
+
+        function withMcp(svc: IdentityCacheService, authIdentity: any) {
+            authIdentity.resolveForAudience = jest.fn().mockResolvedValue(authResult().userDetails);
+            return authIdentity.resolveForAudience as jest.Mock;
+        }
+
+        it("caches MCP identities under their own keys, apart from REST/socket ones", async () => {
+            const { svc, authIdentity } = makeService(cacheCfg);
+            const resolveForAudience = withMcp(svc, authIdentity);
+
+            await svc.resolveOrDefault("t", "p");
+            await svc.resolveForMcp("t", "p", audience);
+            await svc.resolveForMcp("t", "p", audience);
+
+            expect(authIdentity.resolveOrDefault).toHaveBeenCalledTimes(1);
+            expect(resolveForAudience).toHaveBeenCalledTimes(1);
+            expect(resolveForAudience).toHaveBeenCalledWith("t", "p", audience);
+        });
+
+        it("does not cache failures and never falls back to anonymous", async () => {
+            const { svc, authIdentity } = makeService(cacheCfg);
+            const resolveForAudience = withMcp(svc, authIdentity);
+            resolveForAudience.mockRejectedValue(new Error("Invalid authentication token"));
+
+            await expect(svc.resolveForMcp("bad", "p", audience)).rejects.toThrow();
+            await expect(svc.resolveForMcp("bad", "p", audience)).rejects.toThrow();
+            expect(resolveForAudience).toHaveBeenCalledTimes(2);
+        });
+
+        it("is cleared with the rest of the cache", async () => {
+            const { svc, authIdentity } = makeService(cacheCfg);
+            const resolveForAudience = withMcp(svc, authIdentity);
+
+            await svc.resolveForMcp("t", "p", audience);
+            svc.invalidate();
+            await svc.resolveForMcp("t", "p", audience);
+            expect(resolveForAudience).toHaveBeenCalledTimes(2);
+        });
+    });
+
     describe("invalidation", () => {
         const seed = async (svc: IdentityCacheService) => {
             await svc.resolveOrDefault("t", "p"); // miss → cache

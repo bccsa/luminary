@@ -17,6 +17,7 @@ import { StorageDto } from "../dto/StorageDto";
 import { AuthProviderDto } from "../dto/AuthProviderDto";
 import { AutoGroupMappingsDto } from "../dto/AutoGroupMappingsDto";
 import { DefaultAffinityDto } from "../dto/DefaultAffinityDto";
+import { mcpProviderConfigError } from "../mcp/mcpProviderConfig";
 /**
  * DocType to DTO map
  */
@@ -130,6 +131,16 @@ export async function validateChangeRequest(
 
     if (!validationResult.validated) {
         return validationResult;
+    }
+
+    if (changeRequest.doc.type === DocType.AuthProvider) {
+        const mcpError = mcpProviderConfigError(doc as unknown as AuthProviderDto);
+        if (mcpError) {
+            return {
+                validated: false,
+                error: `Submitted "${changeRequest.doc.type}" document validation failed:\n${mcpError}`,
+            };
+        }
     }
 
     // Replace the included document in the change request with the validated document

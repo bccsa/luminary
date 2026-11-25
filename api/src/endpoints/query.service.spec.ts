@@ -955,6 +955,148 @@ describe("QueryService", () => {
         });
     });
 
+    describe("McpView read mode", () => {
+        it("gates on McpView and forces CMS visibility", async () => {
+            const access = {
+                [DocType.Post]: ["gp1"],
+                [DocType.Language]: ["lang-g1"],
+            } as any;
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(
+                access,
+            );
+            (service as any).languages = [{ _id: "lang-eng", memberOf: ["lang-g1"] }];
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Content;
+                (s as any).parentType = DocType.Post;
+            });
+            const draft = { _id: "c1", type: DocType.Content, status: PublishStatus.Draft };
+            dbService.executeFindQuery.mockResolvedValueOnce({ docs: [draft] });
+
+            const res = await service.query(query, mockUser, { mcp: true });
+
+            expect(permissions.PermissionSystem.accessMapToGroups).toHaveBeenCalledWith(
+                mockUser.accessMap,
+                AclPermission.McpView,
+                expect.any(Array),
+            );
+            const sent = dbService.executeFindQuery.mock.calls[0][0];
+            expect(JSON.stringify(sent.selector)).not.toContain(PublishStatus.Published);
+            expect(res.docs[0]).toEqual(draft);
+        });
+
+        it("throws 403 for content when the user has McpView on no Language", async () => {
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce({
+                [DocType.Post]: ["gp1"],
+            } as any);
+            (service as any).languages = [{ _id: "lang-eng", memberOf: ["lang-g1"] }];
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Content;
+                (s as any).parentType = DocType.Post;
+            });
+
+            await expect(service.query(query, mockUser, { mcp: true })).rejects.toEqual(
+                new HttpException("Forbidden", HttpStatus.FORBIDDEN),
+            );
+        });
+
+        it("keeps CmsView for cms:true requests without the MCP option", async () => {
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce({
+                [DocType.Post]: ["a"],
+            } as any);
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Post;
+            });
+            (query as any).cms = true;
+            (query as any).mcp = true; // a body field never switches the mode
+            await service.query(query, mockUser);
+
+            expect(permissions.PermissionSystem.accessMapToGroups).toHaveBeenCalledWith(
+                mockUser.accessMap,
+                AclPermission.CmsView,
+                expect.any(Array),
+            );
+        });
+    });
+
+    describe("filterReadable (direct reads by id)", () => {
+        const groups = {
+            [DocType.Post]: ["gp"],
+            [DocType.Tag]: ["gt"],
+            [DocType.Language]: ["gl"],
+            [DocType.Redirect]: ["gr"],
+        };
+
+        beforeEach(() => {
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValue(groups);
+            (service as any).languages = [
+                { _id: "lang-eng", type: DocType.Language, memberOf: ["gl"] },
+            ];
+        });
+
+        it("gates on McpView in MCP mode and CmsView otherwise", () => {
+            service.filterReadable([], mockUser, { mcp: true });
+            service.filterReadable([], mockUser);
+
+            const calls = (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mock.calls;
+            expect(calls[0][1]).toBe(AclPermission.McpView);
+            expect(calls[1][1]).toBe(AclPermission.CmsView);
+        });
+
+        it("keeps docs whose memberOf overlaps the readable groups of their type", () => {
+            const docs = [
+                { _id: "p1", type: DocType.Post, memberOf: ["gp"] },
+                { _id: "p2", type: DocType.Post, memberOf: ["other"] },
+                { _id: "r1", type: DocType.Redirect, memberOf: ["gr"] },
+                { _id: "t1", type: DocType.Tag, memberOf: ["gp"] }, // Post group, not Tag
+            ];
+            expect(service.filterReadable(docs, mockUser, { mcp: true }).map((d) => d._id)).toEqual(
+                ["p1", "r1"],
+            );
+        });
+
+        it("drops internal doc types even when memberOf would match", () => {
+            const docs = [DocType.Crypto, DocType.Sidecar, DocType.DeleteCmd, DocType.Change].map(
+                (type) => ({ _id: type, type, memberOf: ["gp", "gt", "gl", "gr"] }),
+            );
+            expect(service.filterReadable(docs, mockUser, { mcp: true })).toEqual([]);
+        });
+
+        it("reads Content through its parent type and requires a readable Language", () => {
+            const docs = [
+                { _id: "c1", type: DocType.Content, parentType: DocType.Post, memberOf: ["gp"] },
+                { _id: "c2", type: DocType.Content, parentType: DocType.Tag, memberOf: ["gp"] },
+                {
+                    _id: "c3",
+                    type: DocType.Content,
+                    parentType: DocType.Language,
+                    memberOf: ["gp"],
+                },
+            ];
+            expect(service.filterReadable(docs, mockUser, { mcp: true }).map((d) => d._id)).toEqual(
+                ["c1"],
+            );
+
+            (service as any).languages = [{ _id: "lang-eng", memberOf: ["unreadable"] }];
+            expect(service.filterReadable(docs, mockUser, { mcp: true })).toEqual([]);
+        });
+
+        it("fetches by id only for readable doc types", async () => {
+            (dbService as any).getDocs = jest.fn().mockResolvedValue({
+                docs: [{ _id: "p1", type: DocType.Post, memberOf: ["gp"] }],
+            });
+
+            const docs = await service.getReadableDocs(["p1"], mockUser, { mcp: true });
+
+            expect(docs.map((d) => d._id)).toEqual(["p1"]);
+            const types = (dbService as any).getDocs.mock.calls[0][1];
+            expect(types).not.toContain(DocType.Crypto);
+            expect(types).not.toContain(DocType.Sidecar);
+        });
+    });
+
     // Internal doc types must never be bulk-extractable via /query; the gate sits
     // after selector expansion so nesting can't evade it.
     describe("internal doc-type gate", () => {

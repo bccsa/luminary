@@ -120,6 +120,14 @@ export type AudioS3Config = {
     audioBucket: string;
 };
 
+export type McpConfig = {
+    /**
+     * Per-identity cap on MCP tool calls (AI clients). Defaults ON: every tool call counts.
+     * Environment variable: MCP_RATE_LIMIT_ENABLED (and the other MCP_RATE_LIMIT_* settings).
+     */
+    rateLimit: RateLimiterConfig;
+};
+
 export type ChangeRequestConfig = {
     /**
      * Per-identity cap on POST /changerequest. Defaults ON with a generous burst/rate so normal
@@ -141,6 +149,7 @@ export type Configuration = {
     query?: QueryConfig;
     sidecar?: SidecarConfig;
     changeRequest?: ChangeRequestConfig;
+    mcp?: McpConfig;
     imageProcessing?: ImageProcessingConfig;
     socketIo?: SocketIoConfig;
     validation?: ValidationConfig;
@@ -218,6 +227,16 @@ export default () =>
                 strikeDecayMs: 100,
             }),
         } as ChangeRequestConfig,
+        mcp: {
+            // Burst of 120 tool calls then ~2/s sustained: agents loop far faster than editors click
+            rateLimit: rateLimitFromEnv("MCP_RATE_LIMIT", {
+                enabled: true,
+                freeStrikes: 120,
+                baseBackoffMs: 1000,
+                maxBackoffMs: 60000,
+                strikeDecayMs: 500,
+            }),
+        } as McpConfig,
         imageProcessing: {
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
         } as ImageProcessingConfig,

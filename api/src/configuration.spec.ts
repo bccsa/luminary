@@ -120,6 +120,32 @@ describe("configuration", () => {
         expect(config.query.expensiveDocsExamined).toBe(2000);
     });
 
+    it("should default the MCP rate-limit config to enabled", () => {
+        delete process.env.MCP_RATE_LIMIT_ENABLED;
+        delete process.env.MCP_RATE_LIMIT_FREE_STRIKES;
+
+        const config = configuration();
+        expect(config.mcp.rateLimit).toEqual({
+            enabled: true,
+            freeStrikes: 120,
+            baseBackoffMs: 1000,
+            maxBackoffMs: 60000,
+            strikeDecayMs: 500,
+        });
+    });
+
+    it("should only disable the MCP rate limit when explicitly set to false", () => {
+        process.env.MCP_RATE_LIMIT_ENABLED = "false";
+        process.env.MCP_RATE_LIMIT_FREE_STRIKES = "10";
+
+        const config = configuration();
+        expect(config.mcp.rateLimit.enabled).toBe(false);
+        expect(config.mcp.rateLimit.freeStrikes).toBe(10);
+
+        delete process.env.MCP_RATE_LIMIT_ENABLED;
+        delete process.env.MCP_RATE_LIMIT_FREE_STRIKES;
+    });
+
     it("should default the sidecar rate-limit config to enabled", () => {
         delete process.env.SIDECAR_RATE_LIMIT_READ_ENABLED;
         delete process.env.SIDECAR_RATE_LIMIT_READ_FREE_STRIKES;

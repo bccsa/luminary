@@ -22,6 +22,9 @@ import { IdentityCacheService } from "./auth/identityCache.service";
 import { QueryRateLimiterService } from "./ratelimit/queryRateLimiter.service";
 import { ChangeRequestRateLimiterService } from "./ratelimit/changeRequestRateLimiter.service";
 import { SidecarRateLimiterService } from "./ratelimit/sidecarRateLimiter.service";
+import { McpRateLimiterService } from "./ratelimit/mcpRateLimiter.service";
+import { McpController } from "./mcp/mcp.controller";
+import { McpService } from "./mcp/mcp.service";
 
 let winstonTransport: winston.transport;
 if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
@@ -64,6 +67,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         StorageStatusController,
         EncoderConfigController,
         SidecarController,
+        McpController,
     ],
     providers: [
         DbService,
@@ -73,6 +77,8 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         QueryRateLimiterService,
         SidecarRateLimiterService,
         ChangeRequestRateLimiterService,
+        McpRateLimiterService,
+        McpService,
         FtsSearchService,
         ChangeRequestService,
         AuthIdentityService,

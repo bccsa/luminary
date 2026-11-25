@@ -10,6 +10,7 @@ export const availablePermissionsPerDocType = {
         AclPermission.Delete,
         AclPermission.Assign,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.Language]: [
         AclPermission.View,
@@ -18,6 +19,7 @@ export const availablePermissionsPerDocType = {
         AclPermission.Assign,
         AclPermission.Translate,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.Post]: [
         AclPermission.View,
@@ -27,6 +29,7 @@ export const availablePermissionsPerDocType = {
         AclPermission.Publish,
         AclPermission.Share,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.Tag]: [
         AclPermission.View,
@@ -37,18 +40,21 @@ export const availablePermissionsPerDocType = {
         AclPermission.Publish,
         AclPermission.Share,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.User]: [
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.Redirect]: [
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.Storage]: [
         AclPermission.View,
@@ -56,6 +62,7 @@ export const availablePermissionsPerDocType = {
         AclPermission.Assign,
         AclPermission.Delete,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.AuthProvider]: [
         AclPermission.View,
@@ -63,6 +70,7 @@ export const availablePermissionsPerDocType = {
         AclPermission.Delete,
         AclPermission.Assign,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.AutoGroupMappings]: [
         AclPermission.View,
@@ -70,8 +78,14 @@ export const availablePermissionsPerDocType = {
         AclPermission.Delete,
         AclPermission.Assign,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
-    [DocType.DefaultAffinity]: [AclPermission.View, AclPermission.Edit, AclPermission.CmsView],
+    [DocType.DefaultAffinity]: [
+        AclPermission.View,
+        AclPermission.Edit,
+        AclPermission.CmsView,
+        AclPermission.McpView,
+    ],
 };
 
 /**
@@ -159,6 +173,15 @@ export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: Group
         aclEntry.permission.some((p) => cmsOnlyPermissions.includes(p)) &&
         !aclEntry.permission.includes(AclPermission.CmsView) &&
         aclEntry.permission.includes(AclPermission.View)
+    ) {
+        aclEntry.permission.push(AclPermission.CmsView);
+    }
+
+    // McpView implies CmsView (MCP access never reaches further than CMS access). The server
+    // applies this too, so it can't be removed while McpView is set.
+    if (
+        aclEntry.permission.includes(AclPermission.McpView) &&
+        !aclEntry.permission.includes(AclPermission.CmsView)
     ) {
         aclEntry.permission.push(AclPermission.CmsView);
     }

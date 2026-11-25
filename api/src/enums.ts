@@ -81,6 +81,12 @@ export enum AclPermission {
      * Gates all CMS-scoped (cms:true) reads/sync; the app uses plain View (published only).
      */
     CmsView = "cmsView",
+
+    /**
+     * Access to documents through the MCP server (AI clients such as Claude or ChatGPT), with the
+     * same visibility as CmsView. Never granted implicitly; granting it implies CmsView.
+     */
+    McpView = "mcpView",
 }
 
 /**

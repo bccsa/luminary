@@ -7,57 +7,75 @@
         {
             "type": "post",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "translate", "publish", "cmsView"]
+            "permission": ["view", "edit", "delete", "translate", "publish", "cmsView", "mcpView"]
         },
         {
             "type": "tag",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign", "translate", "publish", "cmsView"]
+            "permission": [
+                "view",
+                "edit",
+                "delete",
+                "assign",
+                "translate",
+                "publish",
+                "cmsView",
+                "mcpView"
+            ]
         },
         {
             "type": "group",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign", "cmsView"]
+            "permission": ["view", "edit", "delete", "assign", "cmsView", "mcpView"]
         },
         {
             "type": "user",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "cmsView"]
+            "permission": ["view", "edit", "cmsView", "mcpView"]
         },
         {
             "type": "language",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign", "translate", "cmsView"]
+            "permission": ["view", "edit", "delete", "assign", "translate", "cmsView", "mcpView"]
         },
         {
             "type": "redirect",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign", "translate", "publish", "cmsView"]
+            "permission": [
+                "view",
+                "edit",
+                "delete",
+                "assign",
+                "translate",
+                "publish",
+                "cmsView",
+                "mcpView"
+            ]
         },
         {
             "type": "user",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "cmsView"]
+            "permission": ["view", "edit", "delete", "cmsView", "mcpView"]
         },
         {
             "type": "storage",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign", "cmsView"]
+            "permission": ["view", "edit", "delete", "assign", "cmsView", "mcpView"]
         },
         {
             "type": "authProvider",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign", "cmsView"]
+            "permission": ["view", "edit", "delete", "assign", "cmsView", "mcpView"]
         },
         {
             "type": "autoGroupMappings",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign", "cmsView"]
+            "permission": ["view", "edit", "delete", "assign", "cmsView", "mcpView"]
         },
         {
             "type": "defaultAffinity",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign", "cmsView"]
+            "permission": ["view", "edit", "delete", "assign", "cmsView", "mcpView"]
         }
     ]
 }
