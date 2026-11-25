@@ -51,6 +51,8 @@ import {
     type ScrubPosition,
 } from "@/media-player/player";
 import { StripSpin } from "@/media-player/player/ui/stripSpin";
+import ScrubWaveform from "@/media-player/player/components/ScrubWaveform.vue";
+import { WAVE_TILE_PX, useWaveform, waveBars, waveTint } from "@/media-player/player/ui/waveform";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
 import MediaPlayerWrapper from "@/media-player/MediaPlayerWrapper.vue";
@@ -712,7 +714,27 @@ function buildRoster(time: number, markerX: number, step: number, width = pictur
             cue: instance.thumbnailAt(tile.time),
         }),
     );
-    return { tiles, tileWidth, height, markerX, time, step };
+    // The sound's waveform over the frames, at their own scale, so each bar stands over its moment.
+    const wave = waveform.value;
+    const timeline = engine.value?.playback?.timeline;
+    const bars =
+        wave && !live.value
+            ? waveBars(wave, {
+                  time,
+                  markerX,
+                  width,
+                  duration: duration.value,
+                  step,
+                  pxPerSecond: tileWidth / step,
+                  ...(timeline
+                      ? {
+                            toFull: (local: number) => timeline.toFull(local),
+                            fullDuration: timeline.fullDuration,
+                        }
+                      : {}),
+              })
+            : null;
+    return { tiles, tileWidth, height, markerX, time, step, waveBars: bars };
 }
 
 /**
@@ -721,7 +743,12 @@ function buildRoster(time: number, markerX: number, step: number, width = pictur
  */
 const nowPlayingScrub = ref<ScrubPosition | null>(null);
 /** The strip a tap on the now-playing timeline holds open, for slow scrubbing, as in full-screen. */
-const nowPlayingPin = ref<{ width: number; bottom: number; markerX: number } | null>(null);
+const nowPlayingPin = ref<{
+    width: number;
+    bottom: number;
+    markerX: number;
+    left: number;
+} | null>(null);
 const nowPlayingRoster = computed(() => {
     if (audioMode.value || !state.value?.thumbnailsReady || nowPlayingScrub.value) return null;
     const pin = nowPlayingPin.value;
@@ -734,6 +761,47 @@ const nowPlayingRoster = computed(() => {
     );
     return roster && { ...roster, bottom: pin.bottom };
 });
+
+/** Sound alone's loudness curve, for the strip a tap on the now-playing timeline opens in place of frames. */
+const waveform = useWaveform(computed(() => engine.value?.waveformUrl));
+const waveStrip = computed(() => !!waveform.value && !live.value && duration.value > 0);
+/** The waveform a tap on the now-playing timeline holds open, scrubbed as the frames are. */
+const nowPlayingWave = computed(() => {
+    const pin = nowPlayingPin.value;
+    const wave = waveform.value;
+    if (!audioMode.value || !pin || !wave || !waveStrip.value) return null;
+    const time = pinnedTime.value;
+    const step = rosterFineStep(duration.value);
+    const timeline = engine.value?.playback?.timeline;
+    const bars = waveBars(wave, {
+        time,
+        markerX: pin.markerX,
+        width: pin.width,
+        duration: duration.value,
+        step,
+        ...(timeline
+            ? {
+                  toFull: (local: number) => timeline.toFull(local),
+                  fullDuration: timeline.fullDuration,
+              }
+            : {}),
+    });
+    return {
+        bars,
+        time,
+        step,
+        tileWidth: WAVE_TILE_PX,
+        markerX: pin.markerX,
+        height: rosterHeightFor(pin.width),
+        bottom: pin.bottom,
+        left: pin.left,
+        width: pin.width,
+    };
+});
+/** The wide window's own sound screen is up over the card: the strip is drawn in it, not in the screen under it. */
+const overlayHoldsStrip = computed(() => audioFullscreen.value && !nowPlaying.value);
+/** The now-playing strip up: frames, or with sound alone its waveform. */
+const nowPlayingStrip = computed(() => nowPlayingWave.value ?? nowPlayingRoster.value);
 let nowPlayingStartX = 0;
 /** The frames up are the player's, which a tap on its bar opened and which it closes. */
 let heldByPlayer = false;
@@ -750,6 +818,7 @@ function onNowPlayingScrub(position: ScrubPosition | null) {
             width: position.width,
             bottom: position.bottom,
             markerX: position.markerX,
+            left: position.left ?? 0,
         };
         anchorPin(position.time);
         return;
@@ -872,9 +941,7 @@ const heldRoster = computed(() => {
 });
 
 /** The pinned frames being dragged: the desktop strip over the picture, or the now-playing screen's. */
-const dragRoster = computed(() =>
-    nowPlayingPin.value ? nowPlayingRoster.value : heldRoster.value,
-);
+const dragRoster = computed(() => (nowPlayingPin.value ? nowPlayingStrip.value : heldRoster.value));
 
 /**
  * The time the frame over the picture is for: while the bar is held or the pinned frames are dragged, on
@@ -1712,6 +1779,8 @@ watch(
 // --- the now-playing screen on a phone -----------------------------------------------------------
 
 const nowPlayingHash = computed(() => thumbHashOf(content.value));
+/** The waveform's bars take on the artwork's colours, as the wash behind them does. */
+const waveformTint = computed(() => waveTint(nowPlayingHash.value));
 
 const platformChrome = inject(PlatformChromeKey, null);
 const soundScreen = computed(() => nowPlaying.value && expanded.value && audioMode.value);
@@ -2566,6 +2635,7 @@ function onKeydown(event: KeyboardEvent) {
                     :skip-forward-seconds="SKIP_SECONDS"
                     :chapter-mask="screenChapterMask"
                     :thumbnail-at="chapterThumbnailAt"
+                    :host-strip="audioMode ? waveStrip : undefined"
                     :messages="screenMessages"
                     :subtitle-tracks="state?.subtitleTracks ?? []"
                     :active-subtitle-track-id="state?.activeSubtitleTrackId ?? null"
@@ -2617,9 +2687,29 @@ function onKeydown(event: KeyboardEvent) {
                             <component :is="AutoplayModePill" :mode="autoplayModeShown" />
                         </button>
                     </template>
-                    <template v-if="nowPlayingRoster" #roster>
+                    <template v-if="nowPlayingStrip && !overlayHoldsStrip" #roster>
+                        <ScrubWaveform
+                            v-if="nowPlayingWave"
+                            :bars="nowPlayingWave.bars"
+                            :marker-x="nowPlayingWave.markerX"
+                            :height="nowPlayingWave.height"
+                            :bottom="nowPlayingWave.bottom"
+                            :left="nowPlayingWave.left"
+                            :strip-width="nowPlayingWave.width"
+                            :tint="waveformTint"
+                            interactive
+                            :ref="(el) => (rosterEl = ((el as any)?.$el as HTMLElement) ?? null)"
+                            data-test="mediaPlayerNowPlayingWave"
+                            @pointerdown.stop="onRosterDown"
+                            @pointermove.stop="onRosterMove"
+                            @pointerup.stop="onRosterUp"
+                            @pointercancel.stop="onRosterUp"
+                        />
                         <ScrubRoster
+                            v-else-if="nowPlayingRoster"
                             :tiles="nowPlayingRoster.tiles"
+                            :wave-bars="nowPlayingRoster.waveBars"
+                            :wave-tint="waveformTint"
                             :tile-width="nowPlayingRoster.tileWidth"
                             :height="nowPlayingRoster.height"
                             :marker-x="nowPlayingRoster.markerX"
@@ -2636,7 +2726,13 @@ function onKeydown(event: KeyboardEvent) {
                             type="button"
                             class="lmpl-afs-stripclose"
                             :style="{
-                                '--lmpl-strip-top-from-bottom': `${nowPlayingRoster.bottom + nowPlayingRoster.height}px`,
+                                '--lmpl-strip-top-from-bottom': `${nowPlayingStrip.bottom + nowPlayingStrip.height}px`,
+                                ...(nowPlayingWave?.left
+                                    ? {
+                                          right: 'auto',
+                                          left: `${nowPlayingWave.left + nowPlayingWave.width - 40}px`,
+                                      }
+                                    : {}),
                             }"
                             :aria-label="known('media_player.close_frames') ?? 'Close the frames'"
                             data-test="mediaPlayerStripClose"
@@ -2889,6 +2985,8 @@ function onKeydown(event: KeyboardEvent) {
                 >
                     <ScrubRoster
                         :tiles="heldRoster.tiles"
+                        :wave-bars="heldRoster.waveBars"
+                        :wave-tint="waveformTint"
                         :tile-width="heldRoster.tileWidth"
                         :height="rosterHeight"
                         :marker-x="heldRoster.markerX"
@@ -3564,7 +3662,11 @@ function onKeydown(event: KeyboardEvent) {
                 :playing-height="handle?.playingHeight"
                 :playing-bandwidth="handle?.playingBandwidth"
                 :data-saver="playbackDataSaverLevel"
+                :host-strip="waveStrip"
                 fullscreen-active
+                @play="handle?.play()"
+                @pause="handle?.pause()"
+                @scrub="onNowPlayingScrub"
                 @fullscreen="audioFullscreen = false"
                 @exit="audioFullscreen = false"
                 @toggle-play="togglePlay"
@@ -3583,6 +3685,70 @@ function onKeydown(event: KeyboardEvent) {
                 @quality="(id) => controller?.setQuality(id)"
                 @data-saver="pickDataSaver"
             >
+                <template v-if="nowPlayingStrip && overlayHoldsStrip" #roster>
+                    <ScrubWaveform
+                        v-if="nowPlayingWave"
+                        :bars="nowPlayingWave.bars"
+                        :marker-x="nowPlayingWave.markerX"
+                        :height="nowPlayingWave.height"
+                        :bottom="nowPlayingWave.bottom"
+                        :left="nowPlayingWave.left"
+                        :strip-width="nowPlayingWave.width"
+                        :tint="waveformTint"
+                        interactive
+                        :ref="(el) => (rosterEl = ((el as any)?.$el as HTMLElement) ?? null)"
+                        data-test="mediaPlayerNowPlayingWave"
+                        @pointerdown.stop="onRosterDown"
+                        @pointermove.stop="onRosterMove"
+                        @pointerup.stop="onRosterUp"
+                        @pointercancel.stop="onRosterUp"
+                    />
+                    <ScrubRoster
+                        v-else-if="nowPlayingRoster"
+                        :tiles="nowPlayingRoster.tiles"
+                        :wave-bars="nowPlayingRoster.waveBars"
+                        :wave-tint="waveformTint"
+                        :tile-width="nowPlayingRoster.tileWidth"
+                        :height="nowPlayingRoster.height"
+                        :marker-x="nowPlayingRoster.markerX"
+                        :bottom="nowPlayingRoster.bottom"
+                        interactive
+                        :ref="(el) => (rosterEl = ((el as any)?.$el as HTMLElement) ?? null)"
+                        data-test="mediaPlayerNowPlayingRoster"
+                        @pointerdown.stop="onRosterDown"
+                        @pointermove.stop="onRosterMove"
+                        @pointerup.stop="onRosterUp"
+                        @pointercancel.stop="onRosterUp"
+                    />
+                    <button
+                        type="button"
+                        class="lmpl-afs-stripclose"
+                        :style="{
+                            '--lmpl-strip-top-from-bottom': `${nowPlayingStrip.bottom + nowPlayingStrip.height}px`,
+                            ...(nowPlayingWave?.left
+                                ? {
+                                      right: 'auto',
+                                      left: `${nowPlayingWave.left + nowPlayingWave.width - 40}px`,
+                                  }
+                                : {}),
+                        }"
+                        :aria-label="known('media_player.close_frames') ?? 'Close the frames'"
+                        data-test="mediaPlayerStripClose"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            width="18"
+                            height="18"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.2"
+                            stroke-linecap="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M6 6l12 12M18 6L6 18" />
+                        </svg>
+                    </button>
+                </template>
                 <template #audio-tool>
                     <MediaPlayerVolume
                         v-if="volumeCardWanted"

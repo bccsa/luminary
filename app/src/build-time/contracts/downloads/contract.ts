@@ -359,6 +359,8 @@ export type DownloadPlaybackSession = {
     keyHex?: string;
     /** The stored scrub frames, for the player's sidecar in place of the online one. */
     thumbnailsUrl?: string;
+    /** The stored loudness curve, for the waveform scrub in place of the online one. */
+    waveformUrl?: string;
     /** The stored artwork, for the lock screen and the now-playing screen. */
     artworkUrl?: string;
     timeline: DownloadTimeline;
@@ -556,6 +558,7 @@ export type DownloadPlayback = {
     readonly masterUrl: string;
     readonly keyHex?: string;
     readonly thumbnailsUrl?: string;
+    readonly waveformUrl?: string;
     readonly artworkUrl?: string;
     readonly timeline: DownloadTimeline;
     /** For a session the player never loaded. */

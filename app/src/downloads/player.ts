@@ -213,6 +213,7 @@ export function createPlayerHooks(ctx: PlayerContext): DownloadsPlayerHooks {
             masterUrl: session.masterUrl,
             ...(session.keyHex ? { keyHex: session.keyHex } : {}),
             ...(session.thumbnailsUrl ? { thumbnailsUrl: session.thumbnailsUrl } : {}),
+            ...(session.waveformUrl ? { waveformUrl: session.waveformUrl } : {}),
             ...(session.artworkUrl ? { artworkUrl: session.artworkUrl } : {}),
             timeline: session.timeline,
             async close() {

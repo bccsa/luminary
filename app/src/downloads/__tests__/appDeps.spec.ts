@@ -147,6 +147,7 @@ describe("resolveSource", () => {
             keyHex: "cd".repeat(16),
             chaptersUrl: "https://cdn.example.org/post-1/chapters/en.vtt",
             thumbnailsUrl: "https://cdn.example.org/post-1/thumbnails/thumbnails.vtt",
+            waveformUrl: "https://cdn.example.org/post-1/waveform.json",
             artworkUrls: [],
         });
     });

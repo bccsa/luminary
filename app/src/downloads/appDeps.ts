@@ -93,6 +93,7 @@ async function resolveSource(content: ContentDto): Promise<DownloadSource | unde
         ...(keyHex ? { keyHex } : {}),
         chaptersUrl: `${folder}/chapters/${CHAPTERS_LANGUAGE}.vtt`,
         thumbnailsUrl: `${folder}/thumbnails/thumbnails.vtt`,
+        waveformUrl: `${folder}/waveform.json`,
         artworkUrls: artwork ? [artwork] : [],
     };
 }

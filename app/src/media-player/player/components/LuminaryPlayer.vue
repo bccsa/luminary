@@ -72,6 +72,7 @@ import { TimelineScrub } from "../ui/timelineScrub";
 import { StripSpin } from "../ui/stripSpin";
 import ScrubThumbnail from "./ScrubThumbnail.vue";
 import ScrubRoster from "./ScrubRoster.vue";
+import { useWaveform, waveBars, type WaveBar } from "../ui/waveform";
 import ScrubPicture from "./ScrubPicture.vue";
 import NextUpThumb from "./NextUpThumb.vue";
 import AudioFullscreen from "./AudioFullscreen.vue";
@@ -901,6 +902,8 @@ interface ScrubState {
         gap: number;
         /** Gap, in px, between the container's bottom edge and the time label above the timeline. */
         labelBottom: number;
+        /** The sound's waveform over the frames; null without one. */
+        waveBars: WaveBar[] | null;
     } | null;
 }
 
@@ -1282,6 +1285,7 @@ function updateScrub(event: PointerEvent): void {
             tiles: roster.tiles,
             markerX: roster.markerX,
             tileWidth: roster.tileWidth,
+            waveBars: roster.waveBars,
             bottom: 0,
             height: roster.height,
             gap: heldGap ?? frame.bottom - restBarBottom,
@@ -1329,6 +1333,7 @@ function buildRoster(
     tileWidth: number;
     height: number;
     step: number;
+    waveBars: WaveBar[] | null;
 } | null {
     const sample = instance.thumbnailAt(0);
     if (!sample || !sample.w || !sample.h) return null;
@@ -1343,8 +1348,24 @@ function buildRoster(
         width: tile.width,
         cue: instance.thumbnailAt(tile.time),
     }));
-    return { tiles, markerX, tileWidth, height, step };
+    // The sound's waveform over the frames, at their own scale, so each bar stands over its moment.
+    const wave = waveform.value;
+    const bars =
+        wave && !state.value.live
+            ? waveBars(wave, {
+                  time,
+                  markerX,
+                  width,
+                  duration,
+                  step,
+                  pxPerSecond: tileWidth / step,
+              })
+            : null;
+    return { tiles, markerX, tileWidth, height, step, waveBars: bars };
 }
+
+/** The sound's loudness curve, drawn over the frames of the strips. */
+const waveform = useWaveform(computed(() => props.source.sidecars?.waveform?.url));
 
 // --- pinned roster ------------------------------------------------------------
 
@@ -2351,6 +2372,7 @@ defineExpose({
                 <template v-if="pinnedView">
                     <ScrubRoster
                         :tiles="pinnedView.tiles"
+                        :wave-bars="pinnedView.waveBars"
                         :tile-width="pinnedView.tileWidth"
                         :height="pinnedView.height"
                         :marker-x="pinnedView.markerX"
@@ -2380,6 +2402,7 @@ defineExpose({
                 <template v-if="scrub?.roster">
                     <ScrubRoster
                         :tiles="scrub.roster.tiles"
+                        :wave-bars="scrub.roster.waveBars"
                         :tile-width="scrub.roster.tileWidth"
                         :height="scrub.roster.height"
                         :marker-x="scrub.roster.markerX"

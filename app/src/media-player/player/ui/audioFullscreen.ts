@@ -38,12 +38,17 @@ export function formatMinutes(template: string, minutes: number): string {
     return template.replace("{minutes}", String(minutes));
 }
 
-/** The held bar's moment, and where the frames go: `markerX` and `width` in px from the screen's left, `bottom` above its bottom. */
+/**
+ * The held bar's moment, and where the frames go: a strip `width` px wide whose left edge is `left` px from the screen's
+ * left (0 when omitted), the marker `markerX` px from the strip's left, and `bottom` above the screen's bottom.
+ */
 export interface ScrubPosition {
     time: number;
     markerX: number;
     width: number;
     bottom: number;
+    /** On its side the sound's screen keeps the strip over its controls' column, clear of the cover. */
+    left?: number;
     /**
      * The player holds the strip open and closes it itself, holding and resuming playback as it does: a finger's tap
      * opened it. The host shows the frames while it is set, and leaves pausing, pinning and resuming to the player.

@@ -9,6 +9,7 @@ import { dataSaverLevel, subtitlePreference, userDataSaverEnabled } from "@/glob
 import { isPlayerSwap, clearSwaps } from "@/util/playerSwap";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import MediaPlayer from "../MediaPlayer.vue";
+import { clearWaveformCache } from "../player/ui/waveform";
 import LDialog from "@/components/common/LDialog.vue";
 import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 import { ScreenWakeKey } from "@/build-time/contracts/screen-wake/token";
@@ -54,6 +55,7 @@ const engine = vi.hoisted(() => ({
     playback: null as any,
     playingSource: undefined as "downloaded" | "online" | undefined,
     keyUnavailable: false,
+    waveformUrl: undefined as string | undefined,
 }));
 
 vi.mock("@luminary-media-converter/player-web", async () => {
@@ -118,6 +120,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 activeSubtitleTrackId: String,
                 canPictureInPicture: Boolean,
                 lyrics: Array,
+                hostStrip: { type: Boolean, default: undefined },
             },
             emits: [
                 "exit",
@@ -320,6 +323,9 @@ vi.mock("@/media-player/MediaPlayerWrapper.vue", async () => {
                     get keyUnavailable() {
                         return engine.keyUnavailable;
                     },
+                    get waveformUrl() {
+                        return engine.waveformUrl;
+                    },
                     player: engine.handle,
                     get inlineActive() {
                         return engine.inlineActive;
@@ -428,6 +434,7 @@ beforeEach(() => {
     engine.playback = null;
     engine.playingSource = undefined;
     engine.keyUnavailable = false;
+    engine.waveformUrl = undefined;
     playerNotice.value = null;
     autoplayDownloadedOnly.value = false;
     document.documentElement.classList.remove("lmc-inline-video");
@@ -1970,6 +1977,76 @@ describe("MediaPlayer", () => {
             expect(screen(wrapper).find("[data-test='mediaPlayerNowPlayingRoster']").exists()).toBe(
                 false,
             );
+        });
+
+        describe("with sound alone", () => {
+            const wave = (wrapper: VueWrapper) =>
+                screen(wrapper).find("[data-test='mediaPlayerNowPlayingWave']");
+            const listening = async () => {
+                openMediaPlayer(mockEnglishContentDto, "en", { audio: true });
+                const wrapper = await mountPlayer();
+                engine.state.activeAngleId = AUDIO;
+                engine.state.isAudioOnly = true;
+                await flushPromises();
+                return wrapper;
+            };
+            const tapHeld = (wrapper: VueWrapper) =>
+                screen(wrapper).vm.$emit("scrub", {
+                    time: 50,
+                    markerX: 120,
+                    width: 390,
+                    bottom: 200,
+                    held: true,
+                });
+
+            afterEach(() => {
+                clearWaveformCache();
+                vi.unstubAllGlobals();
+            });
+
+            it("shows the waveform a tap opened in the frames' place", async () => {
+                vi.stubGlobal(
+                    "fetch",
+                    vi.fn(async () => ({
+                        ok: true,
+                        json: async () => ({ version: 2, peaks: [0.2, 0.8, 0.5] }),
+                    })),
+                );
+                engine.waveformUrl = "https://bucket.example.com/media/abc/waveform.json";
+                engine.thumbnailsReady = true;
+                const wrapper = await listening();
+                await flushPromises();
+                expect(screen(wrapper).props("hostStrip")).toBe(true);
+
+                tapHeld(wrapper);
+                await flushPromises();
+                expect(wave(wrapper).exists()).toBe(true);
+                expect(
+                    screen(wrapper).find("[data-test='mediaPlayerNowPlayingRoster']").exists(),
+                ).toBe(false);
+
+                screen(wrapper).vm.$emit("scrub", null);
+                await flushPromises();
+                expect(wave(wrapper).exists()).toBe(false);
+            });
+
+            it("offers no strip without a waveform, so a tap thickens the bar", async () => {
+                vi.stubGlobal(
+                    "fetch",
+                    vi.fn(async () => ({ ok: false, json: async () => ({}) })),
+                );
+                engine.waveformUrl = "https://bucket.example.com/media/none/waveform.json";
+                engine.thumbnailsReady = true;
+                const wrapper = await listening();
+                await flushPromises();
+                expect(screen(wrapper).props("hostStrip")).toBe(false);
+            });
+
+            it("leaves the frames to decide with a picture", async () => {
+                engine.thumbnailsReady = true;
+                const wrapper = await playing();
+                expect(screen(wrapper).props("hostStrip")).toBeUndefined();
+            });
         });
 
         it("shows the frames a tap opened and leaves playback and closing to the player", async () => {

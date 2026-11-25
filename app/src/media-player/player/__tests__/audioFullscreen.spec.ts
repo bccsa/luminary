@@ -260,6 +260,45 @@ describe("AudioFullscreen — the transport", () => {
         expect(bar.classes()).not.toContain("lmpl-afs-bar-open");
     });
 
+    describe("the host's own strip", () => {
+        const tapBar = async (wrapper: ReturnType<typeof mountScreen>, pointerId: number) => {
+            const bar = find(wrapper, "afsBar");
+            bar.element.getBoundingClientRect = () => ({
+                left: 100,
+                width: 200,
+                top: 0,
+                height: 30,
+                right: 300,
+                bottom: 30,
+                x: 100,
+                y: 0,
+                toJSON: () => ({}),
+            });
+            await bar.trigger("pointerdown", { clientX: 250, pointerId, pointerType: "touch" });
+            await bar.trigger("pointerup", { clientX: 250, pointerId, pointerType: "touch" });
+            return bar;
+        };
+
+        it("a tap shows a strip the host has without frames, such as sound alone's waveform", async () => {
+            const wrapper = mountScreen();
+            await wrapper.setProps({ hostStrip: true });
+            const bar = await tapBar(wrapper, 20);
+            expect(wrapper.emitted("scrub")?.at(-1)?.[0]).toMatchObject({ held: true });
+            expect(bar.classes()).not.toContain("lmpl-afs-bar-open");
+        });
+
+        it("a host with no strip gets the thick bar, even with frames for the chapters", async () => {
+            const wrapper = mountScreen();
+            await wrapper.setProps({
+                hostStrip: false,
+                thumbnailAt: (() => ({ url: "sheet.jpg", x: 0, y: 0, w: 160, h: 90 })) as never,
+            });
+            const bar = await tapBar(wrapper, 21);
+            expect(wrapper.emitted("scrub")).toBeUndefined();
+            expect(bar.classes()).toContain("lmpl-afs-bar-open");
+        });
+    });
+
     it("stays open while a finger is on the host strip, and closes ten seconds after it lifts", async () => {
         vi.useFakeTimers();
         try {
@@ -386,18 +425,33 @@ describe("AudioFullscreen — the transport", () => {
             expect(scrubs(wrapper).at(-1)).toMatchObject({ held: true });
         });
 
-        it("with a mouse, a click seeks and opens the strip there; a drag opens none", async () => {
+        it("with a mouse, a click only opens the strip, as a tap does; a drag follows the pointer and opens none", async () => {
             const { wrapper, bar } = await withFrames();
             await bar.trigger("pointerdown", { clientX: 250, pointerId: 11, pointerType: "mouse" });
             await bar.trigger("pointerup", { clientX: 250, pointerId: 11, pointerType: "mouse" });
-            expect(wrapper.emitted("seek")).toEqual([[360]]);
-            expect(scrubs(wrapper).at(-1)).toMatchObject({ time: 360, held: true });
+            expect(wrapper.emitted("seek")).toBeUndefined();
+            expect(scrubs(wrapper).at(-1)).toMatchObject({ held: true });
 
             await bar.trigger("pointerdown", { clientX: 200, pointerId: 12, pointerType: "mouse" });
             await bar.trigger("pointermove", { clientX: 260, pointerId: 12, pointerType: "mouse" });
             await bar.trigger("pointerup", { clientX: 260, pointerId: 12, pointerType: "mouse" });
             expect(wrapper.emitted("seek")?.at(-1)).toEqual([384]);
             expect(scrubs(wrapper).at(-1)).toBeNull();
+        });
+
+        it("pauses a playing video at the first press while its strip is open, putting the strip away", async () => {
+            const { wrapper, bar } = await withFrames();
+            await wrapper.setProps({ playing: true });
+            await bar.trigger("pointerdown", { clientX: 250, pointerId: 30, pointerType: "touch" });
+            await bar.trigger("pointerup", { clientX: 250, pointerId: 30, pointerType: "touch" });
+            expect(scrubs(wrapper).at(-1)).toMatchObject({ held: true });
+
+            const play = find(wrapper, "afsPlay");
+            await play.trigger("pointerdown", { pointerId: 31, pointerType: "touch" });
+            await play.trigger("click");
+            expect(scrubs(wrapper).at(-1)).toBeNull();
+            expect(wrapper.emitted("toggle-play")).toHaveLength(1);
+            expect(wrapper.emitted("play")).toBeUndefined();
         });
 
         it("closes a strip a tap opened for the drag", async () => {

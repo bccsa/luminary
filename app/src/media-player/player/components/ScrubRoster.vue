@@ -2,6 +2,8 @@
 import { computed } from "vue";
 import type { ThumbnailSpriteCue } from "@luminary-media-converter/player-web";
 import { rosterTileBox } from "../ui/scrubPreview";
+import type { WaveBar } from "../ui/waveform";
+import ScrubWaveform from "./ScrubWaveform.vue";
 
 /**
  * The strip of frames shown under the timeline while it is held: the stretch of the video around the
@@ -21,6 +23,10 @@ const props = defineProps<{
     bottom: number;
     /** A pinned roster: it takes the pointer (to be dragged). A press outside it closes it. */
     interactive?: boolean;
+    /** The sound's waveform over the frames, at their scale, blended in. */
+    waveBars?: WaveBar[] | null;
+    /** Colours across the strip for the waveform's bars. */
+    waveTint?: string[] | null;
 }>();
 
 const pixelRatio = () => (typeof window === "undefined" ? 1 : window.devicePixelRatio || 1);
@@ -91,6 +97,14 @@ const markerStyle = computed(() => ({ left: `${props.markerX}px` }));
                 :style="frameStyle(tile.cue, tile.width ?? tileWidth)"
             ></div>
         </div>
+        <ScrubWaveform
+            v-if="waveBars?.length"
+            over-frames
+            :bars="waveBars"
+            :marker-x="markerX"
+            :height="height"
+            :tint="waveTint"
+        />
         <div class="lmpl-roster-vignette"></div>
         <div class="lmpl-roster-marker" :style="markerStyle"></div>
     </div>

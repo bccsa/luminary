@@ -222,6 +222,14 @@ describe("MediaPlayerWrapper", () => {
         });
     });
 
+    it("offers the waveform file beside the master", async () => {
+        const wrapper = await mountPlayer();
+
+        expect(stub(wrapper).props("source").sidecars.waveform).toEqual({
+            url: "https://bucket.example.com/media/abc/waveform.json",
+        });
+    });
+
     it("offers English to a viewer in another language too: their chapters are the English ones", async () => {
         const wrapper = await mountPlayer({}, { language: "fr" });
 
@@ -731,6 +739,7 @@ describe("MediaPlayerWrapper", () => {
                     thumbnails: {
                         url: "https://bucket.example.com/media/abc/thumbnails/thumbnails.vtt",
                     },
+                    waveform: { url: "https://bucket.example.com/media/abc/waveform.json" },
                 },
             });
         });

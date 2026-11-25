@@ -588,6 +588,7 @@ export function createFakeEngine(options: FakeEngineOptions = {}): FakeEngine {
                 masterUrl: source?.masterUrl ?? "",
                 ...(source?.keyHex ? { keyHex: source.keyHex } : {}),
                 ...(source?.thumbnailsUrl ? { thumbnailsUrl: source.thumbnailsUrl } : {}),
+                ...(source?.waveformUrl ? { waveformUrl: source.waveformUrl } : {}),
                 ...(source?.artworkUrls[0] ? { artworkUrl: source.artworkUrls[0] } : {}),
                 timeline: buildTimeline(spans, e.content.durationSeconds, done),
             };

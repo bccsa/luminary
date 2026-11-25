@@ -169,9 +169,14 @@ const props = withDefaults(
         lyrics?: readonly LyricCue[];
         /** The preview frame at a time, once the thumbnails are in: the chapters' pictures. */
         thumbnailAt?: (seconds: number) => ThumbnailSpriteCue | null;
+        /**
+         * Whether the host has a strip for a tap on the bar to open (frames, or sound alone's waveform). Left out,
+         * the frames decide; false opens the thick bar.
+         */
+        hostStrip?: boolean;
     }>(),
     // Left out, there is no autoplay switch: not read as off, as an absent boolean would be.
-    { autoplay: undefined },
+    { autoplay: undefined, hostStrip: undefined },
 );
 
 const emit = defineEmits<{
@@ -344,13 +349,23 @@ function announceScrub(time: number, held = false): void {
     const bar = barEl.value?.getBoundingClientRect();
     const root = rootEl.value?.getBoundingClientRect();
     if (!bar || !root || !knownDuration.value) return;
+    // On its side (as the layout's own 6/5 rule) the sound's strip stays over the column of controls, off the cover.
+    const column =
+        !isVideo.value && root.width >= (root.height * 6) / 5
+            ? barEl.value?.closest(".lmpl-afs-info")?.getBoundingClientRect()
+            : undefined;
+    const left = column ? column.left - root.left : 0;
     const markerX =
-        bar.left - root.left + Math.min(1, Math.max(0, time / knownDuration.value)) * bar.width;
+        bar.left -
+        root.left -
+        left +
+        Math.min(1, Math.max(0, time / knownDuration.value)) * bar.width;
     emit("scrub", {
         time,
         markerX,
-        width: root.width,
+        width: column ? column.width : root.width,
         bottom: root.bottom - bar.top + 8,
+        ...(column && { left }),
         ...(held && { held }),
     });
 }
@@ -358,7 +373,7 @@ function announceScrub(time: number, held = false): void {
  * A finger on the bar does not seek where it lands: a tap opens it for scrubbing and holds the sound; only a drag
  * moves it. With frames, opening shows the host's strip of them (the `scrub` event, as a drag does); without, the bar
  * thickens and carries a handle. It closes on a tap elsewhere, on play, or ten seconds after the last touch, as the
- * video players' timelines do. A mouse still seeks on a click.
+ * video players' timelines do. A mouse click is a tap; a mouse drag follows the pointer.
  */
 const scrubOpen = ref(false);
 /** Opened with frames: the host's strip is up, at the playhead or where a drag let go. */
@@ -395,16 +410,20 @@ onBeforeUnmount(() => timelineScrub.reset());
 
 /** How far a finger travels along the bar before a tap becomes a drag. */
 const TOUCH_DRAG_SLOP_PX = 8;
-/** A finger that came down on the bar, until it lifts; `from` is the playhead when its drag began. */
-let touchPress: { id: number; x: number; from: number; dragging: boolean } | null = null;
+/**
+ * A press on the bar, until it lifts; `from` is the playhead when its drag began. A mouse's drag follows the pointer;
+ * a finger's moves the playhead by how far it travels, so it does not jump to where it landed.
+ */
+let touchPress: { id: number; x: number; from: number; dragging: boolean; mouse: boolean } | null =
+    null;
 
 function isTouch(event: PointerEvent): boolean {
     return event.pointerType === "touch" || event.pointerType === "pen";
 }
 
-/** Whether there are frames for a host to show while the bar is scrubbed. */
+/** Whether the host has a strip to show while the bar is scrubbed. */
 function framesReady(): boolean {
-    return knownDuration.value > 0 && !!props.thumbnailAt?.(0);
+    return knownDuration.value > 0 && (props.hostStrip ?? !!props.thumbnailAt?.(0));
 }
 
 /**
@@ -418,7 +437,7 @@ function onRootDown(event: PointerEvent): void {
     if (event.target.closest(".lmpl-afs-stripclose")) return timelineScrub.tappedElsewhere();
     if (event.target.closest(".lmpl-afs-roster-slot")) return timelineScrub.touchBegan();
     if (event.target.closest(".lmpl-afs-bar")) return;
-    if (event.target.closest(".lmpl-afs-playbtn")) return;
+    // Play and pause included: the strip goes and the button still does what it shows, as on the phones.
     timelineScrub.tappedElsewhere();
 }
 
@@ -509,17 +528,16 @@ function cancelOffer(): void {
 function onBarDown(event: PointerEvent): void {
     if (!knownDuration.value) return;
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
-    if (isTouch(event)) {
-        touchPress = { id: event.pointerId, x: event.clientX, from: 0, dragging: false };
-        timelineScrub.touchBegan();
-        return;
-    }
-    mouseDownX = event.clientX;
-    dragTime.value = timeAt(event.clientX);
-    announceScrub(dragTime.value);
+    // A click opens the bar for scrubbing as a tap does; only a drag moves the playhead.
+    touchPress = {
+        id: event.pointerId,
+        x: event.clientX,
+        from: 0,
+        dragging: false,
+        mouse: !isTouch(event),
+    };
+    timelineScrub.touchBegan();
 }
-/** Where a mouse's press on the bar came down: one that stays put is a click. */
-let mouseDownX: number | null = null;
 function onBarMove(event: PointerEvent): void {
     if (touchPress && event.pointerId === touchPress.id) {
         if (!touchPress.dragging && Math.abs(event.clientX - touchPress.x) > TOUCH_DRAG_SLOP_PX) {
@@ -532,9 +550,10 @@ function onBarMove(event: PointerEvent): void {
         if (!touchPress.dragging) return;
     }
     if (dragTime.value === null && !touchPress?.dragging) return;
-    dragTime.value = touchPress?.dragging
-        ? timeAfterDrag(touchPress, event.clientX)
-        : timeAt(event.clientX);
+    dragTime.value =
+        touchPress?.dragging && !touchPress.mouse
+            ? timeAfterDrag(touchPress, event.clientX)
+            : timeAt(event.clientX);
     announceScrub(dragTime.value);
 }
 function onBarUp(event?: PointerEvent): void {
@@ -552,21 +571,6 @@ function onBarUp(event?: PointerEvent): void {
         else timelineScrub.dragCancelled();
         timelineScrub.reset();
         return;
-    }
-    if (dragTime.value === null) return;
-    const clicked =
-        event?.type === "pointerup" &&
-        mouseDownX !== null &&
-        Math.abs(event.clientX - mouseDownX) <= TOUCH_DRAG_SLOP_PX;
-    mouseDownX = null;
-    holdSeek(dragTime.value);
-    emit("seek", dragTime.value);
-    dragTime.value = null;
-    emit("scrub", null);
-    // A click seeks and, with frames, opens the strip there, as a finger's tap opens it; a drag leaves none.
-    if (clicked && framesReady()) {
-        if (timelineScrub.mode === "strip") timelineScrub.reset();
-        timelineScrub.tapped(true);
     }
 }
 function onBarKey(event: KeyboardEvent): void {

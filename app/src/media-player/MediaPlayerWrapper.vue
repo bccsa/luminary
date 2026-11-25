@@ -476,6 +476,14 @@ function thumbnailSidecar(masterUrl: string): { url: string } | undefined {
     return { url: `${path.slice(0, slash)}/thumbnails/thumbnails.vtt` };
 }
 
+/** Where a video's loudness curve would be: `waveform.json` beside its master playlist; none there draws no waveform. */
+function waveformSidecar(masterUrl: string): { url: string } | undefined {
+    const path = masterUrl.split(/[?#]/)[0] ?? masterUrl;
+    const slash = path.lastIndexOf("/");
+    if (slash < 0) return undefined;
+    return { url: `${path.slice(0, slash)}/waveform.json` };
+}
+
 /**
  * Whether the key question has been answered for this document. An encrypted
  * stream must not be handed to the player before its key is in hand, or it is
@@ -552,7 +560,10 @@ const source = computed<PlayerSource | null>(() => {
             ...(preservePosition.value ? { preservePosition: true } : {}),
             ...(resumeAt.value !== undefined ? { startPosition: resumeAt.value } : {}),
             bandwidthEstimate: bandwidthEstimate.value,
-            sidecars: local.thumbnailsUrl ? { thumbnails: { url: local.thumbnailsUrl } } : {},
+            sidecars: {
+                ...(local.thumbnailsUrl ? { thumbnails: { url: local.thumbnailsUrl } } : {}),
+                ...(local.waveformUrl ? { waveform: { url: local.waveformUrl } } : {}),
+            },
         };
     }
     const url = mediaSource.value;
@@ -567,7 +578,11 @@ const source = computed<PlayerSource | null>(() => {
         ...(preservePosition.value ? { preservePosition: true } : {}),
         ...(resumeAt.value !== undefined ? { startPosition: resumeAt.value } : {}),
         bandwidthEstimate: bandwidthEstimate.value,
-        sidecars: { chapters: chapterSidecars(url), thumbnails: thumbnailSidecar(url) },
+        sidecars: {
+            chapters: chapterSidecars(url),
+            thumbnails: thumbnailSidecar(url),
+            waveform: waveformSidecar(url),
+        },
     };
 });
 
@@ -848,6 +863,7 @@ defineExpose({
     syncDataSaverCap,
     playback,
     playingSource,
+    waveformUrl: computed(() => source.value?.sidecars?.waveform?.url),
     streamOffersVideo: computed(() => streamOffersVideo.value),
     streamForVideo: () => streamForVideo(),
     downloadForSound: () => downloadForSound(),
