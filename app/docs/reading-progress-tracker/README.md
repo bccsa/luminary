@@ -24,8 +24,8 @@ This applies to text-only posts and to posts that also have a video — only the
 
 The tracker watches `articleProseRef` — the `<div v-html="text">` that renders the CMS article body.
 
-| Included in progress | Not included |
-|----------------------|--------------|
+| Included in progress                                              | Not included                                                                                |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `p`, `h1`–`h4`, `li`, `blockquote`, `pre` inside the article body | Page title, hero image, summary, author, reading time, publish date, tags, copyright footer |
 
 Progress starts at the **first segment in the article body**. If the HTML begins with an `<h2>`, that heading is segment 1.
@@ -128,10 +128,10 @@ Scroll samples shorter than **50 ms** are batched first (`READING_MIN_SCROLL_SAM
 maxWordsPerSec = (languageWPM / 60) × READING_SKIM_WPM_MULTIPLIER
 ```
 
-| Language WPM | Reading rate | Skim cap (×3) |
-|--------------|--------------|---------------|
-| 200 (default) | ~3.3 w/s | ~10 w/s |
-| 300 | ~5.0 w/s | ~15 w/s |
+| Language WPM  | Reading rate | Skim cap (×3) |
+| ------------- | ------------ | ------------- |
+| 200 (default) | ~3.3 w/s     | ~10 w/s       |
+| 300           | ~5.0 w/s     | ~15 w/s       |
 
 `languageWPM` comes from the content language’s `averageReadingSpeed`, defaulting to **200** when unset.
 
@@ -154,10 +154,10 @@ dwellMs = (segmentWordCount ÷ languageWPM) × 60 000
 clamped to 500 ms … 8 000 ms
 ```
 
-| Constant | Value | Purpose |
-|----------|-------|---------|
-| `READING_MIN_DWELL_MS` | 500 ms | Minimum time even for tiny segments |
-| `READING_MAX_DWELL_MS` | 8000 ms | Cap for very long segments |
+| Constant               | Value   | Purpose                             |
+| ---------------------- | ------- | ----------------------------------- |
+| `READING_MIN_DWELL_MS` | 500 ms  | Minimum time even for tiny segments |
+| `READING_MAX_DWELL_MS` | 8000 ms | Cap for very long segments          |
 
 When accumulated dwell reaches the threshold, the segment is confirmed and progress is saved (if the percentage increased).
 
@@ -184,12 +184,12 @@ It drives both **skim detection** (whose `wordsPerPixel` to use) and **dwell acc
 
 ```json
 [
-  {
-    "contentId": "…",
-    "updatedAt": 1710000000000,
-    "watching": { "mediaId": "…", "progress": 90, "duration": 180 },
-    "reading": { "progress": 42 }
-  }
+    {
+        "contentId": "…",
+        "updatedAt": 1710000000000,
+        "watching": { "mediaId": "…", "progress": 90, "duration": 180 },
+        "reading": { "progress": 42 }
+    }
 ]
 ```
 
@@ -216,7 +216,7 @@ When the user reopens an in-progress article, the top-bar reading pill (`Article
 - **Start from top** (×) — dismisses the offer; saved progress is kept
 - Scrolling into the article also dismisses it
 
-Either way the pill becomes the chapter dropdown, which keeps a *Continue where you left off* entry while a saved position exists. The resume offer's track shows `readingProgressPercent` (live confirmed segments, kept even when saving is disabled for short articles); the chapter dropdown's track follows `scrollProgressPercent`, the viewport's position within the article.
+Either way the pill becomes the chapter dropdown, which keeps a _Continue where you left off_ entry while a saved position exists. The resume offer's track shows `readingProgressPercent` (live confirmed segments, kept even when saving is disabled for short articles); the chapter dropdown's track follows `scrollProgressPercent`, the viewport's position within the article.
 
 During programmatic restore, for **400 ms** (`READING_RESTORE_GUARD_MS`), tracking is suppressed so the scroll jump does not count as reading.
 
@@ -257,30 +257,30 @@ inside `collectSegments()` — if a gate needs a new measurement, precompute it 
 
 ## Source files
 
-| File | Role |
-|------|------|
-| `app/src/pages/SingleContent/SingleContent.vue` | Wires the tracker and the reading pill |
-| `app/src/composables/useReadingProgressTracker.ts` | Segments, gates, dwell loop, scroll restore |
-| `app/src/util/readingTime.ts` | WPM, dwell math, words/sec skim cap |
-| `app/src/contentProgress.ts` | `localStorage` read/write (`contentProgress`) |
-| `app/src/components/HomePage/ContinueProgress.vue` | Homepage row |
-| `app/src/pages/SingleContent/ArticleOutline.vue` | Reading pill: resume offer, chapter dropdown, progress track |
+| File                                               | Role                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------ |
+| `app/src/pages/SingleContent/SingleContent.vue`    | Wires the tracker and the reading pill                       |
+| `app/src/composables/useReadingProgressTracker.ts` | Segments, gates, dwell loop, scroll restore                  |
+| `app/src/util/readingTime.ts`                      | WPM, dwell math, words/sec skim cap                          |
+| `app/src/contentProgress.ts`                       | `localStorage` read/write (`contentProgress`)                |
+| `app/src/components/HomePage/ContinueProgress.vue` | Homepage row                                                 |
+| `app/src/pages/SingleContent/ArticleOutline.vue`   | Reading pill: resume offer, chapter dropdown, progress track |
 
 ---
 
 ## Constants
 
-| Constant | Value | Meaning |
-|----------|-------|---------|
-| `READING_INTERSECTION_RATIO` | `0.5` | Segment must be half visible |
-| `READING_SKIM_WPM_MULTIPLIER` | `3` | Skim cap = 3× language reading rate (w/s) |
-| `READING_MIN_SCROLL_SAMPLE_MS` | `50` | Batch scroll events before words/s check |
-| `READING_RESTORE_GUARD_MS` | `400` | Ignore tracking after programmatic restore |
-| `READING_MIN_DWELL_MS` | `500` | Minimum dwell per segment |
-| `READING_MAX_DWELL_MS` | `8000` | Maximum dwell per segment |
-| `DEFAULT_READING_SPEED_WPM` | `200` | Fallback when language has no WPM |
-| `READING_BLOCK_END_TOLERANCE_PX` | `4` | Subpixel tolerance for segment-end check |
-| `READING_RESIZE_DEBOUNCE_MS` | `200` | Debounce for resize-driven re-collection |
+| Constant                         | Value  | Meaning                                    |
+| -------------------------------- | ------ | ------------------------------------------ |
+| `READING_INTERSECTION_RATIO`     | `0.5`  | Segment must be half visible               |
+| `READING_SKIM_WPM_MULTIPLIER`    | `3`    | Skim cap = 3× language reading rate (w/s)  |
+| `READING_MIN_SCROLL_SAMPLE_MS`   | `50`   | Batch scroll events before words/s check   |
+| `READING_RESTORE_GUARD_MS`       | `400`  | Ignore tracking after programmatic restore |
+| `READING_MIN_DWELL_MS`           | `500`  | Minimum dwell per segment                  |
+| `READING_MAX_DWELL_MS`           | `8000` | Maximum dwell per segment                  |
+| `DEFAULT_READING_SPEED_WPM`      | `200`  | Fallback when language has no WPM          |
+| `READING_BLOCK_END_TOLERANCE_PX` | `4`    | Subpixel tolerance for segment-end check   |
+| `READING_RESIZE_DEBOUNCE_MS`     | `200`  | Debounce for resize-driven re-collection   |
 
 ---
 

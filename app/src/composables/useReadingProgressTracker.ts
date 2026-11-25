@@ -872,7 +872,10 @@ export function useReadingProgressTracker(options: {
         const id = options.contentId.value;
         if (!id) return;
 
-        const percent = savedReadingProgress(id);
+        // Raw saved value rather than savedReadingProgress: a finished article resumes at the
+        // end of the article instead of doing nothing.
+        const saved = getReadingProgress(id);
+        const percent = isReadingFinished(saved) ? 100 : saved;
         if (!percent) return;
 
         setTimeout(() => {
@@ -885,7 +888,30 @@ export function useReadingProgressTracker(options: {
 
             if (maxScroll <= 0) return;
 
-            const targetY = Math.round((percent / 100) * maxScroll);
+            // This fix applies, progress being saved at 90 - 99% of the article, jumps to near the end of the article.
+            // Initially, pressing on continue, no matter where the saved progress is, jumped to the read more section of the page.
+            // Selectin Continue where you left off ensures the reader resumes at the correct segment.
+            // The jump to the read more section was due to the fact that the saved progress was being calculated based on the number of segments in the article, and not the actual scroll position of the reader.
+            // Reaching 100% of the article now still removes article from the continue section and resets the progress to 0% for the next read.
+            if (segmentList.length === 0) return;
+            const readCount = Math.min(
+                segmentList.length,
+                Math.max(1, Math.round((percent / 100) * segmentList.length)),
+            );
+            const lastRead = segmentList[readCount - 1];
+            const containerTop =
+                container === window ? 0 : (container as HTMLElement).getBoundingClientRect().top;
+            const visibleHeight =
+                container === window ? window.innerHeight : (container as HTMLElement).clientHeight;
+            const lastReadBottom =
+                lastRead.sourceEl.getBoundingClientRect().top -
+                containerTop +
+                getScrollTop(container) +
+                lastRead.bottomPx;
+            const targetY = Math.min(
+                maxScroll,
+                Math.max(0, Math.round(lastReadBottom - visibleHeight)),
+            );
 
             isRestoring.value = true;
             cancelDwellForVisibleSegments();
