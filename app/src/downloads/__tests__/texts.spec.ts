@@ -81,7 +81,7 @@ describe("downloads strings", () => {
     it("builds every sheet, notification and now-playing text, keeping the platform's placeholders", () => {
         const translator = translatorFor(french);
         const sheet = sheetTexts(translator);
-        expect(Object.keys(sheet)).toHaveLength(53);
+        expect(Object.keys(sheet)).toHaveLength(72);
         expect(sheet.freeSpace).toBe("{size} libres");
         expect(sheet.removeMessage).toBe("« {title} » sera supprimé de cet appareil.");
 

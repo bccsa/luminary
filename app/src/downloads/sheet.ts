@@ -1,4 +1,5 @@
 import { DocType, type ContentDto } from "luminary-shared";
+import { findPreferredTrack } from "@luminary-media-converter/player-web";
 import type {
     DownloadChapter,
     DownloadEntry,
@@ -17,6 +18,7 @@ import type { DownloadsDeps } from "./deps";
 import { chapterState, displayedStatus, doneUnitIds, storedBytes } from "./entries";
 import { checkFailed, isUnreadable, type Lifecycle } from "./lifecycle";
 import type { DownloadsPlayerHooks } from "./player";
+import { selectionKey } from "./selection";
 import type { DownloadsState } from "./state";
 import { notificationTexts, sheetTexts } from "./texts";
 
@@ -88,12 +90,6 @@ const reclaimable = (volume: DownloadVolume | undefined) =>
           volume.reclaimable.expired
         : 0;
 
-function selectionKey(selection: DownloadSelection): string {
-    return selection.kind === "audio"
-        ? `audio/${selection.audioLanguage}`
-        : `video/${selection.angleId}/${selection.qualityId}/${selection.audioLanguage}`;
-}
-
 /** The hint where the options offer it, else the first offered choice at each step. */
 export function preselect(
     options: DownloadOptions,
@@ -111,7 +107,14 @@ export function preselect(
         ];
         for (const audioLanguage of orderedLanguages) {
             if (kind === "audio") {
-                candidates.push({ kind, audioLanguage });
+                const qualities = [
+                    ...options.audioQualities.filter((q) => q.id === hint.audioQualityId),
+                    ...options.audioQualities,
+                ];
+                if (!qualities.length) candidates.push({ kind, audioLanguage });
+                for (const quality of qualities) {
+                    candidates.push({ kind, audioQualityId: quality.id, audioLanguage });
+                }
                 continue;
             }
             const angles = [
@@ -145,6 +148,7 @@ function hintedSelection(hint: Partial<DownloadSelection>): DownloadSelection {
         kind,
         ...(kind === "video" && hint.angleId ? { angleId: hint.angleId } : {}),
         ...(kind === "video" && hint.qualityId ? { qualityId: hint.qualityId } : {}),
+        ...(kind === "audio" && hint.audioQualityId ? { audioQualityId: hint.audioQualityId } : {}),
         audioLanguage: hint.audioLanguage ?? "",
     };
 }
@@ -176,6 +180,9 @@ function optionsFromEntry(entry: DownloadEntry): DownloadOptions {
             sel.angleId && sel.qualityId
                 ? { [sel.angleId]: [{ id: sel.qualityId, label: sel.qualityId }] }
                 : {},
+        audioQualities: sel.audioQualityId
+            ? [{ id: sel.audioQualityId, label: sel.audioQualityId }]
+            : [],
         languages: [{ id: sel.audioLanguage, label: sel.audioLanguage }],
         chapters: entry.chapters.map(({ title, startTime, endTime }) => ({
             title,
@@ -193,11 +200,35 @@ export function createSheetController(ctx: SheetContext): SheetController {
 
     const entryOf = (sheet: OpenSheet) => state.byParent.value.get(sheet.content.parentId);
 
-    function volumeFor(entry: DownloadEntry | undefined): DownloadVolume | undefined {
+    function volumeFor(
+        entry: DownloadEntry | undefined,
+        chosenId?: string,
+    ): DownloadVolume | undefined {
         const volumes = state.storage.value?.volumes ?? [];
         if (entry) return volumes.find((v) => v.id === entry.volumeId);
+        const chosen = volumes.find((v) => v.id === chosenId);
+        if (chosen?.mounted) return chosen;
         const preferred = volumes.find((v) => v.id === state.storage.value?.preferredVolumeId);
         return preferred?.mounted ? preferred : volumes.find((v) => v.id === "internal");
+    }
+
+    /** The option language the app's language names, so the language step can start on it. */
+    function appLanguageIn(languages: { id: string }[]): string {
+        const app = deps.languageKey();
+        return (
+            findPreferredTrack(
+                languages.map((l) => ({ id: l.id, lang: l.id })),
+                app,
+            ) ?? ""
+        );
+    }
+
+    /** Mounted volumes a new download may go to; only where the platform keeps downloads on a card. */
+    function volumeChoices(): DownloadSheetModel["volumes"] {
+        if (!engine.capabilities.volumes) return [];
+        return (state.storage.value?.volumes ?? [])
+            .filter((v) => v.mounted)
+            .map((v) => ({ id: v.id, kind: v.kind, freeBytes: v.freeBytes }));
     }
 
     function model(sheet: OpenSheet): DownloadSheetModel {
@@ -213,6 +244,7 @@ export function createSheetController(ctx: SheetContext): SheetController {
             kinds: options?.kinds ?? [],
             angles: options?.angles ?? [],
             qualities: options?.qualities ?? {},
+            audioQualities: options?.audioQualities ?? [],
             languages: options?.languages ?? [],
             sizes: options?.sizes ?? {},
             itemBytes: options?.itemBytes ?? 0,
@@ -245,6 +277,8 @@ export function createSheetController(ctx: SheetContext): SheetController {
             selection: sheet.selection,
             ...(sheet.chapter !== undefined ? { chosen: [sheet.chapter] } : {}),
             locked: Boolean(entry),
+            appLanguage: appLanguageIn(options?.languages ?? []),
+            volumes: entry ? [] : volumeChoices(),
             sparsePlayback: engine.capabilities.sparsePlayback,
             freeBytes: volume?.freeBytes ?? 0,
             reserveBytes: state.storage.value?.reserveBytes ?? 0,
@@ -286,7 +320,14 @@ export function createSheetController(ctx: SheetContext): SheetController {
             const entry = entryOf(sheet);
             sheet.source = source;
             sheet.options = options;
-            sheet.selection = entry ? entry.selection : preselect(options, sheet.hint);
+            // A new download starts on the app's language, whatever language plays.
+            const appLanguage = appLanguageIn(options.languages);
+            sheet.selection = entry
+                ? entry.selection
+                : preselect(
+                      options,
+                      appLanguage ? { ...sheet.hint, audioLanguage: appLanguage } : sheet.hint,
+                  );
             sheet.phase = "ready";
         } catch (error) {
             const entry = entryOf(sheet);
@@ -345,7 +386,15 @@ export function createSheetController(ctx: SheetContext): SheetController {
             ctx.tell("downloads.notice.start_failed", "error");
             return;
         }
-        if (entry) {
+        const replaced =
+            entry !== undefined && selectionKey(entry.selection) !== selectionKey(action.selection);
+        if (replaced) {
+            // Another kind or quality cannot sit beside the stored one: the sheet warned that it downloads again.
+            if (!(await removed([entry.downloadId], "sheet-replace"))) {
+                ctx.tell("downloads.notice.start_failed", "error");
+                return;
+            }
+        } else if (entry) {
             // An add planned from a changed source would sit beside the old source's files, so no check, no add.
             const check = await lifecycle.checkSource(entry, { content, source: sheet.source });
             if (checkFailed(check)) {
@@ -379,8 +428,20 @@ export function createSheetController(ctx: SheetContext): SheetController {
         if (state.entries.value.length === 0) {
             await engine.requestNotificationPermission().catch(() => false);
         }
-        const latest = entryOf(sheet);
-        const volumeId = latest?.volumeId ?? volumeFor(undefined)?.id ?? "internal";
+        const latest = replaced ? undefined : entryOf(sheet);
+        const volumeId =
+            latest?.volumeId ?? volumeFor(undefined, action.volumeId)?.id ?? "internal";
+        if (
+            !latest &&
+            action.volumeId &&
+            action.volumeId !== state.storage.value?.preferredVolumeId
+        ) {
+            // The engine keeps the last "Save to" answer as where new downloads go.
+            await engine.setPreferredVolume(action.volumeId).then(
+                (storage) => (state.storage.value = storage),
+                (error) => deps.reportError(error, "sheet-volume"),
+            );
+        }
         try {
             const started = await engine.start({
                 downloadId: latest?.downloadId ?? newDownloadId(),
@@ -411,6 +472,45 @@ export function createSheetController(ctx: SheetContext): SheetController {
         }
     }
 
+    /** The sheet's Update: removes the unticked chapters, then adds the ticked ones as a start does. */
+    async function update(
+        sheet: OpenSheet,
+        action: Extract<DownloadSheetAction, { action: "update" }>,
+    ) {
+        const entry = entryOf(sheet);
+        if (!entry) return;
+        const listed = sheet.options?.chapters ?? [];
+        const remove = action.remove
+            .map((index) => {
+                const chapter = listed[index];
+                const own = chapter && matchChapter(entry, chapter, index, listed.length);
+                return own ? entry.chapters.indexOf(own) : -1;
+            })
+            .filter((index) => index >= 0);
+        if (remove.length) {
+            try {
+                const after = await engine.removeChapters(entry.downloadId, remove);
+                if (after) state.applyEntry(after);
+            } catch (error) {
+                const code = (error as { code?: string }).code;
+                if (code === "locked") ctx.tell(KEPT_PLAYING);
+                else {
+                    deps.reportError(error, "remove-chapters");
+                    ctx.tell(ACTION_FAILED, "error");
+                }
+                return;
+            }
+        }
+        if (action.add.length && entryOf(sheet)) {
+            await start(sheet, {
+                action: "start",
+                selection: entry.selection,
+                chapters: action.add,
+                meteredConsent: action.meteredConsent,
+            });
+        }
+    }
+
     async function handle(action: DownloadSheetAction & { sheetId: string }) {
         const sheet = current;
         // An action from a sheet no longer shown is stale.
@@ -421,6 +521,10 @@ export function createSheetController(ctx: SheetContext): SheetController {
             case "start":
                 current = null;
                 await start(sheet, action);
+                return;
+            case "update":
+                current = null;
+                await update(sheet, action);
                 return;
             case "dismissed":
                 current = null;

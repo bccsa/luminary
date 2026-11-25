@@ -65,6 +65,25 @@ const SHEET_KEYS: Record<SheetKey, string> = {
     statusComplete: "downloads.status.complete",
     statusFailed: "downloads.status.failed",
     statusRevoked: "downloads.status.revoked",
+    stepOf: "downloads.sheet.step_of",
+    kindStep: "downloads.sheet.kind_step",
+    videoQuality: "downloads.sheet.video_quality",
+    audioQuality: "downloads.sheet.audio_quality",
+    audioOnly: "downloads.sheet.audio_only",
+    whatToDownload: "downloads.sheet.what_to_download",
+    wholeVideo: "downloads.sheet.whole_video",
+    wholeAudio: "downloads.sheet.whole_audio",
+    allChaptersCount: "downloads.sheet.all_chapters_count",
+    saveTo: "downloads.sheet.save_to",
+    phone: "downloads.sheet.phone",
+    sdCard: "downloads.sheet.sd_card",
+    lastUsed: "downloads.sheet.last_used",
+    appLanguage: "downloads.sheet.app_language",
+    update: "downloads.sheet.update",
+    reopenedHeader: "downloads.sheet.reopened_header",
+    redownloadTitle: "downloads.sheet.redownload_title",
+    redownloadMessage: "downloads.sheet.redownload_message",
+    redownloadConfirm: "downloads.sheet.redownload_confirm",
 };
 
 const NOTIFICATION_KEYS: Record<NotificationKey, string> = {
@@ -111,6 +130,7 @@ const PLACEHOLDERS = {
     percent: "{percent}",
     done: "{done}",
     total: "{total}",
+    n: "{n}",
 };
 
 function collect<K extends string>(

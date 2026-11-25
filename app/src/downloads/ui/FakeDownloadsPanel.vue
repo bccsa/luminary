@@ -21,14 +21,34 @@ const firstDownload = computed(() => {
     return id ? [id] : [];
 });
 
-function start(meteredConsent: boolean) {
+function start(meteredConsent: boolean, volumeId?: string) {
     if (!model.value) return;
     props.engine.act({
         action: "start",
         selection: model.value.selection,
         chapters: model.value.sparsePlayback ? selectable.value : [],
         meteredConsent,
+        ...(volumeId ? { volumeId } : {}),
     });
+}
+
+/** Chapters toggled in the panel: a stored one is removed by Update, a new one added. */
+const toggled = ref(new Set<number>());
+function toggle(index: number) {
+    const next = new Set(toggled.value);
+    if (!next.delete(index)) next.add(index);
+    toggled.value = next;
+}
+function update() {
+    const chapters = model.value?.chapters ?? [];
+    const picked = [...toggled.value];
+    props.engine.act({
+        action: "update",
+        add: picked.filter((i) => chapters[i]?.state === "none"),
+        remove: picked.filter((i) => chapters[i] && chapters[i].state !== "none"),
+        meteredConsent: metered.value,
+    });
+    toggled.value = new Set();
 }
 
 const online = ref(true);
@@ -118,8 +138,15 @@ function toggleCard() {
                     {{ model.source.canOnline ? "yes" : "no" }})
                 </p>
                 <ul class="pl-3">
-                    <li v-for="chapter in model.chapters" :key="chapter.startTime">
-                        {{ chapter.title }}: {{ chapter.state }}
+                    <li v-for="(chapter, index) in model.chapters" :key="chapter.startTime">
+                        <label>
+                            <input
+                                type="checkbox"
+                                :checked="toggled.has(index)"
+                                @change="toggle(index)"
+                            />
+                            {{ chapter.title }}: {{ chapter.state }}
+                        </label>
                     </li>
                 </ul>
                 <div class="flex flex-wrap gap-1 pt-1">
@@ -127,6 +154,8 @@ function toggleCard() {
                         v-for="button in [
                             { label: 'Start', run: () => start(false) },
                             { label: 'Start (mobile data)', run: () => start(true) },
+                            { label: 'Start on SD card', run: () => start(false, 'card-1') },
+                            { label: 'Update (toggled)', run: update },
                             { label: 'Pause', run: () => engine.act({ action: 'pause' }) },
                             {
                                 label: 'Resume',

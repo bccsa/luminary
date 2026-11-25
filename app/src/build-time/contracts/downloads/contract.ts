@@ -38,6 +38,8 @@ export type DownloadSelection = {
     kind: "audio" | "video";
     angleId?: string;
     qualityId?: string;
+    /** An audio download's sound quality: the audio rendition group. A video download takes its quality's own sound. */
+    audioQualityId?: string;
     audioLanguage: string;
 };
 
@@ -201,10 +203,15 @@ export type DownloadOptions = {
     angles: DownloadChoice[];
     /** By angle id. */
     qualities: Record<string, DownloadChoice[]>;
+    /** An audio download's sound qualities, best first; empty when the master names no rendition groups. */
+    audioQualities: DownloadChoice[];
     languages: DownloadChoice[];
     /** Full-item seconds; empty when the media has no chapters. */
     chapters: { title: string; startTime: number; endTime: number }[];
-    /** By selection key: `audio/<language>` or `video/<angleId>/<qualityId>/<language>`. */
+    /**
+     * By selection key: `audio/<audioQualityId>/<language>` (`audio/<language>` without an audio quality) or
+     * `video/<angleId>/<qualityId>/<language>`.
+     */
     sizes: Record<string, { chapterBytes: number[]; approximate: boolean }>;
     itemBytes: number;
 };
@@ -235,6 +242,10 @@ export type DownloadSheetModel = Omit<DownloadOptions, "chapters"> & {
     selection: DownloadSelection;
     chosen?: number[];
     locked: boolean;
+    /** The app's language, which the language step names and starts on when the viewer has not picked one before. */
+    appLanguage: string;
+    /** The mounted volumes a new download can go to; the "Save to" step shows when there are two or more. */
+    volumes: { id: string; kind: "internal" | "card"; freeBytes: number }[];
     sparsePlayback: boolean;
     freeBytes: number;
     reserveBytes: number;
@@ -256,7 +267,16 @@ export type DownloadSheetModel = Omit<DownloadOptions, "chapters"> & {
  * under it went away).
  */
 export type DownloadSheetAction =
-    | { action: "start"; selection: DownloadSelection; chapters: number[]; meteredConsent: boolean }
+    | {
+          action: "start";
+          selection: DownloadSelection;
+          chapters: number[];
+          meteredConsent: boolean;
+          /** The "Save to" answer; absent, the preferred volume. */
+          volumeId?: string;
+      }
+    /** The reopened sheet's Update: chapters to add and chapters to remove, by index. */
+    | { action: "update"; add: number[]; remove: number[]; meteredConsent: boolean }
     | { action: "source"; value: "downloaded" | "online" }
     | { action: "delete"; downloadIds: string[] }
     | { action: "cleanUp" }
@@ -321,7 +341,26 @@ export type DownloadSheetTexts = Partial<
         | "statusInterrupted"
         | "statusComplete"
         | "statusFailed"
-        | "statusRevoked",
+        | "statusRevoked"
+        | "stepOf"
+        | "kindStep"
+        | "videoQuality"
+        | "audioQuality"
+        | "audioOnly"
+        | "whatToDownload"
+        | "wholeVideo"
+        | "wholeAudio"
+        | "allChaptersCount"
+        | "saveTo"
+        | "phone"
+        | "sdCard"
+        | "lastUsed"
+        | "appLanguage"
+        | "update"
+        | "reopenedHeader"
+        | "redownloadTitle"
+        | "redownloadMessage"
+        | "redownloadConfirm",
         string
     >
 >;
@@ -514,6 +553,11 @@ export type DownloadsEngine = {
     resume(downloadId: string, options?: { meteredConsent?: boolean }): Promise<DownloadEntry>;
     /** Drops what is still to come; a download with nothing done is removed (null). */
     cancel(downloadId: string): Promise<DownloadEntry | null>;
+    /**
+     * Deletes the chapters' stored parts (indices into the entry's chapters); one still downloading stops first.
+     * Removing every planned chapter removes the download (null). Rejects `locked` while the download is played.
+     */
+    removeChapters(downloadId: string, chapterIndices: number[]): Promise<DownloadEntry | null>;
     remove(downloadIds: string[]): Promise<DownloadRemoveResult[]>;
     /** Frees orphans, leftovers and expired files; resolves with the bytes freed. */
     cleanUp(): Promise<number>;

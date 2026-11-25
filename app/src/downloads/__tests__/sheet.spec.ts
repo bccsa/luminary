@@ -139,11 +139,12 @@ describe("openSheet", () => {
             phase: "preparing",
             selection: { kind: "video", qualityId: "360", audioLanguage: "fr" },
         });
+        // A new download starts on the app's language, whatever language plays.
         expect(model(fake).selection).toEqual({
             kind: "video",
             angleId: "main",
             qualityId: "360",
-            audioLanguage: "fr",
+            audioLanguage: "en",
         });
 
         await service.openSheet(makeContent(), {
@@ -1215,7 +1216,88 @@ describe("preselect", () => {
         ).toEqual({ kind: "video", angleId: "main", qualityId: "360", audioLanguage: "fr" });
         expect(preselect(FAKE_OPTIONS, { kind: "audio", audioLanguage: "de" })).toEqual({
             kind: "audio",
+            audioQualityId: "a192",
             audioLanguage: "en",
         });
+        expect(
+            preselect(FAKE_OPTIONS, { kind: "audio", audioQualityId: "a64", audioLanguage: "fr" }),
+        ).toEqual({ kind: "audio", audioQualityId: "a64", audioLanguage: "fr" });
+    });
+});
+
+describe("wizard answers", () => {
+    async function reopen(service: DownloadsRuntime) {
+        await service.openSheet(makeContent(), { context: "downloads" });
+        await flush();
+    }
+
+    it("sends the app's language and the mounted volumes a new download can go to", async () => {
+        const { fake, service } = await setup({ engine: { card: true } });
+        await reopen(service);
+        expect(model(fake).appLanguage).toBe("en");
+        expect(model(fake).audioQualities.map((q) => q.id)).toEqual(["a192", "a128", "a64"]);
+        expect(model(fake).volumes.map((v) => v.id)).toEqual(["internal", "card-1"]);
+    });
+
+    it("starts on the volume the viewer saved to, and keeps it as where new downloads go", async () => {
+        const { fake, service } = await setup({ engine: { card: true } });
+        await reopen(service);
+        fake.act({
+            action: "start",
+            selection: audio,
+            chapters: [0],
+            meteredConsent: false,
+            volumeId: "card-1",
+        });
+        await flush();
+        await flush();
+        expect(service.entryFor("post-1")?.volumeId).toBe("card-1");
+        expect(service.storage.value?.preferredVolumeId).toBe("card-1");
+    });
+
+    it("removes unticked chapters and adds ticked ones on Update", async () => {
+        const { fake, service } = await setup();
+        await reopen(service);
+        await startAll(fake, [0, 1]);
+        fake.tick();
+        fake.tick();
+        fake.tick();
+        await flush();
+        await reopen(service);
+        fake.act({ action: "update", add: [2], remove: [0], meteredConsent: false });
+        await flush();
+        await flush();
+        const entry = service.entryFor("post-1");
+        expect(entry?.chapters.map((c) => c.unitIds.length > 0)).toEqual([false, true, true]);
+    });
+
+    it("removes the download when Update unticks every chapter", async () => {
+        const { fake, service } = await setup();
+        await reopen(service);
+        await startAll(fake, [0, 1]);
+        await reopen(service);
+        fake.act({ action: "update", add: [], remove: [0, 1], meteredConsent: false });
+        await flush();
+        await flush();
+        expect(service.entryFor("post-1")).toBeUndefined();
+    });
+
+    it("downloads again when the kind or quality of a download changes", async () => {
+        const { fake, service } = await setup();
+        await reopen(service);
+        await startAll(fake, [0]);
+        const before = service.entryFor("post-1")?.downloadId;
+        await reopen(service);
+        fake.act({
+            action: "start",
+            selection: { kind: "video", angleId: "main", qualityId: "360", audioLanguage: "en" },
+            chapters: [0],
+            meteredConsent: false,
+        });
+        await flush();
+        await flush();
+        const after = service.entryFor("post-1");
+        expect(after?.downloadId).not.toBe(before);
+        expect(after?.selection.kind).toBe("video");
     });
 });

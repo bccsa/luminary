@@ -10,7 +10,6 @@ import type {
     DownloadProgress,
     DownloadReason,
     DownloadRemoveResult,
-    DownloadSelection,
     DownloadSheetAction,
     DownloadSheetModel,
     DownloadSheetTexts,
@@ -23,6 +22,9 @@ import type {
     DownloadsEngineEvents,
 } from "@/build-time/contracts/downloads/contract";
 import { buildTimeline, spansFor } from "./fakeTimeline";
+import { selectionKey } from "./selection";
+
+export { selectionKey };
 
 const MB = 1_000_000;
 const GB = 1_000_000_000;
@@ -41,6 +43,10 @@ export const FAKE_OPTIONS: DownloadOptions = (() => {
     });
     const sizes: DownloadOptions["sizes"] = {};
     for (const language of ["en", "fr"]) {
+        sizes[`audio/a192/${language}`] = sized(43 * MB);
+        sizes[`audio/a128/${language}`] = sized(29 * MB);
+        sizes[`audio/a64/${language}`] = sized(15 * MB);
+        // A selection made before audio qualities were offered names none; it keeps its old size.
         sizes[`audio/${language}`] = sized(30 * MB);
         sizes[`video/main/720/${language}`] = sized(600 * MB);
         sizes[`video/main/360/${language}`] = sized(200 * MB);
@@ -54,6 +60,11 @@ export const FAKE_OPTIONS: DownloadOptions = (() => {
                 { id: "360", label: "360p" },
             ],
         },
+        audioQualities: [
+            { id: "a192", label: "192 kbps" },
+            { id: "a128", label: "128 kbps" },
+            { id: "a64", label: "64 kbps" },
+        ],
         languages: [
             { id: "en", label: "English" },
             { id: "fr", label: "Français" },
@@ -66,12 +77,6 @@ export const FAKE_OPTIONS: DownloadOptions = (() => {
 
 export const FAKE_DURATION_SECONDS = 1800;
 const RESERVE_BYTES = 500 * MB;
-
-export function selectionKey(selection: DownloadSelection): string {
-    return selection.kind === "audio"
-        ? `audio/${selection.audioLanguage}`
-        : `video/${selection.angleId}/${selection.qualityId}/${selection.audioLanguage}`;
-}
 
 function engineError(code: DownloadsEngineErrorCode, message?: string): Error {
     return Object.assign(new Error(message ?? code), { code });
@@ -523,6 +528,30 @@ export function createFakeEngine(options: FakeEngineOptions = {}): FakeEngine {
             e.units = e.units.filter((u) => !dropped.has(u.unitId));
             for (const c of e.chapters) {
                 if (c.unitIds.some((id) => dropped.has(id))) c.unitIds = [];
+            }
+            complete(e);
+            touch(e);
+            schedule();
+            return clone(e);
+        },
+        async removeChapters(downloadId, chapterIndices) {
+            const e = get(downloadId);
+            if ([...sessions.values()].includes(downloadId)) throw engineError("locked");
+            const dropped = new Set(chapterIndices.flatMap((i) => e.chapters[i]?.unitIds ?? []));
+            for (const unit of e.units) {
+                if (dropped.has(unit.unitId) && unit.state === "done") {
+                    const vol = volume(e.volumeId);
+                    if (vol) vol.freeBytes += unit.bytes;
+                }
+            }
+            e.units = e.units.filter((u) => !dropped.has(u.unitId));
+            for (const c of e.chapters) {
+                if (c.unitIds.some((id) => dropped.has(id))) c.unitIds = [];
+            }
+            if (e.units.length === 0) {
+                drop(e, "deleted");
+                schedule();
+                return null;
             }
             complete(e);
             touch(e);
