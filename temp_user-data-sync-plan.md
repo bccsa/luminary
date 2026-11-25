@@ -536,3 +536,13 @@ identity cache are present; the session-token implementation has not landed.
   subject before building this context. Verify the same owner and allowance across JWTs,
   session credentials, refreshes and separate devices once that implementation lands.
   This refactor does not implement or claim session-token support.
+
+
+### Review item 6 — activity wording and French review
+
+- Restored the 30 unrelated English wording edits to their main-branch values, as requested.
+- Kept plain-language English for the four account-activity messages and updated their
+  French translations to match, avoiding technical terms for saving changes between devices.
+- Aligned the app's English activity test fixtures with the feature's seed messages.
+- Pending: Johan's French-language review of these four messages. Automated checks do not
+  replace that review; no approval by Johan is implied.

@@ -332,7 +332,7 @@ describe("SettingsPage data saver", () => {
         const wrapper = mountSettingsPage();
         await wrapper.find("[data-test=clearUserActivity]").trigger("click");
         const dialog = wrapper.findComponent(LDialog);
-        expect(dialog.props("description")).toContain("all devices");
+        expect(dialog.props("description")).toContain("all your devices");
         await dialog.props("primaryAction")();
         expect((await activityTable.get(activityId("liked:account-post")))?.deleted).toBe(true);
         const queued = await (

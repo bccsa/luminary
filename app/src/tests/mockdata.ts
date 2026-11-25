@@ -310,11 +310,11 @@ export const mockLanguageDtoEng: LanguageDto = {
         "settings.clear_activity.description_account":
             "Clear your history, likes and highlights from your account on all devices.",
         "settings.clear_activity.modal.description_account":
-            "Clear activity on all devices? Removals will sync when connected.",
+            "Clear your history, likes and highlights on all your devices? Each device will update when it connects to the internet. New activity on a device without internet may appear later.",
         "settings.clear_activity.notification.description_account":
-            "Your activity has been cleared. Other devices will update when they connect.",
+            "Your history, likes and highlights have been cleared from this device. Your other devices will update when they connect to the internet.",
         "logout.unsent_activity_warning":
-            "Some activity has not synced. Logging out will delete it from this device. Log out anyway?",
+            "Some recent changes to your history, likes or highlights have not been saved to your account yet. If you log out now, those changes may be lost. Log out anyway?",
         "search.placeholder": "Search...",
         "search.go": "Go",
         "search.pressGo": "Press Go to search",
