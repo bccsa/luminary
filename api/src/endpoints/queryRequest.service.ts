@@ -45,7 +45,7 @@ export class QueryRequestService {
         const maxLanguages = this.configService.get<number>("query.maxLanguages") ?? 4;
 
         let validationResult = { valid: true, error: "" };
-        if (options.requireValidation || !bypassValidation)
+        if (options.requireValidation || body?.syncPagination !== undefined || !bypassValidation)
             validationResult = validateQuery(body, {
                 maxLimit,
                 maxLanguages,

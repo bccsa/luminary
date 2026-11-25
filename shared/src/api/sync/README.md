@@ -4,6 +4,35 @@
 
 The sync system provides an autonomous, incremental synchronization mechanism for fetching documents from a remote API and storing them in IndexedDB. It works backwards in time from the latest `updatedTimeUtc` to older data, efficiently managing multiple document types, memberOf groups, and languages.
 
+## Stable timestamp/id pagination
+
+When the API advertises `syncPagination: "timestamp-id-v1"`, the runner uses versioned
+companion indexes and orders pages by `updatedTimeUtc DESC, _id DESC`. Its request envelope
+is `syncPagination: { version: 1, after?: { updatedTimeUtc, id } }`; the API applies an exclusive
+continuation within the unchanged time window. Capability absence preserves legacy requests.
+Only a recognized unsupported-protocol/index response can downgrade support; authentication,
+rate-limit and storage errors preserve progress for retry.
+
+A `pendingPage` stores the immutable window, query identity and last durable timestamp/id
+position. Its partial results are not completed coverage and cannot be vertically or
+horizontally merged as EOF. Each checkpoint follows durable document storage and precedes
+the next request. A crash before a checkpoint safely replays the page. Cancellation generations,
+column membership changes and source lifecycle guards prevent late writes after invalidation.
+A full page must advance its tuple; it cannot declare EOF merely because timestamps repeat.
+An empty final page is required when the result count is exactly a multiple of the limit.
+
+Progress uses `<original sync-list key>:timestamp-id-v1`, separate from legacy cursor state.
+The first negotiated pull starts a cursor-only rewalk so previously skipped documents are
+recovered; documents, queued edits and ownership metadata remain. Replayed incoming documents
+and DeleteCmd targets with pending local edits are protected by a transaction using indexed
+queue lookups. Load, persistence, permission trimming and clear use the selected cursor key.
+Corrupt progress is reset without deleting document data.
+
+The time-range examples below describe completed coverage. Under the negotiated protocol,
+a window is published to that coverage only after its last page. Older clients retain their
+existing timestamp-only behavior. Updated clients against an older API keep a saturated
+legacy timestamp incomplete and report a diagnostic instead of silently sealing it.
+
 ## Key Concepts
 
 ### Vertical and Horizontal Merging

@@ -989,4 +989,36 @@ describe("QueryService", () => {
             );
         });
     });
+    it("retains permission injection when applying a tuple continuation", async () => {
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValue({
+            [DocType.Post]: ["allowed-group"],
+        });
+        await service.query(
+            {
+                selector: {
+                    type: DocType.Post,
+                    updatedTimeUtc: { $gte: 0, $lte: 2000 },
+                    memberOf: { $elemMatch: { $in: ["allowed-group", "forbidden-group"] } },
+                },
+                limit: 2,
+                sort: [{ updatedTimeUtc: "desc" }, { _id: "desc" }],
+                use_index: "sync-post-cursor-v1-index",
+                syncPagination: { version: 1, after: { updatedTimeUtc: 1000, id: "tie-b" } },
+            } as any,
+            mockUser,
+        );
+        const forwarded = dbService.executeFindQuery.mock.calls.at(-1)![0];
+        expect(forwarded).not.toHaveProperty("syncPagination");
+        expect(forwarded.selector.$and).toEqual(
+            expect.arrayContaining([
+                { memberOf: { $elemMatch: { $in: ["allowed-group"] } } },
+                {
+                    $or: [
+                        { updatedTimeUtc: { $lt: 1000 } },
+                        { updatedTimeUtc: 1000, _id: { $lt: "tie-b" } },
+                    ],
+                },
+            ]),
+        );
+    });
 });

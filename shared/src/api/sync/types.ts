@@ -2,6 +2,20 @@ import { BaseDocumentDto, DocType, UserActivityType } from "../../types";
 import { HttpReq } from "../http";
 import type { Ref } from "vue";
 
+/** Exclusive position in the API's descending timestamp/id order. */
+export type SyncPosition = { updatedTimeUtc: number; id: string };
+
+/** An unverified window; its partial pages must never count as completed coverage. */
+export type PendingSyncPage = {
+    start: number;
+    end: number;
+    queryKey: string;
+    after?: SyncPosition;
+    newest?: number;
+    previousEof?: boolean;
+    provisional?: boolean;
+};
+
 export type SyncSource = {
     /** Wire name sent to API (e.g. "user"). */
     name: string;
@@ -21,6 +35,10 @@ export type SyncSource = {
  * Options for sync operations
  */
 export type SyncBaseOptions = {
+    /** Negotiated pagination protocol; omission preserves legacy requests. */
+    pagination?: "timestamp-id-v1";
+    /** Invalidate work across reconnects and cancellation generations. */
+    isCancelled?: () => boolean;
     /**
      * Document type
      */
@@ -97,6 +115,8 @@ export type SyncOptions = SyncRunnerOptions & {
  * Sync list entry type
  */
 export type SyncListEntry = {
+    /** In-flight pages are stored separately from this entry's completed time range. */
+    pendingPage?: PendingSyncPage;
     /**
      * Chunk type for the sync entry combining the type and parentType / docType fields (e.g. "content:post", "deleteCmd:group")
      */

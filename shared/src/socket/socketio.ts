@@ -4,11 +4,13 @@ import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
 import { config, SharedConfig } from "../config";
 import { reportBreadcrumb } from "../diagnostics";
+import { tuplePaginationSupported } from "../api/sync/state";
 
 /**
  * Client configuration type definition
  */
 type ClientConfig = {
+    syncPagination?: string;
     maxUploadFileSize: number;
     accessMap: AccessMap;
     dataSources?: string[];
@@ -62,6 +64,7 @@ class SocketIO {
         });
 
         this.socket.on("disconnect", (reason: string) => {
+            tuplePaginationSupported.value = false;
             reportBreadcrumb(`Socket disconnected: ${reason}`, {
                 area: "socket",
                 op: "disconnect",
@@ -71,6 +74,7 @@ class SocketIO {
         });
 
         this.socket.on("connect_error", (err: Error & { data?: { type?: string } }) => {
+            tuplePaginationSupported.value = false;
             reportBreadcrumb(`Socket connect error: ${err.message}`, {
                 area: "socket",
                 op: "connect-error",
@@ -91,6 +95,7 @@ class SocketIO {
         // `"data"` and owns the persistence decision (see api/sync/liveSync.ts).
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
+            tuplePaginationSupported.value = c.syncPagination === "timestamp-id-v1";
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
             if (c.accessMap) accessMap.value = c.accessMap;
             dataSources.value = Array.isArray(c.dataSources) ? c.dataSources : [];

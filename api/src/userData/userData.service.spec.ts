@@ -327,4 +327,39 @@ describe("User-data services", () => {
         ]);
         expect(db.partitionedFind.mock.calls[0][0]).not.toBe(db.partitionedFind.mock.calls[1][0]);
     });
+    it("applies owner-prefixed tuple pagination without exposing the stored owner", async () => {
+        db.partitionedFind.mockResolvedValue({
+            docs: [{ ...activity, _id: `${owner}:${activity._id}` }],
+            bookmark: "internal-owner-bookmark",
+        });
+        const result = await queries.query(
+            {
+                selector: { type: "liked", updatedTimeUtc: { $gte: 0, $lte: 2000 } },
+                limit: 2,
+                sort: [{ updatedTimeUtc: "desc" }, { _id: "desc" }],
+                use_index: "sync-liked-cursor-v1-index",
+                syncPagination: { version: 1, after: { updatedTimeUtc: 1000, id: activity._id } },
+            },
+            owner,
+        );
+        expect(db.partitionedFind).toHaveBeenCalledWith(
+            owner,
+            expect.objectContaining({
+                selector: expect.objectContaining({
+                    $and: [
+                        {
+                            $or: [
+                                { updatedTimeUtc: { $lt: 1000 } },
+                                { updatedTimeUtc: 1000, _id: { $lt: `${owner}:${activity._id}` } },
+                            ],
+                        },
+                    ],
+                }),
+                use_index: "sync-liked-cursor-v1-index",
+            }),
+        );
+        expect(result.docs).toEqual([activity]);
+        expect(JSON.stringify(result)).not.toContain(owner);
+        expect(result).not.toHaveProperty("bookmark");
+    });
 });

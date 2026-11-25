@@ -16,7 +16,9 @@ import type { SyncBaseOptions } from "./types";
 export function mergeVertical(options: SyncBaseOptions) {
     const listRef = syncListOf(options.source);
     // Filter chunks by type, memberOf, and languages (if provided)
-    const filteredList = listRef.value.filter(filterByTypeMemberOf(options));
+    const filteredList = listRef.value.filter(
+        (entry) => !entry.pendingPage && filterByTypeMemberOf(options)(entry),
+    );
 
     // Sort in reverse order (newest first)
     filteredList.sort((a, b) => b.blockStart - a.blockStart);
@@ -85,7 +87,9 @@ export function mergeHorizontal(options: {
     const listRef = syncListOf(options.source);
     const list = listRef.value.filter(
         (chunk) =>
-            chunk.chunkType === getChunkTypeString(options.type, options.subType) && chunk.eof,
+            chunk.chunkType === getChunkTypeString(options.type, options.subType) &&
+            chunk.eof &&
+            !chunk.pendingPage,
     );
 
     // If no chunks, return default values

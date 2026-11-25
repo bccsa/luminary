@@ -11,7 +11,7 @@ UUID activity documents, and auth-resolved owner and rate-limit identities. The 
 format adapters and migrations were removed during review; the migration from main's local
 activity table remains.
 
-Outstanding follow-ups include the timestamp-pagination finding below, session-token
+Outstanding follow-ups include live verification of the timestamp/id rollout below, session-token
 integration when that implementation lands, Johan's French-language review, and the
 repository owner's live database/browser checks. Live owner updates, quotas and tombstone
 cleanup remain deferred work.
@@ -562,3 +562,65 @@ identity cache are present; the session-token implementation has not landed.
 - Aligned the app's English activity test fixtures with the feature's seed messages.
 - Pending: Johan's French-language review of these four messages. Automated checks do not
   replace that review; no approval by Johan is implied.
+
+## 14. Timestamp-tie pagination — implementation
+
+The plan/regression step was reviewed on 2026-11-25 and implementation was authorized next.
+The implementation adds `timestamp-id-v1`; the earlier timestamp-only findings above remain
+historical descriptions of the legacy protocol, which older clients still use.
+
+### API and compatibility
+
+- `clientConfig.syncPagination` advertises the optional `timestamp-id-v1` capability. Requests
+  use `syncPagination: { version: 1, after?: { updatedTimeUtc, id } }` and sort both timestamp
+  and id descending. The exclusive continuation is `time < T OR (time = T AND id < I)`.
+- API validation requires a valid version/envelope, finite integer times inside fixed bounds,
+  a positive integer limit, the matching type-specific versioned index and descending sort.
+  Shared ids retain their existing unbounded string contract, within the HTTP request-size
+  limit; activity cursors require client UUIDs. Transport metadata is stripped before Mango.
+- Continuations are ANDed with the existing selector, preserving language fallback and
+  permission injection. User cursor UUIDs are owner-prefixed only inside the authenticated
+  partition; raw bookmarks and owner keys are not returned by the user query service.
+- Companion indexes cover timestamp/id for shared sync types, Content, always-offline Content,
+  DeleteCmd subtypes and all three partitioned activity types. Existing indexes are unchanged.
+- Old clients continue to use their original requests and indexes. New clients against an
+  older API retain legacy requests but stop incomplete on a full stalled timestamp instead
+  of recording false EOF. A recognized unsupported-envelope/index HTTP 400 may downgrade a
+  connection during mixed-version rollout; auth, rate-limit and storage errors may not.
+
+### Client progress, repair and cancellation
+
+- `pendingPage` holds window bounds, query identity, last durable tuple and original coverage
+  state. Partial pages do not extend completed ranges or participate in vertical/horizontal
+  EOF merging. Exact full pages require a final empty query to prove exhaustion.
+- Documents are durably written before the checkpoint; the checkpoint is awaited before
+  another request. A failure between those writes can replay a page without skipping it.
+- Progress uses `<original cursor key>:timestamp-id-v1`. The first negotiated pull rewalks
+  historical coverage to repair omissions in already-EOF legacy cursors, retaining local
+  documents, pending edits and ownership markers. Legacy progress remains separate for fallback.
+- Indexed, transactional queue checks protect incoming docs and DeleteCmd targets that have
+  local edits. No full upload-queue scan or activity-document cache is added.
+- Cancellation generations detect even a rapid cancel/resume. Source lifecycle guards and
+  transactional checkpoint writes prevent late restoration after clear/account changes.
+  Cursor loading also has a database generation guard against restoring progress after clear.
+  Changed column/query identity invalidates a pending window and safely replays it.
+
+### Regression and verification scope
+
+The six timestamp-tie cases are now ordinary tests, with no `it.fails` markers: both shared
+and named-source paths download all documents at limits 2, 100 and 500. Distinct-time controls
+also pass. Additional real IndexedDB/unit coverage exercises database reopen, failed checkpoint
+storage, cancellation around page writes, clear during HTTP, scope changes, corrupt metadata,
+exact full pages and timestamp zero, legacy recovery and queued-edit protection.
+
+Default-runner integration covers negotiated storage selection, group growth, language
+fallback, publish-date windows and DeleteCmd pages. API tests cover envelope/index validation,
+owner-safe translation, permission injection, old requests and capability advertisement;
+HTTP/source tests cover recognized downgrade and non-downgrade errors.
+
+Deploy the API/indexes before clients. Live CouchDB `_explain`/partitioned-find checks,
+throughput measurements, two-browser account tests and browser E2E remain repository-owner
+checks. These have not been substituted by mocked suites or claimed as production confirmation.
+
+Reference: CouchDB's [_find documentation](https://docs.couchdb.org/en/stable/api/database/find.html)
+and [ADR 0005](adr/0005-backwards-compatibility.md).

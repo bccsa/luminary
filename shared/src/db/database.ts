@@ -155,7 +155,10 @@ class Database extends Dexie {
     retention!: Table<RetentionEntry>;
     userActivity!: Table<UserActivityEntry>;
     private readonly indexStorageKey: string;
-    private readonly syncListKey: string;
+    private syncListKey: string;
+    private readonly legacySyncListKey: string;
+    private cursorSelection: Promise<void> = Promise.resolve();
+    private syncGeneration = 0;
     private readonly quietAcks: boolean;
     private readonly includeUserActivityTable: boolean;
     private readonly isDefaultInstance: boolean;
@@ -224,6 +227,7 @@ class Database extends Dexie {
         super(name);
         this.indexStorageKey = options.indexStorageKey ?? `${DEFAULT_DB_INDEX_KEY}:${name}`;
         this.syncListKey = options.syncListKey ?? DEFAULT_SYNC_LIST_KEY;
+        this.legacySyncListKey = this.syncListKey;
         this.quietAcks = options.quietAcks ?? false;
         this.includeUserActivityTable =
             options.includeUserActivityTable ?? name === DEFAULT_DB_NAME;
@@ -283,6 +287,23 @@ class Database extends Dexie {
         return uuidv4();
     }
 
+    /** A new cursor namespace rewalks legacy coverage without clearing docs or pending edits. */
+    async selectSyncProtocol(stable: boolean, list: Ref<SyncListEntry[]>, cancelled = () => false) {
+        const key = stable ? `${this.legacySyncListKey}:timestamp-id-v1` : this.legacySyncListKey;
+        const generation = this.syncGeneration;
+        const select = this.cursorSelection.then(async () => {
+            if (cancelled() || generation !== this.syncGeneration || key === this.syncListKey)
+                return;
+            const stored = await this.getLuminaryInternals(key);
+            const { validSyncProgress } = await import("../api/sync/cursor");
+            if (cancelled() || generation !== this.syncGeneration) return;
+            this.syncListKey = key;
+            list.value = validSyncProgress(stored) ? stored : [];
+        });
+        this.cursorSelection = select.catch(() => undefined);
+        await select;
+    }
+
     async getSyncList(syncListRef?: Ref<SyncListEntry[]>) {
         const _v = await this.getLuminaryInternals(this.syncListKey);
         if (_v && Array.isArray(_v)) {
@@ -325,9 +346,19 @@ class Database extends Dexie {
         return this.docs.get(id) as unknown as Promise<T>;
     }
 
-    /**
-     * Bulk insert documents into the database, and delete documents that are marked for deletion.
-     */
+    /** Replayed sync pages must not overwrite queued local edits or reappear after a clear. */
+    async applySyncPage(docs: BaseDocumentDto[], cancelled = () => false) {
+        await this.transaction("rw", this.docs, this.localChanges, async () => {
+            if (cancelled()) return;
+            const ids = docs.map((doc) =>
+                doc.type === DocType.DeleteCmd ? (doc as DeleteCmdDto).docId : doc._id,
+            );
+            const queued = new Set(await this.localChanges.where("docId").anyOf(ids).keys());
+            await this.bulkPut(docs.filter((_doc, i) => !queued.has(ids[i])));
+        });
+    }
+
+    /** Bulk insert documents and apply commands that delete documents. */
     bulkPut(docs: BaseDocumentDto[]) {
         // Idempotent, so safe to retry whole after a transient WebKit IndexedDB abort.
         return retryOnTransientIndexedDbError(() => this.bulkPutOnce(docs));
@@ -960,6 +991,7 @@ class Database extends Dexie {
 
     /** Clear source tables without changing the default sync cursor or response cache. */
     async clear() {
+        this.syncGeneration++;
         await this.transaction(
             "rw",
             [this.docs, this.localChanges, this.luminaryInternals, this.retention],
@@ -978,6 +1010,7 @@ class Database extends Dexie {
         if (!this.isDefaultInstance) {
             throw new Error("purge() is only supported on the default database instance");
         }
+        this.syncGeneration++;
 
         for (const entry of Array.from(this.localChangeAcks.values())) {
             if (!entry.settled) {

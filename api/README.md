@@ -132,10 +132,22 @@ uncontended activity write reads the current revision then writes once; stale or
 retries skip the write. Conflicts still re-read to preserve activity-time ordering across API
 instances. Mocked request-count checks verify this behavior; live throughput has not been measured.
 
-The timestamp-only sync cursor has an unresolved pagination limit: a full batch of
-documents sharing one `updatedTimeUtc` can cause
-the client's generic sync cursor to stop before importing every tied document. Stable
-tie-breaker pagination remains follow-up work; passing unit suites does not resolve it.
+The API advertises `syncPagination: "timestamp-id-v1"` after startup installs its indexes.
+Opted-in queries sort by descending `updatedTimeUtc` and `_id`, use the matching
+`sync-*-cursor-v1-index`, and send `syncPagination: { version: 1, after?: { updatedTimeUtc, id } }`.
+The API ANDs the exclusive continuation with the existing selector and permission filters.
+For user data, it prefixes the cursor's client UUID with the authenticated owner only inside
+the server query. Internal owner ids and raw CouchDB bookmarks are not returned by `/user/query`.
+Legacy requests and indexes remain available for deployed clients.
+
+Updated clients keep progress under `<original cursor key>:timestamp-id-v1`. The first use
+rewalks the dataset to repair omissions in older timestamp-only cursors while retaining local
+documents and queued edits. A pending window becomes completed coverage only after all its
+pages are stored. Deploy the API/indexes before clients. A recognized unsupported-protocol/index
+HTTP 400 downgrades the connection; auth failures and storage outages do not. Legacy clients
+still have the timestamp-tie limitation. Updated clients using an older API stop with incomplete
+progress on a saturated timestamp rather than falsely marking it complete. Live CouchDB index
+and cross-device verification remain repository-owner checks.
 
 The app migrates activity from the existing main-database local activity table into
 its named source database before transport starts. There is no server startup format

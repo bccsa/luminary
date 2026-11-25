@@ -1,4 +1,5 @@
 import { getIndexNameRegistry } from "../../db/indexNameRegistry";
+import { syncPaginationError } from "./syncPagination";
 
 export type ValidationResult = {
     valid: boolean;
@@ -90,6 +91,7 @@ const ALLOWED_TOP_LEVEL_KEYS = new Set([
     "cms",
     "includeExpired",
     "dataSource",
+    "syncPagination",
 ]);
 
 /**
@@ -173,6 +175,9 @@ export function validateQuery(query: any, options: ValidateQueryOptions = {}): V
     if (query.includeExpired !== undefined && typeof query.includeExpired !== "boolean") {
         return fail("'includeExpired' must be a boolean");
     }
+
+    const paginationError = syncPaginationError(query);
+    if (paginationError) return fail(paginationError);
 
     // use_index — optional; must be a known Mango index name.
     if (query.use_index !== undefined) {

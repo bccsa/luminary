@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { UserDataDbService } from "./userDataDb.service";
 import { UserDataService } from "./userData.service";
 import { isUserActivityType } from "./activityIdentity";
+import { applySyncPagination } from "../validation/query/syncPagination";
 
 @Injectable()
 export class UserQueryService {
@@ -14,6 +15,7 @@ export class UserQueryService {
 
     async query(query: any, owner: string) {
         this.db.assertEnabled();
+        query = applySyncPagination(query, owner);
         if (!isUserActivityType(query?.selector?.type)) {
             throw new BadRequestException("User-data queries require a supported activity type");
         }

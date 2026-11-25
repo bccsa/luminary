@@ -10,6 +10,7 @@ import { MongoComparisonCriteria, MongoSelectorDto } from "../dto/MongoSelectorD
 import { LanguageDto } from "../dto/LanguageDto";
 import { expandMangoSelector } from "../util/expandMangoQuery";
 import { isExpiredContent, stripExpiredContent } from "../util/stripExpiredContent";
+import { applySyncPagination } from "../validation/query/syncPagination";
 
 @Injectable()
 export class QueryService {
@@ -74,6 +75,7 @@ export class QueryService {
     }
 
     async query(query: MongoQueryDto, userDetails: JwtUserDetails): Promise<DbQueryResult> {
+        query = applySyncPagination(query);
         const now = Date.now();
 
         // Expand the selector to ensure it is in the correct format, allowing injection of additional conditions like permission checks.

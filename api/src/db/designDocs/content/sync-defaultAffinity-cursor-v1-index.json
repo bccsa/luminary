@@ -1,0 +1,25 @@
+{
+    "_id": "_design/sync-defaultAffinity-cursor-v1-index",
+    "language": "query",
+    "views": {
+        "sync-defaultAffinity-cursor-v1-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "asc",
+                    "_id": "asc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "defaultAffinity"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["updatedTimeUtc", "_id"]
+                }
+            }
+        }
+    }
+}

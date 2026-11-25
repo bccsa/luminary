@@ -1,0 +1,28 @@
+{
+    "_id": "_design/sync-liked-cursor-v1-index",
+    "language": "query",
+    "options": {
+        "partitioned": true
+    },
+    "views": {
+        "sync-liked-cursor-v1-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "asc",
+                    "_id": "asc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "liked"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["updatedTimeUtc", "_id"]
+                }
+            }
+        }
+    }
+}

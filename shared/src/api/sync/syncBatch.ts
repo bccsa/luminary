@@ -1,19 +1,13 @@
 import { db } from "../../db/database";
 import { BaseDocumentDto, DocType } from "../../types";
-import { contentLanguageKeepSelector } from "./keepSelector";
+import { buildSyncQuery } from "./query";
+import { syncBatchStable } from "./syncBatchStable";
 import { merge } from "./merge";
-import { syncListOf, syncTolerance } from "./state";
-import { cancelSync } from "./sync";
+import { syncListOf, syncTolerance, tuplePaginationSupported } from "./state";
+import { cancelSync, syncCancellationGeneration } from "./sync";
 import { SyncOptions } from "./types";
 import { reportBreadcrumb } from "../../diagnostics";
-import {
-    calcChunk,
-    filterByTypeMemberOf,
-    getChunkTypeString,
-    OPEN_MAX,
-    OPEN_MIN,
-    resolveRange,
-} from "./utils";
+import { calcChunk, filterByTypeMemberOf, getChunkTypeString, resolveRange } from "./utils";
 
 /**
  * Persist eof = true onto the frontier (newest) chunk of the given column. The stall / inverted-range
@@ -33,9 +27,18 @@ function markColumnEof(options: SyncOptions) {
  * Finally perform horizontal merge if end of file is reached.
  */
 export async function syncBatch(options: SyncOptions) {
+    if (options.pagination) return syncBatchStable(options);
+    const generation = syncCancellationGeneration;
+    const capability = tuplePaginationSupported.value;
+    const cancelled = () =>
+        cancelSync ||
+        generation !== syncCancellationGeneration ||
+        capability !== tuplePaginationSupported.value ||
+        !!options.isCancelled?.() ||
+        !!options.source?.isCancelled?.();
     const listRef = syncListOf(options.source);
     // Check if sync has been cancelled before proceeding
-    if (cancelSync || options.source?.isCancelled?.()) {
+    if (cancelled()) {
         return;
     }
     const chunk = calcChunk(options);
@@ -61,96 +64,17 @@ export async function syncBatch(options: SyncOptions) {
         return { ...mergeResult, firstSync };
     }
 
-    const mangoQuery: any = {
-        selector: {
-            type: options.type,
-            updatedTimeUtc: { $lte: chunk.blockStart, $gte: chunk.blockEnd }, // We are overlapping chunks by 1 entry to be able to merge chunks properly
-        },
-        limit: options.limit,
-        sort: [{ updatedTimeUtc: "desc" }],
-        use_index:
-            options.type === DocType.Content && options.alwaysOffline
-                ? "sync-content-alwaysOffline-index"
-                : options.type === DocType.Content
-                  ? "sync-content-index"
-                  : "sync-" +
-                    (options.subType ? options.subType + "-" : "") +
-                    options.type +
-                    "-index",
-        cms: options.cms,
-        identifier: "sync", // Identifier for the API query validation template
-    };
-
-    if (options.source) {
-        mangoQuery.dataSource = options.source.name;
-    } else {
-        mangoQuery.selector.memberOf = {
-            $elemMatch: { $in: options.memberOf },
-        };
-    }
-
-    if (options.type === DocType.Content && !options.cms && !firstSync) {
-        mangoQuery.includeExpired = true;
-    }
-
-    // Add parentType and language selectors to content queries
-    if (options.type === DocType.Content && options.subType) {
-        mangoQuery.selector.parentType = options.subType;
-        const langs = options.languages || [];
-        if (options.cms) {
-            // CMS syncs all available languages: a flat membership returns all content, and the
-            // set-based keep's fallback branch would be vacuous while bloating the selector with
-            // one negation per language. So CMS keeps the simple flat filter.
-            mangoQuery.selector.language = { $in: langs };
-        } else if (langs.length) {
-            // App: set-based priority-fallback keep (shared with the live gate via
-            // contentLanguageKeepSelector) — a synced language OR the last-resort fallback
-            // translation. Downloads exactly the set the local read can later pick the best
-            // translation from, offline, with no per-feed API supplement. ANDed with the existing
-            // top-level equality keys (CouchDB implicit-ANDs top-level fields with the injected $or).
-            Object.assign(mangoQuery.selector, contentLanguageKeepSelector(langs));
-        } else {
-            // Empty language set → match nothing (don't let an absent set fetch the whole corpus).
-            mangoQuery.selector.language = { $in: [] };
-        }
-        if (options.alwaysOffline) {
-            mangoQuery.selector.parentAlwaysOffline = true;
-        }
-    }
-
-    // Add docType selector for deleteCmd queries. DeleteCmds are language-UNSCOPED: a delete of any
-    // downloaded doc — including a non-synced fallback translation, whose DeleteCmd carries that
-    // (non-synced) language — must propagate, or the doc would linger in IndexedDB forever. DeleteCmds
-    // are tiny, so fetching every language's content DeleteCmds is cheap.
-    if (options.type === DocType.DeleteCmd && options.subType) {
-        mangoQuery.selector.docType = options.subType;
-    }
-
-    // Inject publishDate range selector for Content queries when the range is narrowed.
-    // DeleteCmd queries are intentionally never publishDate-filtered so deletes propagate
-    // regardless of the user's cutoff. When both bounds are at defaults the selector is
-    // omitted so the wire format stays byte-identical to clients that don't use publishDate.
-    if (options.type === DocType.Content && !options.alwaysOffline) {
-        const pdMin = options.publishDateMin ?? OPEN_MIN;
-        const pdMax = options.publishDateMax ?? OPEN_MAX;
-        const isNarrowed = pdMin > OPEN_MIN || pdMax < OPEN_MAX;
-        if (isNarrowed) {
-            const pd: { $gte?: number; $lte?: number } = {};
-            if (pdMin > OPEN_MIN) pd.$gte = pdMin;
-            if (pdMax < OPEN_MAX) pd.$lte = pdMax;
-            mangoQuery.selector.publishDate = pd;
-        }
-    }
+    const mangoQuery = buildSyncQuery(options, chunk);
 
     // Check if sync has been cancelled before making API request
-    if (cancelSync || options.source?.isCancelled?.()) {
+    if (cancelled()) {
         return;
     }
 
     const res = await options.httpService.post(options.source?.queryPath ?? "query", mangoQuery);
 
     // Check if sync was cancelled during the API call
-    if (cancelSync || options.source?.isCancelled?.()) {
+    if (cancelled()) {
         return;
     }
 
@@ -202,7 +126,7 @@ export async function syncBatch(options: SyncOptions) {
     if (fetchedDocs.length) {
         if (options.source) await options.source.put(fetchedDocs);
         else await db.bulkPut(fetchedDocs);
-        if (options.source?.isCancelled?.()) return;
+        if (cancelled()) return;
         // publishDate is a Content-only sync dimension. For non-Content types (Language,
         // Redirect, Storage, AuthProvider, Group, …) the docs have no publishDate field and
         // every comparison path against these bounds wraps in `if (type === Content)`, so
@@ -228,6 +152,16 @@ export async function syncBatch(options: SyncOptions) {
             publishDateMin,
             publishDateMax,
         });
+        if (
+            blockLength === options.limit &&
+            fetchedDocs.every((doc) => doc.updatedTimeUtc === blockStart)
+        ) {
+            if (options.source) await options.source.setSyncList();
+            else await db.setSyncList?.();
+            throw new Error(
+                "Sync pagination stalled at a full timestamp; an updated API is required",
+            );
+        }
     }
 
     // Merge chunks

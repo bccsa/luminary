@@ -93,6 +93,11 @@ Source cursor progress is persisted after every batch. Pulls wait for the outbou
 queue to empty, and transactional incoming writes skip queued local edits. Queue
 uploads can be paced; explicit pulls, flushes and foreground events restart a stalled
 queue. An interrupted pull resumes from its own persisted cursor after reload.
+With negotiated `timestamp-id-v1` pagination, the cursor includes the last document id inside
+an immutable time window. The API translates client UUID boundaries into owner-prefixed stored
+ids and ANDs them with the selector inside the authenticated partition. Pending windows are
+not completed ranges. A separate versioned cursor key triggers a one-time replay of historical
+coverage while preserving local edits; old clients cannot interpret partial tuple progress.
 
 ## Consequences
 

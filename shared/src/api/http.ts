@@ -22,13 +22,20 @@ export function removeCustomHeader(name: string) {
  * Handle HTTP responses, signalling 5xx errors via the serverError ref so
  * consumers can show a localized notification.
  */
-async function handleResponse(res: Response) {
+async function handleResponse(res: Response, onError?: (status: number, message?: string) => void) {
     if (res.ok) {
         return res.json().catch((err) => {
             console.log(err.message);
         });
     }
 
+    if (onError) {
+        const body = await res
+            .clone()
+            .json()
+            .catch(() => undefined);
+        onError(res.status, typeof body?.message === "string" ? body.message : undefined);
+    }
     if (res.status >= 500) {
         let message: string | undefined;
         try {
@@ -74,7 +81,11 @@ export class HttpReq<T> {
         }
     }
 
-    async post(endpoint: string, query: T | FormData) {
+    async post(
+        endpoint: string,
+        query: T | FormData,
+        options?: { onError?: (status: number, message?: string) => void },
+    ) {
         try {
             const isFormData = query instanceof FormData;
             const headers: any = {
@@ -86,7 +97,7 @@ export class HttpReq<T> {
                 headers,
                 body: isFormData ? query : JSON.stringify(query),
             });
-            return await handleResponse(res);
+            return await handleResponse(res, options?.onError);
         } catch (err) {
             console.log(err);
         }

@@ -89,7 +89,7 @@ describe("Socketio (mocked)", () => {
         gateway.clientConfigReq({ cms: false, docTypes: [] }, socket);
         expect(socket.emit).toHaveBeenCalledWith(
             "clientConfig",
-            expect.objectContaining({ dataSources: ["user"] }),
+            expect.objectContaining({ dataSources: ["user"], syncPagination: "timestamp-id-v1" }),
         );
     });
 
@@ -550,6 +550,7 @@ describe("Socketio (mocked)", () => {
 
             // clientConfig emit
             expect(socket.emit).toHaveBeenCalledWith("clientConfig", {
+                syncPagination: "timestamp-id-v1",
                 maxUploadFileSize: 1e7,
                 accessMap: socket.data.userDetails.accessMap,
             });

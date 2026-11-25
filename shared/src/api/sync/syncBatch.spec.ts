@@ -935,30 +935,37 @@ describe("syncBatch", () => {
         expect(http.post).toHaveBeenCalled();
     });
 
-    it("terminates when docs are returned but chunk range does not advance (same-timestamp docs)", async () => {
-        // All docs have the same updatedTimeUtc, so blockStart === blockEnd after fetch.
-        // Without the widened stall guard, this would loop forever because blockLength > 0
-        // and the old guard only checked blockLength === 0.
-        const sameTimestampDocs = Array.from({ length: 5 }, (_, i) => ({
-            id: `doc-${i}`,
-            type: DocType.Post,
-            updatedTimeUtc: 3000, // all identical
-            memberOf: ["g1"],
-        })) as any;
+    it("keeps a saturated legacy timestamp incomplete when the API cannot paginate ties", async () => {
+        const docs = makeDocs(5, 3000, 0);
+        const http = { post: vi.fn(async () => ({ docs })) };
+        await expect(
+            syncBatch({
+                type: DocType.Post,
+                memberOf: ["g1"],
+                limit: 5,
+                initialSync: true,
+                httpService: http as any,
+            }),
+        ).rejects.toThrow("updated API is required");
+        expect(http.post).toHaveBeenCalledTimes(1);
+        expect(syncList.value.every((entry) => !entry.eof)).toBe(true);
+    });
 
-        const http = { post: vi.fn(async () => ({ docs: sameTimestampDocs })) };
-        const result = await syncBatch({
-            type: DocType.Post,
-            memberOf: ["g1"],
-            limit: 5, // blockLength === limit, so eof is false
-            initialSync: true,
-            httpService: http as any,
-        });
-
-        // Should terminate after detecting the range hasn't moved, not loop forever
-        expect(http.post).toHaveBeenCalledTimes(2); // initial + one retry that detects stall
-        expect(result).toBeDefined();
-        expect(result?.eof).toBe(true);
+    it("does not merge a full tied legacy page into an older EOF column", async () => {
+        syncList.value = [
+            { chunkType: "post", memberOf: ["g1"], blockStart: 3000, blockEnd: 0, eof: true },
+        ];
+        const http = { post: vi.fn(async () => ({ docs: makeDocs(2, 10000, 0) })) };
+        await expect(
+            syncBatch({
+                type: DocType.Post,
+                memberOf: ["g1"],
+                limit: 2,
+                initialSync: true,
+                httpService: http as any,
+            }),
+        ).rejects.toThrow("updated API is required");
+        expect(syncList.value.find((entry) => entry.blockStart === 10000)?.eof).toBe(false);
     });
 
     // --- publishDate selector injection (Part A) ---

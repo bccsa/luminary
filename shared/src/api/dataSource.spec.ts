@@ -9,7 +9,7 @@ import { dataSources, isConnected } from "../socket/socketio";
 import { createDataSource, type DataSourceHandle } from "./dataSource";
 import * as RestApi from "./RestApi";
 import { initSync, setCancelSync } from "./sync";
-import { syncList as defaultSyncList, syncActive } from "./sync/state";
+import { syncList as defaultSyncList, syncActive, tuplePaginationSupported } from "./sync/state";
 import type { HttpReq } from "./http";
 
 const changeRequestMock = vi.fn();
@@ -344,5 +344,40 @@ describe("createDataSource", () => {
         expect((await source.db.docs.get("remote-only"))?.updatedTimeUtc).toBe(999);
         expect(await source.db.localChanges.count()).toBe(100);
         expect(defaultSyncList.value).toEqual([]);
+    });
+    it("negotiates tuple pagination and persists it under a separate cursor key", async () => {
+        tuplePaginationSupported.value = true;
+        const { source, enabled } = await create();
+        enabled.value = true;
+        connect();
+        await source.pull();
+        expect(http.post.mock.calls.some(([, body]) => body.syncPagination?.version === 1)).toBe(
+            true,
+        );
+        expect(await source.db.getLuminaryInternals("syncList:timestamp-id-v1")).toEqual(
+            expect.arrayContaining([expect.objectContaining({ eof: true })]),
+        );
+    });
+
+    it("downgrades an explicitly unsupported protocol without sealing its partial window", async () => {
+        tuplePaginationSupported.value = true;
+        http.post.mockImplementation(async (_path, body, callbacks) => {
+            if (body.syncPagination) {
+                callbacks.onError(400, "Invalid query: Unexpected top-level key 'syncPagination'");
+                return undefined;
+            }
+            return { docs: [] };
+        });
+        const { source, enabled } = await create();
+        enabled.value = true;
+        connect();
+        await source.pull();
+        await waitForExpect(() =>
+            expect(http.post.mock.calls.some(([, body]) => !body.syncPagination)).toBe(true),
+        );
+        expect(tuplePaginationSupported.value).toBe(false);
+        const saved = await source.db.getLuminaryInternals("syncList:timestamp-id-v1");
+        expect(saved[0].eof).toBe(false);
+        expect(saved[0].pendingPage.after).toBeUndefined();
     });
 });

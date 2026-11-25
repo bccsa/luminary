@@ -52,8 +52,11 @@ describe("indexNameRegistry", () => {
             const content = getIndexNameRegistry();
             const user = getUserDataIndexNames();
             expect([...user].sort()).toEqual([
+                "sync-highlighted-cursor-v1-index",
                 "sync-highlighted-index",
+                "sync-liked-cursor-v1-index",
                 "sync-liked-index",
+                "sync-viewed-cursor-v1-index",
                 "sync-viewed-index",
             ]);
             expect([...user].every((name) => !content.has(name))).toBe(true);

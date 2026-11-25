@@ -2,6 +2,8 @@ import { ref } from "vue";
 import type { SyncListEntry, SyncSource } from "./types";
 
 export const syncList = ref<SyncListEntry[]>([]);
+/** Enabled only by a recognized capability on the current API connection. */
+export const tuplePaginationSupported = ref(false);
 export const syncTolerance = 1000; // Once second tolerance for updatedTimeUtc to avoid missing documents due to API database sync delays
 
 /**

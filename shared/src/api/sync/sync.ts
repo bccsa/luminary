@@ -20,11 +20,12 @@ import {
     subtractRanges,
 } from "./utils";
 import { trim } from "./trim";
-import { syncActive, syncList, syncListOf, syncTolerance } from "./state";
+import { syncActive, syncList, syncListOf, syncTolerance, tuplePaginationSupported } from "./state";
 import { merge } from "./merge";
 import { getContentPublishDateCutoff, hasContentPublishDateCutoff } from "../../config";
 import { evictStaleBelowCutoff } from "../../db/retention";
 import { reportBreadcrumb } from "../../diagnostics";
+import { accessMap } from "../../permissions/permissions";
 import type { SyncSource } from "./types";
 
 let _httpService: HttpReq<any>;
@@ -37,6 +38,7 @@ let _httpService: HttpReq<any>;
  * - Set to `false` to allow sync to run (e.g., when coming back online)
  */
 export let cancelSync = false;
+export let syncCancellationGeneration = 0;
 
 /**
  * Find chunkTypes whose syncList contains a genuinely-degenerate state that the runtime engine
@@ -203,12 +205,12 @@ function findStaleSubsetEntries(source?: SyncSource): Set<SyncListEntry> {
         const a = entries[i];
         // Only consider non-eof entries as candidates for being stale. An eof:true entry
         // represents complete coverage of its own range and should never be dropped.
-        if (a.eof) continue;
+        if (a.eof || a.pendingPage) continue;
         for (let j = 0; j < entries.length; j++) {
             if (i === j) continue;
             const b = entries[j];
             // Superset must be eof:true so we can safely declare its coverage authoritative.
-            if (!b.eof) continue;
+            if (!b.eof || b.pendingPage) continue;
             if (a.chunkType !== b.chunkType) continue;
             if (!arraysEqual(a.languages ?? [], b.languages ?? [])) continue;
             if (a.publishDateMin !== b.publishDateMin) continue;
@@ -253,6 +255,7 @@ async function removeStaleSubsetEntries(source?: SyncSource): Promise<void> {
  * ```
  */
 export function setCancelSync(value: boolean): void {
+    if (value) syncCancellationGeneration++;
     cancelSync = value;
 }
 
@@ -271,6 +274,25 @@ let _activeRunners = 0;
  */
 export async function sync(options: SyncRunnerOptions): Promise<void> {
     if (!_httpService) throw new Error("Sync module not initialized with HTTP service");
+    const stable = tuplePaginationSupported.value;
+    const permissions = accessMap.value;
+    const generation = syncCancellationGeneration;
+    const callerCancelled = options.isCancelled;
+    const cancelled = () =>
+        cancelSync ||
+        generation !== syncCancellationGeneration ||
+        stable !== tuplePaginationSupported.value ||
+        (!options.source && permissions !== accessMap.value) ||
+        !!callerCancelled?.();
+    if (stable) {
+        options = {
+            ...options,
+            pagination: "timestamp-id-v1",
+            isCancelled: cancelled,
+        };
+    }
+    if (!options.source) await db.selectSyncProtocol?.(stable, syncList, cancelled);
+    if (cancelled() || options.source?.isCancelled?.()) return;
 
     if (!options.source && isUserActivityType(options.type))
         throw new Error("Activity sync requires a dedicated source");
@@ -322,6 +344,7 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
 }
 
 async function _runSync(options: SyncRunnerOptions): Promise<void> {
+    if (cancelSync || options.isCancelled?.()) return;
     // publishDate is a Content-only sync dimension. For Content callers, an unspecified
     // floor falls back to the configured cutoff so sync never pulls content older than the
     // app/HybridQuery treat as "remote-only". Non-Content callers (Language, Redirect,
@@ -382,7 +405,7 @@ async function _runSync(options: SyncRunnerOptions): Promise<void> {
 
 export async function _sync(options: SyncRunnerOptions): Promise<void> {
     // Check if sync has been cancelled before starting
-    if (cancelSync) return;
+    if (cancelSync || options.isCancelled?.()) return;
 
     if (options.type === DocType.DeleteCmd)
         throw new Error(

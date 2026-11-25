@@ -7,6 +7,7 @@ import { sync } from "./sync";
 import { syncLocalChanges, type SyncLocalChangesHandle } from "./syncLocalChanges";
 import type { SyncListEntry, SyncSource } from "./sync/types";
 import { reportError } from "../diagnostics";
+import { tuplePaginationSupported } from "./sync/state";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -122,8 +123,15 @@ export async function createDataSource(config: DataSourceConfig): Promise<DataSo
                 if ((await sourceDb.localChanges.count()) > 0) return;
 
                 const pullGeneration = generation;
+                const stable = tuplePaginationSupported.value;
                 const isCancelled = () =>
-                    disposed || pullGeneration !== generation || !isConnected.value || !ready.value;
+                    disposed ||
+                    pullGeneration !== generation ||
+                    !isConnected.value ||
+                    !ready.value ||
+                    stable !== tuplePaginationSupported.value;
+                await sourceDb.selectSyncProtocol(stable, syncList, isCancelled);
+                if (isCancelled()) return;
                 for (const type of config.sync.types ?? [config.sync.type]) {
                     await sync({
                         type,
@@ -138,6 +146,10 @@ export async function createDataSource(config: DataSourceConfig): Promise<DataSo
                             ...source,
                             isCancelled,
                             put: (docs) => putPulledDocs(docs, isCancelled),
+                            setSyncList: () =>
+                                sourceDb.transaction("rw", sourceDb.luminaryInternals, async () => {
+                                    if (!isCancelled()) await sourceDb.setSyncList(syncList);
+                                }),
                         },
                     });
                 }
@@ -166,7 +178,7 @@ export async function createDataSource(config: DataSourceConfig): Promise<DataSo
         });
 
         watch(
-            [isConnected, ready, () => localChangesRef!.value.length],
+            [isConnected, ready, () => localChangesRef!.value.length, tuplePaginationSupported],
             ([connected, sourceReady, queued]) => {
                 pending.value = queued;
                 if (connected && sourceReady && queued === 0) {
