@@ -26,3 +26,11 @@ export function generateNonUniqueSlug(text: string): string {
         .replace(/-+/g, "-")
         .replace(/^-+|-+$/g, "");
 }
+
+/**
+ * Normalises a redirect slug exactly as the CMS redirect form does
+ * (`cms/src/components/redirects/CreateOrEditRedirectModal.vue`): the API stores what it is given.
+ */
+export function normalizeRedirectSlug(slug: string): string {
+    return slug.replace(/[^a-zA-Z0-9-_]/g, "").toLowerCase();
+}

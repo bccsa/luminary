@@ -25,6 +25,7 @@ const providers = (shared as unknown as { __providers: Ref<AuthProviderDto[]> })
 const provider = (mcp?: AuthProviderDto["mcp"]): AuthProviderDto => ({
     _id: "provider-1",
     type: DocType.AuthProvider,
+    updatedTimeUtc: 1704114000000,
     memberOf: [],
     domain: "test.auth0.com",
     clientId: "client-id-1",

@@ -37,6 +37,8 @@ function setEnabled(value: boolean) {
         return;
     }
     provider.value.mcp.enabled = value;
+    if (value && !provider.value.mcp.resourceUrl)
+        provider.value.mcp.resourceUrl = suggestedResourceUrl.value;
 }
 
 function setUrl(key: "resourceUrl" | "cmsUrl", value: string) {

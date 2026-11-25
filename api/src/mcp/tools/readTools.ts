@@ -28,6 +28,13 @@ const isoDate = z.iso
     .datetime({ offset: true })
     .describe("ISO 8601 date-time, e.g. 2026-11-30T08:00:00Z");
 
+const listCursor = z.object({ ts: z.number(), ids: z.array(z.string()).max(200) });
+const textCursor = z.object({
+    id: z.string(),
+    version: z.string(),
+    index: z.number().int().min(0),
+});
+
 export function languagesFor(env: ToolEnv): LanguageDto[] {
     return env.deps.queryService.readableLanguages(env.session.user, MCP);
 }
@@ -61,7 +68,7 @@ async function pageByUpdatedTime(
     limit: number,
     cursor: string | undefined,
 ): Promise<{ docs: any[]; nextCursor?: string }> {
-    const after = cursor ? decodeCursor<{ ts: number; ids: Uuid[] }>(cursor) : undefined;
+    const after = cursor ? decodeCursor(cursor, listCursor) : undefined;
     const body: Record<string, unknown> = {
         selector: {
             ...selector,
@@ -344,7 +351,7 @@ export function registerReadTools(server: McpServer, env: ToolEnv): void {
             annotations: readOnly,
         },
         async ({ id, cursor }) => {
-            const page = decodeCursor<{ id: string; version: string; index: number }>(cursor);
+            const page = decodeCursor(cursor, textCursor);
             if (page.id !== id) throw new ToolError("That cursor belongs to another document");
 
             const [doc] = await deps.queryService.getReadableDocs([id], session.user, MCP);

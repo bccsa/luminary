@@ -3,7 +3,9 @@ import { McpServer, type ServerContext } from "@modelcontextprotocol/server";
 import * as z from "zod";
 import { AckStatus, DocType, PostType, PublishStatus, RedirectType, TagType } from "../../enums";
 import { admitChangeRequest, submitChangeRequest } from "../../endpoints/requestPipeline";
-import { generateNonUniqueSlug } from "../../util/slug";
+import { sanitizeContentText } from "../../util/sanitizeContentText";
+import { generateNonUniqueSlug, normalizeRedirectSlug } from "../../util/slug";
+import { confirmation, fieldChanges, listChange, quote, textChange } from "../changeSummary";
 import { confirmLiveChange, pendingConfirmation } from "../confirmLiveChange";
 import { defineTool, ToolEnv, ToolError, toolResult } from "../mcpContext";
 import { docTitle, docVersion, hashJson, trimDoc } from "../mcpDocs";
@@ -26,8 +28,14 @@ type WriteOptions = {
     doc: Record<string, any>;
     stored?: Record<string, any>;
     live: boolean;
-    describe: () => string;
+    /** The confirmation text for a live change; only called when the user has to be asked. */
+    describe: () => Promise<string>;
 };
+
+/** A non-live write never asks, so it needs no confirmation text. */
+const noConfirmation = async () => "";
+
+const when = (ms: number | undefined, none = "none") => (ms ? new Date(ms).toISOString() : none);
 
 /** A doc to update: it must exist with one of these types and be readable through MCP. */
 async function loadForUpdate(
@@ -75,12 +83,46 @@ function newDocId(ctx: ServerContext, tool: string): string {
     return pending?.tool === tool && pending.version === null ? pending.docId : randomUUID();
 }
 
-function changedFields(
-    before: Record<string, any> | undefined,
-    after: Record<string, any>,
-    fields: string[],
-) {
-    return fields.filter((f) => JSON.stringify(before?.[f]) !== JSON.stringify(after[f]));
+/** Display names of groups and tags, limited to what the user can see in the CMS. */
+async function namesOf(env: ToolEnv, ids: string[]): Promise<Map<string, string>> {
+    const names = new Map<string, string>();
+    const unique = [...new Set(ids)];
+    if (!unique.length) return names;
+
+    const { queryService } = env.deps;
+    const docs = await queryService.getReadableDocs(unique, env.session.user);
+    for (const doc of docs)
+        if (doc.type === DocType.Group && doc.name) names.set(doc._id, doc.name);
+
+    const tagIds = docs.filter((d) => d.type === DocType.Tag).map((d) => d._id);
+    for (const t of await queryService.getReadableContentByParent(tagIds, env.session.user))
+        if (!names.has(t.parentId) && t.title) names.set(t.parentId, t.title);
+    return names;
+}
+
+/**
+ * Published siblings whose dates saving `doc` would change. With linked dates on the parent, the
+ * server copies a saved translation's dates onto every sibling, so even a draft save can be live.
+ */
+async function redatedSiblings(env: ToolEnv, doc: Record<string, any>): Promise<any[]> {
+    const parent = (await env.deps.db.getDoc(doc.parentId)).docs?.[0] as any;
+    if (!parent?.linkDates) return [];
+    const siblings = (await env.deps.db.getContentByParentId(doc.parentId)).docs ?? [];
+    return siblings.filter(
+        (s: any) =>
+            s._id !== doc._id &&
+            s.status === PublishStatus.Published &&
+            ((doc.publishDate !== undefined && s.publishDate !== doc.publishDate) ||
+                (doc.expiryDate !== undefined && s.expiryDate !== doc.expiryDate)),
+    );
+}
+
+function linkedDatesNote(doc: Record<string, any>, redated: any[]): string[] {
+    if (!redated.length) return [];
+    return [
+        `Its dates are linked, so ${redated.length} other published translation(s) also get publish date ` +
+            `${when(doc.publishDate, "unchanged")} and expiry ${when(doc.expiryDate, "unchanged")}.`,
+    ];
 }
 
 /** Confirm (when live), submit through the change-request pipeline, audit, and read back. */
@@ -91,6 +133,17 @@ async function applyWrite(env: ToolEnv, ctx: ServerContext, options: WriteOption
             "Your login isn't linked to a Luminary user, so you can't make changes through MCP",
         );
 
+    const audit = (message: string, fields: Record<string, unknown>) =>
+        deps.logger.info(message, {
+            userId: session.user.userId,
+            providerId: session.providerId,
+            clientId: session.clientId,
+            tool: options.tool,
+            docId: options.doc._id,
+            docType: options.doc.type,
+            ...fields,
+        });
+
     let confirmed = false;
     if (options.live) {
         const outcome = await confirmLiveChange(env, ctx, {
@@ -98,9 +151,12 @@ async function applyWrite(env: ToolEnv, ctx: ServerContext, options: WriteOption
             docId: options.doc._id,
             version: options.stored ? docVersion(options.stored) : null,
             changeHash: hashJson(options.args),
-            message: options.describe(),
+            describe: options.describe,
         });
-        if ("result" in outcome) return outcome.result;
+        if ("result" in outcome) {
+            if (outcome.answer) audit("MCP write not applied", { answer: outcome.answer });
+            return outcome.result;
+        }
         confirmed = true;
     }
 
@@ -115,16 +171,7 @@ async function applyWrite(env: ToolEnv, ctx: ServerContext, options: WriteOption
         session.user,
     );
 
-    deps.logger.info("MCP write", {
-        userId: session.user.userId,
-        providerId: session.providerId,
-        clientId: session.clientId,
-        tool: options.tool,
-        docId: options.doc._id,
-        docType: options.doc.type,
-        ack: ack.ack,
-        confirmed,
-    });
+    audit("MCP write", { ack: ack.ack, confirmed });
 
     // Only the ack's status and messages are returned; the saved doc is read back below.
     if (ack.ack !== AckStatus.Accepted)
@@ -152,9 +199,7 @@ function registerParentTool(server: McpServer, env: ToolEnv, type: DocType.Post 
     const isPost = type === DocType.Post;
     const subtypeField = isPost ? "postType" : "tagType";
     const tool = isPost ? "save_post" : "save_tag";
-    const editable = [
-        "memberOf",
-        "tags",
+    const flags = [
         "publishDateVisible",
         "showComingSoon",
         "alwaysOffline",
@@ -162,6 +207,13 @@ function registerParentTool(server: McpServer, env: ToolEnv, type: DocType.Post 
         "authorType",
         ...(isPost ? [] : ["pinned"]),
     ];
+    // What an absent flag means, so "absent → on" reads as "off → on".
+    const flagDefaults = {
+        showComingSoon: false,
+        alwaysOffline: false,
+        useVerticalTileLayout: false,
+        authorType: "person",
+    };
 
     const schema = z
         .object({
@@ -255,9 +307,22 @@ function registerParentTool(server: McpServer, env: ToolEnv, type: DocType.Post 
                 doc,
                 stored,
                 live: published.length > 0,
-                describe: () =>
-                    `Change the ${type} "${docTitle(stored, translations)}", which has ${published.length} published translation(s). ` +
-                    `Changes: ${changedFields(stored, doc, editable).join(", ") || "none"}.`,
+                describe: async () => {
+                    const names = await namesOf(env, [
+                        ...(stored?.memberOf ?? []),
+                        ...(doc.memberOf ?? []),
+                        ...(stored?.tags ?? []),
+                        ...(doc.tags ?? []),
+                    ]);
+                    return confirmation(
+                        `Change the ${type} ${quote(docTitle(stored, translations))}, which has ${published.length} published translation(s) in the app.`,
+                        [
+                            ...listChange("groups", stored?.memberOf, doc.memberOf, names),
+                            ...listChange("tags", stored?.tags, doc.tags, names),
+                            ...fieldChanges(stored, doc, flags, flagDefaults),
+                        ],
+                    );
+                },
             });
         },
     );
@@ -266,16 +331,6 @@ function registerParentTool(server: McpServer, env: ToolEnv, type: DocType.Post 
 export function registerWriteTools(server: McpServer, env: ToolEnv): void {
     registerParentTool(server, env, DocType.Post);
     registerParentTool(server, env, DocType.Tag);
-
-    const translationFields = [
-        "title",
-        "summary",
-        "author",
-        "slug",
-        "seoTitle",
-        "seoString",
-        "text",
-    ];
 
     defineTool(
         server,
@@ -377,7 +432,7 @@ export function registerWriteTools(server: McpServer, env: ToolEnv): void {
                     args,
                     doc,
                     live: false,
-                    describe: () => "",
+                    describe: noConfirmation,
                 });
             }
 
@@ -407,19 +462,35 @@ export function registerWriteTools(server: McpServer, env: ToolEnv): void {
             }
 
             const language = languages.find((l) => l._id === stored.language);
-            const changes = changedFields(stored, doc, translationFields);
+            const isPublished = stored.status === PublishStatus.Published;
+            const redated = isPublished ? [] : await redatedSiblings(env, doc);
             return applyWrite(env, ctx, {
                 tool: "save_translation",
                 args,
                 doc,
                 stored,
-                live: stored.status === PublishStatus.Published,
-                describe: () =>
-                    `Edit the published ${language?.name ?? stored.language} translation "${stored.title}". ` +
-                    `Changes: ${changes.join(", ") || "none"}.` +
-                    (doc.slug !== stored.slug
-                        ? ` The URL changes from /${stored.slug} to /${doc.slug}; the old one will redirect.`
-                        : ""),
+                live: isPublished || redated.length > 0,
+                describe: async () =>
+                    confirmation(
+                        `${isPublished ? "Edit the published" : "Save the draft"} ${quote(language?.name ?? stored.language)} translation ${quote(stored.title)}.`,
+                        [
+                            ...fieldChanges(stored, doc, [
+                                "title",
+                                "summary",
+                                "author",
+                                "seoTitle",
+                                "seoString",
+                            ]),
+                            ...(doc.slug !== stored.slug
+                                ? [
+                                      `slug: ${quote(stored.slug)} → ${quote(doc.slug)}` +
+                                          (isPublished ? " (the old address will redirect)" : ""),
+                                  ]
+                                : []),
+                            ...textChange(stored.text, sanitizeContentText(doc.text)),
+                        ],
+                        linkedDatesNote(doc, redated),
+                    ),
             });
         },
     );
@@ -454,14 +525,14 @@ export function registerWriteTools(server: McpServer, env: ToolEnv): void {
             if (doc.expiryDate && doc.publishDate && doc.expiryDate <= doc.publishDate)
                 throw new ToolError("expiryDate must be after publishDate");
 
-            const parent = (await env.deps.db.getDoc(stored.parentId)).docs?.[0] as any;
-            const siblings = parent?.linkDates
-                ? ((await env.deps.db.getContentByParentId(stored.parentId)).docs ?? []).filter(
-                      (s: any) => s._id !== stored._id,
-                  )
-                : [];
+            const redated = await redatedSiblings(env, doc);
             const language = languagesFor(env).find((l) => l._id === stored.language);
-            const when = (ms?: number) => (ms ? new Date(ms).toISOString() : "none");
+            const action =
+                args.status === PublishStatus.Draft
+                    ? "Unpublish"
+                    : stored.status === PublishStatus.Published
+                      ? "Change the publishing dates of"
+                      : "Publish";
 
             return applyWrite(env, ctx, {
                 tool: "set_publish_status",
@@ -469,12 +540,24 @@ export function registerWriteTools(server: McpServer, env: ToolEnv): void {
                 doc,
                 stored,
                 live: true,
-                describe: () =>
-                    `${args.status === PublishStatus.Published ? "Publish" : "Unpublish"} the ${language?.name ?? stored.language} translation "${stored.title}" ` +
-                    `(now ${stored.status}). Publish date: ${when(doc.publishDate)}. Expiry: ${when(doc.expiryDate)}.` +
-                    (siblings.length
-                        ? ` Its dates are linked, so ${siblings.length} other translation(s) get the same dates.`
-                        : ""),
+                describe: async () =>
+                    confirmation(
+                        `${action} the ${quote(language?.name ?? stored.language)} translation ${quote(stored.title)}.`,
+                        [
+                            ...(stored.status !== doc.status
+                                ? [`status: ${stored.status} → ${doc.status}`]
+                                : []),
+                            ...(stored.publishDate !== doc.publishDate
+                                ? [
+                                      `publish date: ${when(stored.publishDate)} → ${when(doc.publishDate)}`,
+                                  ]
+                                : []),
+                            ...(stored.expiryDate !== doc.expiryDate
+                                ? [`expiry: ${when(stored.expiryDate)} → ${when(doc.expiryDate)}`]
+                                : []),
+                        ],
+                        linkedDatesNote(doc, redated),
+                    ),
             });
         },
     );
@@ -486,7 +569,7 @@ export function registerWriteTools(server: McpServer, env: ToolEnv): void {
         {
             title: "Create or update a redirect",
             description:
-                "Creates (omit id) or updates a redirect from one slug to another. Redirects are live immediately, so this always asks the user to confirm.",
+                "Creates (omit id) or updates a redirect from one slug to another. Slugs keep only letters, digits, - and _, lowercased; an empty toSlug redirects to the homepage. Redirects are live immediately, so this always asks the user to confirm.",
             inputSchema: z
                 .object({
                     id: z.string().optional(),
@@ -516,8 +599,17 @@ export function registerWriteTools(server: McpServer, env: ToolEnv): void {
                 doc = { _id: newDocId(ctx, "save_redirect"), type: DocType.Redirect, memberOf: [] };
                 await assertNewId(env, doc._id);
             }
-            for (const field of ["redirectType", "slug", "toSlug", "memberOf"])
-                if ((args as any)[field] !== undefined) doc[field] = (args as any)[field];
+            if (args.redirectType) doc.redirectType = args.redirectType;
+            if (args.memberOf) doc.memberOf = args.memberOf;
+            if (args.slug !== undefined) {
+                doc.slug = normalizeRedirectSlug(args.slug);
+                if (!doc.slug) throw new ToolError("slug needs letters, digits, - or _");
+            }
+            if (args.toSlug !== undefined) {
+                const toSlug = normalizeRedirectSlug(args.toSlug);
+                if (toSlug) doc.toSlug = toSlug;
+                else delete doc.toSlug;
+            }
             if (!stored) assertCreatesReadable(env, doc);
 
             return applyWrite(env, ctx, {
@@ -526,12 +618,18 @@ export function registerWriteTools(server: McpServer, env: ToolEnv): void {
                 doc,
                 stored,
                 live: true,
-                describe: () =>
-                    `${stored ? "Change" : "Create"} the ${doc.redirectType} redirect from /${doc.slug} to /${doc.toSlug ?? ""}` +
-                    (stored && (stored.slug !== doc.slug || stored.toSlug !== doc.toSlug)
-                        ? ` (was /${stored.slug} to /${stored.toSlug ?? ""})`
-                        : "") +
-                    ".",
+                describe: async () => {
+                    const names = await namesOf(env, [
+                        ...(stored?.memberOf ?? []),
+                        ...(doc.memberOf ?? []),
+                    ]);
+                    return confirmation(`${stored ? "Change" : "Create"} a redirect.`, [
+                        ...fieldChanges(stored, doc, ["redirectType", "slug", "toSlug"], {
+                            toSlug: "the homepage",
+                        }),
+                        ...listChange("groups", stored?.memberOf, doc.memberOf, names),
+                    ]);
+                },
             });
         },
     );
@@ -550,7 +648,7 @@ export function registerWriteTools(server: McpServer, env: ToolEnv): void {
                     version: z.string().optional(),
                     name: z.string().min(1).max(200).optional(),
                     languageCode: z.string().min(1).max(50).optional(),
-                    averageReadingSpeed: z.number().positive().max(5000).optional(),
+                    averageReadingSpeed: z.number().int().positive().max(5000).optional(),
                     memberOf: groupIds.optional(),
                     translations: z.record(z.string(), z.string().nullable()).optional(),
                 })
@@ -580,16 +678,22 @@ export function registerWriteTools(server: McpServer, env: ToolEnv): void {
             for (const field of ["name", "languageCode", "averageReadingSpeed", "memberOf"])
                 if ((args as any)[field] !== undefined) doc[field] = (args as any)[field];
 
-            const added: string[] = [];
-            const changed: string[] = [];
-            const removed: string[] = [];
+            const before: Record<string, string> = stored?.translations ?? {};
+            const strings: string[] = [];
             for (const [key, value] of Object.entries(args.translations ?? {})) {
+                const had = Object.prototype.hasOwnProperty.call(before, key);
                 if (value === null) {
-                    if (key in doc.translations) removed.push(key);
+                    if (had)
+                        strings.push(
+                            `string ${quote(key, 60)}: removed (was ${quote(before[key])})`,
+                        );
                     delete doc.translations[key];
                 } else {
-                    if (!(key in doc.translations)) added.push(key);
-                    else if (doc.translations[key] !== value) changed.push(key);
+                    if (!had) strings.push(`string ${quote(key, 60)}: ${quote(value)}`);
+                    else if (before[key] !== value)
+                        strings.push(
+                            `string ${quote(key, 60)}: ${quote(before[key])} → ${quote(value)}`,
+                        );
                     doc.translations[key] = value;
                 }
             }
@@ -601,10 +705,24 @@ export function registerWriteTools(server: McpServer, env: ToolEnv): void {
                 doc,
                 stored,
                 live: true,
-                describe: () =>
-                    `${stored ? "Change" : "Create"} the language "${doc.name}" (${doc.languageCode}). ` +
-                    `Settings changed: ${changedFields(stored, doc, ["name", "languageCode", "averageReadingSpeed", "memberOf"]).join(", ") || "none"}. ` +
-                    `UI strings: ${added.length} added, ${changed.length} changed, ${removed.length} removed.`,
+                describe: async () => {
+                    const names = await namesOf(env, [
+                        ...(stored?.memberOf ?? []),
+                        ...(doc.memberOf ?? []),
+                    ]);
+                    return confirmation(
+                        `${stored ? "Change" : "Create"} the language ${quote(doc.name)} (${quote(doc.languageCode)}), which every app user sees.`,
+                        [
+                            ...fieldChanges(stored, doc, [
+                                "name",
+                                "languageCode",
+                                "averageReadingSpeed",
+                            ]),
+                            ...listChange("groups", stored?.memberOf, doc.memberOf, names),
+                            ...strings,
+                        ],
+                    );
+                },
             });
         },
     );

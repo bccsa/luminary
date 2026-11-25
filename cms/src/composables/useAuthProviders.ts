@@ -263,6 +263,8 @@ export function useAuthProviders() {
             if (clone.imageData?.fileCollections) {
                 clone.imageData.fileCollections = [];
             }
+            // The MCP URL names the original provider's id, so the copy starts without MCP.
+            delete clone.mcp;
             return clone;
         });
 

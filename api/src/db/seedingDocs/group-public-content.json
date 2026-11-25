@@ -37,12 +37,12 @@
         {
             "type": "post",
             "groupId": "group-public-editors",
-            "permission": ["view", "share", "edit", "translate", "publish", "cmsView", "mcpView"]
+            "permission": ["view", "share", "edit", "translate", "publish", "cmsView"]
         },
         {
             "type": "tag",
             "groupId": "group-public-editors",
-            "permission": ["view", "share", "translate", "assign", "cmsView", "mcpView"]
+            "permission": ["view", "share", "translate", "assign", "cmsView"]
         },
         {
             "type": "group",
@@ -52,12 +52,12 @@
         {
             "type": "redirect",
             "groupId": "group-public-editors",
-            "permission": ["view", "cmsView", "mcpView"]
+            "permission": ["view", "cmsView"]
         },
         {
             "type": "storage",
             "groupId": "group-public-editors",
-            "permission": ["view", "cmsView", "mcpView"]
+            "permission": ["view", "cmsView"]
         },
         {
             "type": "post",

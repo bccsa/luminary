@@ -1,3 +1,4 @@
+import * as z from "zod";
 import { DocType, PublishStatus } from "../enums";
 import { cmsLink, decodeCursor, docVersion, encodeCursor, trimDoc } from "./mcpDocs";
 
@@ -60,6 +61,19 @@ describe("trimDoc", () => {
         expect(trimDoc(content, { keepText: true }).text).toBe("<p>Body</p>");
     });
 
+    it("hides both identity-provider ids on a User doc", () => {
+        const out = trimDoc({
+            _id: "u1",
+            type: DocType.User,
+            email: "a@b.test",
+            externalUserId: "auth0|1",
+            userId: "auth0|legacy",
+        });
+        expect(out).not.toHaveProperty("externalUserId");
+        expect(out).not.toHaveProperty("userId");
+        expect(out.email).toBe("a@b.test");
+    });
+
     it("never returns storage credentials", () => {
         const out = trimDoc({
             _id: "s1",
@@ -99,8 +113,20 @@ describe("cmsLink", () => {
 });
 
 describe("cursors", () => {
-    it("round-trips and rejects garbage", () => {
-        expect(decodeCursor(encodeCursor({ ts: 5, ids: ["a"] }))).toEqual({ ts: 5, ids: ["a"] });
-        expect(() => decodeCursor("%%%")).toThrow("Invalid cursor");
+    const schema = z.object({ ts: z.number(), ids: z.array(z.string()) });
+
+    it("round-trips a cursor of the expected shape", () => {
+        expect(decodeCursor(encodeCursor({ ts: 5, ids: ["a"] }), schema)).toEqual({
+            ts: 5,
+            ids: ["a"],
+        });
+    });
+
+    it.each([
+        ["garbage", "%%%"],
+        ["another shape", encodeCursor({ ts: "x" })],
+        ["a non-object", encodeCursor(5)],
+    ])("rejects %s as an invalid cursor", (_name, cursor) => {
+        expect(() => decodeCursor(cursor, schema)).toThrow("Invalid cursor");
     });
 });

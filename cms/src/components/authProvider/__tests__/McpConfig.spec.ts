@@ -65,6 +65,19 @@ describe("McpConfig.vue", () => {
         });
     });
 
+    it("fills in a missing MCP URL when switched back on", async () => {
+        const p = provider();
+        p.mcp = { enabled: false };
+        const wrapper = mountWith(p);
+
+        await wrapper.find("[data-test='mcp-enabled']").trigger("click");
+
+        expect(p.mcp).toEqual({
+            enabled: true,
+            resourceUrl: "https://api.example.test/mcp/provider-1",
+        });
+    });
+
     it("stores allowed client ids as a list, and none as undefined", async () => {
         const p = provider();
         p.mcp = { enabled: true, resourceUrl: "https://api.example.test/mcp/provider-1" };

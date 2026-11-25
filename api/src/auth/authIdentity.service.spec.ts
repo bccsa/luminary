@@ -1271,6 +1271,34 @@ describe("AuthGuard (Integrated)", () => {
             );
         });
 
+        it("reports an outage as 503, not as a bad token", async () => {
+            mockJwtService.verifyAsync = jest.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+
+            await expect(
+                authIdentityService.resolveForAudience("token", "provider-id", mcpAudience),
+            ).rejects.toMatchObject({ status: 503 });
+        });
+
+        it.each(["TokenExpiredError", "JsonWebTokenError", "SigningKeyNotFoundError"])(
+            "reports %s as a rejected token",
+            async (name) => {
+                const error = Object.assign(new Error("bad token"), { name });
+                mockJwtService.verifyAsync = jest.fn().mockRejectedValue(error);
+
+                await expect(
+                    authIdentityService.resolveForAudience("token", "provider-id", mcpAudience),
+                ).rejects.toMatchObject({ status: 401, reason: "token_invalid" });
+            },
+        );
+
+        it("keeps reporting an outage as 401 on the default path", async () => {
+            mockJwtService.verifyAsync = jest.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+
+            await expect(
+                authIdentityService.resolveOrDefault("token", "provider-id"),
+            ).rejects.toMatchObject({ status: 401, reason: "token_invalid" });
+        });
+
         it("refuses an id that belongs to another doc type", async () => {
             mockDbService.getDoc = jest
                 .fn()

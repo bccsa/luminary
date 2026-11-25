@@ -2,7 +2,7 @@ import "reflect-metadata";
 import { Test } from "@nestjs/testing";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { ConfigService } from "@nestjs/config";
-import { UnauthorizedException } from "@nestjs/common";
+import { ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { McpController } from "./mcp.controller";
@@ -49,6 +49,7 @@ const USERS: Record<string, any> = {
                 [DocType.Language]: perms(McpView, CmsView, Translate),
                 [DocType.Group]: perms(McpView, CmsView, Assign),
                 [DocType.Redirect]: perms(McpView, CmsView, Edit),
+                [DocType.AutoGroupMappings]: perms(McpView, CmsView),
             },
         },
     },
@@ -109,6 +110,46 @@ const LONG = {
         (_, i) => `<p>${i}${"x".repeat(TEXT_CHUNK_CHARS - 100)}</p>`,
     ).join(""),
 };
+const GROUP = {
+    _id: "g1",
+    type: DocType.Group,
+    name: "Public content",
+    memberOf: ["g1"],
+    acl: [],
+};
+const TAG = {
+    _id: "tag-1",
+    type: DocType.Tag,
+    tagType: "category",
+    memberOf: ["g1"],
+    tags: [],
+    pinned: 0,
+};
+const TAG_CONTENT = {
+    ...PUBLISHED,
+    _id: "content-tag-1",
+    parentId: "tag-1",
+    parentType: DocType.Tag,
+    parentPostType: undefined,
+    parentTagType: "category",
+    title: "News",
+    slug: "news",
+};
+const REDIRECT = {
+    _id: "redirect-1",
+    type: DocType.Redirect,
+    redirectType: "permanent",
+    slug: "old",
+    toSlug: "new",
+    memberOf: ["g1"],
+};
+const MAPPING = {
+    _id: "mapping-1",
+    type: DocType.AutoGroupMappings,
+    memberOf: ["g1"],
+    groupIds: ["g1"],
+    conditions: [],
+};
 const OTHER_DOC = {
     _id: "other-doc",
     type: DocType.Post,
@@ -123,6 +164,9 @@ describe("McpController (HTTP + MCP tools)", () => {
     let resolveForMcp: jest.Mock;
     let searchWithStats: jest.Mock;
     let logger: any;
+    let db: any;
+    /** The confirmation texts the user was shown. */
+    let elicited: string[];
 
     beforeAll(() => {
         process.env.ENCRYPTION_KEY =
@@ -131,12 +175,23 @@ describe("McpController (HTTP + MCP tools)", () => {
 
     beforeEach(async () => {
         docs = new Map(
-            [PROVIDER, LANG_ENG, POST, PRIVATE_POST, DRAFT, PUBLISHED, LONG].map((d) => [
-                d._id,
-                structuredClone(d),
-            ]),
+            [
+                PROVIDER,
+                LANG_ENG,
+                POST,
+                PRIVATE_POST,
+                DRAFT,
+                PUBLISHED,
+                LONG,
+                GROUP,
+                TAG,
+                TAG_CONTENT,
+                REDIRECT,
+                MAPPING,
+            ].map((d) => [d._id, structuredClone(d)]),
         );
-        const db = {
+        elicited = [];
+        db = {
             on: jest.fn(),
             getDoc: jest.fn(async (id: string) => ({
                 docs: docs.has(id) ? [structuredClone(docs.get(id))] : [],
@@ -155,11 +210,30 @@ describe("McpController (HTTP + MCP tools)", () => {
                     ),
                 };
             }),
+            // Enough of Mango for the tools' queries: equality, the permission filter on
+            // memberOf, the paging bound on updatedTimeUtc, sort and limit.
             executeFindQuery: jest.fn(async (query: any) => {
-                const type =
-                    query.selector?.type ?? query.selector?.$and?.find((c: any) => c.type)?.type;
+                const conditions: any[] = query.selector?.$and ?? [query.selector ?? {}];
+                const field = (name: string) =>
+                    conditions.find((c) => c[name] !== undefined)?.[name];
+                let found = [...docs.values()].filter((d) => d.type === field("type"));
+                for (const name of ["parentType", "parentPostType", "parentTagType", "language"])
+                    if (field(name) !== undefined)
+                        found = found.filter((d) => d[name] === field(name));
+                const groups = field("memberOf")?.$elemMatch?.$in;
+                if (groups)
+                    found = found.filter((d) =>
+                        d.memberOf?.some((g: string) => groups.includes(g)),
+                    );
+                const before = field("updatedTimeUtc")?.$lte;
+                if (before !== undefined)
+                    found = found.filter((d) => (d.updatedTimeUtc ?? 0) <= before);
+                if (query.sort)
+                    found.sort((a, b) => (b.updatedTimeUtc ?? 0) - (a.updatedTimeUtc ?? 0));
                 return {
-                    docs: [...docs.values()].filter((d) => d.type === type),
+                    docs: found
+                        .slice(0, query.limit ?? found.length)
+                        .map((d) => structuredClone(d)),
                     execution_stats: { total_docs_examined: 1, total_keys_examined: 1 },
                 };
             }),
@@ -240,18 +314,19 @@ describe("McpController (HTTP + MCP tools)", () => {
     async function connect(
         token: string,
         mode: "modern" | "legacy" = "modern",
-        answer?: "accept" | "decline" | "cancel",
+        answer?: "accept" | "decline" | "cancel" | "unticked",
     ) {
         const client = new Client({ name: "spec-client", version: "0.0.0" }, {
             capabilities: answer ? { elicitation: {} } : {},
             ...(mode === "modern" ? { versionNegotiation: { mode: "auto" } } : {}),
         } as any);
         if (answer) {
-            client.setRequestHandler("elicitation/create" as any, async () =>
-                answer === "accept"
-                    ? { action: "accept", content: { confirm: true } }
-                    : { action: answer },
-            );
+            client.setRequestHandler("elicitation/create" as any, async (request: any) => {
+                elicited.push(request.params.message);
+                if (answer === "accept") return { action: "accept", content: { confirm: true } };
+                if (answer === "unticked") return { action: "accept", content: { confirm: false } };
+                return { action: answer };
+            });
         }
         await client.connect(
             new StreamableHTTPClientTransport(new URL(RESOURCE), { fetch: viaApp(token) } as any),
@@ -322,6 +397,19 @@ describe("McpController (HTTP + MCP tools)", () => {
                 audience: RESOURCE,
                 allowedClientIds: [],
             });
+        });
+
+        it("answers 503, not a token challenge, when sign-in can't be checked", async () => {
+            resolveForMcp.mockRejectedValueOnce(new ServiceUnavailableException("down"));
+            const res = await app.inject({
+                method: "POST",
+                url: "/mcp/prov-1",
+                headers: { authorization: "Bearer editor-token" },
+                payload: {},
+            });
+            expect(res.statusCode).toBe(503);
+            expect(res.headers["retry-after"]).toBe("5");
+            expect(res.headers["www-authenticate"]).toBeUndefined();
         });
 
         it("answers a plain 403, without a challenge, to a user without McpView", async () => {
@@ -437,6 +525,95 @@ describe("McpController (HTTP + MCP tools)", () => {
             await client.close();
         });
 
+        it("list_content groups translations under their post, through the content index", async () => {
+            const client = await connect("editor-token");
+            const res = await call(client, "list_content", { parentType: "post" });
+
+            expect(res.structuredContent.items).toHaveLength(1);
+            expect(res.structuredContent.items[0]).toMatchObject({
+                id: "post-1",
+                url: "https://cms.example.test/post/edit/blog/post-1",
+            });
+            expect(
+                res.structuredContent.items[0].translations.map((t: any) => t.id).sort(),
+            ).toEqual([DRAFT._id, PUBLISHED._id, LONG._id].sort());
+            expect(JSON.stringify(res)).not.toContain("<p>");
+
+            const query = db.executeFindQuery.mock.calls.at(-1)[0];
+            expect(query.use_index).toBe("sync-post-content-index");
+            await client.close();
+        });
+
+        it("list_content filters by subtype and uses the tag index for tags", async () => {
+            const client = await connect("editor-token");
+            const tags = await call(client, "list_content", {
+                parentType: "tag",
+                subtype: "category",
+            });
+            expect(tags.structuredContent.items.map((i: any) => i.id)).toEqual(["tag-1"]);
+            expect(db.executeFindQuery.mock.calls.at(-1)[0].use_index).toBe(
+                "sync-tag-content-index",
+            );
+
+            const none = await call(client, "list_content", {
+                parentType: "tag",
+                subtype: "topic",
+            });
+            expect(none.structuredContent.items).toEqual([]);
+            await client.close();
+        });
+
+        it("list_documents pages through documents that share a timestamp, each exactly once", async () => {
+            docs.delete(REDIRECT._id);
+            const times = [50, 40, 40, 40, 10];
+            times.forEach((updatedTimeUtc, i) =>
+                docs.set(`r${i}`, { ...REDIRECT, _id: `r${i}`, slug: `s${i}`, updatedTimeUtc }),
+            );
+            docs.set("r-private", {
+                ...REDIRECT,
+                _id: "r-private",
+                memberOf: ["g-private"],
+                updatedTimeUtc: 45,
+            });
+
+            const client = await connect("editor-token");
+            const seen: string[] = [];
+            let cursor: string | undefined;
+            for (let page = 0; page < 10; page++) {
+                const res = await call(client, "list_documents", {
+                    docType: "redirect",
+                    limit: 2,
+                    ...(cursor ? { cursor } : {}),
+                });
+                seen.push(...res.structuredContent.items.map((i: any) => i.id));
+                cursor = res.structuredContent.nextCursor;
+                if (!cursor) break;
+            }
+
+            expect(seen).toEqual(["r0", "r1", "r2", "r3", "r4"]);
+            await client.close();
+        });
+
+        it("list_documents reads auto group mappings without an index", async () => {
+            const client = await connect("editor-token");
+            const res = await call(client, "list_documents", { docType: "autoGroupMappings" });
+
+            expect(res.structuredContent.items.map((i: any) => i.id)).toEqual(["mapping-1"]);
+            expect(db.executeFindQuery.mock.calls.at(-1)[0].use_index).toBeUndefined();
+            await client.close();
+        });
+
+        it("rejects a malformed cursor as invalid, not as an internal error", async () => {
+            const client = await connect("editor-token");
+            const cursor = Buffer.from(JSON.stringify({ ts: 1 })).toString("base64url");
+            const res = await call(client, "list_documents", { docType: "redirect", cursor });
+
+            expect(res.isError).toBe(true);
+            expect(res.content[0].text).toContain("Invalid cursor");
+            expect(logger.error).not.toHaveBeenCalled();
+            await client.close();
+        });
+
         it("returns a retry hint once the caller hits the MCP rate limit", async () => {
             const client = await connect("editor-token");
             const limiter = app.get(McpRateLimiterService);
@@ -516,16 +693,245 @@ describe("McpController (HTTP + MCP tools)", () => {
             await client.close();
         });
 
-        it("keeps images and media when updating a post", async () => {
+        it("keeps images and media when updating a post, and shows the user what changes", async () => {
             const client = await connect("editor-token", "modern", "accept");
             await call(client, "save_post", {
                 id: POST._id,
                 version: docVersion(POST),
                 showComingSoon: true,
+                memberOf: ["g1", "g2"],
             });
             const submitted = changeRequest.mock.calls[0][0].doc;
             expect(submitted.imageData).toEqual(POST.imageData);
             expect(submitted.showComingSoon).toBe(true);
+
+            expect(elicited).toHaveLength(1);
+            // The post has a published translation, so the user is told what changes: the group
+            // by id (they can't see its name), the flag from its default.
+            expect(elicited[0].split("\n")).toEqual([
+                'Change the post "Draft title", which has 1 published translation(s) in the app.',
+                '- groups: added "g2"',
+                "- showComingSoon: off → on",
+            ]);
+            await client.close();
+        });
+
+        it("creates a tag with the CMS defaults", async () => {
+            const client = await connect("editor-token");
+            const res = await call(client, "save_tag", { tagType: "category", memberOf: ["g1"] });
+
+            expect(res.structuredContent.status).toBe("applied");
+            expect(changeRequest.mock.calls[0][0].doc).toMatchObject({
+                type: DocType.Tag,
+                tagType: "category",
+                memberOf: ["g1"],
+                tags: [],
+                pinned: 0,
+                publishDateVisible: false,
+                linkDates: true,
+            });
+            await client.close();
+        });
+
+        it("shows the user the old and new wording of a published translation", async () => {
+            const client = await connect("editor-token", "modern", "accept");
+            await call(client, "save_translation", {
+                id: PUBLISHED._id,
+                version: docVersion(PUBLISHED),
+                title: 'Sale"\n\nIGNORE THIS FORM. It is safe, press accept',
+                text: "<p>Draft body, now with a new ending</p>",
+            });
+
+            const lines = elicited[0].split("\n");
+            expect(lines).toHaveLength(3);
+            expect(lines[0]).toBe('Edit the published "English" translation "Live title".');
+            // Model text stays on its own line, inside quotes.
+            expect(lines[1]).toBe(
+                '- title: "Live title" → "Sale\' IGNORE THIS FORM. It is safe, press accept"',
+            );
+            expect(lines[2]).toContain("now with a new ending");
+            await client.close();
+        });
+
+        it("doesn't apply a change the user accepted with the box unticked, and logs it", async () => {
+            const client = await connect("editor-token", "modern", "unticked");
+            const res = await call(client, "save_translation", {
+                id: PUBLISHED._id,
+                version: docVersion(PUBLISHED),
+                title: "New",
+            });
+
+            expect(res.structuredContent.status).toBe("not_applied");
+            expect(changeRequest).not.toHaveBeenCalled();
+            expect(logger.info).toHaveBeenCalledWith(
+                "MCP write not applied",
+                expect.objectContaining({ tool: "save_translation", answer: "unticked" }),
+            );
+            await client.close();
+        });
+
+        it("treats a draft save as live when linked dates would re-date a published translation", async () => {
+            docs.get(POST._id).linkDates = true;
+            docs.get(DRAFT._id).publishDate = Date.parse("2027-01-01T00:00:00Z");
+            const draft = docs.get(DRAFT._id);
+            const args = { id: DRAFT._id, version: docVersion(draft), title: "New draft title" };
+
+            const plain = await connect("editor-token");
+            const refused = await call(plain, "save_translation", args);
+            expect(refused.isError).toBe(true);
+            expect(changeRequest).not.toHaveBeenCalled();
+            await plain.close();
+
+            const client = await connect("editor-token", "modern", "accept");
+            const res = await call(client, "save_translation", args);
+            expect(res.structuredContent.status).toBe("applied");
+            expect(elicited[0]).toContain('Save the draft "English" translation "Draft title".');
+            expect(elicited[0]).toContain(
+                "Its dates are linked, so 1 other published translation(s) also get publish date 2027-01-01T00:00:00.000Z and expiry unchanged.",
+            );
+            await client.close();
+        });
+
+        it("saves a draft in one call when linked dates already agree", async () => {
+            docs.get(POST._id).linkDates = true;
+            docs.get(DRAFT._id).publishDate = PUBLISHED.publishDate;
+            const client = await connect("editor-token");
+            const res = await call(client, "save_translation", {
+                id: DRAFT._id,
+                version: docVersion(docs.get(DRAFT._id)),
+                title: "New draft title",
+            });
+            expect(res.structuredContent.status).toBe("applied");
+            await client.close();
+        });
+
+        it("publishes with the given dates after the user confirms them", async () => {
+            const client = await connect("editor-token", "modern", "accept");
+            const res = await call(client, "set_publish_status", {
+                id: DRAFT._id,
+                version: docVersion(DRAFT),
+                status: PublishStatus.Published,
+                publishDate: "2026-12-01T08:00:00Z",
+                expiryDate: "2027-12-01T08:00:00Z",
+            });
+
+            expect(res.structuredContent.status).toBe("applied");
+            expect(changeRequest.mock.calls[0][0].doc).toMatchObject({
+                status: PublishStatus.Published,
+                publishDate: Date.parse("2026-12-01T08:00:00Z"),
+                expiryDate: Date.parse("2027-12-01T08:00:00Z"),
+            });
+            expect(elicited[0].split("\n")).toEqual([
+                'Publish the "English" translation "Draft title".',
+                "- status: draft → published",
+                "- publish date: none → 2026-12-01T08:00:00.000Z",
+                "- expiry: none → 2027-12-01T08:00:00.000Z",
+            ]);
+            await client.close();
+        });
+
+        it("refuses an expiry that isn't after the publish date, before asking the user", async () => {
+            const client = await connect("editor-token", "modern", "accept");
+            const res = await call(client, "set_publish_status", {
+                id: DRAFT._id,
+                version: docVersion(DRAFT),
+                status: PublishStatus.Published,
+                publishDate: "2026-12-01T08:00:00Z",
+                expiryDate: "2026-11-01T08:00:00Z",
+            });
+            expect(res.isError).toBe(true);
+            expect(elicited).toEqual([]);
+            await client.close();
+        });
+
+        it("normalises a new redirect's slugs like the CMS and shows them to the user", async () => {
+            const client = await connect("editor-token", "modern", "accept");
+            const res = await call(client, "save_redirect", {
+                redirectType: "permanent",
+                slug: "/Old Page",
+                toSlug: "New-Page",
+                memberOf: ["g1"],
+            });
+
+            expect(res.structuredContent.status).toBe("applied");
+            expect(changeRequest.mock.calls[0][0].doc).toMatchObject({
+                type: DocType.Redirect,
+                slug: "oldpage",
+                toSlug: "new-page",
+                memberOf: ["g1"],
+            });
+            expect(elicited[0].split("\n")).toEqual([
+                "Create a redirect.",
+                '- redirectType: "permanent"',
+                '- slug: "oldpage"',
+                '- toSlug: "new-page"',
+                '- groups: added "Public content"',
+            ]);
+            await client.close();
+        });
+
+        it("points a redirect at the homepage when its target is emptied", async () => {
+            const client = await connect("editor-token", "modern", "accept");
+            await call(client, "save_redirect", {
+                id: REDIRECT._id,
+                version: docVersion(REDIRECT),
+                toSlug: "",
+            });
+
+            expect(changeRequest.mock.calls[0][0].doc).not.toHaveProperty("toSlug");
+            expect(elicited[0]).toContain('- toSlug: "new" → "the homepage"');
+            await client.close();
+        });
+
+        it("refuses a redirect slug with nothing usable in it", async () => {
+            const client = await connect("editor-token", "modern", "accept");
+            const res = await call(client, "save_redirect", {
+                redirectType: "permanent",
+                slug: " / ",
+                memberOf: ["g1"],
+            });
+            expect(res.isError).toBe(true);
+            expect(changeRequest).not.toHaveBeenCalled();
+            await client.close();
+        });
+
+        it("merges a language's UI strings key by key and shows each change", async () => {
+            docs.get(LANG_ENG._id).translations = { a: "A", b: "B", keep: "K" };
+            const stored = docs.get(LANG_ENG._id);
+            const client = await connect("editor-token", "modern", "accept");
+            const res = await call(client, "save_language", {
+                id: LANG_ENG._id,
+                version: docVersion(stored),
+                averageReadingSpeed: 200,
+                translations: { a: "A2", b: null, c: "C" },
+            });
+
+            expect(res.structuredContent.status).toBe("applied");
+            const submitted = changeRequest.mock.calls[0][0].doc;
+            expect(submitted.translations).toEqual({ a: "A2", keep: "K", c: "C" });
+            expect(submitted.default).toBe(1);
+            expect(elicited[0].split("\n")).toEqual([
+                'Change the language "English" ("eng"), which every app user sees.',
+                "- averageReadingSpeed: (empty) → 200",
+                '- string "a": "A" → "A2"',
+                '- string "b": removed (was "B")',
+                '- string "c": "C"',
+            ]);
+            await client.close();
+        });
+
+        it("doesn't let a language's default flag or a fractional reading speed through", async () => {
+            const client = await connect("editor-token", "modern", "accept");
+            const base = { id: LANG_ENG._id, version: docVersion(LANG_ENG) };
+
+            expect((await call(client, "save_language", { ...base, default: 0 })).isError).toBe(
+                true,
+            );
+            expect(
+                (await call(client, "save_language", { ...base, averageReadingSpeed: 1.5 }))
+                    .isError,
+            ).toBe(true);
+            expect(changeRequest).not.toHaveBeenCalled();
             await client.close();
         });
 
@@ -556,6 +962,10 @@ describe("McpController (HTTP + MCP tools)", () => {
                 });
                 expect(res.structuredContent.status).toBe("not_applied");
                 expect(changeRequest).not.toHaveBeenCalled();
+                expect(logger.info).toHaveBeenCalledWith(
+                    "MCP write not applied",
+                    expect.objectContaining({ tool: "set_publish_status" }),
+                );
                 await client.close();
             },
         );

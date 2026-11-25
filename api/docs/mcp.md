@@ -14,7 +14,8 @@ languages. Design and rationale: [ADR 0020](../../docs/adr/0020-mcp-server-in-th
   their normal write permissions (Edit, Translate, Publish, Assign) allow on documents they can
   read through MCP.
 - Granting `McpView` also grants `CmsView`, so MCP never shows more than the CMS.
-- Changes that reach app users are only applied after the user confirms them in their AI app.
+- Changes that reach app users are only applied after the user confirms them in their AI app. The
+  confirmation lists each change with its old and new value.
 
 ## Turning it on
 
@@ -70,6 +71,12 @@ and sign in when the app opens the provider's login page.
 support it can read and save drafts, but get an error when a change would reach app users; such
 changes are made in the CMS. `whoami` reports `canConfirmLiveChanges` for the current app.
 
+What counts as live: published or scheduled translations, a post or tag with a published
+translation, every redirect and every language. Saving a draft counts too when its post or tag has
+linked dates and the save would change the dates of a published translation. The user accepts to
+apply the change; declining, cancelling or unticking "Apply this change" leaves everything as it
+was.
+
 ## Tools
 
 | Tool | What it does |
@@ -83,7 +90,7 @@ changes are made in the CMS. `whoami` reports `canConfirmLiveChanges` for the cu
 | `save_post` / `save_tag` | Create a post/tag, or change its groups, tags and settings (not images or media) |
 | `save_translation` | Create a draft translation, or edit one (paginated bodies via `textChunks`) |
 | `set_publish_status` | Publish, schedule, unpublish, set expiry (always confirmed) |
-| `save_redirect` | Create or change a redirect (always confirmed) |
+| `save_redirect` | Create or change a redirect (always confirmed). Slugs keep only letters, digits, `-` and `_`, lowercased, as in the CMS |
 | `save_language` | Create or change a language and its UI strings (always confirmed; not the default language) |
 
 Rules every write follows:
@@ -98,13 +105,14 @@ Rules every write follows:
 - `MCP_RATE_LIMIT_*` caps tool calls per user (on by default; see `.env.example`). The query and
   change-request limiters still apply underneath.
 - Every write logs one `MCP write` line: user, provider, client id, tool, document, result, and
-  whether it was confirmed.
+  whether it was confirmed. A change the user turned down logs `MCP write not applied`.
 
 ## Troubleshooting
 
 | Symptom | Likely cause |
 |---|---|
 | `404` from the MCP URL or its metadata | MCP isn't enabled on the provider, or its MCP settings are invalid |
+| `503` with `Retry-After` | The API couldn't check the token (database or the provider's key server unreachable); the app keeps its sign-in and retries |
 | Sign-in succeeds but every request is `401` | The token's `aud` isn't the MCP URL (API identifier mismatch, or the `resource` parameter isn't honoured), or the client id isn't in *Allowed client IDs* |
 | `403` "no MCP access" | The user has no `McpView`; or the access-token claims the group mappings rely on are missing for the MCP API |
 | Content reads return `403` | `McpView` on Post/Tag but not on any Language |
@@ -115,6 +123,7 @@ Rules every write follows:
 - `src/mcp/mcp.controller.ts`: routes, token checks, the `McpView` gate, Fastify ↔ web request bridge.
 - `src/mcp/mcp.service.ts`: per-request server, instructions, confirmation signing.
 - `src/mcp/tools/`: read and write tools.
+- `src/mcp/changeSummary.ts` + `confirmLiveChange.ts`: the confirmation text and the elicitation round trip.
 - `src/endpoints/requestPipeline.ts`: validation, caps and rate limits shared with REST.
 - `src/endpoints/query.service.ts`: `filterReadable`, the predicate form of the read permission filter.
 - Tests: `src/mcp/*.spec.ts` run without CouchDB. `src/mcp/mcp.parity.spec.ts` needs CouchDB: it

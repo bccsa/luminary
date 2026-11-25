@@ -1,4 +1,13 @@
-import { All, Controller, Get, Inject, Param, Req, Res } from "@nestjs/common";
+import {
+    All,
+    Controller,
+    Get,
+    Inject,
+    Param,
+    Req,
+    Res,
+    ServiceUnavailableException,
+} from "@nestjs/common";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Readable } from "stream";
@@ -92,7 +101,14 @@ export class McpController {
                 audience: settings.resourceUrl,
                 allowedClientIds: settings.allowedClientIds,
             });
-        } catch {
+        } catch (error) {
+            // An outage isn't the token's fault: a 401 would make clients drop their sign-in.
+            if (error instanceof ServiceUnavailableException) {
+                return reply
+                    .code(503)
+                    .header("Retry-After", "5")
+                    .send({ statusCode: 503, message: error.message });
+            }
             return unauthorized(true);
         }
 

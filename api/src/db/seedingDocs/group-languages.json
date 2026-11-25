@@ -27,12 +27,12 @@
         {
             "type": "language",
             "groupId": "group-public-editors",
-            "permission": ["view", "translate", "cmsView", "mcpView"]
+            "permission": ["view", "translate", "cmsView"]
         },
         {
             "type": "storage",
             "groupId": "group-public-editors",
-            "permission": ["view", "cmsView", "mcpView"]
+            "permission": ["view", "cmsView"]
         },
         {
             "type": "language",

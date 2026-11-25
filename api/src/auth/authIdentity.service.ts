@@ -1,4 +1,10 @@
-import { Injectable, Logger, OnModuleInit, UnauthorizedException } from "@nestjs/common";
+import {
+    Injectable,
+    Logger,
+    OnModuleInit,
+    ServiceUnavailableException,
+    UnauthorizedException,
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as JWT from "jsonwebtoken";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -50,6 +56,14 @@ export type TokenAudience = {
     /** When non-empty, the token's `azp`/`client_id` must be one of these. */
     allowedClientIds?: string[];
 };
+
+/** Verification errors that mean the token itself is bad, as opposed to a lookup that failed. */
+const TOKEN_ERRORS = new Set([
+    "JsonWebTokenError",
+    "TokenExpiredError",
+    "NotBeforeError",
+    "SigningKeyNotFoundError",
+]);
 
 /** How long an unknown provider id is remembered, so random ids can't each force a DB read. */
 const MISSING_PROVIDER_TTL_MS = 30_000;
@@ -341,7 +355,8 @@ export class AuthIdentityService implements OnModuleInit {
 
     /**
      * Resolves a token issued for another resource of this provider (the MCP server). Unlike
-     * {@link resolveOrDefault} there is no anonymous fallback: a failure always throws a 401.
+     * {@link resolveOrDefault} there is no anonymous fallback: a rejected token throws a 401. An
+     * outage (database, key server) throws a 503 instead, so clients keep their token and retry.
      */
     async resolveForAudience(
         token: string,
@@ -351,6 +366,7 @@ export class AuthIdentityService implements OnModuleInit {
         try {
             return await this.resolveIdentity(token, providerId, audience);
         } catch (error) {
+            if (error instanceof ServiceUnavailableException) throw error;
             throw this.authFailure(error, providerId);
         }
     }
@@ -562,6 +578,9 @@ export class AuthIdentityService implements OnModuleInit {
         } catch (error) {
             if (error instanceof UnauthorizedException) throw error;
             this.logger.error("Unexpected error resolving identity", error);
+            if (tokenAudience && !TOKEN_ERRORS.has((error as Error)?.name)) {
+                throw new ServiceUnavailableException("Authentication is temporarily unavailable");
+            }
             throw new UnauthorizedException("Authentication failed");
         }
     }

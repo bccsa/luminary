@@ -68,11 +68,13 @@ AuthProvider, AutoGroupMappings, DefaultAffinity) are out of scope. Image and me
 
 **Confirming live changes.** Any write that reaches app users (published or scheduled content, a
 post or tag with a published translation, any redirect or language) is only applied after the human
-confirms it through MCP elicitation (`input_required` in revision 2026-07-28). The server writes the
-confirmation text from the stored document and signs the pending change into `requestState` (keyed
-from `ENCRYPTION_KEY`, bound to the caller, the document version and the requested change). A
-client that can't ask the human gets an error for live changes; there is no fallback. Drafts and new
-documents save in one call.
+confirms it through MCP elicitation (`input_required` in revision 2026-07-28). A draft save counts
+too when the parent's linked dates would copy its dates onto a published translation. The server
+writes the confirmation text: it lists each change with its old and new value, and every value
+taken from a document or from the model is cut to one quoted line, so it can't add wording of its
+own. The pending change is signed into `requestState` (keyed from `ENCRYPTION_KEY`, bound to the
+caller, the document version and the requested change). A client that can't ask the human gets an
+error for live changes; there is no fallback. Other drafts and new documents save in one call.
 
 **Transport.** Stateless Streamable HTTP via the SDK's `createMcpHandler`, serving both 2026-07-28
 and 2025-era clients from one endpoint, with a fresh server instance per request bound to the
@@ -80,7 +82,8 @@ verified caller. No sessions, so no sticky routing.
 
 **Rate limit and audit.** A dedicated per-identity limiter counts every tool call (default on,
 `MCP_RATE_LIMIT_*`), keyed only on the verified identity. Every write logs one structured line
-(user, provider, client id, tool, document, result, whether it was confirmed).
+(user, provider, client id, tool, document, result, whether it was confirmed), and so does every
+change the user declined.
 
 ## Consequences
 

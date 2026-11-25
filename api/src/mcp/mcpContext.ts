@@ -87,12 +87,14 @@ export function toolErrorResult(message: string, data?: Record<string, unknown>)
     };
 }
 
-/** True when the client said it can show the human an elicitation (2026-07-28 envelope). */
+/** True when the client said it can show the human a form elicitation (2026-07-28 envelope). */
 export function clientCanElicit(ctx: ServerContext): boolean {
     const capabilities = (ctx.mcpReq.envelope as Record<string, any> | undefined)?.[
         CLIENT_CAPABILITIES_META_KEY
     ];
-    return !!capabilities?.elicitation;
+    const elicitation = capabilities?.elicitation;
+    // `{}` means form mode; a client that lists its modes must list `form`.
+    return !!elicitation && (elicitation.form !== undefined || elicitation.url === undefined);
 }
 
 function errorResult(err: unknown, env: ToolEnv, tool: string) {

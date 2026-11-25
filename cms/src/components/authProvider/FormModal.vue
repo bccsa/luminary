@@ -106,14 +106,15 @@ function isValidAudience(value: string): boolean {
     }
 }
 
-/** Mirrors the API's check: an absolute URL ending in /mcp/<provider id>, unlike the audience. */
+/** Mirrors the API's check: an https URL ending in /mcp/<provider id>, unlike the audience. */
 function isValidMcpConfig(p: AuthProviderDto): boolean {
     if (!p.mcp?.enabled) return true;
     try {
         const url = new URL(p.mcp.resourceUrl ?? "");
         const same = (a: string, b: string) => a.replace(/\/+$/, "") === b.replace(/\/+$/, "");
+        const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
         return (
-            (url.protocol === "https:" || url.protocol === "http:") &&
+            (url.protocol === "https:" || (url.protocol === "http:" && local)) &&
             url.href === p.mcp.resourceUrl &&
             url.pathname.endsWith(`/mcp/${p._id}`) &&
             !same(p.mcp.resourceUrl ?? "", p.audience ?? "")

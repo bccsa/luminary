@@ -11,15 +11,15 @@ import { QueryRateLimiterService } from "../ratelimit/queryRateLimiter.service";
 import { ChangeRequestRateLimiterService } from "../ratelimit/changeRequestRateLimiter.service";
 import { McpRateLimiterService } from "../ratelimit/mcpRateLimiter.service";
 import { PermissionSystem } from "../permissions/permissions.service";
-import { AckStatus, DocType } from "../enums";
+import { AckStatus, AclPermission, DocType } from "../enums";
 import { McpService } from "./mcp.service";
 import { McpSession } from "./mcpContext";
 import { hasMcpAccess } from "./mcpAuth";
 import { docVersion } from "./mcpDocs";
 
 /**
- * Parity of MCP reads and writes with the CMS rules, on the seeded CouchDB data (needs CouchDB):
- * editor1 has McpView on public content and languages, editor2 has CMS access only.
+ * Parity of MCP reads and writes with the CMS rules, on the seeded CouchDB data (needs CouchDB).
+ * The setup gives editor1 McpView on public content and languages; editor2 has CMS access only.
  */
 describe("MCP permission parity (seeded data)", () => {
     let db: DbService;
@@ -31,6 +31,22 @@ describe("MCP permission parity (seeded data)", () => {
     beforeAll(async () => {
         process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "test-encryption-key-for-parity";
         db = (await createTestingModule("mcp-parity")).dbService;
+
+        // McpView is never seeded. For this spec, give it to public editors wherever they have
+        // CmsView on public content and on languages.
+        const groups = (await db.getGroups()).docs as any[];
+        for (const group of groups) {
+            if (!["group-public-content", "group-languages"].includes(group._id)) continue;
+            for (const entry of group.acl) {
+                if (
+                    entry.groupId === "group-public-editors" &&
+                    entry.permission.includes(AclPermission.CmsView)
+                )
+                    entry.permission.push(AclPermission.McpView);
+            }
+        }
+        PermissionSystem.upsertGroups(groups);
+
         const config = new ConfigService(configuration());
         queryService = new QueryService(logger, db);
         changeRequestService = new ChangeRequestService(db, { invalidate: jest.fn() } as any);

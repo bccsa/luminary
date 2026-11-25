@@ -1,6 +1,8 @@
 import { createHash } from "crypto";
+import * as z from "zod";
 import { DocType } from "../enums";
 import { LanguageDto } from "../dto/LanguageDto";
+import { ToolError } from "./mcpContext";
 
 /**
  * Fields an MCP write can change, per doc type. A doc's `version` hashes only these, so server
@@ -67,6 +69,8 @@ const HIDDEN_FIELDS = [
     "credential",
     "credential_id",
     "externalUserId",
+    // The legacy name of externalUserId on User docs
+    "userId",
 ];
 
 function stableStringify(value: unknown): string {
@@ -175,10 +179,11 @@ export function encodeCursor(value: unknown): string {
     return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
 
-export function decodeCursor<T>(cursor: string): T {
+/** Reads a cursor back, checking its shape: it comes from the client and may be anything. */
+export function decodeCursor<S extends z.ZodType>(cursor: string, schema: S): z.infer<S> {
     try {
-        return JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as T;
+        return schema.parse(JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")));
     } catch {
-        throw new Error("Invalid cursor");
+        throw new ToolError("Invalid cursor");
     }
 }
