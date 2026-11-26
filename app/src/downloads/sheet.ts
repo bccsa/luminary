@@ -340,7 +340,14 @@ export function createSheetController(ctx: SheetContext): SheetController {
                     createdAt: e.createdAt,
                     playing: Boolean(now?.playbackId && now.downloadId === e.downloadId),
                 })),
-            ...(entry ? { download: displayedStatus(entry, progress) } : {}),
+            ...(entry
+                ? {
+                      download: {
+                          ...displayedStatus(entry, progress),
+                          ...(volume?.kind === "card" ? { onCard: true } : {}),
+                      },
+                  }
+                : {}),
         };
     }
 

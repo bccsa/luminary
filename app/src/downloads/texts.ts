@@ -81,6 +81,7 @@ const SHEET_KEYS: Record<SheetKey, string> = {
     appLanguage: "downloads.sheet.app_language",
     update: "downloads.sheet.update",
     reopenedHeader: "downloads.sheet.reopened_header",
+    reopenedHeaderCard: "downloads.sheet.reopened_header_card",
     redownloadTitle: "downloads.sheet.redownload_title",
     redownloadMessage: "downloads.sheet.redownload_message",
     redownloadConfirm: "downloads.sheet.redownload_confirm",
@@ -119,6 +120,23 @@ export const NOW_PLAYING_DOWNLOAD_KEYS = {
     autoplayModeAll: "downloads.now_playing.autoplay_mode_all",
     autoplayModeDownloaded: "downloads.now_playing.autoplay_mode_downloaded",
     closeNotice: "downloads.now_playing.close_notice",
+    offlinePlaying: "downloads.now_playing.offline_playing",
+    autoplayLineAll: "downloads.now_playing.autoplay_line_all",
+    autoplayLineDownloaded: "downloads.now_playing.autoplay_line_downloaded",
+    autoplayLineOffline: "downloads.now_playing.autoplay_line_offline",
+    autoplayNothing: "downloads.now_playing.autoplay_nothing",
+    autoplayNothingOffline: "downloads.now_playing.autoplay_nothing_offline",
+    autoplayEverything: "downloads.now_playing.autoplay_everything",
+    autoplayEverythingDetail: "downloads.now_playing.autoplay_everything_detail",
+    autoplayDownloadedCount: "downloads.now_playing.autoplay_downloaded_count",
+    qualityAutoDetail: "downloads.now_playing.quality_auto_detail",
+    qualityBest: "downloads.now_playing.quality_best",
+    qualityGood: "downloads.now_playing.quality_good",
+    qualityLeast: "downloads.now_playing.quality_least",
+    dataSaverPicks: "downloads.now_playing.data_saver_picks",
+    moreHeading: "downloads.now_playing.more_heading",
+    moreCount: "downloads.now_playing.more_count",
+    moreDownloading: "downloads.now_playing.more_downloading",
 } as const;
 
 /**
@@ -131,6 +149,8 @@ const PLACEHOLDERS = {
     done: "{done}",
     total: "{total}",
     n: "{n}",
+    count: "{count}",
+    quality: "{quality}",
 };
 
 function collect<K extends string>(

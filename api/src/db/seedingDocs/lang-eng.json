@@ -501,6 +501,7 @@
         "downloads.sheet.app_language": "Your app language",
         "downloads.sheet.update": "Update",
         "downloads.sheet.reopened_header": "{done} of {total} chapters · {size} on this phone",
+        "downloads.sheet.reopened_header_card": "{done} of {total} chapters · {size} on the SD card",
         "downloads.sheet.redownload_title": "Download again?",
         "downloads.sheet.redownload_message": "Changing this removes what is downloaded and downloads it again.",
         "downloads.sheet.redownload_confirm": "Download again",
@@ -531,6 +532,23 @@
         "downloads.now_playing.autoplay_mode": "Autoplay plays",
         "downloads.now_playing.autoplay_mode_all": "All videos",
         "downloads.now_playing.autoplay_mode_downloaded": "Downloaded only",
-        "downloads.now_playing.close_notice": "Close"
+        "downloads.now_playing.close_notice": "Close",
+        "downloads.now_playing.offline_playing": "Offline · playing your download",
+        "downloads.now_playing.autoplay_line_all": "All in this category · tap to change",
+        "downloads.now_playing.autoplay_line_downloaded": "Downloaded only · tap to change",
+        "downloads.now_playing.autoplay_line_offline": "Downloaded only · you are offline",
+        "downloads.now_playing.autoplay_nothing": "Nothing else in this category",
+        "downloads.now_playing.autoplay_nothing_offline": "Offline. Nothing else here is downloaded.",
+        "downloads.now_playing.autoplay_everything": "Everything in this category",
+        "downloads.now_playing.autoplay_everything_detail": "Streams what is not downloaded",
+        "downloads.now_playing.autoplay_downloaded_count": "{count} more downloaded here. No data used.",
+        "downloads.now_playing.quality_auto_detail": "Follows your connection",
+        "downloads.now_playing.quality_best": "Best",
+        "downloads.now_playing.quality_good": "Good",
+        "downloads.now_playing.quality_least": "Uses least data",
+        "downloads.now_playing.data_saver_picks": "Picks {quality}",
+        "downloads.now_playing.more_heading": "More in this category",
+        "downloads.now_playing.more_count": "{count} items",
+        "downloads.now_playing.more_downloading": "Downloading · {percent}%"
     }
 }

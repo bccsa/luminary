@@ -71,6 +71,7 @@ import type {
 } from "@/build-time/contracts/video-player/contract";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import { useDownloads } from "@/build-time/contracts/downloads/token";
+import type { DownloadBadge } from "@/build-time/contracts/downloads/contract";
 import { useNotificationStore } from "@/stores/notification";
 import { nowPlayingDownload } from "./downloadPlayback";
 import {
@@ -202,13 +203,72 @@ const { nextContents, nextUp, browseContents, browseUpNext } = useNextUp(
 );
 /** The items up next for the player's own panel and strip, those on the device marked. */
 function markDownloaded(items: PlayerUpNextItem[], docs: ContentDto[]) {
-    const playable = downloadsService.value?.playableParentIds.value;
-    if (!playable?.size) return items;
-    return items.map((entry, i) =>
-        docs[i] && playable.has(docs[i].parentId) ? { ...entry, downloaded: true } : entry,
-    );
+    const service = downloadsService.value;
+    const playable = service?.playableParentIds.value;
+    const badges = service?.badges.value;
+    if (!playable?.size && !badges?.size) return items;
+    return items.map((entry, i) => {
+        const doc = docs[i];
+        if (!doc) return entry;
+        const badge = badges?.get(doc.parentId);
+        const marked = badge && badge.state !== "none";
+        if (!playable?.has(doc.parentId) && !marked) return entry;
+        return {
+            ...entry,
+            ...(entry.current
+                ? {}
+                : { subtitle: downloadDetail(doc.parentId, badge) ?? entry.subtitle }),
+            ...(playable?.has(doc.parentId) ? { downloaded: true } : {}),
+            // The More list's mark: the same five states as the tiles' (#2690 board 4).
+            ...(marked ? { downloadBadge: badge.state } : {}),
+            ...(badge?.state === "progress" ? { downloadPercent: badge.percent } : {}),
+        };
+    });
 }
 const playerUpNext = computed(() => markDownloaded(browseUpNext.value, browseContents.value));
+/** A More row's line for an item with a download: "Video", "Audio · 3 of 8 chapters", "Downloading · 64%" (#2690). */
+function downloadDetail(parentId: Uuid, badge: DownloadBadge | undefined): string | undefined {
+    if (badge?.state === "progress")
+        return textOr("downloads.now_playing.more_downloading", "Downloading · {percent}%", {
+            percent: String(badge.percent),
+        }).replace("{percent}", String(badge.percent));
+    const entry = downloadsService.value?.entryFor(parentId);
+    if (!entry) return undefined;
+    const kind =
+        entry.selection.kind === "audio"
+            ? textOr("downloads.page.kind_audio", "Audio")
+            : textOr("downloads.page.kind_video", "Video");
+    const total = entry.chapters.length;
+    const done = new Set(
+        entry.units.filter((unit) => unit.state === "done").map((unit) => unit.unitId),
+    );
+    const held = entry.chapters.filter(
+        (c) => c.unitIds.length && c.unitIds.every((id) => done.has(id)),
+    ).length;
+    const part =
+        total && held < total
+            ? textOr("downloads.page.chapters", "{done} of {total} chapters", {
+                  done: String(held),
+                  total: String(total),
+              })
+                  .replace("{done}", String(held))
+                  .replace("{total}", String(total))
+            : undefined;
+    return [kind, part].filter(Boolean).join(" · ");
+}
+/** How many items up next are on the device, for the autoplay menu's "Downloaded only" line. */
+const downloadedAfter = computed(() => {
+    const playable = downloadsService.value?.playableParentIds.value;
+    if (!playable) return 0;
+    const here = content.value?.parentId;
+    return new Set(
+        browseContents.value
+            .map((doc) => doc?.parentId)
+            .filter((id) => id && id !== here && playable.has(id)),
+    ).size;
+});
+/** Autoplay has nothing to play next in its mode: the screen greys its row out with the reason. */
+const nothingNext = computed(() => !nextContents.value.length);
 const playerNextUp = computed(() => markDownloaded(nextUp.value, nextContents.value));
 /** Up next has had something to offer for this video: the tab stays while a new choice loads. */
 const hadUpNext = ref(false);
@@ -1895,8 +1955,10 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
             ? {
                   autoplayMode: autoplay.value.mode.value,
                   autoplayModeLocked: autoplay.value.locked.value,
+                  autoplayDownloadedCount: downloadedAfter.value,
               }
             : {}),
+        ...(nothingNext.value ? { autoplayNothingNext: true } : {}),
         ...(screenDownload.value ? { download: screenDownload.value } : {}),
         ...(playerNotice.value
             ? {

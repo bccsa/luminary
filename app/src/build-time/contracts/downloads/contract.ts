@@ -259,7 +259,13 @@ export type DownloadSheetModel = Omit<DownloadOptions, "chapters"> & {
         createdAt: number;
         playing: boolean;
     }[];
-    download?: { status: DownloadStatus; reason: DownloadReason | null; progress: number };
+    download?: {
+        status: DownloadStatus;
+        reason: DownloadReason | null;
+        progress: number;
+        /** Stored on an SD card, so the reopened sheet says "on the SD card" (#2690). */
+        onCard?: boolean;
+    };
 };
 
 /**
@@ -358,6 +364,7 @@ export type DownloadSheetTexts = Partial<
         | "appLanguage"
         | "update"
         | "reopenedHeader"
+        | "reopenedHeaderCard"
         | "redownloadTitle"
         | "redownloadMessage"
         | "redownloadConfirm",

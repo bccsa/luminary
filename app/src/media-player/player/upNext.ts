@@ -17,6 +17,11 @@ export type PlayerUpNextItem = {
     section?: string;
     /** What plays now: marked where it stands in its list, and not a pick. */
     current?: boolean;
+    /** On the device. */
+    downloaded?: boolean;
+    /** The item's download mark for a native list (#2690), with its percent while it downloads. */
+    downloadBadge?: "progress" | "downloaded" | "attention" | "unavailable";
+    downloadPercent?: number;
 };
 
 /** The items with the heading to draw above each: a section's name shows once, over its first item. */

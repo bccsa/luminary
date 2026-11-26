@@ -6,7 +6,11 @@ import type {
 } from "@luminary-media-converter/player-web";
 
 /** A chapter as the page hands it to a player that plays downloads: one the download does not hold is not `available`. */
-export type VideoChapter = Chapter & { available?: boolean };
+export type VideoChapter = Chapter & {
+    available?: boolean;
+    /** On the device: the list marks it with the download mark (#2690). */
+    downloaded?: boolean;
+};
 
 /** What the lock screen and the notification show for a video. */
 export type VideoNowPlaying = {
@@ -92,6 +96,10 @@ export type VideoNowPlayingScreen = {
      * `autoplayMode` is.
      */
     autoplayModeLocked?: boolean;
+    /** How many items after this one autoplay may play from the device (#2690 autoplay menu). */
+    autoplayDownloadedCount?: number;
+    /** Nothing can play next in this mode: the autoplay row is greyed out with the reason. */
+    autoplayNothingNext?: boolean;
 };
 
 /** The words of a platform's now-playing screen, in the page's language; any left out stay English. */
@@ -166,7 +174,24 @@ export type VideoNowPlayingTexts = Partial<
         | "autoplayMode"
         | "autoplayModeAll"
         | "autoplayModeDownloaded"
-        | "closeNotice",
+        | "closeNotice"
+        | "offlinePlaying"
+        | "autoplayLineAll"
+        | "autoplayLineDownloaded"
+        | "autoplayLineOffline"
+        | "autoplayNothing"
+        | "autoplayNothingOffline"
+        | "autoplayEverything"
+        | "autoplayEverythingDetail"
+        | "autoplayDownloadedCount"
+        | "qualityAutoDetail"
+        | "qualityBest"
+        | "qualityGood"
+        | "qualityLeast"
+        | "dataSaverPicks"
+        | "moreHeading"
+        | "moreCount"
+        | "moreDownloading",
         string
     >
 >;
@@ -182,11 +207,13 @@ export type VideoNowPlayingAction =
 /**
  * What the viewer did with a downloads control of a platform's now-playing screen, raised as `downloadaction` with
  * this one argument. `chapterOnline` and `chapterDownload` carry the index of a chapter in the `chapters` the page
- * passed; `autoplayMode` carries `all` or `downloaded`; `notice` and `noticeDismiss` carry the notice's id.
+ * passed; `autoplayMode` carries `all` or `downloaded`; `notice` and `noticeDismiss` carry the notice's id;
+ * `source` carries `downloaded` or `online`, the copy picked on the screen's switch.
  */
 export type VideoDownloadAction = {
     action:
         | "download"
+        | "source"
         | "chapterOnline"
         | "chapterDownload"
         | "autoplayMode"

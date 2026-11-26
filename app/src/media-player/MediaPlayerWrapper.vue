@@ -304,7 +304,22 @@ const playerExtras = computed(() => ({
     ...(videoPlayer.acceptsNextUp && props.nextUp?.length ? { nextUp: props.nextUp } : {}),
     // A download's built master names only what it holds; the list shows every chapter, those it lacks unavailable.
     ...(shownChapters.value ? { chapters: shownChapters.value } : {}),
+    ...(heldChapters.value ? { downloadedChapters: heldChapters.value } : {}),
 }));
+
+/** While the item streams, which of its chapters are on the device, for the native list's marks (#2690). */
+const heldChapters = computed(() => {
+    if (shownChapters.value || !downloadsPlayer()) return undefined;
+    const entry = downloads.value?.entryFor(props.content.parentId);
+    if (!entry?.chapters.length) return undefined;
+    const done = new Set(
+        entry.units.filter((unit) => unit.state === "done").map((unit) => unit.unitId),
+    );
+    const held = entry.chapters.flatMap((chapter, i) =>
+        chapter.unitIds.length && chapter.unitIds.every((id) => done.has(id)) ? [i] : [],
+    );
+    return held.length ? held : undefined;
+});
 
 const shownChapters = computed(() => {
     const local = playback.value;
@@ -1529,6 +1544,11 @@ function onDownloadAction(action: VideoDownloadAction) {
         });
     else if (action.action === "chapterOnline" && chapter && online() && mediaSource.value)
         streamInstead(chapter.startTime, true);
+    else if (
+        action.action === "source" &&
+        (action.value === "downloaded" || action.value === "online")
+    )
+        void onSourceChosen(props.content.parentId, action.value);
     else emit("downloadaction", action);
 }
 
