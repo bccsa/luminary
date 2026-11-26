@@ -31,25 +31,30 @@ import {
     AUDIO_ONLY_ANGLE_ID,
     chapterIndexAt,
     chapterSegments,
-    type ThumbnailSpriteCue,
-    type Chapter,
-    type SleepTimerOption,
+} from "@luminary-media-converter/player-core";
+import type {
+    ThumbnailSpriteCue,
+    Chapter,
+    SleepTimerOption,
 } from "@luminary-media-converter/player-web";
+// Straight from their modules: the player's index also loads the web player, which the native app does not use.
+import AudioFullscreen from "@/media-player/player/components/AudioFullscreen.vue";
+import ScrubPicture from "@/media-player/player/components/ScrubPicture.vue";
+import ScrubRoster from "@/media-player/player/components/ScrubRoster.vue";
+import type { ScrubPosition } from "@/media-player/player/ui/audioFullscreen";
+import { chapterMask } from "@/media-player/player/ui/chapterBar";
 import {
-    AudioFullscreen,
-    ScrubPicture,
-    ScrubRoster,
-    chapterMask,
     hasChapterSkip,
-    mergeMessages,
     nextChapterTime,
     previousChapterTime,
+} from "@/media-player/player/ui/chapterSkip";
+import { mergeMessages } from "@/media-player/player/messages";
+import {
     rosterFineStep,
     rosterStep,
     rosterTileWidth,
     rosterTiles,
-    type ScrubPosition,
-} from "@/media-player/player";
+} from "@/media-player/player/ui/scrubPreview";
 import { StripSpin } from "@/media-player/player/ui/stripSpin";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";

@@ -1,5 +1,5 @@
 import { ref, watch } from "vue";
-import { findPreferredTrack } from "@luminary-media-converter/player-web";
+import { findPreferredTrack } from "@luminary-media-converter/player-core";
 
 const STORAGE_KEY = "audioLanguagePreference";
 

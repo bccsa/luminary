@@ -1,5 +1,5 @@
 import { DocType, type ContentDto } from "luminary-shared";
-import { findPreferredTrack } from "@luminary-media-converter/player-web";
+import { findPreferredTrack } from "@luminary-media-converter/player-core";
 import type {
     DownloadChapter,
     DownloadEntry,

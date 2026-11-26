@@ -162,6 +162,25 @@ vi.mock("@/util/fallbackArtwork", () => ({
 }));
 // The app's player UI re-exports the mocked engine's stand-ins.
 vi.mock("@/media-player/player", () => import("@luminary-media-converter/player-web"));
+vi.mock("@/media-player/player/components/LuminaryPlayer.vue", async () => ({
+    __esModule: true,
+    default: (await import("@luminary-media-converter/player-web")).LuminaryPlayer,
+}));
+vi.mock("@/media-player/player/components/AudioFullscreen.vue", async () => ({
+    __esModule: true,
+    default: ((await import("@luminary-media-converter/player-web")) as Record<string, unknown>)
+        .AudioFullscreen,
+}));
+vi.mock("@/media-player/player/components/ScrubPicture.vue", async () => ({
+    __esModule: true,
+    default: ((await import("@luminary-media-converter/player-web")) as Record<string, unknown>)
+        .ScrubPicture,
+}));
+vi.mock("@/media-player/player/components/ScrubRoster.vue", async () => ({
+    __esModule: true,
+    default: ((await import("@luminary-media-converter/player-web")) as Record<string, unknown>)
+        .ScrubRoster,
+}));
 
 const upNextDocs = vi.hoisted(() => ({ value: [] as any[] }));
 const categoryDocs = vi.hoisted(() => ({ value: [] as any[] }));

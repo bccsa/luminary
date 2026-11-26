@@ -32,6 +32,7 @@
     },
     "dependencies": {
         "@headlessui/vue": "^1.7.19",
+        "@luminary-media-converter/player-core": "file:../luminary-media-convert/player-core",
         "@luminary-media-converter/player-web": "file:../luminary-media-convert/player-web",
         "@sentry/vue": "^7.110.1",
         "@videojs/hlsjs-video": "10.0.1",

@@ -10,6 +10,7 @@
  */
 import {
     computed,
+    defineAsyncComponent,
     inject,
     nextTick,
     onBeforeUnmount,
@@ -18,13 +19,10 @@ import {
     shallowRef,
     watch,
 } from "vue";
-import {
-    AUDIO_ONLY_ANGLE_ID,
-    findPreferredTrack,
-    isYouTubeUrl,
-    type PlayerSource,
-} from "@luminary-media-converter/player-web";
-import { LuminaryPlayer, type PlayerUpNextItem } from "@/media-player/player";
+import { AUDIO_ONLY_ANGLE_ID, findPreferredTrack } from "@luminary-media-converter/player-core";
+import type { PlayerSource } from "@luminary-media-converter/player-web";
+import { isYouTubeLink as isYouTubeUrl } from "@/util/youtube";
+import type { PlayerUpNextItem } from "@/media-player/player/upNext";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import { ensureFreshToken } from "@/auth";
 import LImage from "@/components/images/LImage.vue";
@@ -136,6 +134,10 @@ function passNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
 }
 
 // The browser's player when no service is provided: a component mounted on its own.
+// Loaded only when used, so it stays out of a build whose player is provided.
+const LuminaryPlayer = defineAsyncComponent(
+    () => import("@/media-player/player/components/LuminaryPlayer.vue"),
+);
 const videoPlayer = inject(VideoPlayerKey, {
     component: LuminaryPlayer,
     acceptsNowPlaying: false,
@@ -767,7 +769,8 @@ const playerWrapper = ref<HTMLElement | null>(null);
  * techs, and a title the CMS edits while the same video plays has to follow.
  */
 watch(
-    [source, () => props.content.title],
+    // The player too: one loaded on demand puts its element in place after the source is set.
+    [source, () => props.content.title, player],
     async ([current]) => {
         if (!current) return;
         await nextTick();
