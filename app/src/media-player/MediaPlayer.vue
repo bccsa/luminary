@@ -1139,8 +1139,15 @@ async function toSound() {
         return;
     }
     if (audioMode.value) return;
-    // The picture goes and the sound plays on: nothing loads, so there is no gap.
-    if (handle.value?.canTurnVideoOff && state.value?.activeAngleId !== AUDIO_ONLY_ANGLE_ID) {
+    // The picture goes and the sound plays on: nothing loads, so there is no gap. Sound in several bitrates loads its
+    // own rendering instead, as only that one lets the viewer choose among them (#2690).
+    const soundTiers =
+        state.value?.angles.find((angle) => angle.id === AUDIO_ONLY_ANGLE_ID)?.soundTiers ?? 0;
+    if (
+        handle.value?.canTurnVideoOff &&
+        state.value?.activeAngleId !== AUDIO_ONLY_ANGLE_ID &&
+        soundTiers < 2
+    ) {
         videoOffByChoice.value = true;
         handle.value.setVideoOff?.(true);
         return;

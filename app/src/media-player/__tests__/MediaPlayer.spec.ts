@@ -1360,6 +1360,21 @@ describe("MediaPlayer", () => {
                 expect(engine.handle.showNowPlaying.mock.calls.at(-1)[0].audioMode).toBe(false);
             }));
 
+        it("loads the sound's own rendering when it comes in several bitrates, so they can be chosen", async () =>
+            narrow(async () => {
+                const wrapper = await playing();
+                engine.state.angles = [
+                    { id: "angle_0", name: "Wide", isDefault: true },
+                    { id: AUDIO, name: "Audio only", isDefault: false, soundTiers: 3 },
+                ];
+                await flushPromises();
+                await find(wrapper, "mediaPlayerAudio").trigger("click");
+                await flushPromises();
+
+                expect(engine.controller.setAngle).toHaveBeenLastCalledWith(AUDIO);
+                expect(engine.handle.setVideoOff).not.toHaveBeenCalled();
+            }));
+
         it("runs the sleep timer the screen's menu picks", async () =>
             narrow(async () => {
                 await playing();
