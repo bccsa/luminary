@@ -30,7 +30,11 @@ function count(isOpen: boolean) {
 if (open.value) count(true);
 
 watch(open, (isOpen) => {
-    count(isOpen);
+    // Closing lets go of the mini-player near the end of the slide-out: released at once, the native bar showed over
+    // the panel; released after it, the bar came back late. The native bar's own show covers the last stretch.
+    clearTimeout(release);
+    if (isOpen) count(true);
+    else release = setTimeout(() => count(false), RELEASE_MS);
     if (isOpen) {
         document.addEventListener("keydown", handleEscape);
     } else {
@@ -38,7 +42,12 @@ watch(open, (isOpen) => {
     }
 });
 
+/** Of the 300 ms slide-out: by now the ease has the panel nearly off the screen. */
+const RELEASE_MS = 200;
+let release: ReturnType<typeof setTimeout> | undefined;
+
 onUnmounted(() => {
+    clearTimeout(release);
     count(false);
     document.removeEventListener("keydown", handleEscape);
 });
