@@ -1,14 +1,4 @@
-import {
-    Controller,
-    HttpException,
-    HttpStatus,
-    Post,
-    Req,
-    Res,
-    UnauthorizedException,
-    UseGuards,
-    UsePipes,
-} from "@nestjs/common";
+import { Controller, Post, Req, Res, UseGuards, UsePipes } from "@nestjs/common";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
 import { validateApiVersion } from "../validation/apiVersion";
 import { AuthGuard } from "../auth/auth.guard";
@@ -17,6 +7,7 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { ChangeRequestRateLimiterService } from "../ratelimit/changeRequestRateLimiter.service";
 import { removeDangerousKeys } from "../util/removeDangerousKeys";
 import { patchFileData } from "../util/patchFileData";
+import { admitChangeRequest, submitChangeRequest, withRetryAfter } from "./requestPipeline";
 
 @Controller("changerequest")
 export class ChangeRequestController {
@@ -32,22 +23,12 @@ export class ChangeRequestController {
         @Req() request: FastifyRequest,
         @Res({ passthrough: true }) reply: FastifyReply,
     ) {
-        // Reject before parsing: multipart handling buffers every uploaded file in memory, which an anonymous caller must not be able to trigger
-        if (request.user?.anonymous) {
-            throw new UnauthorizedException("Authentication required");
-        }
-
-        // Counted before parsing so a flood of oversized or malformed requests is limited too
+        const deps = {
+            changeRequestService: this.changeRequestService,
+            rateLimiter: this.rateLimiter,
+        };
         const identityKey = request.user?.userId ?? `ip:${request.ip}`;
-        const gate = this.rateLimiter.check(identityKey);
-        if (!gate.allowed) {
-            reply.header("Retry-After", String(Math.ceil(gate.retryAfterMs / 1000)));
-            throw new HttpException(
-                "Too many change requests; retry later",
-                HttpStatus.TOO_MANY_REQUESTS,
-            );
-        }
-        this.rateLimiter.recordRequest(identityKey);
+        await withRetryAfter(reply, () => admitChangeRequest(deps, request.user, identityKey));
 
         // Check if the request is multipart
         const isMultipartRequest =
@@ -150,11 +131,6 @@ export class ChangeRequestController {
         }
 
         // If it is just a JSON object (not multipart), validate it correctly
-        await validateApiVersion(body.apiVersion);
-        // Clean prototype pollution from the body before processing
-        const cleanedBody = removeDangerousKeys(body);
-        const result = await this.changeRequestService.changeRequest(cleanedBody, request.user);
-
-        return result;
+        return submitChangeRequest(deps, body as ChangeReqDto, request.user);
     }
 }

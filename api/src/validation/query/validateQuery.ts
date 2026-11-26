@@ -97,7 +97,13 @@ const ALLOWED_TOP_LEVEL_KEYS = new Set([
  * out of the logs. It is an observability label only — it never affects query
  * execution or rate limiting, which key on the request identity instead.
  */
-export const ALLOWED_IDENTIFIERS = new Set(["sync", "hybridQuery", "ssgDrain", "ssgPrerender"]);
+export const ALLOWED_IDENTIFIERS = new Set([
+    "sync",
+    "hybridQuery",
+    "ssgDrain",
+    "ssgPrerender",
+    "mcp",
+]);
 
 /**
  * Validate a `/query` request body against a single universal ruleset (the previous

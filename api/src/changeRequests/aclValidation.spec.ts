@@ -186,6 +186,49 @@ describe("validateAcl", () => {
         expect(result).toHaveLength(0);
     });
 
+    it("should auto-add CmsView when McpView is granted", () => {
+        const acl = [createEntry(DocType.Post, "g1", [AclPermission.McpView])];
+        const result = validateAcl(acl);
+
+        expect(result[0].permission).toEqual([AclPermission.CmsView, AclPermission.McpView]);
+    });
+
+    it("should not auto-add McpView for CMS-only permissions", () => {
+        const acl = [
+            createEntry(DocType.Post, "g1", [
+                AclPermission.Edit,
+                AclPermission.Publish,
+                AclPermission.Translate,
+            ]),
+        ];
+        const result = validateAcl(acl);
+
+        expect(result[0].permission).not.toContain(AclPermission.McpView);
+    });
+
+    it.each([
+        DocType.Group,
+        DocType.Language,
+        DocType.Post,
+        DocType.Tag,
+        DocType.User,
+        DocType.Redirect,
+        DocType.Storage,
+        DocType.AuthProvider,
+        DocType.AutoGroupMappings,
+        DocType.DefaultAffinity,
+    ])("should accept McpView on %s", (type) => {
+        const result = validateAcl([createEntry(type, "g1", [AclPermission.McpView])]);
+
+        expect(result[0].permission).toContain(AclPermission.McpView);
+    });
+
+    it.each([DocType.Crypto, DocType.Sidecar])("should never grant McpView on %s", (type) => {
+        const result = validateAcl([createEntry(type, "g1", [AclPermission.McpView])]);
+
+        expect(result).toHaveLength(0);
+    });
+
     it("should reject an ACL entry for DocType.Sidecar (never replicable, never grantable)", () => {
         // Sidecar is absent from availablePermissionsPerDocType — the load-bearing
         // non-replication guarantee. An entry is stripped.

@@ -300,6 +300,30 @@ describe("useAuthProviders", () => {
     // guard: isDirtyAny is a function of `showModal` AND the `isFormDirty` ref
     // that FormModal writes back via v-model.
 
+    describe("duplicateProvider", () => {
+        it("copies a provider without its MCP settings", async () => {
+            const [c, teardown] = withSetup(() => useAuthProviders());
+            try {
+                await waitForExpect(() => {
+                    expect(c.providers.value).toHaveLength(1);
+                });
+                c.editProvider(c.providers.value[0]);
+                c.currentProvider.value!.mcp = {
+                    enabled: true,
+                    resourceUrl: `https://api.test.com/mcp/${mockProvider._id}`,
+                };
+                await nextTick();
+                c.duplicateProvider();
+
+                expect(c.currentProvider.value?._id).not.toBe(mockProvider._id);
+                expect(c.currentProvider.value?.label).toBe("Test Provider (copy)");
+                expect(c.currentProvider.value?.mcp).toBeUndefined();
+            } finally {
+                teardown();
+            }
+        });
+    });
+
     describe("isDirtyAny route guard", () => {
         it("is false when modal is closed", () => {
             const [c, teardown] = withSetup(() => useAuthProviders());

@@ -1,4 +1,10 @@
-import { Injectable, Logger, OnModuleInit, UnauthorizedException } from "@nestjs/common";
+import {
+    Injectable,
+    Logger,
+    OnModuleInit,
+    ServiceUnavailableException,
+    UnauthorizedException,
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as JWT from "jsonwebtoken";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -11,6 +17,7 @@ import { DocType, Uuid } from "../enums";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 import { issuer, jwksUri } from "../util/authority";
 import configuration from "../configuration";
+import { BoundedTtlCache } from "./boundedTtlCache";
 
 export type JwtUserDetails = {
     groups: Array<Uuid>;
@@ -39,6 +46,28 @@ export type AuthFailureReason = "provider_not_found" | "token_invalid";
 
 export const AUTH_FAILURE_MESSAGE = "Invalid authentication token";
 
+/**
+ * Verification for a token issued for another resource of the same provider (the MCP server).
+ * Replaces the provider's API audience and its CMS/app client pin.
+ */
+export type TokenAudience = {
+    /** Expected `aud` claim. */
+    audience: string;
+    /** When non-empty, the token's `azp`/`client_id` must be one of these. */
+    allowedClientIds?: string[];
+};
+
+/** Verification errors that mean the token itself is bad, as opposed to a lookup that failed. */
+const TOKEN_ERRORS = new Set([
+    "JsonWebTokenError",
+    "TokenExpiredError",
+    "NotBeforeError",
+    "SigningKeyNotFoundError",
+]);
+
+/** How long an unknown provider id is remembered, so random ids can't each force a DB read. */
+const MISSING_PROVIDER_TTL_MS = 30_000;
+
 @Injectable()
 export class AuthIdentityService implements OnModuleInit {
     private readonly logger = new Logger(AuthIdentityService.name);
@@ -46,6 +75,10 @@ export class AuthIdentityService implements OnModuleInit {
     private providerCache: Map<string, AuthProviderDto> = new Map();
     private autoGroupMappingsCache: Map<string, AutoGroupMappingsDto[]> = new Map();
     private defaultGroupsCache: string[] | null = null;
+    private missingProviders = new BoundedTtlCache<true>({
+        maxEntries: 10_000,
+        sweepIntervalMs: MISSING_PROVIDER_TTL_MS,
+    });
     private readonly allowInsecureProviderDomain =
         configuration().auth?.allowInsecureProviderDomain === true;
 
@@ -58,6 +91,7 @@ export class AuthIdentityService implements OnModuleInit {
         this.dbService.on("update", (doc: any) => {
             if (doc.type === DocType.AuthProvider) {
                 this.providerCache.set(doc._id, doc as AuthProviderDto);
+                this.missingProviders.delete(doc._id);
                 this.jwksClients.delete(doc.domain);
             } else if (doc.type === DocType.AutoGroupMappings) {
                 const mapping = doc as AutoGroupMappingsDto;
@@ -83,6 +117,7 @@ export class AuthIdentityService implements OnModuleInit {
         // provider/mapping state if docs change while the change feed is down.
         this.dbService.on("disconnect", () => {
             this.providerCache.clear();
+            this.missingProviders.clear();
             this.autoGroupMappingsCache.clear();
             this.defaultGroupsCache = null;
             this.jwksClients.clear();
@@ -141,44 +176,7 @@ export class AuthIdentityService implements OnModuleInit {
                 const userDetails = await this.resolveIdentity(token, providerId);
                 return { status: "authenticated", userDetails };
             } catch (error) {
-                // Log the real reason for debugging but never expose it to the client —
-                // detailed error messages (e.g. "jwt audience invalid. expected: ...") act
-                // as an error oracle that helps attackers probe the system.
-                const originalMessage = error instanceof Error ? error.message : String(error);
-                const errorName = error instanceof Error ? error.name : undefined;
-
-                // Add an operator-facing hint for the most common misconfiguration:
-                // Auth0 rules/actions that set custom claims on the ID token but not
-                // the access token. We can't detect this perfectly from here, but the
-                // jwks-rsa "SigningKeyNotFoundError" (or equivalent message) is the
-                // strongest signal — the token was signed by a kid not present at the
-                // configured domain's JWKS endpoint, which typically means the token
-                // came from a different tenant than `provider.domain`.
-                const hint =
-                    errorName === "SigningKeyNotFoundError" ||
-                    originalMessage.includes("Unable to find a signing key")
-                        ? "Likely causes: (a) the access token was issued by a different Auth0 " +
-                          "tenant than provider.domain, or (b) the token is an access token that " +
-                          "doesn't carry the configured custom claims because your post-login " +
-                          "action only called api.idToken.setCustomClaim (add api.accessToken.setCustomClaim too)."
-                        : undefined;
-
-                this.logger.warn("Token validation failed", {
-                    reason: originalMessage,
-                    providerId,
-                    ...(hint ? { hint } : {}),
-                });
-                // Attach a coarse reason code so the transport layer (e.g. socket.io)
-                // can tell the client whether to evict its cached provider doc.
-                const reason: AuthFailureReason =
-                    originalMessage === "Provider not found"
-                        ? "provider_not_found"
-                        : "token_invalid";
-                const authError = new UnauthorizedException(AUTH_FAILURE_MESSAGE) as Error & {
-                    reason?: AuthFailureReason;
-                };
-                authError.reason = reason;
-                throw authError;
+                throw this.authFailure(error, providerId);
             }
         }
         const defaultGroups = await this.getDefaultGroups();
@@ -190,6 +188,46 @@ export class AuthIdentityService implements OnModuleInit {
                 anonymous: true,
             },
         };
+    }
+
+    /** Logs why a token was rejected and returns the generic 401 with a coarse reason code. */
+    private authFailure(error: unknown, providerId: string): Error {
+        // Log the real reason for debugging but never expose it to the client —
+        // detailed error messages (e.g. "jwt audience invalid. expected: ...") act
+        // as an error oracle that helps attackers probe the system.
+        const originalMessage = error instanceof Error ? error.message : String(error);
+        const errorName = error instanceof Error ? error.name : undefined;
+
+        // Add an operator-facing hint for the most common misconfiguration:
+        // Auth0 rules/actions that set custom claims on the ID token but not
+        // the access token. We can't detect this perfectly from here, but the
+        // jwks-rsa "SigningKeyNotFoundError" (or equivalent message) is the
+        // strongest signal — the token was signed by a kid not present at the
+        // configured domain's JWKS endpoint, which typically means the token
+        // came from a different tenant than `provider.domain`.
+        const hint =
+            errorName === "SigningKeyNotFoundError" ||
+            originalMessage.includes("Unable to find a signing key")
+                ? "Likely causes: (a) the access token was issued by a different Auth0 " +
+                  "tenant than provider.domain, or (b) the token is an access token that " +
+                  "doesn't carry the configured custom claims because your post-login " +
+                  "action only called api.idToken.setCustomClaim (add api.accessToken.setCustomClaim too)."
+                : undefined;
+
+        this.logger.warn("Token validation failed", {
+            reason: originalMessage,
+            providerId,
+            ...(hint ? { hint } : {}),
+        });
+        // Attach a coarse reason code so the transport layer (e.g. socket.io)
+        // can tell the client whether to evict its cached provider doc.
+        const reason: AuthFailureReason =
+            originalMessage === "Provider not found" ? "provider_not_found" : "token_invalid";
+        const authError = new UnauthorizedException(AUTH_FAILURE_MESSAGE) as Error & {
+            reason?: AuthFailureReason;
+        };
+        authError.reason = reason;
+        return authError;
     }
 
     /**
@@ -297,6 +335,43 @@ export class AuthIdentityService implements OnModuleInit {
     }
 
     /**
+     * The AuthProvider doc with this id, or undefined when there is none (or the id belongs to
+     * another doc type).
+     */
+    async getProvider(providerId: string): Promise<AuthProviderDto | undefined> {
+        const cached = this.providerCache.get(providerId);
+        if (cached) return cached.type === DocType.AuthProvider ? cached : undefined;
+        if (this.missingProviders.get(providerId)) return undefined;
+
+        const res = await this.dbService.getDoc(providerId);
+        const doc = res.docs?.[0] as AuthProviderDto | undefined;
+        if (!doc || doc.type !== DocType.AuthProvider) {
+            this.missingProviders.set(providerId, true, MISSING_PROVIDER_TTL_MS);
+            return undefined;
+        }
+        this.providerCache.set(providerId, doc);
+        return doc;
+    }
+
+    /**
+     * Resolves a token issued for another resource of this provider (the MCP server). Unlike
+     * {@link resolveOrDefault} there is no anonymous fallback: a rejected token throws a 401. An
+     * outage (database, key server) throws a 503 instead, so clients keep their token and retry.
+     */
+    async resolveForAudience(
+        token: string,
+        providerId: string,
+        audience: TokenAudience,
+    ): Promise<JwtUserDetails> {
+        try {
+            return await this.resolveIdentity(token, providerId, audience);
+        } catch (error) {
+            if (error instanceof ServiceUnavailableException) throw error;
+            throw this.authFailure(error, providerId);
+        }
+    }
+
+    /**
      * Resolves a user identity using the 3-phase federated identity pipeline.
      *
      * Phase 1 – Global defaults: Fetches default groups from provider-less AutoGroupMappings.
@@ -304,7 +379,11 @@ export class AuthIdentityService implements OnModuleInit {
      * Phase 3 – Identity linking: Looks up the master User document by externalUserId,
      *            falling back to email. Sets externalUserId on the user on first login.
      */
-    async resolveIdentity(token: string, providerId: string): Promise<JwtUserDetails> {
+    async resolveIdentity(
+        token: string,
+        providerId: string,
+        tokenAudience?: TokenAudience,
+    ): Promise<JwtUserDetails> {
         try {
             // ── Phase 1: Global default groups ──────────────────────────────────────
             const defaultGroups = await this.getDefaultGroups();
@@ -322,6 +401,9 @@ export class AuthIdentityService implements OnModuleInit {
                 }
                 provider = providerRes.docs[0] as AuthProviderDto;
                 this.providerCache.set(providerId, provider);
+            }
+            if (tokenAudience && provider.type !== DocType.AuthProvider) {
+                throw new UnauthorizedException("Provider not found");
             }
 
             const providerMappings = await this.getAutoGroupMappings(provider._id);
@@ -350,7 +432,7 @@ export class AuthIdentityService implements OnModuleInit {
 
             const payload = await this.jwtService.verifyAsync(token, {
                 secret: publicKey,
-                audience: provider.audience,
+                audience: tokenAudience?.audience ?? provider.audience,
                 issuer: issuer(provider.domain, this.allowInsecureProviderDomain),
                 algorithms: ["RS256"],
             });
@@ -360,7 +442,14 @@ export class AuthIdentityService implements OnModuleInit {
             // token was issued to. Without this check, a token issued for client A
             // could be used with provider B if they share the same domain/audience.
             const tokenClientId = payload.azp ?? payload.client_id;
-            if (tokenClientId && tokenClientId !== provider.clientId) {
+            if (tokenAudience) {
+                // Other resources (MCP) are used by clients registered dynamically, so the
+                // CMS/app client pin can't apply; an explicit allowlist can.
+                const allowed = tokenAudience.allowedClientIds ?? [];
+                if (allowed.length && !allowed.includes(tokenClientId)) {
+                    throw new UnauthorizedException("Token client ID not allowed");
+                }
+            } else if (tokenClientId && tokenClientId !== provider.clientId) {
                 throw new UnauthorizedException("Token client ID mismatch");
             }
 
@@ -489,6 +578,9 @@ export class AuthIdentityService implements OnModuleInit {
         } catch (error) {
             if (error instanceof UnauthorizedException) throw error;
             this.logger.error("Unexpected error resolving identity", error);
+            if (tokenAudience && !TOKEN_ERRORS.has((error as Error)?.name)) {
+                throw new ServiceUnavailableException("Authentication is temporarily unavailable");
+            }
             throw new UnauthorizedException("Authentication failed");
         }
     }

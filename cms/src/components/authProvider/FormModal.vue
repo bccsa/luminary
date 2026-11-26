@@ -24,6 +24,7 @@ import LabelAndType from "./LabelAndType.vue";
 import IconSection from "./IconSection.vue";
 import Appearance from "./LabelAppearance.vue";
 import UserFieldMappings from "./UserFieldMappings.vue";
+import McpConfig from "./McpConfig.vue";
 import FormActions from "./FormActions.vue";
 import { validate, type Validation } from "@/components/content/ContentValidator";
 const props = defineProps<{
@@ -105,6 +106,24 @@ function isValidAudience(value: string): boolean {
     }
 }
 
+/** Mirrors the API's check: an https URL ending in /mcp/<provider id>, unlike the audience. */
+function isValidMcpConfig(p: AuthProviderDto): boolean {
+    if (!p.mcp?.enabled) return true;
+    try {
+        const url = new URL(p.mcp.resourceUrl ?? "");
+        const same = (a: string, b: string) => a.replace(/\/+$/, "") === b.replace(/\/+$/, "");
+        const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+        return (
+            (url.protocol === "https:" || (url.protocol === "http:" && local)) &&
+            url.href === p.mcp.resourceUrl &&
+            url.pathname.endsWith(`/mcp/${p._id}`) &&
+            !same(p.mcp.resourceUrl ?? "", p.audience ?? "")
+        );
+    } catch {
+        return false;
+    }
+}
+
 const providerValidations = ref<Validation[]>([]);
 
 watch(
@@ -133,6 +152,13 @@ watch(
             (x) => isValidAudience(x.audience ?? ""),
         );
         validate(
+            "MCP URL must be the API URL followed by /mcp/<provider id>, and differ from the audience",
+            "mcp",
+            providerValidations.value,
+            p,
+            (x) => isValidMcpConfig(x),
+        );
+        validate(
             "Select at least one group to manage this provider",
             "memberOf",
             providerValidations.value,
@@ -150,6 +176,7 @@ const isFormValid = computed(() => {
         isValidDomain(p.domain ?? "") &&
         isValidClientId(p.clientId ?? "") &&
         isValidAudience(p.audience ?? "") &&
+        isValidMcpConfig(p) &&
         (p.memberOf ?? []).length > 0
     );
 });
@@ -320,6 +347,8 @@ const handleRevert = () => {
                 <Appearance v-model:provider="provider" :disabled="isDisabled" />
 
                 <UserFieldMappings v-model:provider="provider" :disabled="isDisabled" />
+
+                <McpConfig v-model:provider="provider" :disabled="isDisabled" />
             </div>
         </div>
 

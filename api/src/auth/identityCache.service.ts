@@ -4,7 +4,12 @@ import { createHash } from "crypto";
 import { DbService } from "../db/db.service";
 import { DeleteReason, DocType, Uuid } from "../enums";
 import { AccessMap } from "../permissions/permissions.service";
-import { AuthIdentityService, IdentityResult, JwtUserDetails } from "./authIdentity.service";
+import {
+    AuthIdentityService,
+    IdentityResult,
+    JwtUserDetails,
+    TokenAudience,
+} from "./authIdentity.service";
 import { IdentityCacheConfig } from "../configuration";
 import { BoundedTtlCache } from "./boundedTtlCache";
 
@@ -123,52 +128,82 @@ export class IdentityCacheService implements OnModuleInit {
         }
 
         // JSON-encoded so no providerId/token pair can produce another pair's key.
-        const key = this.hashToken(JSON.stringify([providerId, token]));
+        let uncached: IdentityResult | undefined;
+        const userDetails = await this.cached(JSON.stringify([providerId, token]), async () => {
+            const result = await this.authIdentityService.resolveOrDefault(token, providerId);
+            if (result.status === "authenticated") return result.userDetails;
+            uncached = result;
+            return undefined;
+        });
+        return uncached ?? { status: "authenticated", userDetails };
+    }
+
+    /**
+     * Cache-fronted {@link AuthIdentityService.resolveForAudience} for MCP requests. Never
+     * anonymous: an invalid token throws a 401. Cached under its own keys, with the same
+     * invalidation as the REST/socket identities.
+     */
+    async resolveForMcp(
+        token: string,
+        providerId: string,
+        audience: TokenAudience,
+    ): Promise<JwtUserDetails> {
+        return this.cached(JSON.stringify(["mcp", providerId, audience.audience, token]), () =>
+            this.authIdentityService.resolveForAudience(token, providerId, audience),
+        );
+    }
+
+    /**
+     * Returns the cached identity for `keySource`, or resolves and caches it. `resolve` returns
+     * undefined for a result that must not be cached; auth failures throw and are never cached.
+     */
+    private async cached(
+        keySource: string,
+        resolve: () => Promise<JwtUserDetails | undefined>,
+    ): Promise<JwtUserDetails> {
+        const key = this.hashToken(keySource);
 
         const hit = this.cache.get(key);
         if (hit) {
             return {
-                status: hit.status,
-                userDetails: {
-                    groups: [...hit.groups],
-                    userId: hit.userId,
-                    email: hit.email,
-                    name: hit.name,
-                    jwtPayload: hit.jwtPayload,
-                    accessMap: hit.accessMap,
-                },
+                groups: [...hit.groups],
+                userId: hit.userId,
+                email: hit.email,
+                name: hit.name,
+                jwtPayload: hit.jwtPayload,
+                accessMap: hit.accessMap,
             };
         }
 
-        // Miss: run the full resolve. Auth failures throw here and are NOT cached.
+        // Miss: run the full resolve.
         const generation = this.generation;
-        const result = await this.authIdentityService.resolveOrDefault(token, providerId);
+        const userDetails = await resolve();
 
         // Only cache authenticated identities, never past the token's own expiry, and never if
         // the cache was invalidated while resolving (the result may predate the change).
-        if (result.status === "authenticated" && generation === this.generation) {
-            const ttlMs = this.computeTtlMs(result.userDetails.jwtPayload?.exp);
+        if (userDetails && generation === this.generation) {
+            const ttlMs = this.computeTtlMs(userDetails.jwtPayload?.exp);
             if (ttlMs > 0) {
                 this.cache.set(
                     key,
                     {
                         status: "authenticated",
-                        groups: [...result.userDetails.groups],
-                        userId: result.userDetails.userId,
-                        email: result.userDetails.email,
-                        name: result.userDetails.name,
+                        groups: [...userDetails.groups],
+                        userId: userDetails.userId,
+                        email: userDetails.email,
+                        name: userDetails.name,
                         // Every hit with this token shares these, so they are frozen: a change
                         // throws instead of leaking into later requests. The accessMap is frozen
                         // in place because structuredClone would drop the properties it keeps.
-                        jwtPayload: deepFreeze(structuredClone(result.userDetails.jwtPayload)),
-                        accessMap: deepFreeze(result.userDetails.accessMap),
+                        jwtPayload: deepFreeze(structuredClone(userDetails.jwtPayload)),
+                        accessMap: deepFreeze(userDetails.accessMap),
                     },
                     ttlMs,
                 );
             }
         }
 
-        return result;
+        return userDetails;
     }
 
     /** Drop every cached identity, e.g. after a User or group change. */

@@ -1,6 +1,6 @@
 import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
 import { DbQueryResult, DbService } from "../db/db.service";
-import { AclPermission, DocType, PublishStatus, Uuid } from "../enums";
+import { DocType, PublishStatus, Uuid } from "../enums";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
@@ -10,6 +10,7 @@ import { MongoComparisonCriteria, MongoSelectorDto } from "../dto/MongoSelectorD
 import { LanguageDto } from "../dto/LanguageDto";
 import { expandMangoSelector } from "../util/expandMangoQuery";
 import { isExpiredContent, stripExpiredContent } from "../util/stripExpiredContent";
+import { READABLE_DOC_TYPES, ReadOptions, readPermission } from "./readScope";
 
 @Injectable()
 export class QueryService {
@@ -73,8 +74,14 @@ export class QueryService {
             });
     }
 
-    async query(query: MongoQueryDto, userDetails: JwtUserDetails): Promise<DbQueryResult> {
+    async query(
+        query: MongoQueryDto,
+        userDetails: JwtUserDetails,
+        options: ReadOptions = {},
+    ): Promise<DbQueryResult> {
         const now = Date.now();
+        // MCP reads see what a CMS-scoped read sees; only the gating permission differs.
+        if (options.mcp) query.cms = true;
 
         // Expand the selector to ensure it is in the correct format, allowing injection of additional conditions like permission checks.
         query.selector = expandMangoSelector(query.selector);
@@ -139,7 +146,7 @@ export class QueryService {
         const isCms = query.cms === true;
         const userViewGroups = PermissionSystem.accessMapToGroups(
             userDetails.accessMap,
-            isCms ? AclPermission.CmsView : AclPermission.View,
+            readPermission(isCms, options),
             [...permissionCheckTypes],
         );
 
@@ -284,6 +291,70 @@ export class QueryService {
             );
         }
         return result;
+    }
+
+    /**
+     * Docs by id that the user may read in a CMS-scoped mode (CmsView, or McpView for MCP). No
+     * Mango index serves lookups by id, so this applies {@link filterReadable} instead.
+     */
+    async getReadableDocs(
+        ids: Uuid[],
+        userDetails: JwtUserDetails,
+        options: ReadOptions = {},
+    ): Promise<any[]> {
+        if (!ids.length) return [];
+        const res = await this.db.getDocs(ids, READABLE_DOC_TYPES);
+        return this.filterReadable(res.docs, userDetails, options);
+    }
+
+    /**
+     * The Content docs of these parents that the user may read in a CMS-scoped mode, drafts
+     * included (the parentId Mango index skips docs without a publishDate).
+     */
+    async getReadableContentByParent(
+        parentIds: Uuid[],
+        userDetails: JwtUserDetails,
+        options: ReadOptions = {},
+    ): Promise<any[]> {
+        if (!parentIds.length) return [];
+        const res = await this.db.getContentByParentId(parentIds);
+        return this.filterReadable(res.docs, userDetails, options);
+    }
+
+    /**
+     * The predicate form of the permission filter {@link query} injects for CMS-scoped reads, for
+     * docs fetched directly. Keep the two in step: this file is the data-leak boundary.
+     */
+    filterReadable(docs: any[], userDetails: JwtUserDetails, options: ReadOptions = {}): any[] {
+        const groups = PermissionSystem.accessMapToGroups(
+            userDetails.accessMap,
+            readPermission(true, options),
+            READABLE_DOC_TYPES,
+        );
+        const canRead = (type: DocType, memberOf: Uuid[] | undefined) =>
+            Array.isArray(memberOf) && memberOf.some((g) => (groups[type] || []).includes(g));
+
+        const langGroups: Uuid[] = groups[DocType.Language] || [];
+        const readsSomeLanguage = this.languages.some((lang) =>
+            (lang.memberOf as Uuid[]).some((g) => langGroups.includes(g)),
+        );
+
+        return (docs || []).filter((doc) => {
+            if (!doc || !READABLE_DOC_TYPES.includes(doc.type)) return false;
+            if (doc.type === DocType.Content) {
+                return (
+                    (doc.parentType === DocType.Post || doc.parentType === DocType.Tag) &&
+                    readsSomeLanguage &&
+                    canRead(doc.parentType, doc.memberOf)
+                );
+            }
+            return canRead(doc.type, doc.memberOf);
+        });
+    }
+
+    /** Languages the user may read in a CMS-scoped mode, from the in-memory cache. */
+    readableLanguages(userDetails: JwtUserDetails, options: ReadOptions = {}): LanguageDto[] {
+        return this.filterReadable(this.languages, userDetails, options);
     }
 }
 

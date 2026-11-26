@@ -4,6 +4,7 @@ import { AclPermission, DocType } from "../enums";
 // Define permissions per DocType.
 // CmsView is assignable on every CMS-managed doc type: it gates CMS-scoped (cms:true)
 // visibility/sync, including drafts and expired Content. The app uses plain View.
+// McpView gates the same visibility for the MCP server (AI clients); it always implies CmsView.
 const availablePermissionsPerDocType = {
     [DocType.Group]: [
         AclPermission.View,
@@ -11,6 +12,7 @@ const availablePermissionsPerDocType = {
         AclPermission.Delete,
         AclPermission.Assign,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.Language]: [
         AclPermission.View,
@@ -19,6 +21,7 @@ const availablePermissionsPerDocType = {
         AclPermission.Assign,
         AclPermission.Translate,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.Post]: [
         AclPermission.View,
@@ -28,6 +31,7 @@ const availablePermissionsPerDocType = {
         AclPermission.Publish,
         AclPermission.Share,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.Tag]: [
         AclPermission.View,
@@ -38,18 +42,21 @@ const availablePermissionsPerDocType = {
         AclPermission.Publish,
         AclPermission.Share,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.User]: [
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.Redirect]: [
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.Storage]: [
         AclPermission.View,
@@ -57,6 +64,7 @@ const availablePermissionsPerDocType = {
         AclPermission.Assign,
         AclPermission.Delete,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.AuthProvider]: [
         AclPermission.View,
@@ -64,6 +72,7 @@ const availablePermissionsPerDocType = {
         AclPermission.Delete,
         AclPermission.Assign,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
     [DocType.AutoGroupMappings]: [
         AclPermission.View,
@@ -71,8 +80,14 @@ const availablePermissionsPerDocType = {
         AclPermission.Delete,
         AclPermission.Assign,
         AclPermission.CmsView,
+        AclPermission.McpView,
     ],
-    [DocType.DefaultAffinity]: [AclPermission.View, AclPermission.Edit, AclPermission.CmsView],
+    [DocType.DefaultAffinity]: [
+        AclPermission.View,
+        AclPermission.Edit,
+        AclPermission.CmsView,
+        AclPermission.McpView,
+    ],
 };
 
 // Derived from the map keys, NOT the DocType enum — so omitting Crypto/Sidecar
@@ -102,9 +117,11 @@ function isPermissionAvailable(docType: DocType, aclPermission: AclPermission): 
 // Validate an ACL entry and return the validated entry
 function validateAclEntry(aclEntry: GroupAclEntryDto): void {
     // A CMS-only permission implies CMS visibility. Adding it rather than stripping the permission
-    // keeps entries from clients that don't send CmsView working (ADR 0005).
+    // keeps entries from clients that don't send CmsView working (ADR 0005). McpView implies it too,
+    // so MCP access can never reach further than CMS access.
     if (
-        aclEntry.permission.some((p) => cmsOnlyPermissions.includes(p)) &&
+        (aclEntry.permission.some((p) => cmsOnlyPermissions.includes(p)) ||
+            aclEntry.permission.includes(AclPermission.McpView)) &&
         !aclEntry.permission.includes(AclPermission.CmsView)
     ) {
         aclEntry.permission.push(AclPermission.CmsView);

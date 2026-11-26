@@ -345,6 +345,19 @@ export type AuthProviderDto = BaseDocumentDto & {
     sortIndex?: number;
     imageBucketId?: Uuid;
     imageData?: ImageDto;
+    /** MCP server settings (AI clients such as Claude or ChatGPT) */
+    mcp?: McpProviderConfig;
+};
+
+/** Per-provider MCP server settings; validated by the API on save. */
+export type McpProviderConfig = {
+    enabled: boolean;
+    /** Canonical MCP URL (`<api>/mcp/<providerId>`); the IdP API identifier must match it exactly */
+    resourceUrl?: string;
+    /** Optional allowlist of OAuth client IDs (pre-registered clients only) */
+    allowedClientIds?: string[];
+    /** CMS base URL, used for links in MCP tool results */
+    cmsUrl?: string;
 };
 
 export type AutoGroupMappingsDto = ContentBaseDto & {

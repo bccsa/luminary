@@ -466,6 +466,75 @@ describe("validateChangeRequest", () => {
         expect(result.error).toContain("Published content already exists for slug");
     });
 
+    describe("AuthProvider MCP settings", () => {
+        const provider = (mcp: Record<string, unknown>) => ({
+            doc: {
+                _id: "provider-mcp-test",
+                type: DocType.AuthProvider,
+                memberOf: ["group-super-admins"],
+                domain: "tenant.example.test",
+                audience: "https://api.example.test",
+                clientId: "cms-client",
+                mcp,
+            },
+        });
+
+        it("accepts a valid MCP config", async () => {
+            const result = await validateChangeRequest(
+                provider({
+                    enabled: true,
+                    resourceUrl: "https://api.example.test/mcp/provider-mcp-test",
+                    allowedClientIds: ["claude-client"],
+                    cmsUrl: "https://cms.example.test",
+                }),
+                ["group-super-admins"],
+                db,
+            );
+
+            expect(result.validated).toBe(true);
+            expect((result.validatedData as any).mcp).toEqual({
+                enabled: true,
+                resourceUrl: "https://api.example.test/mcp/provider-mcp-test",
+                allowedClientIds: ["claude-client"],
+                cmsUrl: "https://cms.example.test",
+            });
+        });
+
+        it("rejects a resource URL equal to the provider's audience", async () => {
+            const doc = provider({
+                enabled: true,
+                resourceUrl: "https://api.example.test/mcp/provider-mcp-test",
+            });
+            doc.doc.audience = "https://api.example.test/mcp/provider-mcp-test";
+
+            const result = await validateChangeRequest(doc, ["group-super-admins"], db);
+
+            expect(result.validated).toBe(false);
+            expect(result.error).toContain("differ from the provider's audience");
+        });
+
+        it("rejects a resource URL that isn't this provider's MCP path", async () => {
+            const result = await validateChangeRequest(
+                provider({ enabled: true, resourceUrl: "https://api.example.test/mcp/other" }),
+                ["group-super-admins"],
+                db,
+            );
+
+            expect(result.validated).toBe(false);
+            expect(result.error).toContain("must end with /mcp/provider-mcp-test");
+        });
+
+        it("ignores the resource URL while MCP is disabled", async () => {
+            const result = await validateChangeRequest(
+                provider({ enabled: false }),
+                ["group-super-admins"],
+                db,
+            );
+
+            expect(result.validated).toBe(true);
+        });
+    });
+
     it("allows a redirect whose slug has only draft content", async () => {
         await db.upsertDoc({
             _id: "content-draft-for-redirect",

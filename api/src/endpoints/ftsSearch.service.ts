@@ -1,6 +1,6 @@
 import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
 import { DbService } from "../db/db.service";
-import { AclPermission, DocType, PublishStatus, Uuid } from "../enums";
+import { DocType, PublishStatus, Uuid } from "../enums";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
@@ -21,6 +21,7 @@ import {
     wordMatchScore,
 } from "../util/ftsScoring";
 import { normalizeText } from "../util/ftsIndexing";
+import { ReadOptions, readPermission } from "./readScope";
 
 /** Document fields a strict (sorted) Content FTS search may order by. */
 const FTS_SORT_FIELDS = new Set(["title", "publishDate", "expiryDate", "updatedTimeUtc"]);
@@ -169,14 +170,21 @@ export class FtsSearchService {
             });
     }
 
-    async search(req: FtsSearchReqDto, userDetails: JwtUserDetails): Promise<FtsSearchResultDto[]> {
-        return (await this.searchWithStats(req, userDetails)).results;
+    async search(
+        req: FtsSearchReqDto,
+        userDetails: JwtUserDetails,
+        options: ReadOptions = {},
+    ): Promise<FtsSearchResultDto[]> {
+        return (await this.searchWithStats(req, userDetails, options)).results;
     }
 
     async searchWithStats(
         req: FtsSearchReqDto,
         userDetails: JwtUserDetails,
+        options: ReadOptions = {},
     ): Promise<FtsSearchWithStats> {
+        // MCP searches see what a CMS-scoped search sees; only the gating permission differs.
+        if (options.mcp) req.cms = true;
         const stats: FtsSearchStats = {
             trigrams: 0,
             keptTrigrams: 0,
@@ -200,7 +208,7 @@ export class FtsSearchService {
         // before the Content-specific setup below, which assumes Post/Tag/Content metadata.
         if (types.length === 1) {
             const auxConfig = AUX_FTS_CONFIG[types[0]];
-            if (auxConfig) return this.searchAux(req, userDetails, auxConfig, stats);
+            if (auxConfig) return this.searchAux(req, userDetails, auxConfig, stats, options);
         }
 
         // status / draft filters are a CMS-only capability
@@ -234,7 +242,7 @@ export class FtsSearchService {
         // searches by View. No CmsView on any requested group → the empty groups below yield 403.
         const userViewGroups = PermissionSystem.accessMapToGroups(
             userDetails.accessMap,
-            cms ? AclPermission.CmsView : AclPermission.View,
+            readPermission(cms, options),
             [DocType.Post, DocType.Tag, DocType.Language],
         );
 
@@ -251,7 +259,9 @@ export class FtsSearchService {
                 .filter((lang) => (lang.memberOf as Uuid[]).some((g) => langViewGroups.includes(g)))
                 .map((lang) => lang._id),
         );
-        if (!cms && accessibleLanguages.size === 0)
+        // CMS search skips this (the CMS syncs every language); MCP keeps /query's rule that
+        // content needs read access to at least one Language.
+        if ((!cms || options.mcp) && accessibleLanguages.size === 0)
             throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
 
         // Optional request filters
@@ -498,6 +508,7 @@ export class FtsSearchService {
         userDetails: JwtUserDetails,
         cfg: AuxFtsConfig,
         stats: FtsSearchStats,
+        options: ReadOptions = {},
     ): Promise<FtsSearchWithStats> {
         const limit = req.limit && req.limit > 0 ? req.limit : FTS_DEFAULT_LIMIT;
         const offset = req.offset && req.offset > 0 ? req.offset : 0;
@@ -523,7 +534,7 @@ export class FtsSearchService {
         // results (Users/Redirects) for groups it holds CmsView on.
         const viewGroups = PermissionSystem.accessMapToGroups(
             userDetails.accessMap,
-            req.cms === true ? AclPermission.CmsView : AclPermission.View,
+            readPermission(req.cms === true, options),
             [cfg.docType],
         );
         const groups = new Set<Uuid>(viewGroups[cfg.docType] || []);

@@ -8,6 +8,13 @@ The CMS supports connecting to multiple S3-compatible storage buckets for flexib
 
 📖 **[Complete S3 Multi-Bucket Guide](../api/docs/s3-multi-bucket/README.md)**
 
+## AI connector (MCP)
+
+Editors can use Luminary from AI apps such as Claude and ChatGPT. Admins switch it on per provider
+under *Auth Providers → AI connector (MCP)* and grant the `McpView` permission to groups in the
+group editor; users then find their connector URL under *Settings*. Setup, including the identity
+provider side, is in the [MCP guide](../api/docs/mcp.md).
+
 ## Project Structure
 
 > **Note:** We are currently migrating to a new component organization structure where each feature folder will contain a `__tests__` subdirectory alongside its related components. For example:

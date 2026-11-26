@@ -2,6 +2,8 @@ import { DocType } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
 
 import {
+    IsArray,
+    IsBoolean,
     IsString,
     IsNotEmpty,
     IsOptional,
@@ -11,6 +13,36 @@ import {
 } from "class-validator";
 import { Expose, Type } from "class-transformer";
 import { ImageDto } from "./ImageDto";
+
+/**
+ * Per-provider MCP server settings. Cross-field rules (canonical URL ending in `/mcp/<_id>`,
+ * different from `audience`) live in `mcp/mcpProviderConfig.ts`.
+ */
+export class McpProviderConfigDto {
+    /** Serve the MCP endpoint for this provider */
+    @IsBoolean()
+    @Expose()
+    public enabled: boolean;
+
+    /** Canonical MCP URL; must equal the identifier of the matching API in the IdP */
+    @IsString()
+    @IsOptional()
+    @Expose()
+    public resourceUrl?: string;
+
+    /** Optional allowlist of OAuth client IDs (pre-registered clients only) */
+    @IsArray()
+    @IsString({ each: true })
+    @IsOptional()
+    @Expose()
+    public allowedClientIds?: string[];
+
+    /** CMS base URL, used for links in MCP tool results */
+    @IsString()
+    @IsOptional()
+    @Expose()
+    public cmsUrl?: string;
+}
 
 /**
  */
@@ -108,4 +140,11 @@ export class AuthProviderDto extends _contentBaseDto {
     @Type(() => ImageDto)
     @Expose()
     public imageData: ImageDto;
+
+    /** MCP server settings (AI clients such as Claude or ChatGPT) */
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => McpProviderConfigDto)
+    @Expose()
+    public mcp?: McpProviderConfigDto;
 }
