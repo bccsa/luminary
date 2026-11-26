@@ -18,7 +18,6 @@ import {
 import LButton from "@/components/button/LButton.vue";
 import LDialog from "@/components/common/LDialog.vue";
 import { useNotificationStore } from "@/stores/notification";
-import { openMediaPlayer } from "@/media-player/mediaPlayer";
 import { DownloadsKey } from "@/build-time/contracts/downloads/token";
 import type { DownloadEntry } from "@/build-time/contracts/downloads/contract";
 import { contentFromSnapshot } from "../content";
@@ -29,7 +28,7 @@ import MeteredConfirmDialog from "./MeteredConfirmDialog.vue";
 
 type Props = {
     entry: DownloadEntry;
-    /** The list is choosing downloads to delete: a tap selects instead of playing. */
+    /** The list is choosing downloads to delete: a tap selects instead of opening the wizard. */
     selecting?: boolean;
     selected?: boolean;
     /** The player is playing this download, so it cannot be deleted now. */
@@ -128,16 +127,15 @@ watch(
     { immediate: true },
 );
 
-/** The content page, when its doc is on the device: without it the route would not resolve offline. */
-const route = computed(() =>
-    stored.value?.slug ? { name: "content", params: { slug: stored.value.slug } } : undefined,
-);
-
-/** Plays the item in the app's player, from the stored doc or, without it, a stand-in made from the download. */
-function play() {
-    if (props.selecting) return;
-    openMediaPlayer(stored.value ?? contentFromSnapshot(props.entry), undefined, {
-        audio: props.entry.selection.kind === "audio",
+/**
+ * Opens the download wizard for this entry, as if its control had been tapped in the player: a tap on the
+ * card manages the download instead of playing it. `selection` hints the wizard with what is already held.
+ */
+function openWizard() {
+    if (props.selecting || !service) return;
+    void service.openSheet(stored.value ?? contentFromSnapshot(props.entry), {
+        context: "downloads",
+        selection: props.entry.selection,
     });
 }
 
@@ -238,12 +236,12 @@ const ACTIONS: Record<CardAction, { key: string; icon: Component }> = {
         data-test="download-card"
     >
         <component
-            :is="selecting ? 'label' : route ? 'RouterLink' : 'button'"
-            v-bind="selecting ? {} : route ? { to: route } : { type: 'button' }"
+            :is="selecting ? 'label' : 'button'"
+            v-bind="selecting ? {} : { type: 'button' }"
             class="ease-out-expo group flex min-h-24 w-full gap-3 text-left transition"
             :class="selecting ? 'cursor-pointer' : 'hover:brightness-[1.15]'"
             data-test="download-card-open"
-            @click="play"
+            @click="openWizard"
         >
             <div
                 class="relative w-28 shrink-0 overflow-hidden bg-zinc-200 dark:bg-slate-700 sm:w-36"

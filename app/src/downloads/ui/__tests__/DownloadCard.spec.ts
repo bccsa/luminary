@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mount, RouterLinkStub } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 import { db } from "luminary-shared";
 import type { DownloadEntry } from "@/build-time/contracts/downloads/contract";
 import { makeContent } from "../../__tests__/helpers";
@@ -68,42 +68,32 @@ describe("DownloadCard", () => {
         expect(card(wrapper, "selection").text()).toContain("Video · 720p · French");
     });
 
-    it("plays the item from its stored doc and opens its content page", async () => {
+    it("opens the download wizard with its stored doc and current selection, instead of playing it", async () => {
         const ctx = await setupUi();
         await downloaded(ctx.fake, 1);
         await db.docs.put(makeContent({ _id: "content-1", parentId: "post-1", slug: "item-1" }));
         const wrapper = mountCard(ctx, entryOf(ctx));
-        await vi.waitFor(() => expect(wrapper.findComponent(RouterLinkStub).exists()).toBe(true));
-        const link = wrapper.getComponent(RouterLinkStub);
-        expect(link.props("to")).toEqual({ name: "content", params: { slug: "item-1" } });
-        // Named by what it holds, so the status and any attention line are read with the title.
-        expect(link.attributes("aria-label")).toBeUndefined();
-        await link.trigger("click");
-        expect(mediaPlayerItem.value?.content._id).toBe("content-1");
-        expect(mediaPlayerItem.value?.content.parentMedia?.hlsUrl).toBeTruthy();
-        expect(mediaPlayerItem.value?.audio).toBe(true);
-    });
-
-    it("plays a stand-in made from the download when its doc is not on the device", async () => {
-        const ctx = await setupUi();
-        await downloaded(ctx.fake, 1);
-        const wrapper = mountCard(ctx, entryOf(ctx));
         await settle();
-        expect(wrapper.findComponent(RouterLinkStub).exists()).toBe(false);
+        const openSheet = vi.spyOn(ctx.service, "openSheet");
         await card(wrapper, "open").trigger("click");
-        const content = mediaPlayerItem.value?.content;
-        expect(content).toMatchObject({ _id: "content-1", parentId: "post-1", title: "Item 1" });
-        expect(content && isStandIn(content)).toBe(true);
+        expect(openSheet).toHaveBeenCalledWith(expect.objectContaining({ _id: "content-1" }), {
+            context: "downloads",
+            selection: entryOf(ctx).selection,
+        });
+        expect(mediaPlayerItem.value).toBeNull();
     });
 
-    it("offers the content page once the doc syncs in while the page is open", async () => {
+    it("opens the wizard with a stand-in when its doc is not on the device", async () => {
         const ctx = await setupUi();
         await downloaded(ctx.fake, 1);
         const wrapper = mountCard(ctx, entryOf(ctx));
         await settle();
-        expect(wrapper.findComponent(RouterLinkStub).exists()).toBe(false);
-        await db.docs.put(makeContent({ _id: "content-1", parentId: "post-1", slug: "item-1" }));
-        await vi.waitFor(() => expect(wrapper.findComponent(RouterLinkStub).exists()).toBe(true));
+        const openSheet = vi.spyOn(ctx.service, "openSheet");
+        await card(wrapper, "open").trigger("click");
+        const [content, options] = openSheet.mock.calls[0];
+        expect(content).toMatchObject({ _id: "content-1", parentId: "post-1", title: "Item 1" });
+        expect(isStandIn(content)).toBe(true);
+        expect(options).toEqual({ context: "downloads", selection: entryOf(ctx).selection });
     });
 
     it("shows live progress and its size so far while downloading", async () => {
@@ -373,15 +363,17 @@ describe("DownloadCard", () => {
         });
     });
 
-    it("selects instead of playing while the list is choosing", async () => {
+    it("selects instead of opening the wizard while the list is choosing", async () => {
         const ctx = await setupUi();
         await downloaded(ctx.fake, 1);
         const wrapper = mountCard(ctx, entryOf(ctx), { selecting: true, selected: false });
-        expect(wrapper.findComponent(RouterLinkStub).exists()).toBe(false);
+        const openSheet = vi.spyOn(ctx.service, "openSheet");
         expect(wrapper.find("[role='group']").exists()).toBe(false);
         const box = card(wrapper, "select");
         expect(box.attributes("aria-label")).toBe("Select “Item 1”");
         await box.setValue(true);
         expect(wrapper.emitted("toggle")).toHaveLength(1);
+        await card(wrapper, "open").trigger("click");
+        expect(openSheet).not.toHaveBeenCalled();
     });
 });
