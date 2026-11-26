@@ -43,6 +43,7 @@ import ScrubPicture from "@/media-player/player/components/ScrubPicture.vue";
 import ScrubRoster from "@/media-player/player/components/ScrubRoster.vue";
 import type { ScrubPosition } from "@/media-player/player/ui/audioFullscreen";
 import { chapterMask } from "@/media-player/player/ui/chapterBar";
+import { sidePanelsOpen } from "@/composables/sidePanelsOpen";
 import {
     hasChapterSkip,
     nextChapterTime,
@@ -1497,13 +1498,13 @@ const nativeBarTexts = computed(() => ({
     close: t("media_player.close"),
     loading: t("video_player.loading"),
 }));
-/** Where the unseen bar is, for the platform to draw in; nothing while the keyboard has it away. */
+/** Where the unseen bar is, for the platform to draw in; nothing while the keyboard or a side panel has it away. */
 function sendBarFrame() {
     const player = handle.value;
     if (!player?.setMiniPlayerFrame) return;
     const element = bar.value;
     const box =
-        nativeOwnsBar.value && element && !keyboardOpen.value
+        nativeOwnsBar.value && element && !keyboardOpen.value && sidePanelsOpen.value === 0
             ? element.getBoundingClientRect()
             : null;
     player.setMiniPlayerFrame(
@@ -1540,7 +1541,7 @@ watch(
     },
     { immediate: true },
 );
-watch(keyboardOpen, () => void nextTick(sendBarFrame));
+watch([keyboardOpen, sidePanelsOpen], () => void nextTick(sendBarFrame));
 onMounted(() => window.addEventListener("resize", sendBarFrame));
 onBeforeUnmount(() => {
     window.removeEventListener("resize", sendBarFrame);

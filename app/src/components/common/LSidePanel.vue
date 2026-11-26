@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onUnmounted, watch } from "vue";
 import LTeleport from "./LTeleport.vue";
+import { sidePanelsOpen } from "@/composables/sidePanelsOpen";
 
 const open = defineModel<boolean>("open", { required: true });
 
@@ -20,7 +21,16 @@ function handleEscape(e: KeyboardEvent) {
     if (e.key === "Escape") close();
 }
 
+let counted = false;
+function count(isOpen: boolean) {
+    if (isOpen === counted) return;
+    counted = isOpen;
+    sidePanelsOpen.value += isOpen ? 1 : -1;
+}
+if (open.value) count(true);
+
 watch(open, (isOpen) => {
+    count(isOpen);
     if (isOpen) {
         document.addEventListener("keydown", handleEscape);
     } else {
@@ -29,6 +39,7 @@ watch(open, (isOpen) => {
 });
 
 onUnmounted(() => {
+    count(false);
     document.removeEventListener("keydown", handleEscape);
 });
 </script>
