@@ -695,6 +695,11 @@ export type DownloadsService = {
             selection?: Partial<DownloadSelection>;
         },
     ): Promise<void>;
+    /**
+     * Reads what the sheet would show for `content` in the background (its source and every option's size), so the
+     * sheet opens on its first step. Optional: a service without it opens as before.
+     */
+    warmSheet?(content: ContentDto): void;
     pause(downloadId: string): Promise<void>;
     /**
      * Resumes one download, first doing what its failed reason needs (a source check, a takedown re-check). Callers

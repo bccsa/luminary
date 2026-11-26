@@ -130,6 +130,18 @@ describe("openSheet", () => {
         }
     });
 
+    it("opens on its first step, reading nothing, once the item was warmed", async () => {
+        const { fake, service } = await setup();
+        const options = vi.spyOn(fake, "options");
+        service.warmSheet!(makeContent());
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(options).toHaveBeenCalledTimes(1);
+        const present = vi.spyOn(fake, "presentSheet");
+        await service.openSheet(makeContent(), { context: "player" });
+        expect(present.mock.calls[0][0]).toMatchObject({ phase: "ready" });
+        expect(options).toHaveBeenCalledTimes(1);
+    });
+
     it("preselects what plays where the options offer it, ignoring what they do not", async () => {
         const { fake, service } = await setup();
         const present = vi.spyOn(fake, "presentSheet");

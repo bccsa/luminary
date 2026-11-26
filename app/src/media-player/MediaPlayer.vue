@@ -1917,6 +1917,32 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
 
 /** Whether the item may be downloaded now, for the download tool. */
 const downloadable = computed(() => downloadsProvided.value?.eligibility(() => content.value));
+
+/**
+ * The sheet's reading (a handful of small playlists) is done in the background so the sheet opens ready, but only once
+ * the item has loaded and settled, then when the phone is idle: it never competes with the video's own start.
+ */
+const WARM_SHEET_AFTER_MS = 3000;
+watch(
+    () => {
+        const shown = content.value;
+        const service = downloadsService.value;
+        if (!shown || !service?.warmSheet || !service.network.value.online) return null;
+        if (state.value?.lifecycle !== "ready" || starting.value) return null;
+        return service.entryFor(shown.parentId) || downloadable.value?.value ? shown : null;
+    },
+    (shown, _before, onCleanup) => {
+        if (!shown) return;
+        const timer = setTimeout(() => {
+            const warm = () => downloadsService.value?.warmSheet?.(shown);
+            if ("requestIdleCallback" in window)
+                window.requestIdleCallback(warm, { timeout: 3000 });
+            else warm();
+        }, WARM_SHEET_AFTER_MS);
+        onCleanup(() => clearTimeout(timer));
+    },
+    { immediate: true },
+);
 /**
  * The download tool: shown for an item that may be downloaded or has a download. A progress tick that leaves the
  * tool as it was hands back the same object, so the screen is not described again for it.

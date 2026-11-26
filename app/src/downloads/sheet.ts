@@ -63,6 +63,8 @@ export type SheetOptions = {
 
 export type SheetController = {
     open(content: ContentDto, options: SheetOptions): Promise<void>;
+    /** Reads what the sheet will show for `content` ahead of time, so it opens ready. */
+    warm(content: ContentDto): void;
     handle(action: DownloadSheetAction & { sheetId: string }): Promise<void>;
     /** The download or the device changed: an open sheet is sent again. */
     refresh(): void;
@@ -198,6 +200,47 @@ export function createSheetController(ctx: SheetContext): SheetController {
     const { engine, deps, state, lifecycle, player } = ctx;
     let current: OpenSheet | null = null;
 
+    type Read = { source: DownloadSource; options: DownloadOptions };
+    /** What the sheet read, or is reading, per item and the selection its download holds; the newest last. */
+    const reads = new Map<string, { work: Promise<Read>; done?: Read; at: number }>();
+    const READS_KEPT = 8;
+    /** A read this old is read again: the source may have changed since. */
+    const READ_REUSE_MS = 10 * 60_000;
+    const readKey = (content: ContentDto) =>
+        JSON.stringify([
+            content._id,
+            state.byParent.value.get(content.parentId)?.selection ?? null,
+        ]);
+    function read(content: ContentDto): { work: Promise<Read>; done?: Read } {
+        const key = readKey(content);
+        const kept = reads.get(key);
+        if (kept && Date.now() - kept.at < READ_REUSE_MS) return kept;
+        reads.delete(key);
+        const held: { work: Promise<Read>; done?: Read; at: number } = {
+            at: Date.now(),
+            work: (async () => {
+                if (!hasDownloadableMedia(content)) throw new Error("nothing to download");
+                const source = await deps.resolveSource(content);
+                if (!source) throw new Error("no source");
+                const options = await engine.options(
+                    source,
+                    state.byParent.value.get(content.parentId)?.selection,
+                );
+                return { source, options };
+            })(),
+        };
+        held.work.then(
+            (value) => (held.done = value),
+            () => {
+                // A failed read is asked again next time.
+                if (reads.get(key) === held) reads.delete(key);
+            },
+        );
+        reads.set(key, held);
+        while (reads.size > READS_KEPT) reads.delete(reads.keys().next().value!);
+        return held;
+    }
+
     const entryOf = (sheet: OpenSheet) => state.byParent.value.get(sheet.content.parentId);
 
     function volumeFor(
@@ -308,15 +351,13 @@ export function createSheetController(ctx: SheetContext): SheetController {
         await engine.updateSheet(sent).catch((error) => deps.reportError(error, "sheet"));
     }
 
-    async function prepare(sheet: OpenSheet) {
+    /** [send]: false while the sheet is not up yet, as when it opens ready. */
+    async function prepare(sheet: OpenSheet, sendIt = true) {
         sheet.phase = "preparing";
         sheet.message = undefined;
         sheet.source = undefined;
         try {
-            if (!hasDownloadableMedia(sheet.content)) throw new Error("nothing to download");
-            const source = await deps.resolveSource(sheet.content);
-            if (!source) throw new Error("no source");
-            const options = await engine.options(source, entryOf(sheet)?.selection);
+            const { source, options } = await read(sheet.content).work;
             const entry = entryOf(sheet);
             sheet.source = source;
             sheet.options = options;
@@ -349,7 +390,7 @@ export function createSheetController(ctx: SheetContext): SheetController {
                     );
             }
         }
-        await send(sheet);
+        if (sendIt) await send(sheet);
     }
 
     async function open(content: ContentDto, options: SheetOptions) {
@@ -366,6 +407,9 @@ export function createSheetController(ctx: SheetContext): SheetController {
             hint,
         };
         current = sheet;
+        // Read already, it opens on its first step rather than on "Preparing".
+        const ready = read(content).done !== undefined;
+        if (ready) await prepare(sheet, false);
         try {
             await engine.presentSheet(model(sheet), sheetTexts(deps.translator()));
         } catch (error) {
@@ -373,7 +417,12 @@ export function createSheetController(ctx: SheetContext): SheetController {
             current = null;
             return;
         }
-        await prepare(sheet);
+        if (!ready) await prepare(sheet);
+    }
+
+    function warm(content: ContentDto) {
+        if (!engine.capabilities.sheet || !hasDownloadableMedia(content)) return;
+        read(content).work.catch(() => undefined);
     }
 
     async function start(
@@ -598,6 +647,7 @@ export function createSheetController(ctx: SheetContext): SheetController {
 
     return {
         open,
+        warm,
         handle,
         refresh() {
             if (current && current.phase !== "preparing") void send(current);
