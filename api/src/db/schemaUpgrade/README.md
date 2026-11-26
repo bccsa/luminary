@@ -8,13 +8,13 @@ This directory contains database schema upgrade scripts that migrate existing Co
 
 ### Schema Version Tracking
 
--   Schema version is stored in a CouchDB document with `_id: "dbSchema"` containing a `version` field
--   The version reads as `0` when the document doesn't exist (a fresh database) and increments with each upgrade
--   Accessed via `DbService.getSchemaVersion()` and `DbService.setSchemaVersion()`
+- Schema version is stored in a CouchDB document with `_id: "dbSchema"` containing a `version` field
+- The version reads as `0` when the document doesn't exist (a fresh database) and increments with each upgrade
+- Accessed via `DbService.getSchemaVersion()` and `DbService.setSchemaVersion()`
 
 ### Fresh-database initializer (`initSchemaVersion`)
 
-Every versioned upgrade (`v9`..`vN`) guards on an *exact* prior version (e.g. `v18` only runs when the version is exactly `17`). On a brand-new database the version reads as `0`, so **none** of them run and the `dbSchema` document would never be created — leaving the version permanently unset.
+Every versioned upgrade (`v9`..`vN`) guards on an _exact_ prior version (e.g. `v18` only runs when the version is exactly `17`). On a brand-new database the version reads as `0`, so **none** of them run and the `dbSchema` document would never be created — leaving the version permanently unset.
 
 To prevent this, `initSchemaVersion` runs **first** in the chain (before `v9`). When the version is `0` it stamps the `dbSchema` document at `FRESH_DB_SCHEMA_VERSION` (defined in `freshDbSchemaVersion.ts`). It is a strict **no-op** on any database that already has a `dbSchema` document, so existing and mid-upgrade databases are never touched.
 
@@ -68,21 +68,21 @@ export default async function upgrade(db: DbService): Promise<void> {
 
 Create a new schema upgrade when:
 
--   **Adding new required fields** to existing document types
--   **Changing field types or structures** (e.g., string → object, boolean → number)
--   **Renaming fields** that contain important data
--   **Migrating data** from one format to another
--   **Adding relationships** between documents that need to be established for existing data
--   **Removing fields** that are no longer used (optional but good for cleanup)
+- **Adding new required fields** to existing document types
+- **Changing field types or structures** (e.g., string → object, boolean → number)
+- **Renaming fields** that contain important data
+- **Migrating data** from one format to another
+- **Adding relationships** between documents that need to be established for existing data
+- **Removing fields** that are no longer used (optional but good for cleanup)
 
 ## When NOT to Create a Schema Upgrade
 
 Don't create an upgrade for:
 
--   **Adding optional fields** - new optional fields can be handled by code defaults
--   **Adding new document types** - these don't affect existing data
--   **Changes to views/indexes** - these are handled by design documents
--   **Configuration changes** - these are handled by environment variables or settings documents
+- **Adding optional fields** - new optional fields can be handled by code defaults
+- **Adding new document types** - these don't affect existing data
+- **Changes to views/indexes** - these are handled by design documents
+- **Configuration changes** - these are handled by environment variables or settings documents
 
 ## Creating a New Schema Upgrade
 
@@ -128,11 +128,10 @@ Schema upgrades can be safely removed when:
     - Delete old upgrade files
     - Remove imports from `db.upgrade.ts`
     - Update this README with the new baseline version
-4. **Update seeding data** - Ensure `api/src/db/seedingDocs/` JSON files match current schema
+4. **Update seeding data** - Ensure `api/src/db/seedingDocs/content/` JSON files match current schema
 5. **Test new installations** - Verify fresh databases work correctly without old upgrades
 
 ### Current Baseline
-
 
 **Current Schema Version**: 25 (as of 2026-11-18)
 
@@ -142,10 +141,10 @@ All production databases are expected to be at version 10 or higher. Historical 
 
 **Important**: Tests do NOT use schema upgrades!
 
--   The test module (`api/src/test/testingModule.ts`) creates fresh databases with current seeding data
--   Seeding data is already in the latest schema format
--   Tests start at the current schema version, not version 0
--   This means removing old upgrades will not break tests
+- The test module (`api/src/test/testingModule.ts`) creates fresh databases with current seeding data
+- Seeding data is already in the latest schema format
+- Tests start at the current schema version, not version 0
+- This means removing old upgrades will not break tests
 
 ## Historical Upgrades (Removed)
 
@@ -153,11 +152,11 @@ All production databases are expected to be at version 10 or higher. Historical 
 
 Historical schema upgrades that migrated data from the initial schema to version 9. These included:
 
--   Field renames and restructuring
--   Image migration to S3
--   Tag caching system
--   Multi-bucket storage architecture
--   Various field additions and type changes
+- Field renames and restructuring
+- Image migration to S3
+- Tag caching system
+- Multi-bucket storage architecture
+- Various field additions and type changes
 
 These upgrades were removed after confirming all production databases were at version 9 or higher.
 

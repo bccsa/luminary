@@ -1,0 +1,27 @@
+{
+    "_id": "_design/sync-liked-index",
+    "language": "query",
+    "options": {
+        "partitioned": true
+    },
+    "views": {
+        "sync-liked-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "desc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "liked"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["updatedTimeUtc"]
+                }
+            }
+        }
+    }
+}

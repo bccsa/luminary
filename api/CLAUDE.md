@@ -18,7 +18,7 @@ Run from `api/`:
 
 - `npm run start:dev` (or `npm run dev`) — Nest watch mode, default port 3000
 - `npm run start:prod` — production mode (logs go to a tailable `api.log` instead of stdout)
-- `npm run seed` — runs `main.ts` with `seed` arg: applies design docs and seeding docs from `src/db/seedingDocs/*.json`, then exits
+- `npm run seed` — runs `main.ts` with `seed` arg: applies design docs and seeding docs from `src/db/seedingDocs/content/*.json`, then exits
 - `npm run auth-setup` — interactive script to add/modify auth providers (see `AUTH_SETUP.md`)
 - `npm run test` — Jest via `dotenv-cli` loading `.env.test`. Targeted runs: `npm test -- src/path/file.spec.ts -t "name"`. Use `npm run test:detect` to find open handles.
 - `npm run test:cov` — coverage; `db/schemaUpgrade/` and `test/` are excluded
@@ -33,7 +33,8 @@ Node 22 (`.node-version`). `tsconfig.json` has `strictNullChecks: false` and `no
 
 Order-sensitive — read `main.ts` before reordering anything:
 
-1. `upsertDesignDocs(dbService)` — pushes CouchDB views/indexes from `src/db/designDocs/*.json`. New indexes go here. Immediately after, `warmIndexNameRegistry()` (`db/indexNameRegistry.ts`) loads the set of valid `use_index` names from those same JSON files; `/query` validation rejects any `use_index` not in that registry.
+1. `upsertDesignDocs(dbService)` — pushes CouchDB views/indexes from `src/db/designDocs/content/*.json`. New indexes go here. Immediately after, `warmIndexNameRegistry()` (`db/indexNameRegistry.ts`) loads the set of valid `use_index` names from those same JSON files; `/query` validation rejects any `use_index` not in that registry.
+   `UserDataDbService.initialize()` separately checks the optional partitioned database and installs its own design documents. Failure leaves that source disabled and does not block shared-dataset startup.
 2. If invoked with `seed` arg: `upsertSeedingDocs`, then `process.exit(0)` — the rest of bootstrap is skipped.
 3. `PermissionSystem.init(dbService)` — builds the in-memory permission graph from Group docs and subscribes to `groupUpdate` events.
 4. `S3Service.initializeChangeListener(dbService)` — wires the singleton S3 client cache to DB change events and disconnects.
@@ -52,6 +53,31 @@ Events you must observe in any cache or in-memory state:
 - `disconnect` / `reconnect` — emitted only on a real connected→disconnected transition (not on initial connect). **In-memory caches built from DTOs must clear on `disconnect` and rehydrate on `reconnect`** — otherwise changes during the outage are lost. Examples: `QueryService.languages`, `AuthIdentityService.providerCache` / `autoGroupMappingsCache` / `jwksClients`, `S3Service.clearCache()`.
 
 Writes go through `upsertDoc(doc)` which auto-generates `DeleteCmd` docs when `memberOf` changes or `deleteReq` is set. `insertDoc` retries on `Document update conflict` with jittered backoff. `executeFindQuery` is the only path that calls `nano`'s `db.find` directly — all permission/expiry/status filtering happens upstream of it.
+
+### Owner-scoped activity (`src/userData/`)
+
+`UserDataDbService` is independent of `DbService`: it has no change feed or database-creation
+loop. It enables only after both `DB_USERDATA_DATABASE` and `USER_DATA_ID_SECRET` are configured,
+the dedicated database is partitioned, and its indexes install. `UserQueryService` owns reads;
+`UserChangeRequestService` owns DTO validation and writes. `UserDataService` shares source
+availability and response id conversion between them; the API `DocType` enum
+does not include `UserActivity`. `AuthGuard` resolves owner identity through
+`auth/requestContext.ts`; user-data services receive the authorized owner key. Every query uses `partitionedFind`; unknown sources never fall back to the
+shared dataset. Writes use activity-time comparison, server-set cursor timestamps and
+conflict retries. Validation rejects are HTTP 200 acks; source/storage failures are retryable
+HTTP errors. Keep owner keys and CouchDB bookmarks out of client responses. See `README.md`
+and ADR 0020 for provisioning and wire contracts. The `user` source uses separate
+activity types and UUID ids. Initialization installs indexes without scanning or migrating
+activity documents. `UserQueryController` serves `/user/query`; shared `/query` rejects
+named sources. Both use `QueryRequestService` for validation, account rate limits,
+cost reporting and lean responses. `/changerequest` dispatches to separate shared
+and user services after its common authentication, throttling and multipart/JSON parsing.
+Preserve user validation acks versus retryable HTTP errors, and never route owner data to
+the shared service's rejection lookups. All services use Nest's default singleton scope.
+`UserDataDbService.initialize()` shares one promise and one connection per service instance;
+even failed initialization is not retried until restart. Enabled request paths perform no filesystem
+reads or startup scans. Keep the fresh revision read on writes and conflict retries: caching
+activity documents would break ordering when another API instance writes to the same owner.
 
 ### Schema upgrades (`src/db/schemaUpgrade/`)
 
@@ -77,6 +103,17 @@ Multi-provider OIDC. `AuthProvider` documents in the DB define each provider (do
 
 The `JwtModule` is registered globally in `app.module.ts` with no signing secret — tokens are verified against each provider's JWKS. Group-membership and identity claims are derived from the claim/group mappings stored on each `AuthProvider` doc and evaluated by `AuthIdentityService` (plus `AutoGroupMappings` docs).
 
+`auth/requestIdentity.ts` supplies account extraction and rate-limit identity helpers.
+After identity-cache resolution, `AuthGuard` calls `auth/requestContext.ts` once to populate
+an immutable `request.authIdentity` with the account, owner key and rate-limit key.
+Change-request, query and FTS paths consume that key; they do not interpret JWT claims.
+`requireUserDataOwner()` rejects anonymous/incomplete accounts with 401 and missing owner
+configuration with 503 before user-data services run. Shared requests remain available
+without user-data configuration. `auth/ownerKey.ts` preserves the existing issuer/subject
+HMAC; rate limits retain shared User id first, account hash second, IP for anonymous callers.
+Session-token integration is pending: its auth resolver must map credentials to the original
+account before this context is built, retaining owner partitions and rate-limit buckets.
+
 ### Socket.io (`src/socketio.ts`)
 
 Two room sets per group (GitHub #160, ADR 0013): **base `${docType}-${groupId}`** (app, joined via `View`) and **`${docType}-${groupId}-cms`** (CMS, joined via `CmsView`). The connection declares its mode in the `clientConfigReq` handshake (`cms: true | false` → `socket.data.cms`) because the AccessMap is per-user and can't distinguish an app from a CMS connection; a CMS connection joins **only** `-cms` rooms. (`clientConfigReq` was formerly `joinSocketGroups`, kept as a deprecated alias for older clients — ADR 0005; the whole Socket.io live-update transport is slated to migrate to SSE.) `deleteCmd-${groupId}` rooms are shared (un-suffixed) by both modes. On the handshake the server emits a `clientConfig` (max upload sizes + accessMap) then joins the rooms its accessMap grants for that mode. `DbService` `update` events fan out by resolving the doc's groups (for Content: via its parent's `memberOf`; for Change docs: via the embedded `changes` payload): **`-cms` rooms get the full doc for every status**; **base rooms get** published-and-live Content + all non-Content full, **expired** Content as a `stripExpiredContent()` stub (`util/stripExpiredContent.ts` — preserves the #433 prune-not-orphan behaviour), and **draft** Content not at all (the app is evicted via the app-only `DeleteReason.StatusChange` DeleteCmd). Auth happens in a Socket.io middleware before the connection is accepted.
@@ -100,7 +137,7 @@ All endpoints use `AuthGuard` and validate `apiVersion` via `validation/apiVersi
 3. A doc-type-specific `process*Dto` finalizes the document (image processing, FTS indexing, language file generation, S3 uploads, etc.).
 4. `db.upsertDoc(doc)` writes and emits.
 
-`processContentDto` sanitizes `text` first (`util/sanitizeContentText.ts`, allowlist = what the CMS editor can produce) because the app renders it with `v-html`; `sanitize-html` is pinned to exactly 2.17.2 because later versions pull in an ESM-only `htmlparser2` that breaks Jest and Node 20 CommonJS. `util/ftsIndexing.ts` computes server-side trigram FTS for Content docs as part of `processContentDto`. **Boost/field config must stay identical** to `shared/src/fts/ftsSearch.ts` — when you change one, change both (ADR 0009). The same boosts and BM25 params are also reused by server-side FTS *search* in `util/ftsScoring.ts` (the `POST /fts` endpoint, see below), so the "change one, change all" rule spans three files now (ADR 0010).
+`processContentDto` sanitizes `text` first (`util/sanitizeContentText.ts`, allowlist = what the CMS editor can produce) because the app renders it with `v-html`; `sanitize-html` is pinned to exactly 2.17.2 because later versions pull in an ESM-only `htmlparser2` that breaks Jest and Node 20 CommonJS. `util/ftsIndexing.ts` computes server-side trigram FTS for Content docs as part of `processContentDto`. **Boost/field config must stay identical** to `shared/src/fts/ftsSearch.ts` — when you change one, change both (ADR 0009). The same boosts and BM25 params are also reused by server-side FTS _search_ in `util/ftsScoring.ts` (the `POST /fts` endpoint, see below), so the "change one, change all" rule spans three files now (ADR 0010).
 
 ### S3 (`src/s3/s3.service.ts`)
 
@@ -112,7 +149,12 @@ There is a separate audio-bucket S3 config (`S3_MEDIA_*` or fallback `S3_*` env 
 
 `createTestingModule(testName)` creates a fresh `luminary-test-<testName>` CouchDB DB per test file, seeds it, mocks `AuthIdentityService` to default to anonymous, and provides a real `DbService`, `Socketio`, and `S3Service`. Use this rather than hand-rolling test modules. Tests share the prefix `DB_DATABASE_PREFIX` (default `luminary-test`).
 
-`nest-cli.json` ensures `designDocs/*.json` and `seedingDocs/*.json` are copied into `dist/src/` on build so production startup can find them.
+`nest-cli.json` copies `db/designDocs/content/*.json`, `db/designDocs/user/*.json` and
+`db/seedingDocs/content/*.json` into the same layout under `dist/src/`. `databaseAssets.ts`
+defines those directories for the loaders and index registries. Shared bootstrap and language
+reconciliation read only content assets; the user database installs only user design documents.
+Seed loaders always use the supplied database instead of caching a database globally.
+Owner-source tests use hand-built mocks instead of the CouchDB-backed helper.
 
 ## Conventions
 

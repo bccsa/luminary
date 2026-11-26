@@ -12,6 +12,8 @@ import { AclPermission, DocType, PublishStatus } from "./enums";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { isExpiredContent, stripExpiredContent } from "./util/stripExpiredContent";
 import { ChangeReqAckDto } from "./dto/ChangeReqAckDto";
+import { UserDataService } from "./userData/userData.service";
+import { SYNC_PAGINATION } from "./validation/query/syncPagination";
 import { Socket, Server } from "socket.io";
 import { ChangeReqDto } from "./dto/ChangeReqDto";
 import { AccessMap } from "./permissions/permissions.service";
@@ -50,6 +52,8 @@ type ClientRoomReq = {
  * Client configuration type definition
  */
 type ClientConfig = {
+    syncPagination?: typeof SYNC_PAGINATION;
+    dataSources?: string[];
     maxUploadFileSize: number;
     accessMap?: AccessMap;
 };
@@ -121,6 +125,7 @@ export class Socketio implements OnGatewayInit {
         private db: DbService,
         private s3: S3Service,
         private identityCacheService: IdentityCacheService,
+        private readonly userData: UserDataService,
     ) {}
 
     afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
@@ -280,9 +285,11 @@ export class Socketio implements OnGatewayInit {
     ) {
         // Send client configuration data and access map
         const clientConfig = {
+            syncPagination: SYNC_PAGINATION,
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
             accessMap: socket.data.userDetails.accessMap,
         } as ClientConfig;
+        if (this.userData.enabled) clientConfig.dataSources = ["user"];
         socket.emit("clientConfig", clientConfig);
 
         // Record the connection mode (CMS vs app) for this socket. All subsequent room joins

@@ -1,3 +1,6 @@
+import { activityId } from "@/tests/activityStorage";
+import { activityDocs as activityTable, setupActivityTests } from "@/tests/activityStorage";
+setupActivityTests();
 import "fake-indexeddb/auto";
 import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
@@ -9,7 +12,12 @@ import {
     syncContentProgressFromStorage,
 } from "@/contentProgress";
 import { MIRROR_INTERVAL_MS, startContentProgressMirror } from "../fromContentProgress";
-import { getUserActivity, recordUserActivity, removeUserActivity } from "../store";
+import {
+    clearUserActivity,
+    getUserActivity,
+    recordUserActivity,
+    removeUserActivity,
+} from "../store";
 
 const contentDoc = (_id: string, parentId: string) =>
     ({
@@ -35,7 +43,8 @@ describe("mirroring content progress into history", () => {
     let stop: (() => void) | undefined;
 
     beforeEach(async () => {
-        await db.userActivity.clear();
+        await activityTable.clear();
+        localStorage.removeItem("userActivityProgressBackfilled");
         await db.docs.clear();
         await db.docs.bulkPut([
             contentDoc("content-eng", "post-1"),
@@ -111,7 +120,7 @@ describe("mirroring content progress into history", () => {
 
         await flush();
 
-        expect(await db.userActivity.get("viewed:post-1")).toMatchObject({
+        expect(await activityTable.get(activityId("viewed:post-1"))).toMatchObject({
             deleted: true,
         });
         expect(await viewedPosts()).toEqual([]);
@@ -154,6 +163,18 @@ describe("mirroring content progress into history", () => {
         await waitForExpect(async () => {
             expect(await viewedPosts()).toEqual(["post-1"]);
         });
+    });
+
+    it("does not recreate cleared activity from old device-local progress after a restart", async () => {
+        storedProgress([{ contentId: "content-eng", updatedAt: 1000, progress: 20 } as any]);
+        stop = startContentProgressMirror();
+        await waitForExpect(async () => expect(await viewedPosts()).toEqual(["post-1"]));
+        await flush();
+        stop();
+        await clearUserActivity();
+        stop = startContentProgressMirror();
+        await flush();
+        expect(await viewedPosts()).toEqual([]);
     });
 
     it("stops recording once stopped", async () => {

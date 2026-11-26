@@ -1,5 +1,6 @@
 import type { Plugin } from "vite";
 import {
+    bootDiagnosticsScript,
     bootSplashMarkup,
     bootSplashPrePaintScript,
     bootSplashReloadScript,
@@ -16,7 +17,7 @@ export function bootSplash(configuredLogo?: string): Plugin {
         name: "boot-splash",
         transformIndexHtml: {
             order: "pre",
-            handler: (html) => ({
+            handler: (html, context) => ({
                 // After `#app`, so the splash is a sibling the app renders behind rather than
                 // content `app.mount()` would discard.
                 html: html.replace(
@@ -24,6 +25,15 @@ export function bootSplash(configuredLogo?: string): Plugin {
                     `<div id="app"></div>\n        ${bootSplashMarkup(configuredLogo)}`,
                 ),
                 tags: [
+                    ...(context.server
+                        ? [
+                              {
+                                  tag: "script",
+                                  injectTo: "head" as const,
+                                  children: bootDiagnosticsScript(),
+                              },
+                          ]
+                        : []),
                     { tag: "style", injectTo: "head" as const, children: bootSplashStyle() },
                     {
                         tag: "script",

@@ -30,7 +30,7 @@ For Content docs, check the parent type (Post/Tag) and confirm the parent's cont
 ### 2. Is there a design doc for it on the API?
 
 ```sh
-ls api/src/db/designDocs/sync-<type>-index.json
+ls api/src/db/designDocs/content/sync-<type>-index.json
 ```
 
 If missing, sync requests for this type will either fail validation (`use_index` mismatch) or hit a full table scan. Look for warnings in API logs about missing indexes.
@@ -106,7 +106,7 @@ Symptom: <what the user reported>
 
 Chain walk:
   [1] syncList registration ........ OK / MISSING (in <file>:<line>)
-  [2] design doc .................. OK / MISSING (api/src/db/designDocs/sync-<x>-index.json)
+  [2] design doc .................. OK / MISSING (api/src/db/designDocs/content/sync-<x>-index.json)
   [3] View permission ............. OK / DENIED (user is in groups <a,b>; doc's memberOf is <c>)
   [4] isConnected ................. true / false (last error: <…>)
   [5] reached IndexedDB ........... unknown — user to check DevTools

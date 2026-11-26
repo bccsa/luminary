@@ -10,13 +10,14 @@
 import { watch } from "vue";
 import { db, type BaseDocumentDto, type UserActivityEntry, type Uuid } from "luminary-shared";
 import { contentProgressAsRef, type ContentProgressEntry } from "@/contentProgress";
-import { recordUserActivity, userActivityId, userActivityVersion } from "./store";
+import { addMissingUserActivity, recordUserActivity, userActivityId } from "./store";
 
 /**
  * Reading confirms one segment at a time, so a long article writes progress dozens of
  * times. Recency is worth at most one write a minute per post.
  */
 export const MIRROR_INTERVAL_MS = 60_000;
+const BACKFILL_KEY = "userActivityProgressBackfilled";
 
 /** The progress last copied for a content, and when the copy was made. */
 type Mirrored = { updatedAt: number; at: number };
@@ -62,14 +63,7 @@ export function startContentProgressMirror(): () => void {
 
         if (!rows.size) return;
 
-        const ids = [...rows.keys()];
-        const stored = await db.userActivity.bulkGet(ids);
-        const missing = ids.filter((_, i) => stored[i] === undefined).map((id) => rows.get(id)!);
-
-        if (!missing.length) return;
-
-        await db.userActivity.bulkPut(missing);
-        userActivityVersion.value++;
+        await addMissingUserActivity([...rows.values()]);
     }
 
     /** Copy the entries whose progress moved since they were last copied. */
@@ -107,7 +101,17 @@ export function startContentProgressMirror(): () => void {
     // The list is taken now rather than when the run starts: anything written in between
     // reaches the watcher below, which is chained behind this.
     const initial = contentProgressAsRef.value;
-    queue(() => backfill(initial));
+    if (localStorage.getItem(BACKFILL_KEY)) {
+        for (const entry of initial) {
+            mirrored.set(entry.contentId, { updatedAt: entry.updatedAt, at: entry.updatedAt });
+        }
+    } else {
+        // Old navigation state must not recreate activity after logout or clearing history.
+        queue(async () => {
+            await backfill(initial);
+            localStorage.setItem(BACKFILL_KEY, "true");
+        });
+    }
 
     // Every progress write replaces the array, so a shallow watch sees all of them.
     return watch(contentProgressAsRef, (entries) => void queue(() => mirror(entries)));

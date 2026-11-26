@@ -1,3 +1,5 @@
+import { activityDocs as activityTable, setupActivityTests } from "@/tests/activityStorage";
+setupActivityTests();
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount, shallowMount, flushPromises, type VueWrapper } from "@vue/test-utils";
@@ -520,7 +522,7 @@ describe("SingleContent", () => {
     });
 
     it("can add and remove a like", async () => {
-        await db.userActivity.clear();
+        await activityTable.clear();
         const notificationStore = useNotificationStore();
 
         wrapper = mount(SingleContent, {
@@ -562,7 +564,7 @@ describe("SingleContent", () => {
     });
 
     it("does not record a view for merely opening the content", async () => {
-        await db.userActivity.clear();
+        await activityTable.clear();
 
         wrapper = mount(SingleContent, {
             props: { slug: mockEnglishContentDto.slug },
@@ -579,7 +581,7 @@ describe("SingleContent", () => {
     });
 
     it("records like-removal affinity when unliking content", async () => {
-        await db.userActivity.clear();
+        await activityTable.clear();
         await recordUserActivity({ type: "liked", parentId: mockEnglishContentDto.parentId });
         const wrapper = mount(SingleContent, {
             props: { slug: mockEnglishContentDto.slug },
@@ -1261,7 +1263,7 @@ describe("SingleContent", () => {
     });
 
     it("records a view on dwell for content the continue store never sees", async () => {
-        await db.userActivity.clear();
+        await activityTable.clear();
         localStorage.removeItem("contentProgress");
         syncContentProgressFromStorage();
 
@@ -1288,7 +1290,7 @@ describe("SingleContent", () => {
     });
 
     it("leaves the view to the mirror when progress is already recorded", async () => {
-        await db.userActivity.clear();
+        await activityTable.clear();
         localStorage.removeItem("contentProgress");
         syncContentProgressFromStorage();
         setReadingProgress(mockEnglishContentDto._id, 40);

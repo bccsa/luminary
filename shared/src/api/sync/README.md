@@ -4,6 +4,35 @@
 
 The sync system provides an autonomous, incremental synchronization mechanism for fetching documents from a remote API and storing them in IndexedDB. It works backwards in time from the latest `updatedTimeUtc` to older data, efficiently managing multiple document types, memberOf groups, and languages.
 
+## Stable timestamp/id pagination
+
+When the API advertises `syncPagination: "timestamp-id-v1"`, the runner uses versioned
+companion indexes and orders pages by `updatedTimeUtc DESC, _id DESC`. Its request envelope
+is `syncPagination: { version: 1, after?: { updatedTimeUtc, id } }`; the API applies an exclusive
+continuation within the unchanged time window. Capability absence preserves legacy requests.
+Only a recognized unsupported-protocol/index response can downgrade support; authentication,
+rate-limit and storage errors preserve progress for retry.
+
+A `pendingPage` stores the immutable window, query identity and last durable timestamp/id
+position. Its partial results are not completed coverage and cannot be vertically or
+horizontally merged as EOF. Each checkpoint follows durable document storage and precedes
+the next request. A crash before a checkpoint safely replays the page. Cancellation generations,
+column membership changes and source lifecycle guards prevent late writes after invalidation.
+A full page must advance its tuple; it cannot declare EOF merely because timestamps repeat.
+An empty final page is required when the result count is exactly a multiple of the limit.
+
+Progress uses `<original sync-list key>:timestamp-id-v1`, separate from legacy cursor state.
+The first negotiated pull starts a cursor-only rewalk so previously skipped documents are
+recovered; documents, queued edits and ownership metadata remain. Replayed incoming documents
+and DeleteCmd targets with pending local edits are protected by a transaction using indexed
+queue lookups. Load, persistence, permission trimming and clear use the selected cursor key.
+Corrupt progress is reset without deleting document data.
+
+The time-range examples below describe completed coverage. Under the negotiated protocol,
+a window is published to that coverage only after its last page. Older clients retain their
+existing timestamp-only behavior. Updated clients against an older API keep a saturated
+legacy timestamp incomplete and report a diagnostic instead of silently sealing it.
+
 ## Key Concepts
 
 ### Vertical and Horizontal Merging
@@ -91,6 +120,10 @@ Start an autonomous sync runner for a specific document type.
 - `publishDateMin` / `publishDateMax` (number, optional): Inclusive `publishDate` bounds for
   the column. Only meaningful for `Content` (and its `DeleteCmd` sibling); leave undefined for
   other types — an undefined bound is treated as an open range.
+- `source` (`SyncSource`, optional): Source-scoped sync state/storage target. When provided,
+  `sync()` uses source mode (single-column `syncBatch` path) and does not add DeleteCmd companions.
+  The source's optional `queryPath` selects its read endpoint (for example `"user/query"`);
+  when omitted, requests use `"query"`.
 
 > The `type`/`subType` examples below use illustrative type names (e.g. `"content:post"`) as
 > shorthand for the resulting `chunkType`. In real calls `type` and `subType` are `DocType`
@@ -123,6 +156,14 @@ await sync({
     languages: ["en"],
     limit: 100,
     cms: true,
+});
+
+// Source mode (e.g. user-data source)
+await sync({
+    type: UserActivityType.Viewed,
+    memberOf: ["*"],
+    limit: 100,
+    source: userSource,
 });
 ```
 
@@ -237,6 +278,38 @@ The `syncBatch()` function performs these steps iteratively:
 7. If EOF reached, performs horizontal merge
 8. Otherwise, recursively calls itself for the next chunk
 
+In source mode (`options.source` set), `syncBatch` writes fetched docs through
+`source.put(...)`, reads/writes `source.syncList`, sends `dataSource: source.name`
+to the API query, and omits the default `memberOf` selector injection. It awaits
+`source.setSyncList()` after each page and EOF transition, before requesting the next
+page. Interrupted pulls therefore retain a durable cursor. Source pulls do not affect
+the default-source `syncActive` indicator and do not start DeleteCmd companions.
+
+### Source orchestration
+
+`createDataSource(config)` opens an isolated database, restores its cursor, and wires
+its outbound queue. Both pulls and uploads require connectivity, an advertised source
+name in `clientConfig.dataSources`, and the optional caller `ready` ref. An absent
+capability keeps local edits queued for a future compatible server.
+
+- `pull()` retries a stalled uploader and starts one pull at a time. It defers pulling
+  while changes remain queued; draining the queue triggers the pull automatically.
+- `flush(timeoutMs)` restarts a stalled uploader and waits up to the deadline. It returns
+  `false` when the queue remains or transport is unavailable, retaining queued changes.
+- Foregrounding a document triggers the same queue retry and pull checks.
+- `paceMs` spaces uploads while a backlog drains. Quiet acknowledgements keep rejected
+  local documents when the server supplies no replacement and leave global UI messages alone.
+- Incoming writes check pending edits in a database transaction. Source `upsert()` commits
+  the document and queue entry together, replacing earlier queued edits for the same id when
+  `overwriteLocalChanges` is set.
+- `clear()` removes source data and cursor state and invalidates older in-flight pulls.
+  Responses for cleared queue entries cannot restore documents through an acknowledgement.
+- `dispose()` removes the foreground listener, stops watchers and joins outstanding work.
+
+Direct `sync({ source, ... })` callers own the source's `put` and persistence callbacks.
+An optional `source.isCancelled()` guard lets them discard responses after readiness or
+ownership changes. The default sync column, room subscriptions and HybridQuery stay independent.
+
 ### 3. Chunk Calculation
 
 The `calcChunk()` function determines the time range for the next API query:
@@ -290,6 +363,9 @@ The sync system constructs Mango queries in this format:
   use_index: "sync-lesson-index"
 }
 ```
+
+For source mode the query additionally carries `dataSource: <source name>` and omits the
+default `memberOf` selector clause.
 
 ## Usage Patterns
 

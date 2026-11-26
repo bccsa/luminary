@@ -1,14 +1,48 @@
-import { DocType } from "../../types";
+import { BaseDocumentDto, DocType, UserActivityType } from "../../types";
 import { HttpReq } from "../http";
+import type { Ref } from "vue";
+
+/** Exclusive position in the API's descending timestamp/id order. */
+export type SyncPosition = { updatedTimeUtc: number; id: string };
+
+/** An unverified window; its partial pages must never count as completed coverage. */
+export type PendingSyncPage = {
+    start: number;
+    end: number;
+    queryKey: string;
+    after?: SyncPosition;
+    newest?: number;
+    previousEof?: boolean;
+    provisional?: boolean;
+};
+
+export type SyncSource = {
+    /** Wire name sent to API (e.g. "user"). */
+    name: string;
+    /** Query endpoint for this source; defaults to the shared query endpoint. */
+    queryPath?: string;
+    /** Sync-list state owned by this source. */
+    syncList: Ref<SyncListEntry[]>;
+    /** Persist source sync-list after mutations. */
+    setSyncList: () => Promise<void>;
+    /** Write fetched docs into this source's local store. */
+    put: (docs: BaseDocumentDto[]) => Promise<void>;
+    /** Stop a source pull when its readiness or lifecycle changes. */
+    isCancelled?: () => boolean;
+};
 
 /**
  * Options for sync operations
  */
 export type SyncBaseOptions = {
+    /** Negotiated pagination protocol; omission preserves legacy requests. */
+    pagination?: "timestamp-id-v1";
+    /** Invalidate work across reconnects and cancellation generations. */
+    isCancelled?: () => boolean;
     /**
      * Document type
      */
-    type: DocType;
+    type: DocType | UserActivityType;
     /**
      * Sub type (parentType for content documents or docType for delete commands)
      */
@@ -41,6 +75,8 @@ export type SyncBaseOptions = {
      * when a content publishDate cutoff is configured. Callers should not set it.
      */
     alwaysOffline?: boolean;
+    /** Optional sync source; when omitted, the default shared source is used. */
+    source?: SyncSource;
 };
 
 /**
@@ -79,6 +115,8 @@ export type SyncOptions = SyncRunnerOptions & {
  * Sync list entry type
  */
 export type SyncListEntry = {
+    /** In-flight pages are stored separately from this entry's completed time range. */
+    pendingPage?: PendingSyncPage;
     /**
      * Chunk type for the sync entry combining the type and parentType / docType fields (e.g. "content:post", "deleteCmd:group")
      */

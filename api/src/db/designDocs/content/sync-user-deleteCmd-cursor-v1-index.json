@@ -1,0 +1,28 @@
+{
+    "_id": "_design/sync-user-deleteCmd-cursor-v1-index",
+    "language": "query",
+    "views": {
+        "sync-user-deleteCmd-cursor-v1-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "asc",
+                    "_id": "asc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "deleteCmd"
+                    },
+                    "docType": {
+                        "$eq": "user"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["updatedTimeUtc", "_id"]
+                }
+            }
+        }
+    }
+}

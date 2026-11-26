@@ -1,9 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
+import { CONTENT_DESIGN_DOCS_DIR } from "./databaseAssets";
 
 /**
  * Registry of valid CouchDB Mango index names that a `/query` request may pin via
- * `use_index`. Derived once from the design-doc JSON files in `designDocs/` so the
+ * `use_index`. Derived once from the JSON files in `designDocs/content/` so the
  * allowlist can never drift from the indexes that actually exist (the old validators
  * hard-coded a 5-name Set and a `^sync-.*-index$` regex — both maintained by hand).
  *
@@ -50,14 +51,14 @@ export function loadIndexNames(dir: string): Set<string> {
 }
 
 /**
- * Lazily-memoized registry over the on-disk `designDocs/` directory. Resolves the
+ * Lazily-memoized registry over the on-disk `designDocs/content/` directory. Resolves the
  * same way `db.seedingFunctions.ts` does (`__dirname` + relative dir), so it works
- * both in dev (ts-jest / nest watch) and in prod (`dist/src/db/designDocs`, copied
+ * both in dev (ts-jest / nest watch) and in prod (`dist/src/db/designDocs/content`, copied
  * there by `nest-cli.json`). Loaded once on first use; no per-request fs access.
  */
 export function getIndexNameRegistry(): ReadonlySet<string> {
     if (!cachedRegistry) {
-        cachedRegistry = loadIndexNames(path.join(__dirname, "designDocs"));
+        cachedRegistry = loadIndexNames(CONTENT_DESIGN_DOCS_DIR);
     }
     return cachedRegistry;
 }
@@ -68,7 +69,7 @@ export function getIndexNameRegistry(): ReadonlySet<string> {
  * startup instead of silently rejecting every `use_index` at request time.
  */
 export function warmIndexNameRegistry(): ReadonlySet<string> {
-    cachedRegistry = loadIndexNames(path.join(__dirname, "designDocs"));
+    cachedRegistry = loadIndexNames(CONTENT_DESIGN_DOCS_DIR);
     return cachedRegistry;
 }
 

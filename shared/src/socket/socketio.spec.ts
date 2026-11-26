@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, vi, afterAll, beforeAll } from "vitest";
 import waitForExpect from "wait-for-expect";
-import { getSocket, isConnected, maxUploadFileSize } from "./socketio";
+import { dataSources, getSocket, isConnected, maxUploadFileSize } from "./socketio";
 import { Server } from "socket.io";
 import { db, initDatabase } from "../db/database";
 import { DocType } from "../types";
@@ -166,6 +166,7 @@ describe("socketio", () => {
                 },
             },
             maxUploadFileSize: 1234,
+            dataSources: ["user"],
         };
 
         socketServer.on("connection", (socket) => {
@@ -177,6 +178,20 @@ describe("socketio", () => {
         await waitForExpect(() => {
             expect(accessMap.value).toEqual(clientConfig.accessMap);
             expect(maxUploadFileSize.value).toEqual(clientConfig.maxUploadFileSize);
+            expect(dataSources.value).toEqual(["user"]);
+        });
+    });
+
+    it("resets dataSources to empty when clientConfig omits the field", async () => {
+        dataSources.value = ["user"];
+        socketServer.on("connection", (socket) => {
+            socket.emit("clientConfig", { accessMap: {}, maxUploadFileSize: 1 });
+        });
+
+        getSocket({ reconnect: true });
+
+        await waitForExpect(() => {
+            expect(dataSources.value).toEqual([]);
         });
     });
 

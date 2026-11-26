@@ -24,6 +24,7 @@ import BasePage from "@/components/BasePage.vue";
 import AppVersionCard from "@/components/appUpdate/AppVersionCard.vue";
 import { triggerSync } from "@/sync";
 import { markPageReady } from "@/util/renderState";
+import { isAuthenticated } from "@/auth";
 import { clearUserActivity } from "@/userActivity/store";
 
 const { t, te } = useI18n();
@@ -83,7 +84,11 @@ const clearActivity = async () => {
     await clearUserActivity();
     addNotification({
         title: t("settings.clear_activity.notification.title"),
-        description: t("settings.clear_activity.notification.description"),
+        description: t(
+            isAuthenticated.value
+                ? "settings.clear_activity.notification.description_account"
+                : "settings.clear_activity.notification.description",
+        ),
         state: "success",
         type: "toast",
     });
@@ -141,7 +146,13 @@ const deleteLocalData = async () => {
             </LCard>
             <LCard :title="t('settings.clear_activity.title')">
                 <div class="mb-4 text-sm text-zinc-600 dark:text-slate-100">
-                    {{ t("settings.clear_activity.description") }}
+                    {{
+                        t(
+                            isAuthenticated
+                                ? "settings.clear_activity.description_account"
+                                : "settings.clear_activity.description",
+                        )
+                    }}
                 </div>
                 <LButton @click="showClearActivityDialog = true" data-test="clearUserActivity">
                     {{ t("settings.clear_activity.button") }}
@@ -249,7 +260,13 @@ const deleteLocalData = async () => {
         <LDialog
             v-model:open="showClearActivityDialog"
             :title="t('settings.clear_activity.modal.title')"
-            :description="t('settings.clear_activity.modal.description')"
+            :description="
+                t(
+                    isAuthenticated
+                        ? 'settings.clear_activity.modal.description_account'
+                        : 'settings.clear_activity.modal.description',
+                )
+            "
             :primaryAction="clearActivity"
             :primaryButtonText="t('settings.clear_activity.modal.button_clear')"
             :secondaryAction="() => (showClearActivityDialog = false)"

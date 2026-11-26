@@ -296,4 +296,17 @@ describe("HttpReq", () => {
             expect(mockFetch.mock.calls[1][1].headers["x-auth-provider-id"]).toBeUndefined();
         });
     });
+    it.each([400, 401, 429, 503])(
+        "provides an opt-in HTTP status without changing normal error handling (%s)",
+        async (status) => {
+            const response = mockResponse(status, { message: "test error" });
+            response.clone = () => mockResponse(status, { message: "test error" });
+            mockFetch.mockResolvedValue(response);
+            const onError = vi.fn();
+            const http = new HttpReq("http://localhost");
+            expect(await http.post("query", {}, { onError })).toBeUndefined();
+            expect(onError).toHaveBeenCalledWith(status, "test error");
+            if (status === 503) expect(serverError.value?.status).toBe(503);
+        },
+    );
 });

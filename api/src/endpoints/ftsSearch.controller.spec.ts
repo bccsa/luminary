@@ -1,3 +1,4 @@
+import { resolveRequestIdentity } from "../auth/requestContext";
 import { Test, TestingModule } from "@nestjs/testing";
 import { BadRequestException, HttpException, HttpStatus } from "@nestjs/common";
 import { FtsSearchController } from "./ftsSearch.controller";
@@ -25,7 +26,14 @@ describe("FtsSearchController", () => {
     };
 
     function mockRequest(user: any = mockUser): FastifyRequest {
-        return { user, ip: "127.0.0.1" } as any;
+        return {
+            user,
+            ip: "127.0.0.1",
+            authIdentity: resolveRequestIdentity(
+                { status: user?.anonymous ? "anonymous" : "authenticated", userDetails: user },
+                "127.0.0.1",
+            ),
+        } as any;
     }
 
     function mockReply(): FastifyReply & { header: jest.Mock } {
@@ -70,6 +78,24 @@ describe("FtsSearchController", () => {
         expect(ftsSearchService.searchWithStats).toHaveBeenCalledWith(body(), mockUser);
         expect(logger.warn).not.toHaveBeenCalled();
         expect(rateLimiter.recordStrike).not.toHaveBeenCalled();
+    });
+
+    it("shares an account bucket across token refreshes without a User document", async () => {
+        ftsSearchService.searchWithStats.mockResolvedValue({ results: [], stats: cheapStats });
+        const user = {
+            groups: [],
+            jwtPayload: { iss: "https://issuer.example", sub: "subject", jti: "first" },
+        };
+        await controller.search(body() as any, mockRequest(user), mockReply());
+        const first = rateLimiter.check.mock.calls[0][0];
+        await controller.search(
+            body() as any,
+            mockRequest({ ...user, jwtPayload: { ...user.jwtPayload, jti: "refreshed" } }),
+            mockReply(),
+        );
+
+        expect(first).toMatch(/^jwt:[a-f0-9]{64}$/);
+        expect(rateLimiter.check.mock.calls[1][0]).toBe(first);
     });
 
     it("returns 429 with Retry-After when the limiter denies the request", async () => {

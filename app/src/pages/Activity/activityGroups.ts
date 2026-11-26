@@ -39,7 +39,7 @@ export type ActivitySection<T> = { group: ActivityGroup; items: T[] };
 /**
  * Split a newest-first list into its headings, leaving out the ones nothing falls under.
  * Only the open section is appended to, which is what makes one pass enough — the input
- * comes off the `updatedTimeUtc` index, so it is already ordered.
+ * comes off the activity timestamp, so it is already ordered.
  */
 export function groupByActivityDate<T>(
     items: T[],

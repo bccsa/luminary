@@ -169,7 +169,7 @@ App specs use `appPersonaTest` instead. A test that omits `loginAs` runs as a gu
 
 ### Personas
 
-Defined in [fixtures/idp/personas.ts](fixtures/idp/personas.ts), linked to `api/src/db/seedingDocs/` by email. Every persona also picks up `group-public-users` from the provider-less `AutoGroupMappings` default, which grants read access to public content on top of its own membership — so the boundary between an editor and a reader shows up in the _permissions_ on a group, not in whether the group appears at all:
+Defined in [fixtures/idp/personas.ts](fixtures/idp/personas.ts), linked to `api/src/db/seedingDocs/content/` by email. Every persona also picks up `group-public-users` from the provider-less `AutoGroupMappings` default, which grants read access to public content on top of its own membership — so the boundary between an editor and a reader shows up in the _permissions_ on a group, not in whether the group appears at all:
 
 | Persona          | Groups                   | Reaches                                                                 |
 | ---------------- | ------------------------ | ----------------------------------------------------------------------- |
@@ -290,7 +290,7 @@ playwright-tests/
 │       ├── fakeIdp.ts       # discovery, JWKS, /authorize, /oauth/token
 │       ├── mint.ts          # RS256 token minting (no server needed)
 │       ├── signingKey.ts    # persisted keypair, shared across processes
-│       ├── personas.ts      # identities mapped to api/src/db/seedingDocs
+│       ├── personas.ts      # identities mapped to api/src/db/seedingDocs/content
 │       ├── authSession.ts   # injects an oidc-client-ts session into a context
 │       └── seedProvider.ts  # writes the AuthProvider doc into CouchDB
 ├── app/                     # testDir for the "app" Playwright project

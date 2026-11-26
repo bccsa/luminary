@@ -5,9 +5,11 @@
 // so prerendered pages hydrate into a live, interactive SPA.
 
 import { getSocket, init, warmMangoCaches } from "luminary-shared";
-import { apiUrl, appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
+import { apiUrl, appLanguageIdsAsRef, initLanguage, initUserActivity } from "@/globalConfig";
 import { APP_DOCS_INDEX } from "@/docsIndex";
 import { initAuthLangSync, initSync } from "@/sync";
+import { registerAuthFailureHandler } from "@/authFailure";
+import { initUserActivitySource } from "@/userActivity/source";
 
 /**
  * Boots the shared data layer on the SSG client after hydration. Named to match
@@ -26,10 +28,14 @@ export async function initSsgClient(): Promise<void> {
         appLanguageIdsAsRef,
     });
 
+    await initUserActivitySource();
+    initUserActivity();
+
     // Connect for anonymous/public users and start the content + language sync.
     // Not awaited — these resolve over the network after the page has mounted.
-    getSocket().connect();
+    registerAuthFailureHandler();
     initAuthLangSync();
+    getSocket().connect();
     void initLanguage();
     initSync();
 }

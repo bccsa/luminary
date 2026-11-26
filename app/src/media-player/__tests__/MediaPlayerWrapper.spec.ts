@@ -118,7 +118,10 @@ vi.mock("@/recommendation/defaultAffinityStore", () => ({
     affinityConfig: computed(() => ({ eventWeight: { completion: 5 } })),
 }));
 const ensureUserActivityMock = vi.hoisted(() => vi.fn());
-vi.mock("@/userActivity/store", () => ({ ensureUserActivity: ensureUserActivityMock }));
+vi.mock("@/userActivity/store", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/userActivity/store")>()),
+    ensureUserActivity: ensureUserActivityMock,
+}));
 
 const RELATIVE = "/media/abc/master.m3u8";
 const ABSOLUTE = "https://bucket.example.com/media/abc/master.m3u8";

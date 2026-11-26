@@ -1,10 +1,12 @@
 import "fake-indexeddb/auto";
+import { setupActivityTests } from "@/tests/activityStorage";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ref } from "vue";
 import type { ContentDto } from "luminary-shared";
-import { db } from "luminary-shared";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { recordUserActivity } from "@/userActivity/store";
+
+setupActivityTests();
 
 const upNextDocs = vi.hoisted(() => ({ value: [] as any[] }));
 const categoryDocs = vi.hoisted(() => ({ value: [] as any[] }));
@@ -59,7 +61,6 @@ function playingFriday(tags = ["conf", "topic"]) {
 }
 
 beforeEach(async () => {
-    await db.userActivity.clear();
     upNextDocs.value = [];
     categoryDocs.value = [];
     tagDocs.value = [];

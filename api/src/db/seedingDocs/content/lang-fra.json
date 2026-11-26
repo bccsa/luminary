@@ -6,6 +6,10 @@
     "name": "Français",
     "default": 0,
     "translations": {
+        "logout.unsent_activity_warning": "Certaines modifications récentes de votre historique, de vos mentions J’aime ou de vos passages surlignés n’ont pas encore été enregistrées dans votre compte. Si vous vous déconnectez maintenant, elles risquent d’être perdues. Se déconnecter quand même ?",
+        "settings.clear_activity.description_account": "Effacez votre historique, vos mentions J’aime et vos passages surlignés de votre compte sur tous vos appareils.",
+        "settings.clear_activity.modal.description_account": "Effacer votre historique, vos mentions J’aime et vos passages surlignés sur tous vos appareils ? Chaque appareil sera mis à jour lorsqu’il se connectera à Internet. De nouvelles activités sur un appareil sans connexion Internet peuvent apparaître plus tard.",
+        "settings.clear_activity.notification.description_account": "Votre historique, vos mentions J’aime et vos passages surlignés ont été effacés de cet appareil. Vos autres appareils seront mis à jour lorsqu’ils se connecteront à Internet.",
         "search.placeholder": "Rechercher...",
         "search.go": "Rechercher",
         "search.pressGo": "Appuyez sur Rechercher pour lancer",

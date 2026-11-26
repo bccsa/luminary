@@ -11,6 +11,19 @@ describe("configuration", () => {
         process.env = originalEnv;
     });
 
+    it("exposes the optional user-data configuration independently of the encryption key", () => {
+        delete process.env.DB_USERDATA_DATABASE;
+        delete process.env.USER_DATA_ID_SECRET;
+        expect(configuration().userData).toEqual({ database: undefined, idSecret: undefined });
+        process.env.DB_USERDATA_DATABASE = "luminary-user-data";
+        process.env.USER_DATA_ID_SECRET = "dedicated-secret";
+        process.env.ENCRYPTION_KEY = "different-secret";
+        expect(configuration().userData).toEqual({
+            database: "luminary-user-data",
+            idSecret: "dedicated-secret",
+        });
+    });
+
     it("should use default values when env vars are not set", () => {
         delete process.env.SYNC_TOLERANCE;
         delete process.env.DB_MAX_SOCKETS;

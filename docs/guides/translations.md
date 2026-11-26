@@ -1,10 +1,10 @@
 # Translation Strings
 
-Luminary's UI strings are stored as `translations` objects in language documents in CouchDB (seeded from `api/src/db/seedingDocs/lang-eng.json` and equivalent files for other languages). At runtime, `app/src/i18n.ts` loads these into [vue-i18n](https://vue-i18n.intlify.dev/) and falls back to the default language for any missing keys.
+Luminary's UI strings are stored as `translations` objects in language documents in CouchDB (seeded from `api/src/db/seedingDocs/content/lang-eng.json` and equivalent files for other languages). At runtime, `app/src/i18n.ts` loads these into [vue-i18n](https://vue-i18n.intlify.dev/) and falls back to the default language for any missing keys.
 
 ## Adding or updating translation strings
 
-1. Add the new key and its English string to `api/src/db/seedingDocs/lang-eng.json`.
+1. Add the new key and its English string to `api/src/db/seedingDocs/content/lang-eng.json`.
 2. Add the same key (with translated text) to every other `lang-*.json` seed file.
 3. Use the key in a Vue component with `t("your.key")` (or with interpolation parameters — see below).
 
@@ -33,6 +33,10 @@ Several strings are only shown under specific UI conditions. When translating th
 
 | Key | Shown when |
 |-----|-----------|
+| `logout.unsent_activity_warning` | Signing out with queued activity that could not be flushed |
+| `settings.clear_activity.description_account` | Settings while signed in |
+| `settings.clear_activity.modal.description_account` | Confirming clear activity while signed in |
+| `settings.clear_activity.notification.description_account` | After clearing account activity locally and queueing its removals |
 | `search.hint` | The search overlay is open and the query is **empty** |
 | `search.minCharsShort` | The search overlay is open and the query is **empty** (compact hint, displayed alongside `search.shortcut`) |
 | `search.shortcut` | The search overlay is open, query is empty, **and** the screen is `sm` width or wider (hidden on small/mobile screens) |

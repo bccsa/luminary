@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { ref } from "vue";
 import { DocType } from "../../types";
 import { syncList } from "./state";
+import type { SyncSource } from "./types";
 import {
     calcChunk,
     getGroups,
@@ -286,6 +288,35 @@ describe("sync utils", () => {
     });
 
     describe("getGroups", () => {
+        it("reads from the source syncList when provided", () => {
+            syncList.value = [
+                {
+                    chunkType: "post",
+                    memberOf: ["default-group"],
+                    blockStart: 10,
+                    blockEnd: 0,
+                },
+            ];
+
+            const sourceList = ref([
+                {
+                    chunkType: "post",
+                    memberOf: ["source-group"],
+                    blockStart: 20,
+                    blockEnd: 0,
+                },
+            ]);
+            const source: SyncSource = {
+                name: "user",
+                syncList: sourceList,
+                setSyncList: async () => undefined,
+                put: async () => undefined,
+            };
+
+            const groups = getGroups({ type: DocType.Post, source });
+            expect(groups).toEqual(["source-group"]);
+        });
+
         it("should return empty array when syncList is empty", () => {
             const groups = getGroups({ type: DocType.Post });
             expect(groups).toEqual([]);

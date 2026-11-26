@@ -47,7 +47,7 @@ export class FtsSearchController {
         await validateApiVersion(body.apiVersion);
         validateFtsSearchCaps(body);
 
-        const identityKey = request.user?.userId ?? `anon:${request.ip}`;
+        const identityKey = request.authIdentity.rateLimitKey;
         const gate = this.rateLimiter.check(identityKey);
         if (!gate.allowed) {
             reply.header("Retry-After", String(Math.ceil(gate.retryAfterMs / 1000)));

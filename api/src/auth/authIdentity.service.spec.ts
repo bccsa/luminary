@@ -1,3 +1,4 @@
+import { ConfigService } from "@nestjs/config";
 import { AuthIdentityService } from "./authIdentity.service";
 import { Test, TestingModule } from "@nestjs/testing";
 import { JwtService } from "@nestjs/jwt";
@@ -548,7 +549,10 @@ describe("AuthGuard (Integrated)", () => {
             { get: () => undefined } as any,
             { on: jest.fn() } as any,
         );
-        guard = new AuthGuard(identityCacheService);
+        guard = new AuthGuard(
+            identityCacheService,
+            new ConfigService({ userData: { idSecret: "secret" } }),
+        );
     });
 
     it("should fall back to default groups when no email in token and no user found by identity", async () => {
@@ -1201,6 +1205,26 @@ describe("AuthGuard (Integrated)", () => {
     // ── resolveOrDefault error-reason discrimination ─────────────────────────
 
     describe("resolveOrDefault auth failure reasons", () => {
+        it.each([
+            "The JWKS endpoint did not contain any keys",
+            "Unable to find a signing key that matches network-key in JWKS",
+            "jwt issuer invalid. expected: https://network.example",
+            "jwt issuer invalid. expected: https://getaddrinfo.example",
+        ])(
+            "keeps verification failures as token_invalid when their message mentions infrastructure: %s",
+            async (message) => {
+                jest.spyOn(authIdentityService, "resolveIdentity").mockRejectedValueOnce(
+                    new Error(message),
+                );
+                await expect(
+                    authIdentityService.resolveOrDefault("token", "provider-id"),
+                ).rejects.toMatchObject({
+                    reason: "token_invalid",
+                    message: "Invalid authentication token",
+                });
+            },
+        );
+
         it("tags 'Provider not found' errors with reason=provider_not_found", async () => {
             // Empty docs from getDoc triggers "Provider not found" inside resolveIdentity.
             mockDbService.getDoc = jest.fn().mockResolvedValue({ docs: [] });
@@ -1249,5 +1273,28 @@ describe("AuthGuard (Integrated)", () => {
             expect(captured.reason).toBe("token_invalid");
             expect(captured.message).toBe("Invalid authentication token");
         });
+
+        it.each(["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT"])(
+            "uses token_invalid for signing-key network failures (%s), matching main",
+            async (code) => {
+                mockDbService.executeFindQuery.mockResolvedValue({ docs: [] });
+                const getSigningKey = jest
+                    .fn()
+                    .mockRejectedValueOnce(
+                        Object.assign(new Error("JWKS request failed"), { code }),
+                    );
+                const jwksClientFactory = jest.requireMock("jwks-rsa") as jest.Mock;
+                jwksClientFactory.mockReturnValueOnce({ getSigningKey });
+
+                await expect(
+                    authIdentityService.resolveOrDefault("token", "provider-id"),
+                ).rejects.toMatchObject({
+                    reason: "token_invalid",
+                    message: "Invalid authentication token",
+                });
+                expect(getSigningKey).toHaveBeenCalledWith("mock-kid");
+                expect(mockJwtService.verifyAsync).not.toHaveBeenCalled();
+            },
+        );
     });
 });

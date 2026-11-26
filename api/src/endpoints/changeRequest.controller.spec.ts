@@ -1,12 +1,14 @@
 import { ChangeRequestRateLimiterService } from "../ratelimit/changeRequestRateLimiter.service";
 import { Test, TestingModule } from "@nestjs/testing";
-import { ValidationPipe } from "@nestjs/common";
+import { ValidationPipe, ServiceUnavailableException } from "@nestjs/common";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import * as request from "supertest";
 import multipart from "@fastify/multipart";
 import { ChangeRequestController } from "./changeRequest.controller";
 import { ChangeRequestService } from "./changeRequest.service";
-import { AuthGuard } from "../auth/auth.guard";
+import { UserChangeRequestService } from "../userData/userChangeRequest.service";
+import { IdentityCacheService } from "../auth/identityCache.service";
+import { ConfigService } from "@nestjs/config";
 import { DocType } from "../enums";
 import * as path from "path";
 import * as fs from "fs";
@@ -14,15 +16,40 @@ import * as fs from "fs";
 describe("ChangeRequestController", () => {
     let app: NestFastifyApplication;
     const mockChangeRequest = jest.fn();
+    const mockUserChangeRequest = jest.fn();
     const mockRateLimiter = { check: jest.fn(), recordRequest: jest.fn() };
     let mockAnonymous = false;
+    let mockIdentity: any;
     const testImagePath = path.join(__dirname, "../test/testImage.jpg");
 
     beforeAll(async () => {
         const module: TestingModule = await Test.createTestingModule({
             controllers: [ChangeRequestController],
             providers: [
+                {
+                    provide: ConfigService,
+                    useValue: new ConfigService({ userData: { idSecret: "secret" } }),
+                },
+                {
+                    provide: IdentityCacheService,
+                    useValue: {
+                        resolveOrDefault: async () => ({
+                            status: mockAnonymous ? "anonymous" : "authenticated",
+                            userDetails: mockAnonymous
+                                ? { groups: ["group-public-users"], anonymous: true }
+                                : (mockIdentity ?? {
+                                      groups: ["group-public-users"],
+                                      userId: "mock-user",
+                                      jwtPayload: { iss: "https://issuer.example", sub: "subject" },
+                                  }),
+                        }),
+                    },
+                },
                 { provide: ChangeRequestRateLimiterService, useValue: mockRateLimiter },
+                {
+                    provide: UserChangeRequestService,
+                    useValue: { changeRequest: mockUserChangeRequest },
+                },
                 {
                     provide: ChangeRequestService,
                     useValue: {
@@ -30,18 +57,7 @@ describe("ChangeRequestController", () => {
                     },
                 },
             ],
-        })
-            .overrideGuard(AuthGuard)
-            .useValue({
-                canActivate: (context: any) => {
-                    const req = context.switchToHttp().getRequest();
-                    req.user = mockAnonymous
-                        ? { groups: ["group-public-users"], anonymous: true }
-                        : { groups: ["group-public-users"], userId: "mock-user" };
-                    return true;
-                },
-            })
-            .compile();
+        }).compile();
 
         app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
 
@@ -59,9 +75,11 @@ describe("ChangeRequestController", () => {
 
     beforeEach(() => {
         mockChangeRequest.mockClear();
+        mockUserChangeRequest.mockReset();
         mockRateLimiter.check.mockReset().mockReturnValue({ allowed: true, retryAfterMs: 0 });
         mockRateLimiter.recordRequest.mockClear();
         mockAnonymous = false;
+        mockIdentity = undefined;
     });
 
     it("rejects anonymous requests with 401 before parsing the body, rate limiting or calling the service", async () => {
@@ -105,6 +123,81 @@ describe("ChangeRequestController", () => {
         expect(mockRateLimiter.recordRequest).toHaveBeenCalledWith("mock-user");
     });
 
+    it("keeps refreshed tokens in one account bucket and separates accounts sharing an IP", async () => {
+        mockIdentity = {
+            groups: [],
+            jwtPayload: { iss: "https://issuer.example", sub: "subject-a" },
+        };
+        mockChangeRequest.mockResolvedValue({ ack: "accepted" });
+        await app.inject({
+            method: "POST",
+            url: "/changerequest",
+            payload: { dataSource: "user", doc: {} },
+        });
+        const first = mockRateLimiter.recordRequest.mock.calls[0][0];
+        mockIdentity.jwtPayload.jti = "refreshed-token";
+        mockIdentity.jwtPayload.sid = "new-session";
+        await app.inject({
+            method: "POST",
+            url: "/changerequest",
+            payload: { dataSource: "user", doc: {} },
+        });
+        expect(mockRateLimiter.recordRequest.mock.calls[1][0]).toBe(first);
+        mockIdentity.jwtPayload.sub = "subject-b";
+        await app.inject({
+            method: "POST",
+            url: "/changerequest",
+            payload: { dataSource: "user", doc: {} },
+        });
+        expect(first).toMatch(/^jwt:[a-f0-9]{64}$/);
+        expect(mockRateLimiter.recordRequest.mock.calls[2][0]).not.toBe(first);
+    });
+
+    it.each(["user"])(
+        "returns a bad %s document's rejected ack with HTTP 200",
+        async (dataSource) => {
+            mockUserChangeRequest.mockResolvedValue({
+                ack: "rejected",
+                message: "Invalid user activity document",
+            });
+            const response = await app.inject({
+                method: "POST",
+                url: "/changerequest",
+                payload: { dataSource, doc: {} },
+            });
+            expect(response.statusCode).toBe(200);
+            expect(response.json().ack).toBe("rejected");
+        },
+    );
+
+    it.each(["user"])(
+        "returns a disabled %s source's HTTP 503 instead of a final ack",
+        async (dataSource) => {
+            mockUserChangeRequest.mockRejectedValueOnce(
+                new ServiceUnavailableException("disabled"),
+            );
+            const response = await app.inject({
+                method: "POST",
+                url: "/changerequest",
+                payload: { dataSource, doc: {} },
+            });
+            expect(response.statusCode).toBe(503);
+            expect(response.json()).not.toHaveProperty("ack");
+        },
+    );
+
+    it("rejects an unknown JSON source before calling either change-request service", async () => {
+        const response = await app.inject({
+            method: "POST",
+            url: "/changerequest",
+            payload: { dataSource: "other", doc: {} },
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json().message).toBe("Unknown dataSource");
+        expect(mockChangeRequest).not.toHaveBeenCalled();
+        expect(mockUserChangeRequest).not.toHaveBeenCalled();
+    });
+
     /**
      * Helper function to create a test file buffer
      */
@@ -145,6 +238,32 @@ describe("ChangeRequestController", () => {
     };
 
     describe("LFormData binary handling", () => {
+        it("rejects an unknown multipart source before calling either change-request service", async () => {
+            const response = await createLFormDataRequest({ dataSource: "other", doc: {} }, []);
+            expect(response.status).toBe(400);
+            expect(response.body.message).toBe("Unknown dataSource");
+            expect(mockChangeRequest).not.toHaveBeenCalled();
+            expect(mockUserChangeRequest).not.toHaveBeenCalled();
+        });
+
+        it.each(["user"])(
+            "preserves the %s source and returns HTTP 200 for multipart activity",
+            async (dataSource) => {
+                mockUserChangeRequest.mockResolvedValue({ ack: "accepted" });
+                const body = {
+                    dataSource,
+                    doc: {
+                        _id: "activity-id",
+                        type: "liked",
+                    },
+                };
+                const response = await createLFormDataRequest(body, []);
+                expect(response.status).toBe(200);
+                expect(mockUserChangeRequest).toHaveBeenCalledWith(body.doc, expect.anything());
+                expect(mockChangeRequest).not.toHaveBeenCalled();
+            },
+        );
+
         it("should handle image upload with LFormData format", async () => {
             const responseData = { success: true };
             mockChangeRequest.mockResolvedValue(responseData);

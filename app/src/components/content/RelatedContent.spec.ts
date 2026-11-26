@@ -1,4 +1,5 @@
 import "fake-indexeddb/auto";
+import { setupActivityTests } from "@/tests/activityStorage";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import RelatedContent from "./RelatedContent.vue";
 import ReadMore from "./ReadMore.vue";
@@ -9,6 +10,8 @@ import { db, type ContentDto } from "luminary-shared";
 import { ref } from "vue";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { recordUserActivity } from "@/userActivity/store";
+
+setupActivityTests();
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -54,7 +57,6 @@ describe("RelatedContent", () => {
         ]);
         appLanguageIdsAsRef.value.unshift("lang-eng");
         affinityStoreMock.affinityProfile.value = { affinity: {}, lastDecayUtc: undefined };
-        await db.userActivity.clear();
     });
 
     afterEach(async () => {

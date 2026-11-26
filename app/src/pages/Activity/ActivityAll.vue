@@ -1,8 +1,9 @@
 <script lang="ts" setup>
+import type { ActivityEntry } from "@/userActivity/store";
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { type ContentDto, type HighlightRange, type UserActivityEntry } from "luminary-shared";
+import { type ContentDto, type HighlightRange } from "luminary-shared";
 import ActivityCard from "./ActivityCard.vue";
 import ActivitySection from "./ActivitySection.vue";
 import { groupByActivityDate } from "./activityGroups";
@@ -45,7 +46,7 @@ const shown = useShownOnceLoaded(
 );
 
 type Entry = {
-    row: UserActivityEntry;
+    row: ActivityEntry;
     content: ContentDto;
     range?: HighlightRange;
     excerpt?: string;
@@ -53,7 +54,7 @@ type Entry = {
 
 /**
  * One card per activity, in the order the table returned — so the same post appears once
- * per thing the reader did to it. A highlight gets one card per saved passage. An activity
+ * per thing the reader did to it. Highlight rows already carry one passage each. An activity
  * whose content is not available is left out.
  */
 const entries = computed<Entry[]>(() =>
@@ -63,13 +64,14 @@ const entries = computed<Entry[]>(() =>
             : posts.value.find((c) => c.parentId === row.parentId);
         if (!content) return [];
         if (row.type !== "highlighted") return [{ row, content }];
-        const ranges = row.payload?.ranges ?? [];
-        const excerpts = highlightExcerpts(content.text, ranges);
-        return ranges.map((range, i) => ({ row, content, range, excerpt: excerpts[i] }));
+        const range = row.payload?.range;
+        if (!range) return [];
+        const [excerpt] = highlightExcerpts(content.text, [range]);
+        return [{ row, content, range, excerpt }];
     }),
 );
 
-const sections = computed(() => groupByActivityDate(entries.value, (e) => e.row.updatedTimeUtc));
+const sections = computed(() => groupByActivityDate(entries.value, (e) => e.row.activityTimeUtc));
 </script>
 
 <template>

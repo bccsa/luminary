@@ -6,8 +6,8 @@ API for Luminary, built with [Nest](https://github.com/nestjs/nest) and [CouchDB
 
 The following software is needed to run and/or test the Luminary API:
 
--   CouchDB (document database) - see https://couchdb.apache.org
--   S3 (compatible) storage, e.g. MinIO - see https://min.io
+- CouchDB (document database) - see https://couchdb.apache.org
+- S3 (compatible) storage, e.g. MinIO - see https://min.io
 
 ### CouchDB installation
 
@@ -18,6 +18,144 @@ docker run -p 5984:5984 -d -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=yourpasswor
 ```
 
 After successfully running CouchDB, create a local database via the CouchDB web interface at http://localhost:5984/\_utils/ using the credentials you set above.
+
+### Optional account activity sync
+
+The `user` data source stores likes, viewed activity and highlighted passages in a separate,
+owner-partitioned CouchDB 3.x database. It does not use the shared dataset's group permissions.
+Without configuration, the source stays off and clients keep activity local and queued.
+
+Provision the database before enabling the source. For local development, run from the repository root:
+
+```sh
+./scripts/setup-dev.sh setup-user-data luminary-user-data
+```
+
+It creates or verifies the partitioned database and preserves existing data. The full setup
+wizard also provisions it when `DB_USERDATA_DATABASE` is configured in `api/.env`.
+The command uses `DB_CONNECTION_STRING` from the shell environment first, then `api/.env`,
+including its host, port and credentials. If neither is configured, it falls back to the
+local Docker/default credentials. The configured account needs permission to create databases;
+HTTP 401/403 means its credentials or admin permissions need checking. Passwords are not logged.
+For staging/production, ops performs the equivalent request:
+
+```sh
+curl --fail -u "$COUCHDB_USER:$COUCHDB_PASSWORD" -X PUT \
+  'http://127.0.0.1:5984/luminary-user-data?partitioned=true'
+```
+
+Set both API environment variables, then restart the API:
+
+```dotenv
+DB_USERDATA_DATABASE=luminary-user-data
+USER_DATA_ID_SECRET=<a dedicated secret generated once with openssl rand -hex 32>
+```
+
+Back up `USER_DATA_ID_SECRET` securely and **never rotate it**. It is independent of
+`ENCRYPTION_KEY`; losing or changing it or an issuer's domain orphans the corresponding data.
+The database must differ from `DB_DATABASE`. Startup checks that it exists and is partitioned,
+then installs the design documents from `src/db/designDocs/user/`. Only a successful check
+advertises `clientConfig.dataSources: ["user"]`.
+A missing database, incomplete settings or
+index-installation failure logs an error and leaves the source off without a retry loop.
+Correct the configuration and restart to retry initialization; the API never creates this database.
+
+Authenticated activity clients read through `POST /user/query` and write through
+`POST /changerequest` with `dataSource: "user"`. The user query route accepts either
+an omitted source or `dataSource: "user"`. Shared queries use `POST /query`, which
+rejects named sources. Omitting `dataSource` on change requests selects the shared
+dataset; unknown sources return 400.
+Both controllers use `QueryRequestService` for validation, account rate limits, cost logging
+and removal of execution statistics. User query validation stays mandatory even when the
+shared query validation bypass is enabled.
+Identity comes exclusively from the verified JWT's issuer and subject, even without a shared
+User document. The API derives the owner with HMAC-SHA256, adds `<ownerKey>:` to stored ids,
+queries through CouchDB's partition path, and strips that prefix from response documents.
+Bookmarks are omitted because they can encode internal stored ids.
+
+`AuthGuard` resolves an immutable `request.authIdentity` through `auth/requestContext.ts`
+after authentication. It contains the owner and rate-limit keys, derived using
+`auth/requestIdentity.ts`; controllers consume those resolved values.
+`auth/ownerKey.ts` retains the same issuer/subject HMAC across token refreshes and sessions. Change-request,
+query and FTS rate limits use the shared User id when available, otherwise an issuer/subject hash,
+and IP for anonymous callers. Token and session identifiers do not select owner partitions or
+reset an account's rate-limit allowance.
+User-data services receive an authorized owner key and do not inspect token claims.
+The session-token implementation is not yet on main; when it lands, its auth resolver
+must preserve the original account identity before building this request context.
+
+Current queries select one `UserActivityType` (`viewed`, `liked`, `highlighted`) and its
+`sync-<type>-index`. Each type has an independent client cursor. User queries use a
+separate index allowlist and accept the sync engine's `updatedTimeUtc` bounds
+including zero and `Number.MAX_SAFE_INTEGER`.
+Change requests validate separate viewed, liked and highlighted DTOs, all extending a common
+base. The `type` field is the discriminator; current documents have no `activityType`.
+Ids are deterministic UUID v5 values (36 characters). Parent/content references retain a
+512-character limit because existing content also has non-UUID ids. Highlight text is bounded
+at 10,000 characters and its color is enum-validated. A live highlight has a content id and a
+root `range` containing offsets, color and quoted text; its tombstone retains offsets only.
+Client `_rev`, `updatedTimeUtc` and unknown fields are stripped.
+Future activity times are capped at the server clock. A later stored activity wins, including
+tombstones, and conflict retries re-check that comparison against the latest revision.
+
+User-data validation failures return HTTP 200 with a rejected ack; a stale upload includes the
+stored client-shaped document in `docs`. Accepted uploads also return HTTP 200. Disabled sources
+and storage failures return an HTTP error so the client retains its queue for retry. The default
+change-request response status is unchanged. The change-request limiter uses the shared User id,
+otherwise a hash of verified issuer/subject, otherwise the caller IP.
+
+`ChangeRequestController` routes parsed JSON and multipart requests to either the shared
+`ChangeRequestService` or `UserChangeRequestService`. The shared service has no user-data
+dependency. `UserQueryService` and `UserChangeRequestService` reuse `UserDataService` for
+source availability and response conversion, and the same singleton `UserDataDbService` for
+storage. User validation acknowledgements intentionally remain separate from retryable
+HTTP errors; turning a storage failure into a rejected ack would discard the queued activity.
+
+Database assets are separated by target:
+
+```text
+src/db/designDocs/content/   Shared/content database indexes and views
+src/db/designDocs/user/      Partitioned user-activity indexes
+src/db/seedingDocs/content/  Shared/content seed documents, including languages
+```
+
+`src/db/databaseAssets.ts` defines the paths used by bootstrap, language reconciliation and
+the two index registries; the build preserves this layout under `dist/src/db/`. Content
+seeding always uses the supplied database, never the user source. User activity has no seed
+documents. Moving these files changes neither document contents nor CouchDB index names.
+
+User database initialization shares a single promise per Nest singleton, including concurrent
+or repeated calls. It creates one `nano` client and database handle; configuration/connection
+failures remain disabled until restart. Once enabled, queries use `partitionedFind` and the
+per-type indexes, with no repeated initialization, filesystem reads or startup scan. An
+uncontended activity write reads the current revision then writes once; stale or identical
+retries skip the write. Conflicts still re-read to preserve activity-time ordering across API
+instances. Mocked request-count checks verify this behavior; live throughput has not been measured.
+
+The API advertises `syncPagination: "timestamp-id-v1"` after startup installs its indexes.
+Opted-in queries sort by descending `updatedTimeUtc` and `_id`, use the matching
+`sync-*-cursor-v1-index`, and send `syncPagination: { version: 1, after?: { updatedTimeUtc, id } }`.
+The API ANDs the exclusive continuation with the existing selector and permission filters.
+For user data, it prefixes the cursor's client UUID with the authenticated owner only inside
+the server query. Internal owner ids and raw CouchDB bookmarks are not returned by `/user/query`.
+Legacy requests and indexes remain available for deployed clients.
+
+Updated clients keep progress under `<original cursor key>:timestamp-id-v1`. The first use
+rewalks the dataset to repair omissions in older timestamp-only cursors while retaining local
+documents and queued edits. A pending window becomes completed coverage only after all its
+pages are stored. Deploy the API/indexes before clients. A recognized unsupported-protocol/index
+HTTP 400 downgrades the connection; auth failures and storage outages do not. Legacy clients
+still have the timestamp-tie limitation. Updated clients using an older API stop with incomplete
+progress on a saturated timestamp rather than falsely marking it complete. Live CouchDB index
+and cross-device verification remain repository-owner checks.
+
+The app migrates activity from the existing main-database local activity table into
+its named source database before transport starts. There is no server startup format
+migration or adapter for intermediate formats introduced during development of this feature.
+
+This phase supports pull-based convergence. Owner live updates, per-account quotas and server
+tombstone cleanup remain separate follow-up work (ADR 0020). CouchDB/S3 integration tests and
+the two-browser account-sync checks are run by the repository owner.
 
 ### S3 storage (MinIO)
 
@@ -95,7 +233,7 @@ $ npm run test:unit
 $ npm run test:cov
 ```
 
-Jest (included with NestJS) is used for automated API unit testing. Each test file gets a fresh, seeded CouchDB database via `createTestingModule` (see `src/test/testingModule.ts`), seeded from [`src/db/designDocs`](src/db/designDocs) and [`src/db/seedingDocs`](src/db/seedingDocs).
+Jest (included with NestJS) is used for automated API unit testing. Each test file gets a fresh, seeded CouchDB database via `createTestingModule` (see `src/test/testingModule.ts`), seeded from [`src/db/designDocs/content`](src/db/designDocs/content) and [`src/db/seedingDocs/content`](src/db/seedingDocs/content).
 
 The Jest unit testing currently does not include teardown logic. Destroying documents does not delete them from the CouchDB database, it marks them as deleted — this does not work well with testing where we reuse the testing database (i.e. local testing on your computer), since CouchDB / nano complains that the document is deleted and hence cannot be recreated. In real-life scenarios recreating a deleted document should never occur, and if it does this would be an exception that should be logged to an error log instead of being processed. It therefore does not work to destroy our testing data set for local testing — the developer can rather delete the testing database on their computer once in a while if it gets too big.
 
@@ -183,7 +321,7 @@ update:
 
 ### Data minimization & the expiry edge case
 
-A non-CMS client only ever receives an expired Content doc so it can *prune* its stale local copy
+A non-CMS client only ever receives an expired Content doc so it can _prune_ its stale local copy
 (it never displays it), so the body must not cross the wire. `api/src/util/stripExpiredContent.ts`
 projects an expired doc down to a minimal cleanup stub (identity, grouping, status/expiry, sync
 cursor — no title/body/SEO/media/FTS). The same projection is applied in two places: the `/query`

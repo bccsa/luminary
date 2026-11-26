@@ -1,3 +1,5 @@
+import { activityDocs as activityTable, setupActivityTests } from "@/tests/activityStorage";
+setupActivityTests();
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
@@ -41,7 +43,7 @@ describe("ActivityAll", () => {
         appLanguageIdsAsRef.value.unshift(mockLanguageDtoEng._id);
 
         await db.docs.bulkPut([mockEnglishContentDto]);
-        await db.userActivity.clear();
+        await activityTable.clear();
 
         localStorage.removeItem("contentProgress");
         syncContentProgressFromStorage();
@@ -83,8 +85,9 @@ describe("ActivityAll", () => {
                 type: "highlighted",
                 contentId: mockEnglishContentDto._id,
                 parentId: mockEnglishContentDto.parentId,
+                range: range("a passage"),
             },
-            { ranges: [range("a passage")] },
+            { range: range("a passage") },
         );
 
         const wrapper = mount(ActivityAll);
@@ -138,8 +141,18 @@ describe("ActivityAll", () => {
                 type: "highlighted",
                 contentId: mockEnglishContentDto._id,
                 parentId: mockEnglishContentDto.parentId,
+                range: range("first passage"),
             },
-            { ranges: [range("first passage"), range("second passage")] },
+            { range: range("first passage") },
+        );
+        await recordUserActivity(
+            {
+                type: "highlighted",
+                contentId: mockEnglishContentDto._id,
+                parentId: mockEnglishContentDto.parentId,
+                range: range("second passage"),
+            },
+            { range: range("second passage") },
         );
 
         const wrapper = mount(ActivityAll);
@@ -155,8 +168,9 @@ describe("ActivityAll", () => {
                 type: "highlighted",
                 contentId: mockEnglishContentDto._id,
                 parentId: mockEnglishContentDto.parentId,
+                range: range("the passage they kept"),
             },
-            { ranges: [range("the passage they kept")] },
+            { range: range("the passage they kept") },
         );
 
         const wrapper = mount(ActivityAll);
@@ -174,8 +188,9 @@ describe("ActivityAll", () => {
                 type: "highlighted",
                 contentId: mockEnglishContentDto._id,
                 parentId: mockEnglishContentDto.parentId,
+                range: range("a long passage ".repeat(40)),
             },
-            { ranges: [range("a long passage ".repeat(40))] },
+            { range: range("a long passage ".repeat(40)) },
         );
 
         const wrapper = mount(ActivityAll);
@@ -203,8 +218,9 @@ describe("ActivityAll", () => {
                 type: "highlighted",
                 contentId: mockEnglishContentDto._id,
                 parentId: mockEnglishContentDto.parentId,
+                range: { start: 0, end: 5, color: "green", text: "green passage" },
             },
-            { ranges: [{ start: 0, end: 5, color: "green", text: "green passage" }] },
+            { range: { start: 0, end: 5, color: "green", text: "green passage" } },
         );
 
         const wrapper = mount(ActivityAll);

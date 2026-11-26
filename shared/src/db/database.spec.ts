@@ -1,3 +1,4 @@
+import { UserActivityType } from "../types";
 import "fake-indexeddb/auto";
 import { describe, it, afterEach, beforeEach, expect, beforeAll, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
@@ -23,7 +24,7 @@ import {
     type PostDto,
     type TagDto,
 } from "../types";
-import { db, getDbVersion, initDatabase } from "../db/database";
+import { db, getDbVersion, initDatabase, openDatabase } from "../db/database";
 import { syncList } from "../api/sync/state";
 import { accessMap } from "../permissions/permissions";
 import { isConnected } from "../socket/socketio";
@@ -758,6 +759,79 @@ describe("Database", async () => {
         );
 
         expect(changeReqErrors.value).toEqual(["Some other error"]);
+    });
+
+    it("quiet source db keeps local docs on rejected ack without docs", async () => {
+        changeReqErrors.value = [];
+        const sourceDb = await openDatabase({
+            name: "luminary-user-db-quiet-spec",
+            docsIndex: "",
+            syncListKey: "syncList:user:quiet-spec",
+            requestPersistentStorage: false,
+            includeUserActivityTable: false,
+            quietAcks: true,
+        });
+
+        try {
+            const userActivityDoc = {
+                _id: "user-activity-1",
+                type: UserActivityType.Viewed,
+                updatedTimeUtc: 1,
+            } as ContentDto;
+
+            await sourceDb.docs.put(userActivityDoc);
+            const localChangeId = await sourceDb.localChanges.put({
+                doc: userActivityDoc,
+                docId: userActivityDoc._id,
+            });
+            const localChange = await sourceDb.localChanges.get(localChangeId);
+
+            await sourceDb.applyLocalChangeAck({ ack: AckStatus.Rejected }, localChange as any);
+
+            expect(await sourceDb.docs.get(userActivityDoc._id)).toEqual(userActivityDoc);
+            expect(changeReqErrors.value).toEqual([]);
+        } finally {
+            sourceDb.close();
+            await sourceDb.delete();
+        }
+    });
+
+    it("named source db clear() resets all source tables and purge() is blocked", async () => {
+        const sourceDb = await openDatabase({
+            name: "luminary-user-db-clear-spec",
+            docsIndex: "",
+            syncListKey: "syncList:user:clear-spec",
+            requestPersistentStorage: false,
+            includeUserActivityTable: false,
+            quietAcks: true,
+        });
+
+        try {
+            await sourceDb.docs.put({
+                _id: "source-doc-1",
+                type: UserActivityType.Viewed,
+                updatedTimeUtc: 1,
+            } as ContentDto);
+            await sourceDb.localChanges.put({
+                doc: { _id: "source-doc-1", type: UserActivityType.Viewed, updatedTimeUtc: 1 },
+                docId: "source-doc-1",
+            } as any);
+            await sourceDb.setLuminaryInternals("x", 1);
+            await sourceDb.retention.put({ docId: "source-doc-1", retainUntil: 123 });
+
+            await sourceDb.clear();
+
+            expect(await sourceDb.docs.count()).toBe(0);
+            expect(await sourceDb.localChanges.count()).toBe(0);
+            expect(await sourceDb.luminaryInternals.count()).toBe(0);
+            expect(await sourceDb.retention.count()).toBe(0);
+            await expect(sourceDb.purge()).rejects.toThrow(
+                "purge() is only supported on the default database instance",
+            );
+        } finally {
+            sourceDb.close();
+            await sourceDb.delete();
+        }
     });
 
     it("upsert returns the queued localChanges entry's id", async () => {

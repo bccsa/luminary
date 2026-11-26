@@ -1,3 +1,4 @@
+import { resolveRequestIdentity } from "../auth/requestContext";
 import { Test, TestingModule } from "@nestjs/testing";
 import { BadRequestException, HttpException, HttpStatus } from "@nestjs/common";
 import { QueryController } from "./query.controller";
@@ -7,6 +8,7 @@ import { ConfigService } from "@nestjs/config";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { AuthGuard } from "../auth/auth.guard";
 import { FastifyReply, FastifyRequest } from "fastify";
+import { QueryRequestService } from "./queryRequest.service";
 
 describe("QueryController", () => {
     let controller: QueryController;
@@ -18,7 +20,14 @@ describe("QueryController", () => {
     const mockUser = { groups: ["group-public-users"], userId: "mock-user" };
 
     function mockRequest(user: any = mockUser): FastifyRequest {
-        return { user, ip: "127.0.0.1" } as any;
+        return {
+            user,
+            ip: "127.0.0.1",
+            authIdentity: resolveRequestIdentity(
+                { status: user?.anonymous ? "anonymous" : "authenticated", userDetails: user },
+                "127.0.0.1",
+            ),
+        } as any;
     }
 
     function mockReply(): FastifyReply & { header: jest.Mock } {
@@ -55,6 +64,7 @@ describe("QueryController", () => {
         const module: TestingModule = await Test.createTestingModule({
             controllers: [QueryController],
             providers: [
+                QueryRequestService,
                 { provide: QueryService, useValue: queryService },
                 { provide: ConfigService, useValue: configService },
                 { provide: QueryRateLimiterService, useValue: rateLimiter },
@@ -76,6 +86,35 @@ describe("QueryController", () => {
         await controller.processPostReq(body, mockRequest(), mockReply());
 
         expect(queryService.query).toHaveBeenCalledWith(body, mockUser);
+    });
+
+    it.each([false, true])(
+        "rejects named sources even with validation bypass=%s",
+        async (bypass) => {
+            configService.get.mockImplementation(configFor(bypass));
+            for (const dataSource of ["user", "unknown"]) {
+                await expect(
+                    controller.processPostReq(
+                        { dataSource, selector: { type: "liked" } },
+                        mockRequest(),
+                        mockReply(),
+                    ),
+                ).rejects.toThrow(BadRequestException);
+            }
+            expect(queryService.query).not.toHaveBeenCalled();
+        },
+    );
+
+    it("rejects user indexes on shared queries", async () => {
+        configService.get.mockImplementation(configFor(false));
+        await expect(
+            controller.processPostReq(
+                { selector: { type: "liked" }, use_index: "sync-liked-index" },
+                mockRequest(),
+                mockReply(),
+            ),
+        ).rejects.toThrow(BadRequestException);
+        expect(queryService.query).not.toHaveBeenCalled();
     });
 
     it("passes a valid query when validation is enabled", async () => {
@@ -238,7 +277,7 @@ describe("QueryController", () => {
             mockReply(),
         );
 
-        expect(rateLimiter.recordStrike).toHaveBeenCalledWith("anon:127.0.0.1");
+        expect(rateLimiter.recordStrike).toHaveBeenCalledWith("ip:127.0.0.1");
     });
 
     it("does not strike or warn for a cheap query", async () => {

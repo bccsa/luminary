@@ -114,10 +114,10 @@ Edit `api/src/db/schemaUpgrade/README.md`:
 
 ### 5. Update seeding docs (if doc shapes changed)
 
-Tests do not run upgrades — they seed from `api/src/db/seedingDocs/*.json` and assume the seed data is in the latest schema. If `vN+1` adds a required field to an existing doc type:
+Tests do not run upgrades — they seed from `api/src/db/seedingDocs/content/*.json` and assume the seed data is in the latest schema. If `vN+1` adds a required field to an existing doc type:
 
 ```sh
-ls /Users/dirk/projects/bccsa/luminary/api/src/db/seedingDocs/
+ls /Users/dirk/projects/bccsa/luminary/api/src/db/seedingDocs/content/
 ```
 
 For each seeding doc of the affected type, add the new field with a sensible default. Otherwise existing tests will fail with validation errors at startup.

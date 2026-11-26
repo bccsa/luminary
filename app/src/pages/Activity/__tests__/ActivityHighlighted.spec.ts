@@ -1,3 +1,5 @@
+import { activityDocs as activityTable, setupActivityTests } from "@/tests/activityStorage";
+setupActivityTests();
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
@@ -32,7 +34,7 @@ describe("ActivityHighlighted", () => {
         appLanguageIdsAsRef.value.unshift(mockLanguageDtoEng._id);
 
         await db.docs.bulkPut([mockEnglishContentDto]);
-        await db.userActivity.clear();
+        await activityTable.clear();
 
         setActivePinia(createTestingPinia());
     });
@@ -47,8 +49,9 @@ describe("ActivityHighlighted", () => {
                 type: "highlighted",
                 contentId: mockEnglishContentDto._id,
                 parentId: mockEnglishContentDto.parentId,
+                range: { start: 0, end: 5, color: "yellow" as const, text: "first" },
             },
-            { ranges: [{ start: 0, end: 5, color: "yellow" as const, text: "first" }] },
+            { range: { start: 0, end: 5, color: "yellow" as const, text: "first" } },
         );
 
         const wrapper = mount(ActivityHighlighted);
@@ -59,7 +62,7 @@ describe("ActivityHighlighted", () => {
     });
 
     it("displays a message when nothing is highlighted", async () => {
-        await db.userActivity.clear();
+        await activityTable.clear();
         const wrapper = mount(ActivityHighlighted);
 
         await waitForExpect(() => {
@@ -80,16 +83,18 @@ describe("ActivityHighlighted", () => {
                 type: "highlighted",
                 contentId: mockEnglishContentDto._id,
                 parentId: mockEnglishContentDto.parentId,
+                range: { start: 0, end: 5, color: "yellow" as const, text: "first" },
             },
-            { ranges: [{ start: 0, end: 5, color: "yellow" as const, text: "first" }] },
+            { range: { start: 0, end: 5, color: "yellow" as const, text: "first" } },
         );
         await recordUserActivity(
             {
                 type: "highlighted",
                 contentId: french._id,
                 parentId: french.parentId,
+                range: { start: 0, end: 5, color: "yellow" as const, text: "first" },
             },
-            { ranges: [{ start: 0, end: 5, color: "yellow" as const, text: "first" }] },
+            { range: { start: 0, end: 5, color: "yellow" as const, text: "first" } },
         );
 
         const wrapper = mount(ActivityHighlighted);
@@ -105,14 +110,17 @@ describe("ActivityHighlighted", () => {
             { start: 0, end: 5, color: "yellow" as const, text: "first" },
             { start: 10, end: 16, color: "green" as const, text: "second" },
         ];
-        await recordUserActivity(
-            {
-                type: "highlighted",
-                contentId: mockEnglishContentDto._id,
-                parentId: mockEnglishContentDto.parentId,
-            },
-            { ranges },
-        );
+        for (const range of ranges) {
+            await recordUserActivity(
+                {
+                    type: "highlighted",
+                    contentId: mockEnglishContentDto._id,
+                    parentId: mockEnglishContentDto.parentId,
+                    range,
+                },
+                { range },
+            );
+        }
         const wrapper = mount(ActivityHighlighted);
 
         await waitForExpect(() => {

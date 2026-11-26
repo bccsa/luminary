@@ -4,13 +4,16 @@ import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
 import { config, SharedConfig } from "../config";
 import { reportBreadcrumb } from "../diagnostics";
+import { tuplePaginationSupported } from "../api/sync/state";
 
 /**
  * Client configuration type definition
  */
 type ClientConfig = {
+    syncPagination?: string;
     maxUploadFileSize: number;
     accessMap: AccessMap;
+    dataSources?: string[];
 };
 
 /**
@@ -22,6 +25,11 @@ export const isConnected = ref(false);
  * Maximum file size for uploads in bytes as a Vue ref
  */
 export const maxUploadFileSize = useLocalStorage("maxUploadFileSize", 0);
+
+/**
+ * Data sources advertised by the API for this session.
+ */
+export const dataSources = ref<string[]>([]);
 
 class SocketIO {
     private socket: Socket;
@@ -56,6 +64,7 @@ class SocketIO {
         });
 
         this.socket.on("disconnect", (reason: string) => {
+            tuplePaginationSupported.value = false;
             reportBreadcrumb(`Socket disconnected: ${reason}`, {
                 area: "socket",
                 op: "disconnect",
@@ -65,6 +74,7 @@ class SocketIO {
         });
 
         this.socket.on("connect_error", (err: Error & { data?: { type?: string } }) => {
+            tuplePaginationSupported.value = false;
             reportBreadcrumb(`Socket connect error: ${err.message}`, {
                 area: "socket",
                 op: "connect-error",
@@ -85,8 +95,10 @@ class SocketIO {
         // `"data"` and owns the persistence decision (see api/sync/liveSync.ts).
 
         this.socket.on("clientConfig", (c: ClientConfig) => {
+            tuplePaginationSupported.value = c.syncPagination === "timestamp-id-v1";
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
             if (c.accessMap) accessMap.value = c.accessMap;
+            dataSources.value = Array.isArray(c.dataSources) ? c.dataSources : [];
             reportBreadcrumb("Socket connected and configured", { area: "socket", op: "connect" });
             isConnected.value = true; // Only set isConnected after configuration has been received from the API
             this.stopForegroundReconnect();

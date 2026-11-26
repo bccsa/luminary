@@ -1,6 +1,7 @@
 import { ref, watch, type Ref } from "vue";
-import type { UserActivityEntry, UserActivityType, Uuid } from "luminary-shared";
+import type { UserActivityKind, Uuid } from "luminary-shared";
 import {
+    type ActivityEntry,
     getAllUserActivity,
     getUserActivity,
     getViewedParentIds,
@@ -12,7 +13,7 @@ import {
  * IndexedDB has no reactivity of its own, so the list is re-read whenever an activity
  * is written.
  */
-export function useUserActivity(type: UserActivityType | "all"): Ref<UserActivityEntry[]> {
+export function useUserActivity(type: UserActivityKind | "all"): Ref<ActivityEntry[]> {
     return useUserActivityWithState(type).rows;
 }
 
@@ -20,18 +21,24 @@ export function useUserActivity(type: UserActivityType | "all"): Ref<UserActivit
  * Like {@link useUserActivity}, plus `loaded`: false until the first read returns, so a
  * page can tell "not read yet" from "nothing stored".
  */
-export function useUserActivityWithState(type: UserActivityType | "all"): {
-    rows: Ref<UserActivityEntry[]>;
+export function useUserActivityWithState(type: UserActivityKind | "all"): {
+    rows: Ref<ActivityEntry[]>;
     loaded: Ref<boolean>;
 } {
-    const rows = ref<UserActivityEntry[]>([]);
+    const rows = ref<ActivityEntry[]>([]);
     const loaded = ref(false);
 
+    let generation = 0;
     watch(
         userActivityVersion,
         async () => {
-            rows.value = type === "all" ? await getAllUserActivity() : await getUserActivity(type);
-            loaded.value = true;
+            const current = ++generation;
+            const result =
+                type === "all" ? await getAllUserActivity() : await getUserActivity(type);
+            if (current === generation) {
+                rows.value = result;
+                loaded.value = true;
+            }
         },
         { immediate: true },
     );

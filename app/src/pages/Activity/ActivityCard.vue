@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useI18n } from "vue-i18n";
-import { type ContentDto, type HighlightColor, type UserActivityType } from "luminary-shared";
+import { type ContentDto, type HighlightColor, type UserActivityKind } from "luminary-shared";
 import { HeartIcon } from "@heroicons/vue/24/solid";
 import ContentTile from "@/components/content/ContentTile.vue";
 import { HIGHLIGHT_COLORS } from "@/util/highlightRanges";
@@ -10,7 +10,7 @@ const { t } = useI18n();
 type Props = {
     content: ContentDto;
     /** Which activity this card stands for. */
-    type: UserActivityType;
+    type: UserActivityKind;
     /** The passage shown in place of the summary, for a highlight. */
     excerpt?: string;
     /** The colour the passage was highlighted in, painted behind it. */

@@ -1,7 +1,7 @@
 import type { TokenIdentity } from "./mint";
 
 /**
- * Test identities that line up with `api/src/db/seedingDocs/`. The API links a
+ * Test identities that line up with `api/src/db/seedingDocs/content/`. The API links a
  * token to its User doc by `externalUserId` and then falls back to `email`, so
  * matching the seeded email is what puts a persona in its groups.
  */

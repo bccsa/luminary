@@ -17,12 +17,16 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { ChangeRequestRateLimiterService } from "../ratelimit/changeRequestRateLimiter.service";
 import { removeDangerousKeys } from "../util/removeDangerousKeys";
 import { patchFileData } from "../util/patchFileData";
+import { requireUserDataOwner } from "../auth/requestContext";
+import { resolveDataSource } from "../util/dataSource";
+import { UserChangeRequestService } from "../userData/userChangeRequest.service";
 
 @Controller("changerequest")
 export class ChangeRequestController {
     constructor(
         private readonly changeRequestService: ChangeRequestService,
         private readonly rateLimiter: ChangeRequestRateLimiterService,
+        private readonly userChanges: UserChangeRequestService,
     ) {}
 
     @Post()
@@ -33,12 +37,12 @@ export class ChangeRequestController {
         @Res({ passthrough: true }) reply: FastifyReply,
     ) {
         // Reject before parsing: multipart handling buffers every uploaded file in memory, which an anonymous caller must not be able to trigger
-        if (request.user?.anonymous) {
+        if (!request.authIdentity?.authenticated) {
             throw new UnauthorizedException("Authentication required");
         }
 
         // Counted before parsing so a flood of oversized or malformed requests is limited too
-        const identityKey = request.user?.userId ?? `ip:${request.ip}`;
+        const identityKey = request.authIdentity.rateLimitKey;
         const gate = this.rateLimiter.check(identityKey);
         if (!gate.allowed) {
             reply.header("Retry-After", String(Math.ceil(gate.retryAfterMs / 1000)));
@@ -141,20 +145,25 @@ export class ChangeRequestController {
                 changeRequest.apiVersion = apiVersion;
             }
 
-            const result = await this.changeRequestService.changeRequest(
-                changeRequest,
-                request.user,
-            );
-
-            return result;
+            return this.dispatch(changeRequest, request, reply);
         }
 
         // If it is just a JSON object (not multipart), validate it correctly
         await validateApiVersion(body.apiVersion);
         // Clean prototype pollution from the body before processing
         const cleanedBody = removeDangerousKeys(body);
-        const result = await this.changeRequestService.changeRequest(cleanedBody, request.user);
+        return this.dispatch(cleanedBody, request, reply);
+    }
 
-        return result;
+    private dispatch(changeRequest: ChangeReqDto, request: FastifyRequest, reply: FastifyReply) {
+        const source = resolveDataSource(changeRequest?.dataSource);
+        if (source) {
+            reply.code(200);
+            return this.userChanges.changeRequest(
+                changeRequest.doc,
+                requireUserDataOwner(request.authIdentity),
+            );
+        }
+        return this.changeRequestService.changeRequest(changeRequest, request.user);
     }
 }
