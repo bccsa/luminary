@@ -1111,10 +1111,11 @@ describe("MediaPlayerWrapper with downloads", () => {
 
             const wrapper = await mountWith(service);
 
+            // A chapter the download holds is marked, so the chapters sheet can draw its mark.
             expect(native(wrapper).props("chapters")).toEqual([
-                { title: "Chapter 1", startTime: 0, endTime: 100, available: true },
+                { title: "Chapter 1", startTime: 0, endTime: 100, available: true, downloaded: true },
                 { title: "Chapter 2", startTime: 100, endTime: 100, available: false },
-                { title: "Chapter 3", startTime: 100, endTime: 400, available: true },
+                { title: "Chapter 3", startTime: 100, endTime: 400, available: true, downloaded: true },
                 { title: "Chapter 4", startTime: 400, endTime: 400, available: false },
             ]);
         });
