@@ -1,6 +1,7 @@
 # #2690 Android screenshots
 
 Taken on 2026-11-27 on the Android emulator (Pixel, 1080×2400, light theme) from the build of
+Shots 70–73 are from `luminary` 5a6f2efd and `luminary-deployment` ea63813.
 `luminary` 0f46465e and `luminary-deployment` eba572d, with `VITE_DOWNLOADS_VIEW_IS_ENOUGH=true`
 (the dev API has no Download permission). Scaled to 1200 px high. Data is the dev environment's.
 
@@ -38,3 +39,7 @@ Meant for comparing another platform's or build's screens with these; delete thi
 | [43-sheet-from-player-one-chapter.png](43-sheet-from-player-one-chapter.png) | Download sheet opened from the player on that download |
 | [50-mini-player.png](50-mini-player.png) | Mini-player over the content page (cover not dimmed) |
 | [60-full-screen-controls.png](60-full-screen-controls.png) | Full-screen controls: chapter buttons, chapter line, tools row |
+| [70-downloaded-audio-shows-toggle.png](70-downloaded-audio-shows-toggle.png) | Playing a sound-only download of a video item: Audio / Video toggle still shown (Audio picked), Downloaded picked |
+| [71-video-asks-before-streaming.png](71-video-asks-before-streaming.png) | Video pressed on that download: centred "Watch the video online?" card in the sheet theme, Cancel / Watch online |
+| [72-after-watch-online.png](72-after-watch-online.png) | After Watch online: the picture streams in the same chapter, source switch moves to Online, video tools appear |
+| [73-offline-video-side-dimmed.png](73-offline-video-side-dimmed.png) | Same download offline: Video side of the toggle dimmed and ignores taps, "Offline · playing your download" |
