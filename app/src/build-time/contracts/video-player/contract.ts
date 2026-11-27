@@ -100,6 +100,11 @@ export type VideoNowPlayingScreen = {
     autoplayDownloadedCount?: number;
     /** Nothing can play next in this mode: the autoplay row is greyed out with the reason. */
     autoplayNothingNext?: boolean;
+    /**
+     * A download of the sound alone plays: Video's picture comes from the stream (`stream`, the platform warns it uses
+     * data) or cannot be had (`unavailable`, offline). Absent when the picture is on the device or nothing plays.
+     */
+    videoFrom?: "stream" | "unavailable";
 };
 
 /** The words of a platform's now-playing screen, in the page's language; any left out stay English. */

@@ -8,6 +8,7 @@
  * to play, where the decryption key comes from, resume position, and the
  * engagement signals a finished video sends.
  */
+import { hasVideo } from "@/downloads/videoParents";
 import {
     computed,
     defineAsyncComponent,
@@ -908,6 +909,7 @@ defineExpose({
     playback,
     playingSource,
     streamOffersVideo: computed(() => streamOffersVideo.value),
+    videoNeedsStream: computed(() => videoNeedsStream.value),
     streamForVideo: () => streamForVideo(),
     downloadForSound: () => downloadForSound(),
     keyUnavailable: computed(() => keyUnavailable.value),
@@ -1273,6 +1275,16 @@ function streamInstead(position: number | undefined, play?: boolean) {
     playOnlineOverride.value = true;
     reloadAt(null, position, play);
 }
+
+/** A download of the sound alone plays: its picture is not on the device, only in the stream. */
+const videoNeedsStream = computed(
+    () =>
+        !!playback.value &&
+        !!mediaSource.value &&
+        downloads.value?.entryFor(props.content.parentId)?.selection.kind === "audio" &&
+        // Sound-only content has no Video to offer at all.
+        hasVideo(props.content.parentId),
+);
 
 /** A download of the sound alone plays and the stream can be reached: the picture can come from the stream. */
 const streamOffersVideo = computed(

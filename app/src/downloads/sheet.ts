@@ -19,6 +19,7 @@ import { chapterState, displayedStatus, doneUnitIds, storedBytes } from "./entri
 import { checkFailed, isUnreadable, type Lifecycle } from "./lifecycle";
 import type { DownloadsPlayerHooks } from "./player";
 import { selectionKey } from "./selection";
+import { rememberHasVideo } from "./videoParents";
 import type { DownloadsState } from "./state";
 import { notificationTexts, sheetTexts } from "./texts";
 
@@ -226,6 +227,7 @@ export function createSheetController(ctx: SheetContext): SheetController {
                     source,
                     state.byParent.value.get(content.parentId)?.selection,
                 );
+                rememberHasVideo(content.parentId, options.kinds.includes("video"));
                 return { source, options };
             })(),
         };

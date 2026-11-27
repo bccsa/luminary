@@ -5,6 +5,7 @@
  * menu, showing the picture or the cover with the transport; minimised, a bar riding on the menu. `MediaPlayerWrapper` stays mounted in the picture area for as long as an item
  * plays, so minimising never restarts it.
  */
+import { rememberHasVideo } from "@/downloads/videoParents";
 import { useEventListener } from "@vueuse/core";
 import {
     computed,
@@ -1111,6 +1112,14 @@ watch(
 const videoAngles = computed(
     () => state.value?.angles.filter((angle) => angle.id !== AUDIO_ONLY_ANGLE_ID) ?? [],
 );
+// What the stream offers is kept, so a download of the sound alone knows offline whether Video exists.
+watch(
+    () => [state.value?.lifecycle, videoAngles.value.length, engine.value?.playback] as const,
+    ([lifecycle, angles, playback]) => {
+        const parentId = content.value?.parentId;
+        if (parentId && lifecycle === "ready" && !playback) rememberHasVideo(parentId, angles > 0);
+    },
+);
 /** The cameras the now-playing screen offers, by the names the master gives them, with a capital ("Pulpit"). */
 const screenAngles = computed(() =>
     videoAngles.value.map((angle) => ({
@@ -1125,7 +1134,10 @@ const canSwitch = computed(
         !!controller.value &&
         ((!!state.value?.angles.some((angle) => angle.id === AUDIO_ONLY_ANGLE_ID) &&
             videoAngles.value.length > 0) ||
-            engine.value?.streamOffersVideo === true),
+            // A download's master has no sound-only rendering; the platform turns its picture off in place instead.
+            (!!handle.value?.canTurnVideoOff && videoAngles.value.length > 0) ||
+            // A download of the sound alone: Video is offered, with a warning (or why not, offline) from the platform.
+            engine.value?.videoNeedsStream === true),
 );
 
 async function showAudio() {
@@ -1175,14 +1187,19 @@ async function showVideo() {
         capSyncPending = false;
         engine.value?.syncDataSaverCap();
     }
-    if (videoOffByChoice.value) {
-        videoOffByChoice.value = false;
-        handle.value?.setVideoOff?.(false);
+    // A download of the sound alone has no picture to turn back on: the stream brings it, whatever turned it off.
+    if (engine.value?.streamForVideo?.()) {
+        audioRequested.value = false;
+        if (videoOffByChoice.value) {
+            videoOffByChoice.value = false;
+            handle.value?.setVideoOff?.(false);
+        }
         if (isNativeApp() && !inlineVideo.value) await handle.value?.enterFullscreen();
         return;
     }
-    if (engine.value?.streamForVideo?.()) {
-        audioRequested.value = false;
+    if (videoOffByChoice.value) {
+        videoOffByChoice.value = false;
+        handle.value?.setVideoOff?.(false);
         if (isNativeApp() && !inlineVideo.value) await handle.value?.enterFullscreen();
         return;
     }
@@ -1997,6 +2014,9 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
               }
             : {}),
         ...(nothingNext.value ? { autoplayNothingNext: true } : {}),
+        ...(engine.value?.videoNeedsStream
+            ? { videoFrom: engine.value.streamOffersVideo ? "stream" : "unavailable" }
+            : {}),
         ...(screenDownload.value ? { download: screenDownload.value } : {}),
         ...(playerNotice.value
             ? {
@@ -2168,6 +2188,9 @@ const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
             strictVideoTitle: known("media_player.strict_video_title"),
             strictVideoDescription: known("media_player.strict_video_description"),
             strictVideoConfirm: known("media_player.strict_video_confirm"),
+            videoStreamTitle: known("media_player.video_stream_title"),
+            videoStreamDescription: known("media_player.video_stream_description"),
+            videoStreamConfirm: known("media_player.video_stream_confirm"),
             // The platform fills these in itself, so the placeholders go through as they are.
             sleepMinutes: known("media_player.sleep_minutes", { minutes: "{minutes}" }),
             sleepEndOfChapter: known("media_player.sleep_end_of_chapter"),
