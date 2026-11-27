@@ -66,7 +66,7 @@ describe("DownloadsPage", () => {
         await threeDownloads(ctx);
         const refresh = vi.spyOn(ctx.service, "refreshStorage");
         const wrapper = mountPage(ctx);
-        expect(wrapper.get("h1").text()).toBe("My Downloads");
+        expect(wrapper.find("h1").exists()).toBe(false);
         expect(titles(wrapper)).toEqual(["Item 3", "Item 2", "Item 1"]);
         expect(wrapper.find("[data-test='activity-group-today']").exists()).toBe(true);
         expect(wrapper.find("[data-test='activity-group-yesterday']").exists()).toBe(true);
@@ -261,6 +261,41 @@ describe("DownloadsPage", () => {
             }),
         );
         expect(wrapper.find("[data-test='downloads-selection-bar']").exists()).toBe(false);
+    });
+
+    it("keeps the sort chips and Select in one strip that steps aside with the chrome", async () => {
+        const ctx = await setupUi();
+        await threeDownloads(ctx);
+        const wrapper = mountPage(ctx);
+        const strip = () => wrapper.get("[data-test='downloads-toolbar']");
+        const style = () => strip().attributes("style");
+        expect(strip().find("[data-test='downloads-sort-newest']").exists()).toBe(true);
+        expect(strip().find("[data-test='downloads-select']").exists()).toBe(true);
+        expect(style()).toContain("translateY(var(--top-bar-h, 74px))");
+        // jsdom has no `inert` property, so the bound value lands on the attribute as text.
+        const inert = () => strip().attributes("inert");
+        expect(inert()).toBe("false");
+
+        useMobileChromeAutoHide().hidden.value = true;
+        await settle();
+        expect(style()).toContain("translateY(-100%)");
+        expect(inert()).toBe("true");
+
+        useMobileChromeAutoHide().hidden.value = false;
+        await settle();
+        expect(style()).toContain("translateY(var(--top-bar-h, 74px))");
+        expect(inert()).toBe("false");
+    });
+
+    it("forces no extra height under the storage card", async () => {
+        const ctx = await setupUi();
+        await threeDownloads(ctx);
+        const wrapper = mountPage(ctx);
+        const page = wrapper.get("[data-test='downloads-page']");
+        // A minimum height or a deep bottom padding scrolls a short list into blank space.
+        expect(page.classes().filter((name) => name.includes("min-h-"))).toEqual([]);
+        expect(page.classes()).toContain("pb-4");
+        expect(page.element.lastElementChild?.getAttribute("data-test")).toBe("downloads-storage");
     });
 
     it("keeps the selection bar above the bottom chrome and moves it with the chrome", async () => {

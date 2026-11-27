@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { ArrowDownTrayIcon, CheckCircleIcon, TrashIcon } from "@heroicons/vue/20/solid";
+import { ArrowDownTrayIcon, TrashIcon } from "@heroicons/vue/20/solid";
 import BasePage from "@/components/BasePage.vue";
 import LButton from "@/components/button/LButton.vue";
 import LDialog from "@/components/common/LDialog.vue";
@@ -15,9 +15,11 @@ import { markPageReady } from "@/util/renderState";
 import { DownloadsKey } from "@/build-time/contracts/downloads/token";
 import type { DownloadEntry, DownloadsService } from "@/build-time/contracts/downloads/contract";
 import type { DownloadsPlayerHooks } from "../player";
-import { DOWNLOAD_SORTS, freedBytes, sortDownloads, type DownloadSort } from "../page";
+import { freedBytes, sortDownloads, type DownloadSort } from "../page";
 import { formatBytes } from "../texts";
 import DownloadCard from "./DownloadCard.vue";
+import DownloadsSelectButton from "./DownloadsSelectButton.vue";
+import DownloadsSortChips from "./DownloadsSortChips.vue";
 import ResumeBanner from "./ResumeBanner.vue";
 import StorageCard from "./StorageCard.vue";
 
@@ -48,6 +50,8 @@ const playingId = computed(() => {
 
 const selecting = ref(false);
 const selected = ref<ReadonlySet<string>>(new Set());
+
+const toggleSelecting = () => (selecting.value ? stopSelecting() : (selecting.value = true));
 
 function toggle(downloadId: string) {
     const next = new Set(selected.value);
@@ -122,6 +126,11 @@ async function deleteSelected() {
     }
 }
 
+// ---- chrome placement ------------------------------------------------------------------------------------
+
+/** Nothing to sort or select until there is a list. */
+const showToolbar = computed(() => shown.value && sorted.value.length > 0);
+
 // ---- selection bar placement ------------------------------------------------------------------------------
 
 const mobileChrome = useMobileChromeAutoHide();
@@ -129,6 +138,14 @@ const mobileChrome = useMobileChromeAutoHide();
 const playerCard = computed(
     () => Boolean(mediaPlayerItem.value) && mediaPlayerView.value === "mini",
 );
+
+// The strip is pinned at the scrollport edge: pushed below the top bar while that shows, and slid off with it
+// on scroll down. A transform on the bars' own timeline keeps them in lockstep.
+const mobileFilterStyle = computed(() => ({
+    transform: mobileChrome.hidden.value
+        ? "translateY(-100%)"
+        : "translateY(var(--top-bar-h, 74px))",
+}));
 
 // The list keeps room for the bar, so its last card can be scrolled clear of it.
 const selectionBar = ref<HTMLElement | null>(null);
@@ -152,79 +169,87 @@ onMounted(async () => {
 
 <template>
     <BasePage showBackButton desktopTopBar>
-        <div
-            class="mx-auto max-w-5xl space-y-4 px-2 pb-24"
-            :style="
-                selecting && barHeight
-                    ? { paddingBottom: `calc(${barHeight}px + 1.5rem)` }
-                    : undefined
-            "
-            data-test="downloads-page"
-        >
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <h1 class="text-xl font-semibold text-zinc-900 dark:text-slate-100">
-                    {{ t("downloads.title") }}
-                </h1>
-                <LButton
-                    v-if="shown && sorted.length > 0"
-                    size="sm"
-                    :icon="selecting ? undefined : CheckCircleIcon"
-                    :aria-pressed="selecting"
-                    data-test="downloads-select"
-                    @click="selecting ? stopSelecting() : (selecting = true)"
+        <template v-if="showToolbar" #topBarLeading>
+            <DownloadsSortChips :active="sort" @select="sort = $event" />
+        </template>
+        <!-- The pinned row's right side. The phone top bar renders this slot too, where the strip has the button. -->
+        <template v-if="showToolbar" #quickControls>
+            <div class="hidden xl:block">
+                <DownloadsSelectButton :selecting="selecting" @click="toggleSelecting" />
+            </div>
+        </template>
+
+        <div class="px-2">
+            <!-- Below xl. Steps off the top with the top and bottom bars on scroll down, and returns with them
+                 on scroll up. Inert meanwhile, so its off-screen controls can't take focus. -->
+            <div
+                v-if="showToolbar"
+                class="sticky top-0 z-10 -mx-2 -mt-[var(--top-bar-h,74px)] mb-[var(--top-bar-h,74px)] transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform xl:hidden"
+                :style="mobileFilterStyle"
+                :inert="mobileChrome.hidden.value"
+                data-test="downloads-toolbar"
+            >
+                <div
+                    class="relative z-10 flex items-start justify-between gap-3 bg-white px-2 py-3 before:absolute before:inset-x-0 before:bottom-full before:h-2 before:bg-inherit dark:bg-slate-900"
                 >
-                    {{ selecting ? t("downloads.page.select_done") : t("downloads.page.select") }}
-                </LButton>
+                    <DownloadsSortChips class="min-w-0" :active="sort" @select="sort = $event" />
+                    <DownloadsSelectButton
+                        class="shrink-0"
+                        :selecting="selecting"
+                        @click="toggleSelecting"
+                    />
+                </div>
             </div>
 
-            <ResumeBanner />
+            <div
+                class="isolate mx-auto max-w-5xl space-y-4 pb-4"
+                :style="
+                    selecting && barHeight
+                        ? { paddingBottom: `calc(${barHeight}px + 1.5rem)` }
+                        : undefined
+                "
+                data-test="downloads-page"
+            >
+                <ResumeBanner />
 
-            <template v-if="shown">
-                <div
-                    v-if="sorted.length > 0"
-                    class="flex flex-wrap gap-2"
-                    role="radiogroup"
-                    :aria-label="t('downloads.page.sort.label')"
-                >
-                    <button
-                        v-for="order in DOWNLOAD_SORTS"
-                        :key="order"
-                        type="button"
-                        role="radio"
-                        :aria-checked="order === sort"
-                        :data-test="`downloads-sort-${order}`"
-                        class="rounded-full px-3 py-1 text-sm transition-colors"
-                        :class="
-                            order === sort
-                                ? 'bg-zinc-100 text-yellow-700 ring-1 ring-yellow-700/50 dark:bg-slate-700 dark:text-yellow-400 dark:ring-yellow-400/50'
-                                : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
-                        "
-                        @click="sort = order"
+                <template v-if="shown">
+                    <div
+                        v-if="sorted.length === 0"
+                        class="flex flex-col items-center gap-2 py-12 text-center"
+                        data-test="downloads-empty"
                     >
-                        {{ t(`downloads.page.sort.${order}`) }}
-                    </button>
-                </div>
+                        <ArrowDownTrayIcon
+                            class="h-10 w-10 text-zinc-300 dark:text-slate-600"
+                            aria-hidden="true"
+                        />
+                        <p class="text-zinc-500 dark:text-slate-200">
+                            {{ t("downloads.page.empty") }}
+                        </p>
+                        <p class="text-sm text-zinc-400 dark:text-slate-400">
+                            {{ t("downloads.page.empty_hint") }}
+                        </p>
+                    </div>
 
-                <div
-                    v-if="sorted.length === 0"
-                    class="flex flex-col items-center gap-2 py-12 text-center"
-                    data-test="downloads-empty"
-                >
-                    <ArrowDownTrayIcon
-                        class="h-10 w-10 text-zinc-300 dark:text-slate-600"
-                        aria-hidden="true"
-                    />
-                    <p class="text-zinc-500 dark:text-slate-200">{{ t("downloads.page.empty") }}</p>
-                    <p class="text-sm text-zinc-400 dark:text-slate-400">
-                        {{ t("downloads.page.empty_hint") }}
-                    </p>
-                </div>
-
-                <div v-else data-test="downloads-list">
-                    <template v-for="section in sections" :key="section.group ?? 'all'">
-                        <ActivitySection v-if="section.group" :group="section.group">
+                    <div v-else data-test="downloads-list">
+                        <template v-for="section in sections" :key="section.group ?? 'all'">
+                            <ActivitySection v-if="section.group" :group="section.group">
+                                <div
+                                    class="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-3"
+                                >
+                                    <DownloadCard
+                                        v-for="entry in section.items"
+                                        :key="entry.downloadId"
+                                        :entry="entry"
+                                        :selecting="selecting"
+                                        :selected="selected.has(entry.downloadId)"
+                                        :playing="entry.downloadId === playingId"
+                                        @toggle="toggle(entry.downloadId)"
+                                    />
+                                </div>
+                            </ActivitySection>
                             <div
-                                class="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-3"
+                                v-else
+                                class="mb-6 grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-3"
                             >
                                 <DownloadCard
                                     v-for="entry in section.items"
@@ -236,26 +261,12 @@ onMounted(async () => {
                                     @toggle="toggle(entry.downloadId)"
                                 />
                             </div>
-                        </ActivitySection>
-                        <div
-                            v-else
-                            class="mb-6 grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-3"
-                        >
-                            <DownloadCard
-                                v-for="entry in section.items"
-                                :key="entry.downloadId"
-                                :entry="entry"
-                                :selecting="selecting"
-                                :selected="selected.has(entry.downloadId)"
-                                :playing="entry.downloadId === playingId"
-                                @toggle="toggle(entry.downloadId)"
-                            />
-                        </div>
-                    </template>
-                </div>
-            </template>
+                        </template>
+                    </div>
+                </template>
 
-            <StorageCard />
+                <StorageCard />
+            </div>
         </div>
 
         <!-- Phones: rides above the menu and the minimised player, moving with them as they step aside on scroll.
