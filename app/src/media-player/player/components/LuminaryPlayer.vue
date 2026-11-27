@@ -48,7 +48,13 @@ import {
 import { liftCues, liftLine, type LiftableCue } from "../ui/cueLift";
 import { cuesToLyrics, type LyricCue } from "../ui/lyrics";
 import { chapterMask, formatChapterOf, numberedChapter } from "../ui/chapterBar";
-import { hasChapterSkip, nextChapterTime, previousChapterTime } from "../ui/chapterSkip";
+import {
+    hasChapterSkip,
+    nextChapterTime,
+    previousChapterTime,
+    previousLeavesItem,
+    inFirstChapter,
+} from "../ui/chapterSkip";
 import {
     attachControlTooltips,
     clampTooltipLeft,
@@ -79,7 +85,7 @@ import { languageBadge } from "../ui/audioFullscreen";
 import BrowsePanel from "./BrowsePanel.vue";
 import { imageAttempts, toPlayerImage, type PlayerImageInput } from "../image";
 import { isYouTubeUrl } from "@luminary-media-converter/player-web";
-import type { PlayerUpNextItem } from "../upNext";
+import { moreNeighbours, type PlayerUpNextItem } from "../upNext";
 import { nextInstanceId } from "../ui/instanceId";
 
 interface Props {
@@ -1648,16 +1654,29 @@ function toggleBrowse(): void {
  * Shown with a chapter boundary to skip to, as the 10 s skips: not on live, and not until the length is known.
  */
 const chapterSkipShown = computed(
-    () => hasChapterSkip(chapters.value) && !state.value.live && state.value.duration > 0,
+    () =>
+        (hasChapterSkip(chapters.value) ||
+            !!neighbours.value.previous ||
+            !!neighbours.value.next) &&
+        !state.value.live &&
+        state.value.duration > 0,
 );
-/** In the last chapter "next" has nowhere to go. */
+/** Past the last chapter, or back from the very start, the buttons go to the item beside this one in More. */
+const neighbours = computed(() => moreNeighbours(props.upNext ?? []));
+/** In the last chapter "next" has nowhere to go, unless More has an item after this one. */
 const nextChapterDisabled = computed(
-    () => nextChapterTime(chapters.value, state.value.currentTime) === null,
+    () =>
+        nextChapterTime(chapters.value, state.value.currentTime) === null && !neighbours.value.next,
 );
 
 /** Read from the element, which has the seek at once: presses in a row step chapter by chapter. */
 function skipChapter(step: -1 | 1): void {
     const now = mediaEl.value?.currentTime ?? state.value.currentTime;
+    const out =
+        step === 1
+            ? nextChapterTime(chapters.value, now) === null && neighbours.value.next
+            : previousLeavesItem(chapters.value, now) && neighbours.value.previous;
+    if (out) return void emit("upnextselect", out.id);
     const target =
         step === 1
             ? nextChapterTime(chapters.value, now)
@@ -1665,12 +1684,24 @@ function skipChapter(step: -1 | 1): void {
     if (target !== null) seek(target);
 }
 
-/** The controls are markup the component does not render, so "next" is disabled by hand. */
+/** At the very start with nothing before this item in More, "previous" has nowhere to go. */
+const previousChapterIdle = computed(
+    () => !neighbours.value.previous && inFirstChapter(chapters.value, state.value.currentTime),
+);
+
+/** The controls are markup the component does not render, so a button that would do nothing is disabled by hand. */
 watch(
-    [nextChapterDisabled, controlsHtml, chapterSkipShown, containerEl],
-    ([disabled]) => {
-        const next = containerEl.value?.querySelector<HTMLButtonElement>('[data-chapter-step="1"]');
-        if (next) next.disabled = disabled;
+    [nextChapterDisabled, previousChapterIdle, controlsHtml, chapterSkipShown, containerEl],
+    ([nextIdle, previousIdle]) => {
+        const find = (step: string) =>
+            containerEl.value?.querySelector<HTMLButtonElement>(`[data-chapter-step="${step}"]`);
+        for (const [button, idle] of [
+            [find("1"), nextIdle],
+            [find("-1"), previousIdle],
+        ] as const) {
+            if (!button) continue;
+            button.disabled = idle;
+        }
     },
     { flush: "post", immediate: true },
 );

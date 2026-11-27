@@ -34,14 +34,20 @@ watch(
 );
 
 /**
+ * The copy the viewer last picked on the Downloaded / Online switch (true: online), carried to the items after it:
+ * whoever chose Online stays online, whoever chose Downloaded plays downloads where there are any. null until a pick.
+ */
+export const preferredSource = ref<boolean | null>(null);
+
+/**
  * The copy the viewer picked for the item playing (true: online, false: the download), from the download sheet's
- * source switch or a chapter's "Play online"; null follows the downloads' own pick. Cleared whenever another item
- * starts, as the Data Saver override is.
+ * source switch or a chapter's "Play online"; null follows the downloads' own pick. Each item starts from the viewer's
+ * last pick on the switch ({@link preferredSource}).
  */
 export const playOnlineOverride = ref<boolean | null>(null);
 watch(
     () => mediaPlayerItem.value?.content._id,
-    () => (playOnlineOverride.value = null),
+    () => (playOnlineOverride.value = preferredSource.value),
     { flush: "sync" },
 );
 

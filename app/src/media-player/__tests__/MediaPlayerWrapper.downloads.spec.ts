@@ -18,7 +18,7 @@ import {
     mediaProgressKey,
     syncContentProgressFromStorage,
 } from "@/contentProgress";
-import { dataSaverOverride, playOnlineOverride } from "../mediaPlayer";
+import { dataSaverOverride, playOnlineOverride, preferredSource } from "../mediaPlayer";
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { fallbackArtworkDataUrl } from "@/util/fallbackArtwork";
 import { actOnPlayerNotice, dismissPlayerNotice, playerNotice } from "../playerNotice";
@@ -184,6 +184,7 @@ beforeEach(() => {
     syncContentProgressFromStorage();
     fetchHlsKeyMock.mockResolvedValue("online-key");
     playOnlineOverride.value = null;
+    preferredSource.value = null;
     dataSaverOverride.value = null;
     playerNotice.value = null;
 });
@@ -359,6 +360,22 @@ describe("MediaPlayerWrapper with downloads", () => {
             expect(service.hooks.open).toHaveBeenLastCalledWith(expect.anything(), {
                 preferOnline: true,
             });
+        });
+
+        it("names the copy about to play while the download opens, not the stream", async () => {
+            const service = downloadsServiceStub({ playable: [parentId] });
+            service.hooks.open.mockReturnValue(new Promise(() => {}));
+            const wrapper = mountPending(service);
+            await flushPromises();
+            expect((wrapper.vm as unknown as { playingSource: string }).playingSource).toBe(
+                "downloaded",
+            );
+
+            playOnlineOverride.value = true;
+            await flushPromises();
+            expect((wrapper.vm as unknown as { playingSource: string }).playingSource).toBe(
+                "online",
+            );
         });
 
         it("streams a playable download that does not open online, leaving the notice to the service", async () => {
@@ -560,6 +577,7 @@ describe("MediaPlayerWrapper with downloads", () => {
             expect(source.masterUrl).toContain("pb-picked");
             expect(source.startPosition).toBe(150);
             expect(playOnlineOverride.value).toBe(false);
+            expect(preferredSource.value).toBe(false);
         });
 
         it("answers false and streams on when the download picked on the sheet does not open", async () => {
@@ -1113,9 +1131,21 @@ describe("MediaPlayerWrapper with downloads", () => {
 
             // A chapter the download holds is marked, so the chapters sheet can draw its mark.
             expect(native(wrapper).props("chapters")).toEqual([
-                { title: "Chapter 1", startTime: 0, endTime: 100, available: true, downloaded: true },
+                {
+                    title: "Chapter 1",
+                    startTime: 0,
+                    endTime: 100,
+                    available: true,
+                    downloaded: true,
+                },
                 { title: "Chapter 2", startTime: 100, endTime: 100, available: false },
-                { title: "Chapter 3", startTime: 100, endTime: 400, available: true, downloaded: true },
+                {
+                    title: "Chapter 3",
+                    startTime: 100,
+                    endTime: 400,
+                    available: true,
+                    downloaded: true,
+                },
                 { title: "Chapter 4", startTime: 400, endTime: 400, available: false },
             ]);
         });
@@ -1182,38 +1212,34 @@ describe("MediaPlayerWrapper with downloads", () => {
             expect(getMediaProgress(mediaId(), contentId)).toBe(260);
         });
 
-        it("playing, asks first; accepting switches and plays on once loaded", async () => {
+        it("playing, switches at once at the same word, asks nothing, and plays on once loaded", async () => {
             const { service, wrapper } = await playingDownload();
             state().playing = true;
             await flushPromises();
 
             service.hooks.moreReady(parentId);
             await flushPromises();
-            expect(service.hooks.open).toHaveBeenCalledTimes(1);
-            expect(playerNotice.value?.text).toBe("More chapters are ready.");
-            expect(playerNotice.value?.action?.label).toBe("Switch now");
-
-            actOnPlayerNotice(playerNotice.value!.id);
-            await flushPromises();
-            expect(native(wrapper).props("source").masterUrl).toContain("pb-new");
+            expect(playerNotice.value).toBeNull();
+            const source = native(wrapper).props("source");
+            expect(source.masterUrl).toContain("pb-new");
+            expect(source.startPosition).toBe(250);
             await loaded(wrapper);
             expect(playMock).toHaveBeenCalled();
         });
 
-        it("playing, declined, switches at the next pause", async () => {
+        it("streams on from the same word when the chapter playing is removed, online", async () => {
             const { service, wrapper } = await playingDownload();
             state().playing = true;
             await flushPromises();
+            // The chapter under the playhead (full time 250) is removed while it plays.
+            service.entriesRef.value = [entryOf(parentId, WIDE_CHAPTERS, [0])];
+
             service.hooks.moreReady(parentId);
             await flushPromises();
-            dismissPlayerNotice(playerNotice.value!.id);
-            await flushPromises();
-            expect(native(wrapper).props("source").masterUrl).toContain("pb-old");
 
-            state().playing = false;
-            await flushPromises();
-
-            expect(native(wrapper).props("source").masterUrl).toContain("pb-new");
+            const source = native(wrapper).props("source");
+            expect(source.masterUrl).toContain("https://");
+            expect(source.startPosition).toBe(250);
         });
 
         it("keeps the word and the play state when more is ready again while a switch still loads", async () => {
@@ -1221,8 +1247,6 @@ describe("MediaPlayerWrapper with downloads", () => {
             state().playing = true;
             await flushPromises();
             service.hooks.moreReady(parentId);
-            await flushPromises();
-            actOnPlayerNotice(playerNotice.value!.id);
             await flushPromises();
             await loadStarts();
             service.hooks.open.mockResolvedValue(
@@ -1316,34 +1340,6 @@ describe("MediaPlayerWrapper with downloads", () => {
 
             const source = native(wrapper).props("source");
             expect(source.masterUrl).toContain("https://");
-            expect(source.startPosition).toBe(250);
-        });
-
-        it("waits for the viewer's real pause when the player starts a load of its own after asking", async () => {
-            const { service, wrapper } = await playingDownload();
-            state().playing = true;
-            await flushPromises();
-            service.hooks.moreReady(parentId);
-            await flushPromises();
-            expect(playerNotice.value?.text).toBe("More chapters are ready.");
-
-            // The player's own load (a late key, its retry) resets it to 0 and paused in one change.
-            state().lifecycle = "loading";
-            state().currentTime = 0;
-            state().playing = false;
-            await flushPromises();
-            expect(service.hooks.open).toHaveBeenCalledTimes(1);
-            expect(native(wrapper).props("source").masterUrl).toContain("pb-old");
-
-            state().lifecycle = "ready";
-            await at(wrapper, 150, 400);
-            state().playing = true;
-            await flushPromises();
-            state().playing = false;
-            await flushPromises();
-
-            const source = native(wrapper).props("source");
-            expect(source.masterUrl).toContain("pb-new");
             expect(source.startPosition).toBe(250);
         });
 
@@ -1838,7 +1834,7 @@ describe("MediaPlayerWrapper with downloads", () => {
             expect(source.startPosition).toBe(150);
         });
 
-        it("treat a load told to play as playing before the player reports it, and ask before switching", async () => {
+        it("treat a load told to play as playing before the player reports it, and switch at once, playing on", async () => {
             const service = downloadsServiceStub({
                 entries: [entryOf(parentId, WIDE_CHAPTERS, [0, 2])],
             });
@@ -1850,11 +1846,15 @@ describe("MediaPlayerWrapper with downloads", () => {
             expect(playMock).toHaveBeenCalledTimes(1);
             expect(state().playing).toBe(false);
 
+            service.hooks.open.mockResolvedValue(
+                playbackOf(timelineOf(WIDE_SPANS, 600), { playbackId: "pb-new" }),
+            );
             service.hooks.moreReady(parentId);
             await flushPromises();
 
-            expect(service.hooks.open).toHaveBeenCalledTimes(1);
-            expect(playerNotice.value?.text).toBe("More chapters are ready.");
+            expect(native(wrapper).props("source").masterUrl).toContain("pb-new");
+            await loaded(wrapper);
+            expect(playMock).toHaveBeenCalledTimes(2);
         });
 
         it("stop treating a play that never started as playing a few seconds after the load", async () => {
@@ -1971,9 +1971,6 @@ describe("MediaPlayerWrapper with downloads", () => {
                 vi.useRealTimers();
             }
 
-            expect(playerNotice.value?.text).toBe("More chapters are ready.");
-            actOnPlayerNotice(playerNotice.value!.id);
-            await flushPromises();
             expect(native(wrapper).props("source").masterUrl).toContain("pb-new");
             await loaded(wrapper);
             expect(playMock).toHaveBeenCalledTimes(2);

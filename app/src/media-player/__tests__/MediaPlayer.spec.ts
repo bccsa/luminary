@@ -1360,7 +1360,7 @@ describe("MediaPlayer", () => {
                 expect(engine.handle.showNowPlaying.mock.calls.at(-1)[0].audioMode).toBe(false);
             }));
 
-        it("loads the sound's own rendering when it comes in several bitrates, so they can be chosen", async () =>
+        it("turns the picture off in place even when the sound comes in several bitrates, so nothing reloads", async () =>
             narrow(async () => {
                 const wrapper = await playing();
                 engine.state.angles = [
@@ -1371,8 +1371,8 @@ describe("MediaPlayer", () => {
                 await find(wrapper, "mediaPlayerAudio").trigger("click");
                 await flushPromises();
 
-                expect(engine.controller.setAngle).toHaveBeenLastCalledWith(AUDIO);
-                expect(engine.handle.setVideoOff).not.toHaveBeenCalled();
+                expect(engine.handle.setVideoOff).toHaveBeenLastCalledWith(true);
+                expect(engine.controller.setAngle).not.toHaveBeenCalledWith(AUDIO);
             }));
 
         it("runs the sleep timer the screen's menu picks", async () =>
@@ -1425,8 +1425,8 @@ describe("MediaPlayer", () => {
 
                 openMediaPlayer({ ...mockEnglishContentDto, _id: "another-post" }, "en");
                 await flushPromises();
-                // The picture's off-switch belongs to the item it was used on; the next one loads as sound.
-                expect(engine.handle.setVideoOff).toHaveBeenLastCalledWith(false);
+                // The next one loads as it is, its picture off in place: Video later needs no reload.
+                expect(engine.handle.setVideoOff).toHaveBeenLastCalledWith(true);
                 expect(engine.handle.showNowPlaying.mock.calls.at(-1)[0].audioMode).toBe(true);
             }));
 

@@ -31,7 +31,12 @@ import YouTubeWrapper from "./YouTubeWrapper.vue";
 import { warmFetch, warmPlaylists } from "./playlistWarm";
 import { isYouTubeLink } from "@/util/youtube";
 import { appLanguagesPreferredAsRef, isDarkTheme, queryParams } from "@/globalConfig";
-import { playbackDataSaverLevel, playbackDataSaverOn, playOnlineOverride } from "./mediaPlayer";
+import {
+    playbackDataSaverLevel,
+    playbackDataSaverOn,
+    playOnlineOverride,
+    preferredSource,
+} from "./mediaPlayer";
 import {
     connectionSpeed,
     hasMeasuredConnectionSpeed,
@@ -88,6 +93,10 @@ type Props = {
     language: string | null | undefined;
     /** Start with the sound only, fetching no video; read when the content changes. */
     startAudio?: boolean;
+    /** The page turns the picture off in place for {@link startAudio}: the stream loads as it is, not as sound alone. */
+    soundInPlace?: boolean;
+    /** The player is minimised: nothing on the page shows the picture. */
+    minimised?: boolean;
     autoplay?: boolean;
     /** Go full-screen when autoplay starts the video, for a player that shows video only there. */
     fullscreenOnPlay?: boolean;
@@ -154,6 +163,8 @@ const downloads = useDownloads();
 const downloadsPlayer = () => (videoPlayer.playsDownloads ? downloads.value?.player : undefined);
 /** The download the content plays from; null while it streams. */
 const playback = shallowRef<DownloadPlayback | null>(null);
+/** The item's download is opening: until it has, the switch shows the copy about to play, not the stream. */
+const opening = ref(false);
 /** The session the engine closed itself: its load is stopped, and nothing more of it is booked. */
 let closedPlaybackId: string | null = null;
 /** A start in a part the download does not hold: the saved position stays until playback moves off this point. */
@@ -418,6 +429,30 @@ const startAngleId = ref<string | undefined>(undefined);
  * be neither chosen by ABR nor picked by hand. Low enough to be cheap, high enough to be watchable.
  */
 const DATA_SAVER_MAX_HEIGHT = 360;
+
+/**
+ * Minimised in a browser, nothing shows the picture: it drops to the lowest rendition in place (a browser's engine
+ * cannot turn the picture off without a reload, which would break the sound), and goes back under the cap in force when
+ * the player opens. A platform that turns the picture off itself, and a download, are left alone.
+ */
+let cappedWhileMinimised = false;
+watch(
+    () => [props.minimised, player.value?.state?.qualities, playback.value] as const,
+    ([minimised]) => {
+        const controller = player.value?.controller;
+        if (!controller?.canCapInPlace || player.value?.canTurnVideoOff || playback.value) return;
+        if (minimised && !cappedWhileMinimised) {
+            const heights = (player.value?.state?.qualities ?? [])
+                .map((quality) => quality.height ?? 0)
+                .filter((height) => height > 0);
+            if (!heights.length) return;
+            cappedWhileMinimised = controller.setMaxHeight(Math.min(...heights));
+        } else if (!minimised && cappedWhileMinimised) {
+            cappedWhileMinimised = false;
+            controller.setMaxHeight(playbackDataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : null);
+        }
+    },
+);
 const MIN_RESUME_SECONDS = MIN_MEDIA_PROGRESS_SECONDS;
 /** Resuming lands slightly before where the viewer left, to re-establish context. */
 const RESUME_REWIND_SECONDS = 30;
@@ -609,10 +644,13 @@ watch(
         const opens = !!hooks && !!content && !isYouTubeLink(masterUrl);
         if (masterUrl && !isYouTubeUrl(masterUrl) && !(opens && likelyPlaysDownload(content)))
             warmPlaylists(masterUrl);
-        startAngleId.value = props.startAudio ? AUDIO_ONLY_ANGLE_ID : undefined;
+        startAngleId.value =
+            props.startAudio && !props.soundInPlace ? AUDIO_ONLY_ANGLE_ID : undefined;
         maxHeight.value = playbackDataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : undefined;
         preservePosition.value = false;
+        opening.value = opens;
         const opened = opens && hooks && content ? await openDownload(hooks, content) : null;
+        if (props.content?._id === contentId) opening.value = false;
         if (unmounted || (opens && props.content?._id !== contentId)) {
             // Another item took the player while this one opened, or the player went: it never loads the session.
             void opened?.close().catch(() => undefined);
@@ -856,9 +894,12 @@ function onLoadedMetadata() {
 }
 
 /** Which copy plays now, for the download tool; undefined without downloads. */
-const playingSource = computed<"downloaded" | "online" | undefined>(() =>
-    downloadsPlayer() ? (playback.value ? "downloaded" : "online") : undefined,
-);
+const playingSource = computed<"downloaded" | "online" | undefined>(() => {
+    if (!downloadsPlayer()) return undefined;
+    if (opening.value)
+        return props.content && likelyPlaysDownload(props.content) ? "downloaded" : "online";
+    return playback.value ? "downloaded" : "online";
+});
 
 defineExpose({
     player,
@@ -1281,9 +1322,9 @@ watch(online, (isOnline, wasOnline) => {
 });
 
 /**
- * More of the item became playable: not playing, it switches at once and stays paused; playing, the viewer is asked,
- * and it switches at the next pause either way. Nothing is offered while Online is chosen or the position is in a
- * part the download does not hold.
+ * Chapters of the item were downloaded or removed: the download loads again at once at the same word, playing or not,
+ * so the timeline shows what is on the device now. Nothing changes while Online is chosen. A chapter removed under the
+ * playhead streams on from the same word where it can; offline, the download plays on from the nearest part it holds.
  */
 function onMoreReady(parentId: string) {
     if (!downloadsPlayer() || parentId !== props.content.parentId) return;
@@ -1291,20 +1332,15 @@ function onMoreReady(parentId: string) {
         readyDuringChoice = parentId;
         return;
     }
-    if (closedPlaybackId || !playingThisContent() || !switchable()) return;
-    // A switch still loading shows nothing to interrupt: the next one takes over what that one was to do.
-    if (reloading || !playingNow()) {
+    if (closedPlaybackId || !playingThisContent() || prefersOnline()) return;
+    if (switchable()) {
         void switchToDownload();
         return;
     }
-    if (switchAsked) return;
-    switchAsked = showPlayerNotice({
-        text: textOr("downloads.notice.more_chapters", "More chapters are ready."),
-        action: {
-            label: textOr("downloads.notice.switch_now", "Switch now"),
-            run: () => void switchToDownload(),
-        },
-    });
+    // The part playing is no longer on the device.
+    if (!playback.value) return;
+    if (online() && mediaSource.value) streamInstead(streamPosition());
+    else void switchToDownload(true);
 }
 
 function switchable(): boolean {
@@ -1443,6 +1479,8 @@ async function onSourceChosen(parentId: string, value: "downloaded" | "online"):
         if (playOnlineOverride.value === false) playOnlineOverride.value = before;
         return false;
     }
+    // The next items start in the copy picked here.
+    preferredSource.value = value === "online";
     return true;
 }
 

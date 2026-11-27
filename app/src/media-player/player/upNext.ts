@@ -24,6 +24,26 @@ export type PlayerUpNextItem = {
     downloadPercent?: number;
 };
 
+/**
+ * The items either side of what plays in More, where the chapter buttons go past the first or last chapter. With
+ * nothing marked current, "next" is the first item and there is no "previous". `downloadedOnly` (autoplay plays
+ * downloads only, as offline) passes over what is not on the device.
+ */
+export function moreNeighbours(
+    items: readonly PlayerUpNextItem[],
+    downloadedOnly = false,
+): {
+    previous?: PlayerUpNextItem;
+    next?: PlayerUpNextItem;
+} {
+    const at = items.findIndex((item) => item.current);
+    const playable = (item: PlayerUpNextItem) =>
+        !item.current && (!downloadedOnly || !!item.downloaded);
+    const previous = at > 0 ? items.slice(0, at).reverse().find(playable) : undefined;
+    const next = items.slice(at + 1).find(playable);
+    return { ...(previous ? { previous } : {}), ...(next ? { next } : {}) };
+}
+
 /** The items with the heading to draw above each: a section's name shows once, over its first item. */
 export function withSectionHeadings(
     items: readonly PlayerUpNextItem[],

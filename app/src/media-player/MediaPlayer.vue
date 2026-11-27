@@ -48,6 +48,8 @@ import {
     hasChapterSkip,
     nextChapterTime,
     previousChapterTime,
+    previousLeavesItem,
+    inFirstChapter,
 } from "@/media-player/player/ui/chapterSkip";
 import { mergeMessages } from "@/media-player/player/messages";
 import {
@@ -123,7 +125,7 @@ import { TIMELINE_SCRUB_IDLE_MS } from "./player/ui/timelineScrub";
 import MediaPlayerMenuItem from "./MediaPlayerMenuItem.vue";
 import MediaPlayerUpNext from "./MediaPlayerUpNext.vue";
 import { useUpNext } from "./useUpNext";
-import type { PlayerUpNextItem } from "./player/upNext";
+import { moreNeighbours, type PlayerUpNextItem } from "./player/upNext";
 import { useNextUp } from "./useNextUp";
 import { useMediaPlayerShortcuts } from "./useMediaPlayerShortcuts";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
@@ -1139,15 +1141,8 @@ async function toSound() {
         return;
     }
     if (audioMode.value) return;
-    // The picture goes and the sound plays on: nothing loads, so there is no gap. Sound in several bitrates loads its
-    // own rendering instead, as only that one lets the viewer choose among them (#2690).
-    const soundTiers =
-        state.value?.angles.find((angle) => angle.id === AUDIO_ONLY_ANGLE_ID)?.soundTiers ?? 0;
-    if (
-        handle.value?.canTurnVideoOff &&
-        state.value?.activeAngleId !== AUDIO_ONLY_ANGLE_ID &&
-        soundTiers < 2
-    ) {
+    // The picture goes and the sound plays on: nothing loads, so there is no gap either way, and no picture is fetched.
+    if (handle.value?.canTurnVideoOff && state.value?.activeAngleId !== AUDIO_ONLY_ANGLE_ID) {
         videoOffByChoice.value = true;
         handle.value.setVideoOff?.(true);
         return;
@@ -1222,13 +1217,20 @@ watch(
     () => (capSyncPending = false),
 );
 
+/**
+ * An item opening as sound where the platform turns the picture off in place: the stream loads as it is with its picture
+ * off, so no picture is fetched and Video later comes back with no reload and no gap in the sound.
+ */
+const soundInPlace = computed(() => startAudio.value && handle.value?.canTurnVideoOff === true);
+
 // The picture's off-switch belongs to the item it was used on; the next one starts as its own mode says.
 watch(
     () => item.value?.content._id,
     () => {
-        if (!videoOffByChoice.value) return;
-        videoOffByChoice.value = false;
-        handle.value?.setVideoOff?.(false);
+        const off = soundInPlace.value;
+        if (videoOffByChoice.value === off) return;
+        videoOffByChoice.value = off;
+        handle.value?.setVideoOff?.(off);
     },
 );
 
@@ -1256,14 +1258,43 @@ function skip(seconds: number) {
     holdScrubAt(target);
 }
 
-/** Only with chapters to move between, and never live; "next" is disabled in the last chapter. */
+/**
+ * Whenever a press does something: chapters to move between, or an item either side in More. Never live; "next" is
+ * disabled in the last chapter with nothing after it.
+ */
 const chapterSkipShown = computed(
-    () => hasChapterSkip(chapters.value) && timeKnown.value && !live.value,
+    () =>
+        (hasChapterSkip(chapters.value) ||
+            !!neighbours.value.previous ||
+            !!neighbours.value.next) &&
+        timeKnown.value &&
+        !live.value,
 );
 const nextChapter = computed(() => nextChapterTime(chapters.value, shownTime.value));
 
+/** Past the last chapter, or back from the very start, the chapter buttons go to the item beside this one in More. */
+const neighbours = computed(() =>
+    moreNeighbours(playerUpNext.value, autoplay.value?.mode.value === "downloaded"),
+);
+/** A button that would do nothing is disabled. */
+const previousStepUseful = computed(
+    () => !!neighbours.value.previous || !inFirstChapter(chapters.value, shownTime.value),
+);
+const nextStepUseful = computed(() => nextChapter.value !== null || !!neighbours.value.next);
+function stepItem(entry: PlayerUpNextItem | undefined) {
+    const doc = entry && browseContents.value.find((candidate) => candidate._id === entry.id);
+    if (doc) playNext(doc);
+}
+
 // From where the bar shows, as the skips, so presses in a row step chapter by chapter.
 function skipChapter(step: -1 | 1) {
+    if (step === 1 && nextChapter.value === null) return stepItem(neighbours.value.next);
+    if (
+        step === -1 &&
+        neighbours.value.previous &&
+        previousLeavesItem(chapters.value, shownTime.value)
+    )
+        return stepItem(neighbours.value.previous);
     const target =
         step === 1 ? nextChapter.value : previousChapterTime(chapters.value, shownTime.value);
     if (target === null) return;
@@ -3392,7 +3423,8 @@ function onKeydown(event: KeyboardEvent) {
                     >
                         <PlayerButton
                             v-if="chapterSkipShown"
-                            class="h-10 w-10 !rounded-full"
+                            class="h-10 w-10 !rounded-full disabled:opacity-40"
+                            :disabled="!previousStepUseful"
                             :label="t('media_player.previous_chapter')"
                             data-test="mediaPlayerPreviousChapter"
                             @click="skipChapter(-1)"
@@ -3472,8 +3504,8 @@ function onKeydown(event: KeyboardEvent) {
                         <PlayerButton
                             v-if="chapterSkipShown"
                             class="h-10 w-10 !rounded-full disabled:opacity-40"
+                            :disabled="!nextStepUseful"
                             :label="t('media_player.next_chapter')"
-                            :disabled="nextChapter === null"
                             data-test="mediaPlayerNextChapter"
                             @click="skipChapter(1)"
                         >
@@ -3600,6 +3632,8 @@ function onKeydown(event: KeyboardEvent) {
                     :content="content"
                     :language="item.language"
                     :start-audio="startAudio"
+                    :sound-in-place="soundInPlace"
+                    :minimised="!expanded"
                     :next-up="playerNextUp"
                     :up-next="playerUpNext"
                     autoplay
