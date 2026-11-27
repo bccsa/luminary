@@ -201,8 +201,10 @@ onMounted(async () => {
                 </div>
             </div>
 
+            <!-- The bars only step aside on a long enough scroll range, so a short list is given one below xl. -->
             <div
                 class="isolate mx-auto max-w-5xl space-y-4 pb-4"
+                :class="{ 'min-h-[calc(100dvh+18rem)] xl:min-h-0': showToolbar }"
                 :style="
                     selecting && barHeight
                         ? { paddingBottom: `calc(${barHeight}px + 1.5rem)` }

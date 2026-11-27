@@ -287,15 +287,16 @@ describe("DownloadsPage", () => {
         expect(inert()).toBe("false");
     });
 
-    it("forces no extra height under the storage card", async () => {
+    it("gives a list the scroll range the bars need to step aside, and an empty page none", async () => {
         const ctx = await setupUi();
-        await threeDownloads(ctx);
         const wrapper = mountPage(ctx);
-        const page = wrapper.get("[data-test='downloads-page']");
-        // A minimum height or a deep bottom padding scrolls a short list into blank space.
-        expect(page.classes().filter((name) => name.includes("min-h-"))).toEqual([]);
-        expect(page.classes()).toContain("pb-4");
-        expect(page.element.lastElementChild?.getAttribute("data-test")).toBe("downloads-storage");
+        const classes = () => wrapper.get("[data-test='downloads-page']").classes();
+        expect(classes()).not.toContain("min-h-[calc(100dvh+18rem)]");
+
+        await threeDownloads(ctx);
+        await settle();
+        expect(classes()).toContain("min-h-[calc(100dvh+18rem)]");
+        expect(classes()).toContain("xl:min-h-0");
     });
 
     it("keeps the selection bar above the bottom chrome and moves it with the chrome", async () => {
