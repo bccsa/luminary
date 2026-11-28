@@ -360,11 +360,28 @@ export function createSheetController(ctx: SheetContext): SheetController {
         await engine.updateSheet(sent).catch((error) => deps.reportError(error, "sheet"));
     }
 
+    /**
+     * Offline, a download is managed from what it holds: its source cannot be read, and waiting for that read to fail
+     * would hold the sheet on "Preparing" for nothing.
+     */
+    function heldOffline(sheet: OpenSheet): boolean {
+        const entry = entryOf(sheet);
+        if (!entry || state.network.value.online) return false;
+        sheet.options = optionsFromEntry(entry);
+        sheet.selection = entry.selection;
+        sheet.phase = "ready";
+        return true;
+    }
+
     /** [send]: false while the sheet is not up yet, as when it opens ready. */
     async function prepare(sheet: OpenSheet, sendIt = true) {
         sheet.phase = "preparing";
         sheet.message = undefined;
         sheet.source = undefined;
+        if (heldOffline(sheet)) {
+            if (sendIt) await send(sheet);
+            return;
+        }
         try {
             const { source, options } = await read(sheet.content).work;
             const entry = entryOf(sheet);
@@ -416,8 +433,9 @@ export function createSheetController(ctx: SheetContext): SheetController {
             hint,
         };
         current = sheet;
-        // Read already, it opens on its first step rather than on "Preparing".
-        const ready = read(content).done !== undefined;
+        // Read already, or a download offline, it opens on its first step rather than on "Preparing".
+        const ready =
+            (entryOf(sheet) !== undefined && !state.network.value.online) || read(content).done !== undefined;
         if (ready) await prepare(sheet, false);
         try {
             await engine.presentSheet(model(sheet), sheetTexts(deps.translator()));

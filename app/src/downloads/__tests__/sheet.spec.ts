@@ -203,6 +203,23 @@ describe("openSheet", () => {
         expect(deps.notify).toHaveBeenCalledWith("t:downloads.notice.start_failed", "error");
     });
 
+    it("opens a download at once offline, from what it holds, without reading its source", async () => {
+        const { fake, service, deps } = await setup();
+        await service.openSheet(makeContent(), { context: "player" });
+        await startAll(fake, [0]);
+        fake.tick();
+        fake.tick();
+        fake.setNetwork({ online: false });
+        await flush();
+        vi.mocked(deps.resolveSource).mockClear();
+        const options = vi.spyOn(fake, "options");
+        const present = vi.spyOn(fake, "presentSheet");
+        await service.openSheet(makeContent(), { context: "downloads" });
+        expect(present.mock.calls[0][0]).toMatchObject({ phase: "ready", locked: true });
+        expect(deps.resolveSource).not.toHaveBeenCalled();
+        expect(options).not.toHaveBeenCalled();
+    });
+
     it("offers only the downloads on the volume the download goes to for Free up space", async () => {
         const { fake, service } = await setup({ engine: { card: true } });
         await service.openSheet(makeContent({ parentId: "post-2", _id: "c2" }), {
