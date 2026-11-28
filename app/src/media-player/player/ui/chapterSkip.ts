@@ -36,6 +36,19 @@ export function previousChapterTime(chapters: readonly Chapter[], time: number):
     return index > 0 ? list[index - 1]! : 0;
 }
 
+/** In the first chapter (or before it): there is no chapter before this one to go back to. */
+export function inFirstChapter(chapters: readonly Chapter[], time: number): boolean {
+    return starts(chapters).filter((start) => start <= time + LANDING_SLACK_SECONDS).length <= 1;
+}
+
+/**
+ * "Previous chapter" pressed at the very start: nothing earlier in this video to go to, so it goes to the item before
+ * in More.
+ */
+export function previousLeavesItem(chapters: readonly Chapter[], time: number): boolean {
+    return time <= CHAPTER_RESTART_SECONDS && previousChapterTime(chapters, time) === 0;
+}
+
 type GlyphLayer = { path: string; alpha: number; strokeWidth: number };
 
 /**

@@ -95,6 +95,7 @@ onUnmounted(() => {
                 :is="isNavItemActive(isActive) ? item.selectedIcon : item.defaultIcon"
                 :class="[
                     'h-6 w-6',
+                    item.iconCenteringClass,
                     { 'text-zinc-400 dark:text-slate-200': !isNavItemActive(isActive) },
                     { 'text-yellow-600 dark:text-yellow-500': isNavItemActive(isActive) },
                 ]"

@@ -778,10 +778,13 @@ describe("AudioFullscreen — chapter skips", () => {
         expect(wrapper.emitted("seek")).toEqual([[120], [60]]);
     });
 
-    it("disables next in the last chapter", () => {
-        const wrapper = mountScreen({ currentTime: 450 });
-        expect(find(wrapper, "afsNextChapter").attributes("disabled")).toBeDefined();
-        expect(find(wrapper, "afsPreviousChapter").attributes("disabled")).toBeUndefined();
+    it("disables next in the last chapter with nothing after it, and previous in the first", () => {
+        const end = mountScreen({ currentTime: 450 });
+        expect(find(end, "afsNextChapter").attributes("disabled")).toBeDefined();
+        expect(find(end, "afsPreviousChapter").attributes("disabled")).toBeUndefined();
+        const start = mountScreen({ currentTime: 0 });
+        expect(find(start, "afsPreviousChapter").attributes("disabled")).toBeDefined();
+        expect(find(start, "afsNextChapter").attributes("disabled")).toBeUndefined();
     });
 
     it("has no chapter skips without two chapters, or on a live stream", () => {

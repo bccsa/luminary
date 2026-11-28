@@ -5,6 +5,7 @@ import { db, useDexieLiveQuery, type ContentDto } from "luminary-shared";
 import {
     ArrowDownTrayIcon,
     ArrowPathIcon,
+    CheckIcon,
     ExclamationTriangleIcon,
     KeyIcon,
     MusicalNoteIcon,
@@ -18,7 +19,6 @@ import {
 import LButton from "@/components/button/LButton.vue";
 import LDialog from "@/components/common/LDialog.vue";
 import { useNotificationStore } from "@/stores/notification";
-import { openMediaPlayer } from "@/media-player/mediaPlayer";
 import { DownloadsKey } from "@/build-time/contracts/downloads/token";
 import type { DownloadEntry } from "@/build-time/contracts/downloads/contract";
 import { contentFromSnapshot } from "../content";
@@ -29,7 +29,7 @@ import MeteredConfirmDialog from "./MeteredConfirmDialog.vue";
 
 type Props = {
     entry: DownloadEntry;
-    /** The list is choosing downloads to delete: a tap selects instead of playing. */
+    /** The list is choosing downloads to delete: a tap selects instead of opening the wizard. */
     selecting?: boolean;
     selected?: boolean;
     /** The player is playing this download, so it cannot be deleted now. */
@@ -128,16 +128,15 @@ watch(
     { immediate: true },
 );
 
-/** The content page, when its doc is on the device: without it the route would not resolve offline. */
-const route = computed(() =>
-    stored.value?.slug ? { name: "content", params: { slug: stored.value.slug } } : undefined,
-);
-
-/** Plays the item in the app's player, from the stored doc or, without it, a stand-in made from the download. */
-function play() {
-    if (props.selecting) return;
-    openMediaPlayer(stored.value ?? contentFromSnapshot(props.entry), undefined, {
-        audio: props.entry.selection.kind === "audio",
+/**
+ * Opens the download wizard for this entry, as if its control had been tapped in the player: a tap on the
+ * card manages the download instead of playing it. `selection` hints the wizard with what is already held.
+ */
+function openWizard() {
+    if (props.selecting || !service) return;
+    void service.openSheet(stored.value ?? contentFromSnapshot(props.entry), {
+        context: "downloads",
+        selection: props.entry.selection,
     });
 }
 
@@ -230,20 +229,24 @@ const ACTIONS: Record<CardAction, { key: string; icon: Component }> = {
 
 <template>
     <article
-        class="relative flex flex-col overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 dark:bg-slate-800 dark:ring-white/10"
-        :class="{ 'ring-2 ring-yellow-500 dark:ring-yellow-400': selecting && selected }"
+        class="relative flex flex-col overflow-hidden rounded-lg bg-white shadow dark:bg-slate-800"
+        :class="
+            selecting && selected
+                ? 'ring-2 ring-yellow-500 dark:ring-yellow-400'
+                : 'ring-1 ring-zinc-950/10 dark:ring-white/10'
+        "
         :aria-label="title"
         :data-download-id="entry.downloadId"
         :data-status="entry.status"
         data-test="download-card"
     >
         <component
-            :is="selecting ? 'label' : route ? 'RouterLink' : 'button'"
-            v-bind="selecting ? {} : route ? { to: route } : { type: 'button' }"
+            :is="selecting ? 'label' : 'button'"
+            v-bind="selecting ? {} : { type: 'button' }"
             class="ease-out-expo group flex min-h-24 w-full gap-3 text-left transition"
             :class="selecting ? 'cursor-pointer' : 'hover:brightness-[1.15]'"
             data-test="download-card-open"
-            @click="play"
+            @click="openWizard"
         >
             <div
                 class="relative w-28 shrink-0 overflow-hidden bg-zinc-200 dark:bg-slate-700 sm:w-36"
@@ -270,11 +273,18 @@ const ACTIONS: Record<CardAction, { key: string; icon: Component }> = {
                 <input
                     v-if="selecting"
                     type="checkbox"
-                    class="absolute left-2 top-2 h-5 w-5 rounded border-zinc-300 text-yellow-500 focus:ring-yellow-500 dark:border-slate-500 dark:bg-slate-600"
+                    class="absolute left-2 top-2 h-6 w-6 cursor-pointer appearance-none rounded-full border-2 border-white bg-white/80 shadow ring-1 ring-zinc-950/20 checked:border-yellow-500 checked:bg-yellow-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-500 dark:border-slate-300 dark:bg-slate-800/70 dark:checked:border-yellow-400 dark:checked:bg-yellow-400 dark:focus-visible:outline-yellow-400"
                     :checked="selected"
                     :aria-label="t('downloads.page.select_item', { title })"
                     data-test="download-card-select"
                     @change="emit('toggle')"
+                />
+                <!-- A box without the native look has no tick of its own. -->
+                <CheckIcon
+                    v-if="selecting && selected"
+                    class="pointer-events-none absolute left-3 top-3 h-4 w-4 text-white"
+                    aria-hidden="true"
+                    data-test="download-card-check"
                 />
             </div>
 

@@ -8,8 +8,10 @@
  * to play, where the decryption key comes from, resume position, and the
  * engagement signals a finished video sends.
  */
+import { hasVideo } from "@/downloads/videoParents";
 import {
     computed,
+    defineAsyncComponent,
     inject,
     nextTick,
     onBeforeUnmount,
@@ -18,13 +20,10 @@ import {
     shallowRef,
     watch,
 } from "vue";
-import {
-    AUDIO_ONLY_ANGLE_ID,
-    findPreferredTrack,
-    isYouTubeUrl,
-    type PlayerSource,
-} from "@luminary-media-converter/player-web";
-import { LuminaryPlayer, type PlayerUpNextItem } from "@/media-player/player";
+import { AUDIO_ONLY_ANGLE_ID, findPreferredTrack } from "@luminary-media-converter/player-core";
+import type { PlayerSource } from "@luminary-media-converter/player-web";
+import { isYouTubeLink as isYouTubeUrl } from "@/util/youtube";
+import type { PlayerUpNextItem } from "@/media-player/player/upNext";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import { ensureFreshToken } from "@/auth";
 import LImage from "@/components/images/LImage.vue";
@@ -33,7 +32,12 @@ import YouTubeWrapper from "./YouTubeWrapper.vue";
 import { warmFetch, warmPlaylists } from "./playlistWarm";
 import { isYouTubeLink } from "@/util/youtube";
 import { appLanguagesPreferredAsRef, isDarkTheme, queryParams } from "@/globalConfig";
-import { playbackDataSaverLevel, playbackDataSaverOn, playOnlineOverride } from "./mediaPlayer";
+import {
+    playbackDataSaverLevel,
+    playbackDataSaverOn,
+    playOnlineOverride,
+    preferredSource,
+} from "./mediaPlayer";
 import {
     connectionSpeed,
     hasMeasuredConnectionSpeed,
@@ -90,6 +94,10 @@ type Props = {
     language: string | null | undefined;
     /** Start with the sound only, fetching no video; read when the content changes. */
     startAudio?: boolean;
+    /** The page turns the picture off in place for {@link startAudio}: the stream loads as it is, not as sound alone. */
+    soundInPlace?: boolean;
+    /** The player is minimised: nothing on the page shows the picture. */
+    minimised?: boolean;
     autoplay?: boolean;
     /** Go full-screen when autoplay starts the video, for a player that shows video only there. */
     fullscreenOnPlay?: boolean;
@@ -136,6 +144,10 @@ function passNowPlayingAction(action: VideoNowPlayingAction, value?: string) {
 }
 
 // The browser's player when no service is provided: a component mounted on its own.
+// Loaded only when used, so it stays out of a build whose player is provided.
+const LuminaryPlayer = defineAsyncComponent(
+    () => import("@/media-player/player/components/LuminaryPlayer.vue"),
+);
 const videoPlayer = inject(VideoPlayerKey, {
     component: LuminaryPlayer,
     acceptsNowPlaying: false,
@@ -152,6 +164,8 @@ const downloads = useDownloads();
 const downloadsPlayer = () => (videoPlayer.playsDownloads ? downloads.value?.player : undefined);
 /** The download the content plays from; null while it streams. */
 const playback = shallowRef<DownloadPlayback | null>(null);
+/** The item's download is opening: until it has, the switch shows the copy about to play, not the stream. */
+const opening = ref(false);
 /** The session the engine closed itself: its load is stopped, and nothing more of it is booked. */
 let closedPlaybackId: string | null = null;
 /** A start in a part the download does not hold: the saved position stays until playback moves off this point. */
@@ -302,7 +316,22 @@ const playerExtras = computed(() => ({
     ...(videoPlayer.acceptsNextUp && props.nextUp?.length ? { nextUp: props.nextUp } : {}),
     // A download's built master names only what it holds; the list shows every chapter, those it lacks unavailable.
     ...(shownChapters.value ? { chapters: shownChapters.value } : {}),
+    ...(heldChapters.value ? { downloadedChapters: heldChapters.value } : {}),
 }));
+
+/** While the item streams, which of its chapters are on the device, for the native list's marks (#2690). */
+const heldChapters = computed(() => {
+    if (shownChapters.value || !downloadsPlayer()) return undefined;
+    const entry = downloads.value?.entryFor(props.content.parentId);
+    if (!entry?.chapters.length) return undefined;
+    const done = new Set(
+        entry.units.filter((unit) => unit.state === "done").map((unit) => unit.unitId),
+    );
+    const held = entry.chapters.flatMap((chapter, i) =>
+        chapter.unitIds.length && chapter.unitIds.every((id) => done.has(id)) ? [i] : [],
+    );
+    return held.length ? held : undefined;
+});
 
 const shownChapters = computed(() => {
     const local = playback.value;
@@ -401,6 +430,30 @@ const startAngleId = ref<string | undefined>(undefined);
  * be neither chosen by ABR nor picked by hand. Low enough to be cheap, high enough to be watchable.
  */
 const DATA_SAVER_MAX_HEIGHT = 360;
+
+/**
+ * Minimised in a browser, nothing shows the picture: it drops to the lowest rendition in place (a browser's engine
+ * cannot turn the picture off without a reload, which would break the sound), and goes back under the cap in force when
+ * the player opens. A platform that turns the picture off itself, and a download, are left alone.
+ */
+let cappedWhileMinimised = false;
+watch(
+    () => [props.minimised, player.value?.state?.qualities, playback.value] as const,
+    ([minimised]) => {
+        const controller = player.value?.controller;
+        if (!controller?.canCapInPlace || player.value?.canTurnVideoOff || playback.value) return;
+        if (minimised && !cappedWhileMinimised) {
+            const heights = (player.value?.state?.qualities ?? [])
+                .map((quality) => quality.height ?? 0)
+                .filter((height) => height > 0);
+            if (!heights.length) return;
+            cappedWhileMinimised = controller.setMaxHeight(Math.min(...heights));
+        } else if (!minimised && cappedWhileMinimised) {
+            cappedWhileMinimised = false;
+            controller.setMaxHeight(playbackDataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : null);
+        }
+    },
+);
 const MIN_RESUME_SECONDS = MIN_MEDIA_PROGRESS_SECONDS;
 /** Resuming lands slightly before where the viewer left, to re-establish context. */
 const RESUME_REWIND_SECONDS = 30;
@@ -592,10 +645,13 @@ watch(
         const opens = !!hooks && !!content && !isYouTubeLink(masterUrl);
         if (masterUrl && !isYouTubeUrl(masterUrl) && !(opens && likelyPlaysDownload(content)))
             warmPlaylists(masterUrl);
-        startAngleId.value = props.startAudio ? AUDIO_ONLY_ANGLE_ID : undefined;
+        startAngleId.value =
+            props.startAudio && !props.soundInPlace ? AUDIO_ONLY_ANGLE_ID : undefined;
         maxHeight.value = playbackDataSaverOn.value ? DATA_SAVER_MAX_HEIGHT : undefined;
         preservePosition.value = false;
+        opening.value = opens;
         const opened = opens && hooks && content ? await openDownload(hooks, content) : null;
+        if (props.content?._id === contentId) opening.value = false;
         if (unmounted || (opens && props.content?._id !== contentId)) {
             // Another item took the player while this one opened, or the player went: it never loads the session.
             void opened?.close().catch(() => undefined);
@@ -767,7 +823,8 @@ const playerWrapper = ref<HTMLElement | null>(null);
  * techs, and a title the CMS edits while the same video plays has to follow.
  */
 watch(
-    [source, () => props.content.title],
+    // The player too: one loaded on demand puts its element in place after the source is set.
+    [source, () => props.content.title, player],
     async ([current]) => {
         if (!current) return;
         await nextTick();
@@ -838,9 +895,12 @@ function onLoadedMetadata() {
 }
 
 /** Which copy plays now, for the download tool; undefined without downloads. */
-const playingSource = computed<"downloaded" | "online" | undefined>(() =>
-    downloadsPlayer() ? (playback.value ? "downloaded" : "online") : undefined,
-);
+const playingSource = computed<"downloaded" | "online" | undefined>(() => {
+    if (!downloadsPlayer()) return undefined;
+    if (opening.value)
+        return props.content && likelyPlaysDownload(props.content) ? "downloaded" : "online";
+    return playback.value ? "downloaded" : "online";
+});
 
 defineExpose({
     player,
@@ -849,6 +909,7 @@ defineExpose({
     playback,
     playingSource,
     streamOffersVideo: computed(() => streamOffersVideo.value),
+    videoNeedsStream: computed(() => videoNeedsStream.value),
     streamForVideo: () => streamForVideo(),
     downloadForSound: () => downloadForSound(),
     keyUnavailable: computed(() => keyUnavailable.value),
@@ -1215,6 +1276,16 @@ function streamInstead(position: number | undefined, play?: boolean) {
     reloadAt(null, position, play);
 }
 
+/** A download of the sound alone plays: its picture is not on the device, only in the stream. */
+const videoNeedsStream = computed(
+    () =>
+        !!playback.value &&
+        !!mediaSource.value &&
+        downloads.value?.entryFor(props.content.parentId)?.selection.kind === "audio" &&
+        // Sound-only content has no Video to offer at all.
+        hasVideo(props.content.parentId),
+);
+
 /** A download of the sound alone plays and the stream can be reached: the picture can come from the stream. */
 const streamOffersVideo = computed(
     () =>
@@ -1263,9 +1334,9 @@ watch(online, (isOnline, wasOnline) => {
 });
 
 /**
- * More of the item became playable: not playing, it switches at once and stays paused; playing, the viewer is asked,
- * and it switches at the next pause either way. Nothing is offered while Online is chosen or the position is in a
- * part the download does not hold.
+ * Chapters of the item were downloaded or removed: the download loads again at once at the same word, playing or not,
+ * so the timeline shows what is on the device now. Nothing changes while Online is chosen. A chapter removed under the
+ * playhead streams on from the same word where it can; offline, the download plays on from the nearest part it holds.
  */
 function onMoreReady(parentId: string) {
     if (!downloadsPlayer() || parentId !== props.content.parentId) return;
@@ -1273,20 +1344,15 @@ function onMoreReady(parentId: string) {
         readyDuringChoice = parentId;
         return;
     }
-    if (closedPlaybackId || !playingThisContent() || !switchable()) return;
-    // A switch still loading shows nothing to interrupt: the next one takes over what that one was to do.
-    if (reloading || !playingNow()) {
+    if (closedPlaybackId || !playingThisContent() || prefersOnline()) return;
+    if (switchable()) {
         void switchToDownload();
         return;
     }
-    if (switchAsked) return;
-    switchAsked = showPlayerNotice({
-        text: textOr("downloads.notice.more_chapters", "More chapters are ready."),
-        action: {
-            label: textOr("downloads.notice.switch_now", "Switch now"),
-            run: () => void switchToDownload(),
-        },
-    });
+    // The part playing is no longer on the device.
+    if (!playback.value) return;
+    if (online() && mediaSource.value) streamInstead(streamPosition());
+    else void switchToDownload(true);
 }
 
 function switchable(): boolean {
@@ -1425,6 +1491,8 @@ async function onSourceChosen(parentId: string, value: "downloaded" | "online"):
         if (playOnlineOverride.value === false) playOnlineOverride.value = before;
         return false;
     }
+    // The next items start in the copy picked here.
+    preferredSource.value = value === "online";
     return true;
 }
 
@@ -1526,6 +1594,11 @@ function onDownloadAction(action: VideoDownloadAction) {
         });
     else if (action.action === "chapterOnline" && chapter && online() && mediaSource.value)
         streamInstead(chapter.startTime, true);
+    else if (
+        action.action === "source" &&
+        (action.value === "downloaded" || action.value === "online")
+    )
+        void onSourceChosen(props.content.parentId, action.value);
     else emit("downloadaction", action);
 }
 

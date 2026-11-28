@@ -95,6 +95,10 @@ vi.mock("@/composables/useBucketInfo", () => ({
 }));
 // The app's player UI re-exports the mocked engine's stand-ins.
 vi.mock("@/media-player/player", () => import("@luminary-media-converter/player-web"));
+vi.mock("@/media-player/player/components/LuminaryPlayer.vue", async () => ({
+    __esModule: true,
+    default: (await import("@luminary-media-converter/player-web")).LuminaryPlayer,
+}));
 
 vi.mock("luminary-shared", async (importOriginal) => ({
     ...(await importOriginal<typeof import("luminary-shared")>()),

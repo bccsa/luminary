@@ -236,12 +236,16 @@ export function createPlayerHooks(ctx: PlayerContext): DownloadsPlayerHooks {
         if (!item || item.parentId !== entry.parentId) return;
         if (!item.downloadId) playing.value = { ...item, downloadId: entry.downloadId };
         const done = doneUnitIds(entry);
-        if ([...done].some((id) => !item.done.has(id))) foldMoreReady(entry.parentId, done);
+        if (changed(item.done, done)) foldMoreReady(entry.parentId, done);
     }
 
+    /** Units finished or removed since: what plays is no longer what the download holds. */
+    const changed = (before: ReadonlySet<string>, now: ReadonlySet<string>) =>
+        [...now].some((id) => !before.has(id)) || [...before].some((id) => !now.has(id));
+
     /**
-     * Reports "more is ready" once units stop finishing, unless what plays by then holds them all: a session that
-     * opened meanwhile may have read them.
+     * Reports "more is ready" once units stop finishing or being removed, unless what plays by then holds just them: a
+     * session that opened meanwhile may have read them.
      */
     function foldMoreReady(parentId: string, fallback: ReadonlySet<string>) {
         if (foldTimer) return;
@@ -252,7 +256,7 @@ export function createPlayerHooks(ctx: PlayerContext): DownloadsPlayerHooks {
             const latest = state.byParent.value.get(parentId);
             const done = latest ? doneUnitIds(latest) : fallback;
             playing.value = { ...now, done };
-            if (![...done].some((id) => !now.done.has(id))) return;
+            if (!changed(now.done, done)) return;
             for (const listener of Array.from(moreReady)) listener(parentId);
         }, MORE_READY_FOLD_MS);
     }

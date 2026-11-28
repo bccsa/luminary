@@ -5,6 +5,7 @@
  * menu, showing the picture or the cover with the transport; minimised, a bar riding on the menu. `MediaPlayerWrapper` stays mounted in the picture area for as long as an item
  * plays, so minimising never restarts it.
  */
+import { rememberHasVideo } from "@/downloads/videoParents";
 import { useEventListener } from "@vueuse/core";
 import {
     computed,
@@ -31,25 +32,33 @@ import {
     AUDIO_ONLY_ANGLE_ID,
     chapterIndexAt,
     chapterSegments,
-    type ThumbnailSpriteCue,
-    type Chapter,
-    type SleepTimerOption,
+} from "@luminary-media-converter/player-core";
+import type {
+    ThumbnailSpriteCue,
+    Chapter,
+    SleepTimerOption,
 } from "@luminary-media-converter/player-web";
+// Straight from their modules: the player's index also loads the web player, which the native app does not use.
+import AudioFullscreen from "@/media-player/player/components/AudioFullscreen.vue";
+import ScrubPicture from "@/media-player/player/components/ScrubPicture.vue";
+import ScrubRoster from "@/media-player/player/components/ScrubRoster.vue";
+import type { ScrubPosition } from "@/media-player/player/ui/audioFullscreen";
+import { chapterMask } from "@/media-player/player/ui/chapterBar";
+import { sidePanelsOpen } from "@/composables/sidePanelsOpen";
 import {
-    AudioFullscreen,
-    ScrubPicture,
-    ScrubRoster,
-    chapterMask,
     hasChapterSkip,
-    mergeMessages,
     nextChapterTime,
     previousChapterTime,
+    previousLeavesItem,
+    inFirstChapter,
+} from "@/media-player/player/ui/chapterSkip";
+import { mergeMessages } from "@/media-player/player/messages";
+import {
     rosterFineStep,
     rosterStep,
     rosterTileWidth,
     rosterTiles,
-    type ScrubPosition,
-} from "@/media-player/player";
+} from "@/media-player/player/ui/scrubPreview";
 import { StripSpin } from "@/media-player/player/ui/stripSpin";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
@@ -65,6 +74,7 @@ import type {
 } from "@/build-time/contracts/video-player/contract";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import { useDownloads } from "@/build-time/contracts/downloads/token";
+import type { DownloadBadge } from "@/build-time/contracts/downloads/contract";
 import { useNotificationStore } from "@/stores/notification";
 import { nowPlayingDownload } from "./downloadPlayback";
 import {
@@ -116,7 +126,7 @@ import { TIMELINE_SCRUB_IDLE_MS } from "./player/ui/timelineScrub";
 import MediaPlayerMenuItem from "./MediaPlayerMenuItem.vue";
 import MediaPlayerUpNext from "./MediaPlayerUpNext.vue";
 import { useUpNext } from "./useUpNext";
-import type { PlayerUpNextItem } from "./player/upNext";
+import { moreNeighbours, type PlayerUpNextItem } from "./player/upNext";
 import { useNextUp } from "./useNextUp";
 import { useMediaPlayerShortcuts } from "./useMediaPlayerShortcuts";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
@@ -196,13 +206,72 @@ const { nextContents, nextUp, browseContents, browseUpNext } = useNextUp(
 );
 /** The items up next for the player's own panel and strip, those on the device marked. */
 function markDownloaded(items: PlayerUpNextItem[], docs: ContentDto[]) {
-    const playable = downloadsService.value?.playableParentIds.value;
-    if (!playable?.size) return items;
-    return items.map((entry, i) =>
-        docs[i] && playable.has(docs[i].parentId) ? { ...entry, downloaded: true } : entry,
-    );
+    const service = downloadsService.value;
+    const playable = service?.playableParentIds.value;
+    const badges = service?.badges.value;
+    if (!playable?.size && !badges?.size) return items;
+    return items.map((entry, i) => {
+        const doc = docs[i];
+        if (!doc) return entry;
+        const badge = badges?.get(doc.parentId);
+        const marked = badge && badge.state !== "none";
+        if (!playable?.has(doc.parentId) && !marked) return entry;
+        return {
+            ...entry,
+            ...(entry.current
+                ? {}
+                : { subtitle: downloadDetail(doc.parentId, badge) ?? entry.subtitle }),
+            ...(playable?.has(doc.parentId) ? { downloaded: true } : {}),
+            // The More list's mark: the same five states as the tiles' (#2690 board 4).
+            ...(marked ? { downloadBadge: badge.state } : {}),
+            ...(badge?.state === "progress" ? { downloadPercent: badge.percent } : {}),
+        };
+    });
 }
 const playerUpNext = computed(() => markDownloaded(browseUpNext.value, browseContents.value));
+/** A More row's line for an item with a download: "Video", "Audio · 3 of 8 chapters", "Downloading · 64%" (#2690). */
+function downloadDetail(parentId: Uuid, badge: DownloadBadge | undefined): string | undefined {
+    if (badge?.state === "progress")
+        return textOr("downloads.now_playing.more_downloading", "Downloading · {percent}%", {
+            percent: String(badge.percent),
+        }).replace("{percent}", String(badge.percent));
+    const entry = downloadsService.value?.entryFor(parentId);
+    if (!entry) return undefined;
+    const kind =
+        entry.selection.kind === "audio"
+            ? textOr("downloads.page.kind_audio", "Audio")
+            : textOr("downloads.page.kind_video", "Video");
+    const total = entry.chapters.length;
+    const done = new Set(
+        entry.units.filter((unit) => unit.state === "done").map((unit) => unit.unitId),
+    );
+    const held = entry.chapters.filter(
+        (c) => c.unitIds.length && c.unitIds.every((id) => done.has(id)),
+    ).length;
+    const part =
+        total && held < total
+            ? textOr("downloads.page.chapters", "{done} of {total} chapters", {
+                  done: String(held),
+                  total: String(total),
+              })
+                  .replace("{done}", String(held))
+                  .replace("{total}", String(total))
+            : undefined;
+    return [kind, part].filter(Boolean).join(" · ");
+}
+/** How many items up next are on the device, for the autoplay menu's "Downloaded only" line. */
+const downloadedAfter = computed(() => {
+    const playable = downloadsService.value?.playableParentIds.value;
+    if (!playable) return 0;
+    const here = content.value?.parentId;
+    return new Set(
+        browseContents.value
+            .map((doc) => doc?.parentId)
+            .filter((id) => id && id !== here && playable.has(id)),
+    ).size;
+});
+/** Autoplay has nothing to play next in its mode: the screen greys its row out with the reason. */
+const nothingNext = computed(() => !nextContents.value.length);
 const playerNextUp = computed(() => markDownloaded(nextUp.value, nextContents.value));
 /** Up next has had something to offer for this video: the tab stays while a new choice loads. */
 const hadUpNext = ref(false);
@@ -1043,6 +1112,14 @@ watch(
 const videoAngles = computed(
     () => state.value?.angles.filter((angle) => angle.id !== AUDIO_ONLY_ANGLE_ID) ?? [],
 );
+// What the stream offers is kept, so a download of the sound alone knows offline whether Video exists.
+watch(
+    () => [state.value?.lifecycle, videoAngles.value.length, engine.value?.playback] as const,
+    ([lifecycle, angles, playback]) => {
+        const parentId = content.value?.parentId;
+        if (parentId && lifecycle === "ready" && !playback) rememberHasVideo(parentId, angles > 0);
+    },
+);
 /** The cameras the now-playing screen offers, by the names the master gives them, with a capital ("Pulpit"). */
 const screenAngles = computed(() =>
     videoAngles.value.map((angle) => ({
@@ -1057,7 +1134,10 @@ const canSwitch = computed(
         !!controller.value &&
         ((!!state.value?.angles.some((angle) => angle.id === AUDIO_ONLY_ANGLE_ID) &&
             videoAngles.value.length > 0) ||
-            engine.value?.streamOffersVideo === true),
+            // A download's master has no sound-only rendering; the platform turns its picture off in place instead.
+            (!!handle.value?.canTurnVideoOff && videoAngles.value.length > 0) ||
+            // A download of the sound alone: Video is offered, with a warning (or why not, offline) from the platform.
+            engine.value?.videoNeedsStream === true),
 );
 
 async function showAudio() {
@@ -1073,7 +1153,7 @@ async function toSound() {
         return;
     }
     if (audioMode.value) return;
-    // The picture goes and the sound plays on: nothing loads, so there is no gap.
+    // The picture goes and the sound plays on: nothing loads, so there is no gap either way, and no picture is fetched.
     if (handle.value?.canTurnVideoOff && state.value?.activeAngleId !== AUDIO_ONLY_ANGLE_ID) {
         videoOffByChoice.value = true;
         handle.value.setVideoOff?.(true);
@@ -1107,14 +1187,19 @@ async function showVideo() {
         capSyncPending = false;
         engine.value?.syncDataSaverCap();
     }
-    if (videoOffByChoice.value) {
-        videoOffByChoice.value = false;
-        handle.value?.setVideoOff?.(false);
+    // A download of the sound alone has no picture to turn back on: the stream brings it, whatever turned it off.
+    if (engine.value?.streamForVideo?.()) {
+        audioRequested.value = false;
+        if (videoOffByChoice.value) {
+            videoOffByChoice.value = false;
+            handle.value?.setVideoOff?.(false);
+        }
         if (isNativeApp() && !inlineVideo.value) await handle.value?.enterFullscreen();
         return;
     }
-    if (engine.value?.streamForVideo?.()) {
-        audioRequested.value = false;
+    if (videoOffByChoice.value) {
+        videoOffByChoice.value = false;
+        handle.value?.setVideoOff?.(false);
         if (isNativeApp() && !inlineVideo.value) await handle.value?.enterFullscreen();
         return;
     }
@@ -1149,13 +1234,20 @@ watch(
     () => (capSyncPending = false),
 );
 
+/**
+ * An item opening as sound where the platform turns the picture off in place: the stream loads as it is with its picture
+ * off, so no picture is fetched and Video later comes back with no reload and no gap in the sound.
+ */
+const soundInPlace = computed(() => startAudio.value && handle.value?.canTurnVideoOff === true);
+
 // The picture's off-switch belongs to the item it was used on; the next one starts as its own mode says.
 watch(
     () => item.value?.content._id,
     () => {
-        if (!videoOffByChoice.value) return;
-        videoOffByChoice.value = false;
-        handle.value?.setVideoOff?.(false);
+        const off = soundInPlace.value;
+        if (videoOffByChoice.value === off) return;
+        videoOffByChoice.value = off;
+        handle.value?.setVideoOff?.(off);
     },
 );
 
@@ -1183,14 +1275,43 @@ function skip(seconds: number) {
     holdScrubAt(target);
 }
 
-/** Only with chapters to move between, and never live; "next" is disabled in the last chapter. */
+/**
+ * Whenever a press does something: chapters to move between, or an item either side in More. Never live; "next" is
+ * disabled in the last chapter with nothing after it.
+ */
 const chapterSkipShown = computed(
-    () => hasChapterSkip(chapters.value) && timeKnown.value && !live.value,
+    () =>
+        (hasChapterSkip(chapters.value) ||
+            !!neighbours.value.previous ||
+            !!neighbours.value.next) &&
+        timeKnown.value &&
+        !live.value,
 );
 const nextChapter = computed(() => nextChapterTime(chapters.value, shownTime.value));
 
+/** Past the last chapter, or back from the very start, the chapter buttons go to the item beside this one in More. */
+const neighbours = computed(() =>
+    moreNeighbours(playerUpNext.value, autoplay.value?.mode.value === "downloaded"),
+);
+/** A button that would do nothing is disabled. */
+const previousStepUseful = computed(
+    () => !!neighbours.value.previous || !inFirstChapter(chapters.value, shownTime.value),
+);
+const nextStepUseful = computed(() => nextChapter.value !== null || !!neighbours.value.next);
+function stepItem(entry: PlayerUpNextItem | undefined) {
+    const doc = entry && browseContents.value.find((candidate) => candidate._id === entry.id);
+    if (doc) playNext(doc);
+}
+
 // From where the bar shows, as the skips, so presses in a row step chapter by chapter.
 function skipChapter(step: -1 | 1) {
+    if (step === 1 && nextChapter.value === null) return stepItem(neighbours.value.next);
+    if (
+        step === -1 &&
+        neighbours.value.previous &&
+        previousLeavesItem(chapters.value, shownTime.value)
+    )
+        return stepItem(neighbours.value.previous);
     const target =
         step === 1 ? nextChapter.value : previousChapterTime(chapters.value, shownTime.value);
     if (target === null) return;
@@ -1492,13 +1613,13 @@ const nativeBarTexts = computed(() => ({
     close: t("media_player.close"),
     loading: t("video_player.loading"),
 }));
-/** Where the unseen bar is, for the platform to draw in; nothing while the keyboard has it away. */
+/** Where the unseen bar is, for the platform to draw in; nothing while the keyboard or a side panel has it away. */
 function sendBarFrame() {
     const player = handle.value;
     if (!player?.setMiniPlayerFrame) return;
     const element = bar.value;
     const box =
-        nativeOwnsBar.value && element && !keyboardOpen.value
+        nativeOwnsBar.value && element && !keyboardOpen.value && sidePanelsOpen.value === 0
             ? element.getBoundingClientRect()
             : null;
     player.setMiniPlayerFrame(
@@ -1535,7 +1656,7 @@ watch(
     },
     { immediate: true },
 );
-watch(keyboardOpen, () => void nextTick(sendBarFrame));
+watch([keyboardOpen, sidePanelsOpen], () => void nextTick(sendBarFrame));
 onMounted(() => window.addEventListener("resize", sendBarFrame));
 onBeforeUnmount(() => {
     window.removeEventListener("resize", sendBarFrame);
@@ -1889,7 +2010,12 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
             ? {
                   autoplayMode: autoplay.value.mode.value,
                   autoplayModeLocked: autoplay.value.locked.value,
+                  autoplayDownloadedCount: downloadedAfter.value,
               }
+            : {}),
+        ...(nothingNext.value ? { autoplayNothingNext: true } : {}),
+        ...(engine.value?.videoNeedsStream
+            ? { videoFrom: engine.value.streamOffersVideo ? "stream" : "unavailable" }
             : {}),
         ...(screenDownload.value ? { download: screenDownload.value } : {}),
         ...(playerNotice.value
@@ -1911,6 +2037,32 @@ const nativeScreenContent = computed<VideoNowPlayingScreen | null>(() => {
 
 /** Whether the item may be downloaded now, for the download tool. */
 const downloadable = computed(() => downloadsProvided.value?.eligibility(() => content.value));
+
+/**
+ * The sheet's reading (a handful of small playlists) is done in the background so the sheet opens ready, but only once
+ * the item has loaded and settled, then when the phone is idle: it never competes with the video's own start.
+ */
+const WARM_SHEET_AFTER_MS = 3000;
+watch(
+    () => {
+        const shown = content.value;
+        const service = downloadsService.value;
+        if (!shown || !service?.warmSheet || !service.network.value.online) return null;
+        if (state.value?.lifecycle !== "ready" || starting.value) return null;
+        return service.entryFor(shown.parentId) || downloadable.value?.value ? shown : null;
+    },
+    (shown, _before, onCleanup) => {
+        if (!shown) return;
+        const timer = setTimeout(() => {
+            const warm = () => downloadsService.value?.warmSheet?.(shown);
+            if ("requestIdleCallback" in window)
+                window.requestIdleCallback(warm, { timeout: 3000 });
+            else warm();
+        }, WARM_SHEET_AFTER_MS);
+        onCleanup(() => clearTimeout(timer));
+    },
+    { immediate: true },
+);
 /**
  * The download tool: shown for an item that may be downloaded or has a download. A progress tick that leaves the
  * tool as it was hands back the same object, so the screen is not described again for it.
@@ -2036,6 +2188,9 @@ const nativeScreenTexts = computed<VideoNowPlayingTexts>(() =>
             strictVideoTitle: known("media_player.strict_video_title"),
             strictVideoDescription: known("media_player.strict_video_description"),
             strictVideoConfirm: known("media_player.strict_video_confirm"),
+            videoStreamTitle: known("media_player.video_stream_title"),
+            videoStreamDescription: known("media_player.video_stream_description"),
+            videoStreamConfirm: known("media_player.video_stream_confirm"),
             // The platform fills these in itself, so the placeholders go through as they are.
             sleepMinutes: known("media_player.sleep_minutes", { minutes: "{minutes}" }),
             sleepEndOfChapter: known("media_player.sleep_end_of_chapter"),
@@ -3291,7 +3446,8 @@ function onKeydown(event: KeyboardEvent) {
                     >
                         <PlayerButton
                             v-if="chapterSkipShown"
-                            class="h-10 w-10 !rounded-full"
+                            class="h-10 w-10 !rounded-full disabled:opacity-40"
+                            :disabled="!previousStepUseful"
                             :label="t('media_player.previous_chapter')"
                             data-test="mediaPlayerPreviousChapter"
                             @click="skipChapter(-1)"
@@ -3371,8 +3527,8 @@ function onKeydown(event: KeyboardEvent) {
                         <PlayerButton
                             v-if="chapterSkipShown"
                             class="h-10 w-10 !rounded-full disabled:opacity-40"
+                            :disabled="!nextStepUseful"
                             :label="t('media_player.next_chapter')"
-                            :disabled="nextChapter === null"
                             data-test="mediaPlayerNextChapter"
                             @click="skipChapter(1)"
                         >
@@ -3499,6 +3655,8 @@ function onKeydown(event: KeyboardEvent) {
                     :content="content"
                     :language="item.language"
                     :start-audio="startAudio"
+                    :sound-in-place="soundInPlace"
+                    :minimised="!expanded"
                     :next-up="playerNextUp"
                     :up-next="playerUpNext"
                     autoplay

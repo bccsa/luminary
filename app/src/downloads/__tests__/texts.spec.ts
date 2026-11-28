@@ -81,8 +81,9 @@ describe("downloads strings", () => {
     it("builds every sheet, notification and now-playing text, keeping the platform's placeholders", () => {
         const translator = translatorFor(french);
         const sheet = sheetTexts(translator);
-        expect(Object.keys(sheet)).toHaveLength(53);
+        expect(Object.keys(sheet)).toHaveLength(73);
         expect(sheet.freeSpace).toBe("{size} libres");
+        expect(sheet.reopenedHeaderCard).toBe("{done} chapitres sur {total} · {size} sur la carte SD");
         expect(sheet.removeMessage).toBe("« {title} » sera supprimé de cet appareil.");
 
         const notification = notificationTexts(translator, "Titre");
@@ -91,8 +92,10 @@ describe("downloads strings", () => {
         expect(notification.progress).toBe("{done} sur {total} · {percent} %");
 
         const nowPlaying = nowPlayingDownloadTexts(translatorFor(english));
-        expect(Object.keys(nowPlaying)).toHaveLength(14);
+        expect(Object.keys(nowPlaying)).toHaveLength(31);
         expect(nowPlaying.downloadProgress).toBe("Downloading, {percent}%");
+        expect(nowPlaying.autoplayLineAll).toBe("All in this category · tap to change");
+        expect(nowPlaying.qualityBest).toBe("Best");
     });
 
     it("leaves out keys the language does not have, so the platform's English stands in", () => {

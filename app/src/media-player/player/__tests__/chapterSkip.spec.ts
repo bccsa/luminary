@@ -5,6 +5,8 @@ import {
     hasChapterSkip,
     nextChapterTime,
     previousChapterTime,
+    previousLeavesItem,
+    inFirstChapter,
 } from "../ui/chapterSkip";
 
 const chapter = (startTime: number, endTime: number, title = "") => ({ startTime, endTime, title });
@@ -86,5 +88,29 @@ describe("chapterIcon", () => {
         expect(svg).toContain('viewBox="0 0 18 18"');
         for (const layer of CHAPTER_GLYPHS.next) expect(svg).toContain(layer.path);
         expect(chapterIcon(false)).toContain(CHAPTER_GLYPHS.previous[0]!.path);
+    });
+});
+
+describe("previousLeavesItem", () => {
+    it("leaves for the item before only from the very start", () => {
+        expect(previousLeavesItem(chapters, 0)).toBe(true);
+        expect(previousLeavesItem(chapters, 2.5)).toBe(true);
+        expect(previousLeavesItem(chapters, 10)).toBe(false);
+        expect(previousLeavesItem(chapters, 61)).toBe(false);
+    });
+
+    it("restarts an intro before the first chapter rather than leaving", () => {
+        const late = [chapter(26, 60), chapter(60, 120)];
+        expect(previousLeavesItem(late, 20)).toBe(false);
+        expect(previousLeavesItem(late, 1)).toBe(true);
+    });
+});
+
+describe("inFirstChapter", () => {
+    it("is true until the second chapter starts", () => {
+        expect(inFirstChapter(chapters, 0)).toBe(true);
+        expect(inFirstChapter(chapters, 45)).toBe(true);
+        expect(inFirstChapter(chapters, 60)).toBe(false);
+        expect(inFirstChapter([chapter(26, 60), chapter(60, 90)], 10)).toBe(true);
     });
 });

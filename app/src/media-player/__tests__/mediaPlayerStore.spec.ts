@@ -16,6 +16,7 @@ import {
     dataSaverOverride,
     playbackDataSaverLevel,
     playOnlineOverride,
+    preferredSource,
 } from "../mediaPlayer";
 
 const other = { ...mockEnglishContentDto, _id: "content-other" };
@@ -24,6 +25,7 @@ beforeEach(() => {
     closeMediaPlayer();
     userDataSaverEnabled.value = false;
     chosenAudio.value = null;
+    preferredSource.value = null;
 });
 
 describe("the media player's store", () => {
@@ -144,6 +146,15 @@ describe("the media player's store", () => {
     });
 
     describe("the viewer's pick of a copy", () => {
+        it("starts each item in the copy last picked on the switch", () => {
+            preferredSource.value = true;
+            openMediaPlayer(other, "en");
+            expect(playOnlineOverride.value).toBe(true);
+            preferredSource.value = false;
+            openMediaPlayer(mockEnglishContentDto, "en");
+            expect(playOnlineOverride.value).toBe(false);
+        });
+
         it("lasts for the item playing: another item follows the downloads' own pick again", () => {
             openMediaPlayer(mockEnglishContentDto, "en");
             playOnlineOverride.value = true;

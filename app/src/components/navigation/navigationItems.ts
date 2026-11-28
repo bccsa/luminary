@@ -28,6 +28,8 @@ export function getNavigationItems(t: (key: string) => string) {
             name: t("menu.watch"),
             defaultIcon: PlayIcon,
             selectedIcon: FilledPlayIcon,
+            /** The triangle's weight sits left of its box; nudged right, it looks centred over its label. */
+            iconCenteringClass: "translate-x-0.5",
             to: { name: "watch" },
         },
         {

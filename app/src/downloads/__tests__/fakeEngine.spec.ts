@@ -147,6 +147,8 @@ describe("createFakeEngine", () => {
             selection: { kind: "audio" as const, audioLanguage: "en" },
             locked: false,
             sparsePlayback: true,
+            appLanguage: "",
+            volumes: [],
             freeBytes: 0,
             reserveBytes: 0,
             reclaimableBytes: 0,

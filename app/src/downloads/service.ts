@@ -375,6 +375,7 @@ export function createDownloadsService(
         entryFor: (parentId) => state.byParent.value.get(parentId),
         eligibility,
         openSheet: (content, options) => sheet.open(content, options),
+        warmSheet: (content) => sheet.warm(content),
         pause,
         resume,
         resumeAll,

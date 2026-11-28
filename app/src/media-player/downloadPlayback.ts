@@ -40,10 +40,14 @@ export function downloadChapters(
     timeline: DownloadTimeline,
 ): VideoChapter[] | undefined {
     if (!entry?.chapters.length) return undefined;
-    return entry.chapters.map((chapter) => ({
-        title: chapter.title,
-        ...timeline.chapter(chapter),
-    }));
+    return entry.chapters.map((chapter) => {
+        const placed = timeline.chapter(chapter);
+        return {
+            title: chapter.title,
+            ...placed,
+            ...(placed.available !== false ? { downloaded: true } : {}),
+        };
+    });
 }
 
 /** The text key, and its English, of what the viewer is told when the engine stops a session itself. */

@@ -16,7 +16,7 @@ import type {
     ThumbnailSpriteCue,
 } from "@luminary-media-converter/player-web";
 import { formatSeconds, type PlayerMessages } from "../messages";
-import type { PlayerUpNextItem } from "../upNext";
+import { moreNeighbours, type PlayerUpNextItem } from "../upNext";
 import BrowsePanel from "./BrowsePanel.vue";
 import NowPlayingLyrics from "./NowPlayingLyrics.vue";
 import { activeLyric, type LyricCue } from "../ui/lyrics";
@@ -28,6 +28,8 @@ import {
     hasChapterSkip,
     nextChapterTime,
     previousChapterTime,
+    previousLeavesItem,
+    inFirstChapter,
 } from "../ui/chapterSkip";
 import { TimelineScrub } from "../ui/timelineScrub";
 import {
@@ -593,10 +595,27 @@ const skip = (seconds: number): void =>
 
 /** As the full-screen controls: only with chapters to move between, and "next" dimmed in the last one. */
 const chapterSkipShown = computed(
-    () => hasChapterSkip(props.chapters) && !isLive.value && knownDuration.value > 0,
+    () =>
+        (hasChapterSkip(props.chapters) ||
+            !!neighbours.value.previous ||
+            !!neighbours.value.next) &&
+        !isLive.value &&
+        knownDuration.value > 0,
 );
 const nextChapter = computed(() => nextChapterTime(props.chapters, shownTime.value));
+/** Past the last chapter, or back from the very start, the buttons go to the item beside this one in More. */
+const neighbours = computed(() => moreNeighbours(props.upNext ?? []));
+/** A button that would do nothing is disabled. */
+const previousStepUseful = computed(
+    () => !!neighbours.value.previous || !inFirstChapter(props.chapters, shownTime.value),
+);
+const nextStepUseful = computed(() => nextChapter.value !== null || !!neighbours.value.next);
 function skipChapter(step: -1 | 1): void {
+    const out =
+        step === 1
+            ? nextChapter.value === null && neighbours.value.next
+            : previousLeavesItem(props.chapters, shownTime.value) && neighbours.value.previous;
+    if (out) return void emit("upnextselect", out.id);
     const target =
         step === 1 ? nextChapter.value : previousChapterTime(props.chapters, shownTime.value);
     if (target !== null) seekTo(target);
@@ -1264,6 +1283,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                 v-if="chapterSkipShown"
                                 type="button"
                                 class="lmpl-afs-chapter"
+                                :disabled="!previousStepUseful"
                                 :aria-label="messages.previousChapter"
                                 data-test="afsPreviousChapter"
                                 data-lmpl-press
@@ -1356,7 +1376,7 @@ onBeforeUnmount(() => toolsObserver?.disconnect());
                                 type="button"
                                 class="lmpl-afs-chapter"
                                 :aria-label="messages.nextChapter"
-                                :disabled="nextChapter === null"
+                                :disabled="!nextStepUseful"
                                 data-test="afsNextChapter"
                                 data-lmpl-press
                                 @click="skipChapter(1)"
